@@ -1,0 +1,17 @@
+package com.experterp.backend.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class LoginResponse {
+    private String token;
+    private Long userId;
+    private String username;
+    private String email;
+    private String role;
+    private Long tenantId;
+    private String tenantName;
+    private String tenantSlug;
+}
