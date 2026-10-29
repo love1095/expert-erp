@@ -32,6 +32,10 @@ public class SaleOrderLine {
     @Column(precision = 18, scale = 4)
     private BigDecimal unitPrice;
 
+    // The source system's id for this line (Shopify line item id), for sending shipments back
+    @Column(length = 100)
+    private String externalLineId;
+
     // Invariant (DB check constraint): fulfilled + cancelled <= quantity, returned <= fulfilled
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal fulfilledQuantity = BigDecimal.ZERO;

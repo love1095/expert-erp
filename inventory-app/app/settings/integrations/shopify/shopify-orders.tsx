@@ -94,7 +94,7 @@ export default function ShopifyOrders({ conn }: { conn: ShopifyConnection }) {
           <div>
             <label htmlFor="shopify-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Ship Shopify orders from</label>
             <select id="shopify-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} className={INPUT}>
-              <option value="">First warehouse ({warehouses[0]?.name ?? "none yet"})</option>
+              <option value="">Not chosen — uses {conn.fallbackWarehouseName ?? "the first warehouse created"}</option>
               {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>

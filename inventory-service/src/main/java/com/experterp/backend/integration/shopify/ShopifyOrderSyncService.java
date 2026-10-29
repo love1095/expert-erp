@@ -34,8 +34,9 @@ public class ShopifyOrderSyncService {
                 nodes {
                   id name createdAt cancelledAt displayFinancialStatus currencyCode email phone
                   customer { id firstName lastName }
+                  shippingAddress { name address1 address2 city zip country phone }
                   lineItems(first: 100) {
-                    nodes { sku title quantity discountedUnitPriceAfterAllDiscountsSet { shopMoney { amount } } }
+                    nodes { id sku title quantity discountedUnitPriceAfterAllDiscountsSet { shopMoney { amount } } }
                   }
                 }
               }

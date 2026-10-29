@@ -105,6 +105,7 @@ public class ShopifyOrderImporter {
             line.setProduct(product.get());
             line.setQuantity(l.quantity());
             line.setUnitPrice(l.unitPrice());
+            line.setExternalLineId(l.id());
             so.getLines().add(line);
         }
         if (so.getLines().isEmpty() && issues.isEmpty()) issues.add("the order has no items");
@@ -142,8 +143,10 @@ public class ShopifyOrderImporter {
             Optional<Customer> known = customerRepository.findBySourceAndExternalId(Customer.Source.SHOPIFY, sc.id());
             if (known.isPresent()) return known.get();
         }
+        ShopifyOrder.Address ship = o.shippingAddress();
         String email = sc != null && sc.email() != null ? sc.email() : o.email();
-        String phone = sc != null && sc.phone() != null ? sc.phone() : o.phone();
+        String phone = sc != null && sc.phone() != null ? sc.phone() : o.phone() != null ? o.phone()
+                : ship != null ? ship.phone() : null;
         if (email != null) {
             List<Customer> byEmail = customerRepository.findByContactEmail(email, PageRequest.of(0, 1));
             if (!byEmail.isEmpty()) return byEmail.get(0);
@@ -155,6 +158,7 @@ public class ShopifyOrderImporter {
         c.setSource(Customer.Source.SHOPIFY);
         c.setExternalId(sc != null ? sc.id() : null);
         c.setCurrency(o.currency());
+        if (ship != null) c.setAddress(ship.formatted());
         if (email != null || phone != null) {
             CustomerContact contact = new CustomerContact();
             contact.setName(name);

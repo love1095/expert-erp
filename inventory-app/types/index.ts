@@ -215,6 +215,11 @@ export interface SaleOrderEntryLine {
 export interface SaleOrderFulfilment {
   id: number;
   notes?: string;
+  trackingCompany?: string;
+  trackingNumber?: string;
+  // Shopify orders only
+  syncStatus?: "PENDING" | "SYNCED" | "FAILED";
+  syncMessage?: string;
   createdBy?: string;
   createdAt: string;
   lines: SaleOrderEntryLine[];
@@ -259,6 +264,8 @@ export interface SaleOrder {
 export interface FulfilmentRequest {
   idempotencyKey?: string;
   notes?: string;
+  trackingCompany?: string;
+  trackingNumber?: string;
   lines?: { saleOrderLineId: number; quantity: number }[];
 }
 
@@ -376,6 +383,8 @@ export interface ShopifyConnection {
   apiVersion: string;
   defaultWarehouseId?: number;
   defaultWarehouseName?: string;
+  // Used when no warehouse is chosen: the oldest one
+  fallbackWarehouseName?: string;
   publicUrl?: string;
   webhookUrl?: string;
   webhooksRegisteredAt?: string;

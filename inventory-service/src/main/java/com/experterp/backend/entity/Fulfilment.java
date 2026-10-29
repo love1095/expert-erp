@@ -38,9 +38,31 @@ public class Fulfilment {
     @Column
     private String createdBy;
 
+    @Column(length = 100)
+    private String trackingCompany;
+
+    @Column
+    private String trackingNumber;
+
+    // Sending this shipment to the order's source system (Shopify); null when the order has none
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private SyncStatus externalSyncStatus;
+
+    // e.g. the Shopify fulfillment id
+    @Column(length = 100)
+    private String externalId;
+
+    @Column(columnDefinition = "TEXT")
+    private String externalSyncMessage;
+
+    private LocalDateTime externalSyncedAt;
+
     @OneToMany(mappedBy = "fulfilment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FulfilmentLine> lines = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    public enum SyncStatus { PENDING, SYNCED, FAILED }
 }

@@ -1,5 +1,6 @@
 package com.experterp.backend.dto;
 
+import com.experterp.backend.entity.Fulfilment;
 import com.experterp.backend.entity.SaleOrder;
 import com.experterp.backend.entity.SaleOrder.FulfilmentStatus;
 import com.experterp.backend.entity.SaleOrder.Status;
@@ -50,6 +51,11 @@ public class SaleOrderResponse {
     public static class FulfilmentEntry {
         private Long id;
         private String notes;
+        private String trackingCompany;
+        private String trackingNumber;
+        // Shopify orders only: PENDING / SYNCED / FAILED, with the error or a note
+        private Fulfilment.SyncStatus syncStatus;
+        private String syncMessage;
         private String createdBy;
         private LocalDateTime createdAt;
         private List<EntryLine> lines;

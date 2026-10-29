@@ -39,6 +39,7 @@ public class ShopifyConnectionService {
     private final ShopifyClient client;
     private final SecretCipher cipher;
     private final AuditService auditService;
+    private final com.experterp.backend.repository.WarehouseRepository warehouseRepository;
 
     public record SaveRequest(String shopDomain, String clientId, String clientSecret) {}
 
@@ -47,7 +48,7 @@ public class ShopifyConnectionService {
             List<String> grantedScopes, List<String> missingScopes, String lastError,
             LocalDateTime lastCheckedAt, LocalDateTime tokenExpiresAt, String apiVersion,
             // order import (7.2)
-            Long defaultWarehouseId, String defaultWarehouseName, String publicUrl, String webhookUrl,
+            Long defaultWarehouseId, String defaultWarehouseName, String fallbackWarehouseName, String publicUrl, String webhookUrl,
             LocalDateTime webhooksRegisteredAt, List<String> webhookTopics, LocalDateTime lastImportAt) {}
 
     @Transactional(readOnly = true)
@@ -162,7 +163,9 @@ public class ShopifyConnectionService {
         return new ConnectionView(c.getShopDomain(), c.getClientId(), c.getClientSecretEncrypted() != null, c.getStatus(),
                 c.getShopName(), c.getShopCurrency(), granted, missing, c.getLastError(), c.getLastCheckedAt(),
                 c.getTokenExpiresAt(), client.apiVersion(),
-                wh == null ? null : wh.getId(), wh == null ? null : wh.getName(), c.getPublicUrl(),
+                wh == null ? null : wh.getId(), wh == null ? null : wh.getName(),
+                // Same rule as ShopifyOrderImporter: no warehouse chosen = the oldest one
+                warehouseRepository.findFirstByOrderByIdAsc().map(w -> w.getName()).orElse(null), c.getPublicUrl(),
                 c.getPublicUrl() == null ? null : c.getPublicUrl() + ShopifyOrderSyncService.WEBHOOK_PATH,
                 c.getWebhooksRegisteredAt(),
                 c.getWebhookTopics() == null ? List.of() : List.of(c.getWebhookTopics().split(",")),

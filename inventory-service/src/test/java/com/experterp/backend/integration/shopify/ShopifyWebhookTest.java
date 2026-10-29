@@ -204,6 +204,22 @@ class ShopifyWebhookTest {
     }
 
     @Test
+    void phoneAndAddressComeFromTheShippingAddressWhenTheCustomerHasNone() throws Exception {
+        // Like a real checkout: the phone is only on the shipping address
+        String body = order(1010, "paid", "GBP", customer(91, "Tina", "Tinh", "tina@buyer.test"), line(helmetSku, "Helmet", 1, "1", null))
+                .replace("\"line_items\"", "\"shipping_address\":{\"name\":\"Tina Tinh\",\"address1\":\"10 Downing Street\",\"address2\":null,"
+                        + "\"city\":\"London\",\"zip\":\"SW1A 2AA\",\"country\":\"United Kingdom\",\"phone\":\"+447700900123\"},\"line_items\"");
+        send("orders/create", "evt-ship", body).andExpect(status().isOk());
+
+        asTenant(() -> {
+            Customer c = saleOrderRepository.findBySourceAndExternalId(SaleOrder.Source.SHOPIFY, "1010").orElseThrow().getCustomer();
+            assertThat(c.getContacts()).singleElement().satisfies(cc -> assertThat(cc.getPhone()).isEqualTo("+447700900123"));
+            assertThat(c.getAddress()).isEqualTo("10 Downing Street\nLondon\nSW1A 2AA\nUnited Kingdom");
+            return null;
+        });
+    }
+
+    @Test
     void forgedOrMisaddressedWebhooksAreRejectedAndNothingIsStored() throws Exception {
         String body = order(1009, "paid", "GBP", null, line(helmetSku, "Helmet", 1, "1", null));
         mvc.perform(post("/api/webhooks/shopify").contentType(MediaType.APPLICATION_JSON).content(body)

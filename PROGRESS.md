@@ -235,9 +235,20 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Verified with a real checkout on expertsafety-dev (test gateway): order #1001 arrived via webhook within a second, imported as DRAFT / needs review (sample product not in the ERP), customer created from Shopify
 - [x] Tests: `ShopifyWebhookTest` (8), `ShopifyConnectionServiceTest` +4 (import, webhook registration, refused topic, public address); E2E SHP-004…SHP-008 (50 cases total)
 
+### 7.3 Fulfilment back to Shopify ✅
+- [x] Shipping a Shopify order in the ERP creates a **Shopify fulfillment** (`fulfillmentCreate`, `notifyCustomer: true`): Shopify marks the items fulfilled and emails the customer
+- [x] Optional **carrier + tracking number** on the ship form, stored on the shipment and passed to Shopify
+- [x] Imported lines keep Shopify's line item id (`V8`); each shipped quantity is allocated over the order's open fulfillment-order lines — partial shipments become separate fulfillments; items already fulfilled in Shopify are skipped with a note
+- [x] Sent **after the ERP transaction commits** (`FulfilmentCreatedEvent` + after-commit listener): the shipment and stock movement stand even if Shopify is down
+- [x] Outcome on each shipment: Sending… / ✓ Sent to Shopify / ✕ Not sent (reason) + **Retry** (`POST /sale-orders/{id}/fulfilments/{fid}/shopify-sync`); never sent twice; audited as `SHOPIFY_FULFILLMENT` by `INTEGRATION / shopify`
+- [x] Phone and address taken from the order's shipping address when the customer record has none
+- [x] Verified with a real order: #1003 shipped in the ERP with tracking → Shopify fulfillment created within a second
+- [x] Tests: `ShopifyFulfilmentSyncTest` (4, fake Shopify with fulfillment orders), webhook test for shipping address; E2E SHP-009 (51 cases total)
+- [x] Fixed along the way: browser autofill put an email into the Carrier field (autofill off); the Shopify page now names the warehouse actually used when none is chosen (the oldest), not the alphabetically first
+
 ### Next
-- [ ] Take phone and address from the order's shipping address when the customer record has none
-- [ ] 7.3 Fulfilment back to Shopify · 7.4 cancellations / returns · 7.5 reliability (retry failed events, reconciliation, background processing) · 7.6 stock sync
+- [ ] 7.4 cancellations / returns · 7.5 reliability (retry failed events, reconciliation, background processing) · 7.6 stock sync
+- [ ] Products: a check page for SKUs missing on either side, and/or publishing ERP products to Shopify (needs `write_products`) — to decide
 
 ---
 
@@ -295,6 +306,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/integrations/shopify/import?days=` | Catch-up import of recent orders |
 | GET  | `/integrations/shopify/events` | Latest webhook deliveries |
 | POST | `/webhooks/shopify` | Shopify webhooks (public; HMAC-signed) |
+| POST | `/sale-orders/{id}/fulfilments/{fid}/shopify-sync` | Send a shipment of a Shopify order to Shopify again |
 | GET  | `/dashboard` | Dashboard figures for the last `days` days (default 30) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | List tenants (SUPER_ADMIN) |
@@ -312,5 +324,5 @@ Agreed order (each phase is done when its feature works, its tests are written, 
 1. ~~**Persistent JWT / secret key**~~ ✅ done — see Cross-cutting
 2. ~~**Phase 8 — Customers**~~ ✅ done — see Phase 8 (Cin7 layout + CSV import)
 3. ~~**Phase 6 — Dashboard**~~ ✅ done — see Phase 6
-4. **Phase 7 — Shopify integration** 🔄 (~~7.1 connection~~ ✅ → ~~7.2 order import~~ ✅ → 7.3 fulfilment → 7.4 cancellations/returns → 7.5 reliability → 7.6 stock sync). Shopify access tokens get their own encryption key, handled like `APP_JWT_SECRET`
+4. **Phase 7 — Shopify integration** 🔄 (~~7.1 connection~~ ✅ → ~~7.2 order import~~ ✅ → ~~7.3 fulfilment~~ ✅ → 7.4 cancellations/returns → 7.5 reliability → 7.6 stock sync). Shopify access tokens get their own encryption key, handled like `APP_JWT_SECRET`
 5. Then: Stripe billing, notifications, custom fields (former Phase 4), advanced inventory, purchasing, reporting; production hardening throughout

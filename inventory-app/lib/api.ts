@@ -89,6 +89,9 @@ export const confirmSaleOrder = (id: number) => api.post(`/sale-orders/${id}/con
 export const fulfillSaleOrder = ({ id, data }: { id: number; data?: FulfilmentRequest }) =>
   api.post(`/sale-orders/${id}/fulfill`, data).then(r => r.data);
 export const cancelSaleOrder  = (id: number) => api.post(`/sale-orders/${id}/cancel`).then(r => r.data);
+// Send a shipment of a Shopify order to Shopify again
+export const retryShopifyFulfilment = ({ id, fulfilmentId }: { id: number; fulfilmentId: number }) =>
+  api.post(`/sale-orders/${id}/fulfilments/${fulfilmentId}/shopify-sync`).then(r => r.data);
 export const createSaleReturn = ({ id, data }: { id: number; data: SaleReturnRequest }) =>
   api.post(`/sale-orders/${id}/returns`, data).then(r => r.data);
 

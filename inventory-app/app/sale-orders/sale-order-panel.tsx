@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn } from "@/lib/api";
+import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn, retryShopifyFulfilment } from "@/lib/api";
 import { SaleOrder, SaleOrderLine, Warehouse } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 
@@ -21,12 +21,15 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
   const { data: order, isLoading } = useQuery<SaleOrder>({
     queryKey: ["sale-order", orderId],
     queryFn: () => getSaleOrder(orderId),
+    // A shipment is sent to Shopify just after it is saved: check back until the outcome is known
+    refetchInterval: q => (q.state.data?.fulfilments?.some(f => f.syncStatus === "PENDING") ? 2000 : false),
   });
 
   const [mode, setMode] = useState<Mode>("view");
   const [amounts, setAmounts] = useState<Record<number, string>>({});
   const [restock, setRestock] = useState<Record<number, boolean>>({});
   const [notes, setNotes] = useState("");
+  const [tracking, setTracking] = useState({ company: "", number: "" });
   const [returnWarehouseId, setReturnWarehouseId] = useState("");
   const [submitKey, setSubmitKey] = useState(newKey);
   const [error, setError] = useState("");
@@ -47,7 +50,9 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
   const cancelMutation  = useMutation({ mutationFn: cancelSaleOrder,  onSuccess: onDone, onError: onFail });
   const shipMutation    = useMutation({ mutationFn: fulfillSaleOrder, onSuccess: onDone, onError: onFail });
   const returnMutation  = useMutation({ mutationFn: createSaleReturn, onSuccess: onDone, onError: onFail });
-  const busy = confirmMutation.isPending || cancelMutation.isPending || shipMutation.isPending || returnMutation.isPending;
+  const retryMutation   = useMutation({ mutationFn: retryShopifyFulfilment, onSuccess: onDone, onError: onFail });
+  const busy = confirmMutation.isPending || cancelMutation.isPending || shipMutation.isPending || returnMutation.isPending
+    || retryMutation.isPending;
 
   if (isLoading || !order) return <p className="text-gray-400 text-sm px-2 py-3">Loading order...</p>;
 
@@ -67,6 +72,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
     setAmounts(prefill);
     setRestock(Object.fromEntries(order.lines.map(l => [l.id, true])));
     setNotes("");
+    setTracking({ company: "", number: "" });
     setReturnWarehouseId(String(order.warehouseId));
     setSubmitKey(newKey());
     setError("");
@@ -89,6 +95,8 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
       shipMutation.mutate({ id: order.id, data: {
         idempotencyKey: submitKey,
         notes: notes || undefined,
+        trackingCompany: tracking.company || undefined,
+        trackingNumber: tracking.number || undefined,
         lines: chosen.map(x => ({ saleOrderLineId: x.line.id, quantity: x.quantity })),
       }});
     } else {
@@ -211,9 +219,23 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-48">
               <label htmlFor="so-panel-notes" className="block text-xs font-medium text-gray-600 mb-1">{mode === "ship" ? "Shipment notes" : "Reason"}</label>
-              <input id="so-panel-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
+              <input id="so-panel-notes" autoComplete="off" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
                 className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
             </div>
+            {mode === "ship" && (
+              <>
+                <div>
+                  <label htmlFor="so-panel-carrier" className="block text-xs font-medium text-gray-600 mb-1">Carrier</label>
+                  <input id="so-panel-carrier" autoComplete="off" value={tracking.company} onChange={e => setTracking({ ...tracking, company: e.target.value })}
+                    placeholder="e.g. Royal Mail" className="w-36 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+                </div>
+                <div>
+                  <label htmlFor="so-panel-tracking" className="block text-xs font-medium text-gray-600 mb-1">Tracking number</label>
+                  <input id="so-panel-tracking" autoComplete="off" value={tracking.number} onChange={e => setTracking({ ...tracking, number: e.target.value })}
+                    placeholder="Optional" className="w-44 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+                </div>
+              </>
+            )}
             {mode === "return" && (
               <div>
                 <label htmlFor="sale-orders-return-to-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Return to warehouse</label>
@@ -230,6 +252,11 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
             <button type="button" onClick={() => { setMode("view"); setError(""); }}
               className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1.5">Close</button>
           </div>
+        )}
+        {mode === "ship" && order.source === "SHOPIFY" && (
+          <p className="text-xs text-gray-400">
+            This shipment is also sent to Shopify, which marks the items fulfilled and emails the customer (with the tracking number, if given).
+          </p>
         )}
         {mode === "return" && (
           <p className="text-xs text-gray-400">
@@ -249,7 +276,23 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                 <span className="text-gray-700">{f.lines.map(l => `${qty(l.quantity)} × ${l.productSku}`).join(", ")}</span>
                 <span className="text-gray-400 text-xs self-center">
                   <ClientDate iso={f.createdAt} showTime /> · {f.createdBy}{f.notes ? ` · ${f.notes}` : ""}
+                  {f.trackingNumber && ` · ${f.trackingCompany ? `${f.trackingCompany} ` : ""}${f.trackingNumber}`}
                 </span>
+                {f.syncStatus && (
+                  <span data-testid={`shipment-sync-${f.id}`} className="text-xs self-center">
+                    {f.syncStatus === "SYNCED" && <span className="text-emerald-700">✓ Sent to Shopify{f.syncMessage ? ` (${f.syncMessage})` : ""}</span>}
+                    {f.syncStatus === "PENDING" && <span className="text-gray-500">Sending to Shopify…</span>}
+                    {f.syncStatus === "FAILED" && (
+                      <>
+                        <span className="text-red-600">✕ Not sent to Shopify: {f.syncMessage}</span>
+                        <button type="button" disabled={busy} onClick={() => retryMutation.mutate({ id: order.id, fulfilmentId: f.id })}
+                          className="ml-2 text-xs font-medium text-rose-600 hover:text-rose-800 disabled:opacity-50">
+                          {retryMutation.isPending ? "Retrying..." : "Retry"}
+                        </button>
+                      </>
+                    )}
+                  </span>
+                )}
               </li>
             ))}
             {order.returns?.map(r => (

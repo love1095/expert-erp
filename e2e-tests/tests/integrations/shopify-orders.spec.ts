@@ -84,6 +84,42 @@ test.describe('Shopify order import', () => {
       await expect(page.getByTestId('shopify-events')).toContainText('No warehouse exists');
     });
 
+  test('SHP-009 shipping a Shopify order sends it to Shopify; if Shopify is unreachable the shipment stands and can be retried', { tag: ['@P1', '@shopify', '@integrations', '@external'] },
+    async ({ page, api, warehouses }) => {
+      const helmet = await api.createProduct({ name: 'Helmet' });
+      await api.addStock(helmet, warehouses.main, 10);
+      const shop = await connectFakeShop(api);   // a made-up store: Shopify cannot be reached for it
+      const orderNo = Date.now() % 1_000_000_000;
+      const order = shopifyOrder(orderNo, [{ sku: helmet.sku, title: 'Helmet', quantity: 2, price: '25.00' }]);
+      (order.line_items[0] as Record<string, unknown>).id = 777;
+      expect((await sendWebhook(shop, 'orders/create', order)).status()).toBe(200);
+
+      await page.goto('/sale-orders');
+      const row = page.locator('[data-testid^="so-row-"]', { hasText: `Shopify #${orderNo}` });
+      const id = Number((await row.getAttribute('data-testid'))!.replace('so-row-', ''));
+      await row.getByRole('button', { name: 'Manage' }).click();
+      const panel = page.getByTestId(`so-panel-${id}`);
+      await panel.getByRole('button', { name: 'Ship items' }).click();
+      await expect(panel.getByText('also sent to Shopify')).toBeVisible();
+      await panel.getByLabel('Carrier').fill('Royal Mail');
+      await panel.getByLabel('Tracking number').fill('RM123456789GB');
+      await panel.getByRole('button', { name: 'Ship & deduct stock' }).click();
+
+      // The ERP side is done: stock left, order completed, tracking recorded
+      await expect(row).toContainText('COMPLETED', { timeout: 30_000 });
+      expect(await api.stock(helmet, warehouses.main)).toBe(8);
+      await expect(panel).toContainText('Royal Mail RM123456789GB');
+
+      const sync = panel.locator('[data-testid^="shipment-sync-"]');
+      await expect(sync).toContainText('Not sent to Shopify');
+      await expect(sync.getByRole('button', { name: 'Retry' })).toBeVisible();
+
+      // Retrying cannot succeed for a made-up store, but it must not ship twice
+      await sync.getByRole('button', { name: 'Retry' }).click();
+      await expect(sync).toContainText('Not sent to Shopify', { timeout: 30_000 });
+      expect(await api.stock(helmet, warehouses.main)).toBe(8);
+    });
+
   test('SHP-006 a webhook with a wrong signature is refused and creates nothing', { tag: ['@P0', '@shopify', '@integrations', '@security', '@external'] },
     async ({ api }) => {
       const helmet = await api.createProduct();

@@ -1,6 +1,7 @@
 package com.experterp.backend.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
@@ -15,6 +16,12 @@ public class FulfilmentRequest {
     private String idempotencyKey;
 
     private String notes;
+
+    // Optional; sent to Shopify for orders that came from there
+    @Size(max = 100)
+    private String trackingCompany;
+    @Size(max = 255)
+    private String trackingNumber;
 
     // Empty or missing = ship everything still remaining
     @Valid

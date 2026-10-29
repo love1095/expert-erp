@@ -199,6 +199,11 @@ class ShopifyConnectionServiceTest {
         p.setUnit("pcs");
         productRepository.save(p);
         service.save(new ShopifyConnectionService.SaveRequest(shop, "good-client", "good-secret"));
+        // With no warehouse chosen, the page names the one imports will use: the oldest
+        com.experterp.backend.entity.Warehouse newer = new com.experterp.backend.entity.Warehouse();
+        newer.setName("AAA newer " + UUID.randomUUID());
+        warehouseRepository.save(newer);
+        assertThat(service.get().orElseThrow().fallbackWarehouseName()).isEqualTo(wh.getName());
         syncService.updateSettings(new ShopifyOrderSyncService.Settings(wh.getId(), null));
 
         var first = syncService.importRecent(30);

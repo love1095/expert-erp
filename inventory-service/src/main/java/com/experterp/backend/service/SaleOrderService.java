@@ -8,7 +8,9 @@ import com.experterp.backend.entity.*;
 import com.experterp.backend.entity.SaleOrder.Status;
 import com.experterp.backend.entity.StockMovement.MovementType;
 import com.experterp.backend.entity.StockMovement.ReferenceType;
+import com.experterp.backend.event.FulfilmentCreatedEvent;
 import com.experterp.backend.exception.ResourceNotFoundException;
+import com.experterp.backend.multitenancy.TenantContext;
 import com.experterp.backend.repository.FulfilmentRepository;
 import com.experterp.backend.repository.SaleOrderRepository;
 import com.experterp.backend.repository.SaleReturnRepository;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +52,7 @@ public class SaleOrderService {
     private final CustomerService customerService;
     private final StockMovementService movementService;
     private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public Page<SaleOrderResponse> findAll(Long customerId, int page, int size) {
@@ -141,7 +145,11 @@ public class SaleOrderService {
         f.setSaleOrder(so);
         f.setIdempotencyKey(key);
         f.setNotes(req != null ? req.getNotes() : null);
+        f.setTrackingCompany(req != null ? blankToNull(req.getTrackingCompany()) : null);
+        f.setTrackingNumber(req != null ? blankToNull(req.getTrackingNumber()) : null);
         f.setCreatedBy(auditService.currentActorName());
+        // Shopify orders: the shipment is sent to Shopify once this transaction has committed
+        if (so.getSource() == SaleOrder.Source.SHOPIFY) f.setExternalSyncStatus(Fulfilment.SyncStatus.PENDING);
         toShip.forEach(s -> {
             FulfilmentLine fl = new FulfilmentLine();
             fl.setFulfilment(f);
@@ -171,6 +179,9 @@ public class SaleOrderService {
                 "fulfilmentId", f.getId(),
                 "lines", describe(toShip),
                 "fulfilmentStatus", so.getFulfilmentStatus()));
+        if (f.getExternalSyncStatus() != null) {
+            eventPublisher.publishEvent(new FulfilmentCreatedEvent(TenantContext.get(), so.getId(), f.getId()));
+        }
         return toDetailResponse(so);
     }
 
@@ -365,6 +376,10 @@ public class SaleOrderService {
             SaleOrderResponse.FulfilmentEntry e = new SaleOrderResponse.FulfilmentEntry();
             e.setId(f.getId());
             e.setNotes(f.getNotes());
+            e.setTrackingCompany(f.getTrackingCompany());
+            e.setTrackingNumber(f.getTrackingNumber());
+            e.setSyncStatus(f.getExternalSyncStatus());
+            e.setSyncMessage(f.getExternalSyncMessage());
             e.setCreatedBy(f.getCreatedBy());
             e.setCreatedAt(f.getCreatedAt());
             e.setLines(f.getLines().stream()
