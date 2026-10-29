@@ -22,6 +22,7 @@ const nav = [
     { href: "/products",   label: "Products" },
     { href: "/warehouses", label: "Warehouses" },
     { href: "/suppliers",  label: "Suppliers" },
+    { href: "/customers",  label: "Customers" },
   ]},
   { label: "MOVEMENTS",   items: [
     { href: "/stock-movements", label: "Movements Log" },
@@ -41,6 +42,7 @@ const nav = [
   ]},
   { label: "SETTINGS",   items: [
     { href: "/settings/subscription", label: "Subscription" },
+    { href: "/settings/integrations", label: "Integrations" },
   ]},
 ];
 

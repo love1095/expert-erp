@@ -28,9 +28,32 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory_db
       SPRING_DATASOURCE_USERNAME: inventory
       SPRING_DATASOURCE_PASSWORD: inventory123
+      # Login token signing key — set in .env (see .env.example)
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET is not set - copy .env.example to .env}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is not set - see .env.example}
     depends_on:
       postgres:
         condition: service_healthy
+
+  # ---- Shopify webhooks while developing: `make tunnel` (not started by `make up`) ----
+  # A temporary public https address (Cloudflare quick tunnel) → gateway → backend.
+  # The gateway only passes POST /api/webhooks/shopify; everything else answers 404.
+  webhook-gateway:
+    image: nginx:1.27-alpine
+    container_name: erp-webhook-gateway
+    profiles: ["shopify-dev"]
+    volumes:
+      - ./infra/webhook-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - inventory-service
+
+  tunnel:
+    image: cloudflare/cloudflared:2024.12.2
+    container_name: erp-tunnel
+    profiles: ["shopify-dev"]
+    command: tunnel --no-autoupdate --url http://webhook-gateway:8089
+    depends_on:
+      - webhook-gateway
 
 volumes:
   postgres_data:

@@ -7,7 +7,7 @@
 | Backend | Spring Boot 3.5, Hibernate 6.6, Spring Security (JWT), Spring Data JPA |
 | Database | PostgreSQL 16 (Docker) |
 | Frontend | Next.js 16 (App Router, React 19), React Query v5, Axios, Tailwind CSS |
-| Infra | Docker Compose, multi-stage Dockerfile, Makefile (`make up`) |
+| Infra | Docker Compose, multi-stage Dockerfile, Makefile (`make up`); secrets in a git-ignored `.env` (copy `.env.example`) |
 | Schema | Flyway migrations (`inventory-service/src/main/resources/db/migration`), Hibernate `ddl-auto=validate` |
 | Tests | Backend: JUnit 5 + Testcontainers (throwaway Postgres 16). End-to-end: Playwright (`e2e-tests/`) |
 | CI | GitHub Actions (`.github/workflows/ci.yml`): backend tests + end-to-end tests on every push / PR to `main` |
@@ -145,7 +145,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Fixtures: logged-in `page`, tenant `api` client, `warehouses`; page helpers in `fixtures/pages/` (e.g. `SaleOrdersPage`)
 - [x] Test case IDs + tags in titles (`SO-004 … @P0 @sale-orders`); `npm run catalog` exports every case to JSON
 - [x] Reports: HTML (`npm run report`), interactive UI mode (`npm run test:ui`), JSON (`test-results/results.json`)
-- [x] **30 test cases**: AUTH (5), PRD (2), STK (3), PO (1), SO (7), SEC (5), MT multi-tenant (4), PLAN (2), AUD (1)
+- [x] **30 test cases** at the time: AUTH (5), PRD (2), STK (3), PO (1), SO (7), SEC (5), MT multi-tenant (4), PLAN (2), AUD (1)
 
 ### CI
 - [x] GitHub Actions: backend JUnit + Testcontainers job; end-to-end job (Docker Compose backend, built frontend, Playwright) with the HTML report uploaded as an artifact
@@ -159,9 +159,91 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
+## Phase 8 — Customers ✅
+
+> Goal: customers as real records in the Cin7 Core layout, so existing Cin7 data can be imported and Shopify orders can attach to a customer.
+
+### Backend
+- [x] `Customer` (`V4__customers.sql`, `V5__customer_details.sql`), tenant-isolated, fields as in the Cin7 export: status (Active / Deprecated), currency, payment term, tax rule, tax number, price tier, discount, credit limit, accounting codes, carrier, sales rep, location, tags, address, comments
+- [x] **Contacts** (`customer_contacts`, 0..n per customer): name, job title, phone, mobile, fax, email, website, comment, include-in-email, marketing consent; exactly one default contact, listed first
+- [x] `source` (`MANUAL` / `SHOPIFY`) + `external_id`, unique per tenant + source — an integration finds the customer it imported before
+- [x] Sale orders link to a customer (`customer_id`, required); `customer_name` stays as the name **at order time**
+- [x] Migration turned each distinct customer name on existing orders into a customer, per tenant, and linked the orders
+- [x] Create order with `customerId`, or with `customerName` only: reuses the oldest customer with that name (ignoring case), else creates one
+- [x] `/customers` CRUD; search matches customer name and contact name / email / phone; order counts; customers with orders cannot be deleted (422 — set Deprecated instead)
+- [x] **Cin7 CSV import** (`POST /customers/import`, ADMIN/MANAGER): rows grouped by name (Cin7 writes one row per contact); existing customers updated, others created; re-import is safe; columns missing from the file keep existing values; cleans spreadsheet `'` on phones and `2,500.00` amounts; per-row warnings instead of failing the whole file
+- [x] `/sale-orders?customerId=` filter; customer create / update / delete / import are audited (`CUSTOMER`)
+
+### Frontend
+- [x] Customers page (MASTER DATA): Cin7 fields, contacts editor (default contact radio), search, Deprecated status, expandable recent orders, **Import CSV** with a result summary and warnings
+- [x] Sale order form: customer field suggests active customers; a new name is flagged and created on save
+
+### Data
+- [x] Local dev DB: `Customers_2026-10-29.csv` imported into the Expert Safety tenant — 885 rows → 332 customers, 876 contacts (counts checked against the file). The CSV itself is not in the repo
+
+### Tests
+- [x] Backend: `CustomerServiceTest` (7), `CustomerImportServiceTest` (4, made-up Cin7-shaped fixture: multi-line comment, `'` phones, thousands separators, Deprecated, re-import, case-insensitive match, wrong file)
+- [x] E2E: CUS-001…CUS-008 (38 cases total)
+
+---
+
+## Phase 6 — Dashboard ✅
+
+> Goal: one screen showing the state of stock, orders and sales.
+
+### Backend
+- [x] `GET /dashboard?days=7|30|90` (1–365) — one call, native SQL with an explicit tenant filter on every query
+- [x] KPIs: sales value and order count for the period (cancelled orders and cancelled quantities excluded), orders to ship, drafts to confirm, stock value at cost, low-stock products (below their minimum across all warehouses), units shipped, unpaid sales invoices (issued minus payments), active customers, orders by status
+- [x] Per-day series with every day present: orders, sales value, units in / out (warehouse transfers excluded — they don't change total stock)
+- [x] Top 5 products shipped, 10 lowest-stock products (furthest below minimum first), 5 most recent orders
+
+### Frontend
+- [x] Dashboard home page: period switch (7 / 30 / 90 days), KPI tiles linking to their pages, sales-per-day bars, units in/out bars on one shared scale, top products, low stock, recent orders
+- [x] Charts are plain HTML (no chart library): hover tooltip per day, legend, "Show as table" view; colours from a palette checked for colour-blind separation and contrast
+
+### Tests
+- [x] Backend: `DashboardServiceTest` (2) — exact figures for known data, another tenant's data never counted, empty tenant
+- [x] E2E: DSH-001…DSH-004 (42 cases total)
+
+---
+
+## Phase 7 — Shopify integration 🔄
+
+> Goal: Shopify orders flow into the ERP; fulfilments, cancellations, returns and stock flow back.
+
+### 7.1 Connection ✅
+- [x] **Settings → Integrations** page (one card per integration, with status) → **Shopify** page: store address, client ID, client secret; **Save & test connection**, **Test connection**, change credentials, disconnect
+- [x] Uses a Shopify **Dev Dashboard app** with the **client credentials grant** (legacy admin-created custom apps can't be made since 2026-01-01). Access tokens last 24 h; cached and renewed 10 minutes before expiry (`ShopifyConnectionService.accessToken()`)
+- [x] `shopify_connections` (`V6`): one store per tenant; a shop domain can belong to only one tenant (also the lookup for webhooks later)
+- [x] Client secret and access token encrypted with AES-256-GCM using **`APP_ENCRYPTION_KEY`** (separate from the JWT key; `.env`, `.env.example`, docker-compose, CI). The secret is never returned by the API; an empty secret on update keeps the saved one
+- [x] Only `*.myshopify.com` addresses accepted (also accepts the handle or the admin URL); readable errors for wrong client ID / secret, store in another organization, unknown store
+- [x] Reports granted scopes and any missing ones; ADMIN only; connect / update / test / disconnect audited (`SHOPIFY`)
+- [x] Verified against the real dev store **expertsafety-dev.myshopify.com**: Connected, all required scopes granted, Admin API 2026-10
+- [x] Tests: `SecretCipherTest` (3), `ShopifyConnectionServiceTest` (7, local fake Shopify — no network); E2E SHP-001…SHP-003 (45 cases total)
+
+### 7.2 Order import ✅
+- [x] **Webhooks** `orders/create`, `orders/updated`, `app/uninstalled` → `POST /api/webhooks/shopify` (public). HMAC-SHA256 signature checked with the tenant's client secret; tenant found from `X-Shopify-Shop-Domain` by `ShopifyWebhookTenantFilter` (before the request's DB session opens)
+- [x] Every delivery stored first (`shopify_webhook_events`, `V7`); repeats of a processed event are skipped; failures answer 500 so Shopify retries; events listed on the Shopify page
+- [x] **Catch-up import** (GraphQL, last 7 / 30 / 60 days) — same import path, safe to repeat
+- [x] Shopify order → sale order: `source=SHOPIFY`, Shopify id + number (`#1001`), unique per tenant (no duplicates even when Shopify sends `updated` before `create`); paid → CONFIRMED, unpaid → DRAFT (confirmed once Shopify reports it paid); line prices after discounts
+- [x] **Needs review**: unknown / missing SKU or non-GBP currency → DRAFT with the reason on the order; "Confirm as it is" clears it (audited); once an order leaves DRAFT, Shopify updates no longer change it (7.3 / 7.4)
+- [x] Customers matched by Shopify id, then by contact email, else created (source Shopify, contact with email / phone)
+- [x] Imports and webhook processing audited as actor `INTEGRATION / shopify`
+- [x] Settings on the Shopify page: warehouse that ships Shopify orders, public address, **Register webhooks** (replaces our older subscriptions, keeps others), **Import orders**, recent deliveries; Shopify errors shown with Shopify's reason (HTTP 502), not "Internal Server Error"
+- [x] Development: `make tunnel` = Cloudflare quick tunnel → nginx gateway (`infra/webhook-gateway.conf`) that only passes `POST /api/webhooks/shopify`; the rest of the API, incl. login, is never public. Docker profile `shopify-dev`, not started by `make up`
+- [x] Shopify app setup needed: **protected customer data** (Name, Email, Phone, Address; reason Store management) — required for order webhooks, no review for dev stores
+- [x] Verified with a real checkout on expertsafety-dev (test gateway): order #1001 arrived via webhook within a second, imported as DRAFT / needs review (sample product not in the ERP), customer created from Shopify
+- [x] Tests: `ShopifyWebhookTest` (8), `ShopifyConnectionServiceTest` +4 (import, webhook registration, refused topic, public address); E2E SHP-004…SHP-008 (50 cases total)
+
+### Next
+- [ ] Take phone and address from the order's shipping address when the customer record has none
+- [ ] 7.3 Fulfilment back to Shopify · 7.4 cancellations / returns · 7.5 reliability (retry failed events, reconciliation, background processing) · 7.6 stock sync
+
+---
+
 ## Cross-cutting (done throughout)
 
-- [x] **JWT authentication** — random key per startup (all old tokens invalid after rebuild)
+- [x] **JWT authentication** — signing key from `APP_JWT_SECRET` (base64, ≥ 32 bytes; local value in git-ignored `.env`, see `.env.example`). Tokens survive restarts; the backend refuses to start without a valid key. Expiry 24 h
 - [x] **401 → redirect to login** — axios interceptor + `AuthContext` validates token on mount via `/auth/me`
 - [x] **402 → plan-limit-exceeded event** — dispatched globally, components can listen
 - [x] **Server-side pagination** — all list endpoints return `Page<T>`; frontend uses `Pagination` component
@@ -186,6 +268,9 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET/POST | `/categories` | List / create categories |
 | GET/POST | `/suppliers` | List / create suppliers |
 | GET/PUT/DELETE | `/suppliers/{id}` | Get / update / delete supplier |
+| GET/POST | `/customers` | List (search, paginated, with order counts) / create customers |
+| GET/PUT/DELETE | `/customers/{id}` | Get / update / delete customer (delete refused if it has orders) |
+| POST | `/customers/import` | Import a Cin7 Core customer CSV (multipart `file`; ADMIN/MANAGER) |
 | GET/POST | `/stock-movements` | List / record movement |
 | POST | `/stock-movements/transfer` | Transfer between warehouses |
 | GET  | `/stock-movements/export/csv` | CSV export |
@@ -193,7 +278,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET/POST | `/purchase-orders` | List / create POs |
 | POST | `/purchase-orders/{id}/receive` | Receive PO → IN movements |
 | POST | `/purchase-orders/{id}/cancel` | Cancel PO |
-| GET/POST | `/sale-orders` | List / create SOs |
+| GET/POST | `/sale-orders` | List (optional `customerId` filter) / create SOs (`customerId`, or `customerName` to reuse/create a customer) |
 | POST | `/sale-orders/{id}/confirm` | DRAFT → CONFIRMED |
 | POST | `/sale-orders/{id}/fulfill` | Ship given line quantities (no body = all remaining) → SALE_OUT movements |
 | POST | `/sale-orders/{id}/cancel` | Cancel SO, or cancel remaining quantities if partly shipped |
@@ -203,6 +288,14 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/invoices/{id}/issue` | DRAFT → ISSUED |
 | POST | `/invoices/{id}/pay` | Record payment |
 | POST | `/invoices/{id}/cancel` | Cancel invoice |
+| GET/PUT/DELETE | `/integrations/shopify` | Shopify connection: view (no secrets) / save + test / disconnect (ADMIN) |
+| POST | `/integrations/shopify/test` | Fetch a fresh token and read the shop |
+| PUT  | `/integrations/shopify/settings` | Warehouse for Shopify orders, public address for webhooks |
+| POST | `/integrations/shopify/webhooks` | Register order webhooks at the public address |
+| POST | `/integrations/shopify/import?days=` | Catch-up import of recent orders |
+| GET  | `/integrations/shopify/events` | Latest webhook deliveries |
+| POST | `/webhooks/shopify` | Shopify webhooks (public; HMAC-signed) |
+| GET  | `/dashboard` | Dashboard figures for the last `days` days (default 30) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | List tenants (SUPER_ADMIN) |
 | PUT  | `/tenants/{id}/toggle` | Enable/disable tenant (SUPER_ADMIN) |
@@ -216,8 +309,8 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 Agreed order (each phase is done when its feature works, its tests are written, all existing tests pass, then this file is updated):
 
-1. **Persistent JWT / secret key** — tokens currently die on every backend restart; Shopify token encryption needs the same secret handling
-2. **Phase 8 — Customers (minimal)** — a Customer entity instead of a free-text name on sale orders
-3. **Phase 6 — Dashboard** — KPI cards and charts from aggregation queries
-4. **Phase 7 — Shopify integration** (7.1 connection → 7.2 order import → 7.3 fulfilment → 7.4 cancellations/returns → 7.5 reliability → 7.6 stock sync)
+1. ~~**Persistent JWT / secret key**~~ ✅ done — see Cross-cutting
+2. ~~**Phase 8 — Customers**~~ ✅ done — see Phase 8 (Cin7 layout + CSV import)
+3. ~~**Phase 6 — Dashboard**~~ ✅ done — see Phase 6
+4. **Phase 7 — Shopify integration** 🔄 (~~7.1 connection~~ ✅ → ~~7.2 order import~~ ✅ → 7.3 fulfilment → 7.4 cancellations/returns → 7.5 reliability → 7.6 stock sync). Shopify access tokens get their own encryption key, handled like `APP_JWT_SECRET`
 5. Then: Stripe billing, notifications, custom fields (former Phase 4), advanced inventory, purchasing, reporting; production hardening throughout

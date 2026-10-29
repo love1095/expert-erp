@@ -43,6 +43,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(402).body(body);
     }
 
+    // Shopify refused or could not be reached; its message says what to fix
+    @ExceptionHandler(com.experterp.backend.integration.shopify.ShopifyApiException.class)
+    public ResponseEntity<Map<String, Object>> handleShopify(com.experterp.backend.integration.shopify.ShopifyApiException ex) {
+        return error(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
         return error(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());

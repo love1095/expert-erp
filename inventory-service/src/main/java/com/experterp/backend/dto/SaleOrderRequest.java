@@ -1,6 +1,7 @@
 package com.experterp.backend.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -12,7 +13,9 @@ import java.util.List;
 @Data
 public class SaleOrderRequest {
 
-    @NotBlank(message = "Customer name is required")
+    // An existing customer; or leave it empty and give customerName to reuse/create a customer by name
+    private Long customerId;
+
     private String customerName;
 
     @NotNull(message = "Warehouse is required")
@@ -22,6 +25,12 @@ public class SaleOrderRequest {
 
     @NotEmpty(message = "At least one line is required")
     private List<Line> lines;
+
+    @JsonIgnore
+    @AssertTrue(message = "Customer is required")
+    public boolean isCustomerGiven() {
+        return customerId != null || (customerName != null && !customerName.isBlank());
+    }
 
     @Data
     public static class Line {

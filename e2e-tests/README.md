@@ -29,7 +29,7 @@ Every test signs up its **own new tenant** (`E2E Org …`) through `/api/auth/re
 ## Conventions
 
 - **Test case ID** at the start of the title: `SO-004 cancelling after a partial shipment ...`. IDs are stable; never reuse one.
-  Prefixes: `AUTH`, `PRD`, `STK`, `PO`, `SO`, `SEC`, `MT` (multi-tenant), `PLAN`, `AUD`.
+  Prefixes: `AUTH`, `PRD`, `CUS`, `DSH`, `SHP`, `STK`, `PO`, `SO`, `SEC`, `MT` (multi-tenant), `PLAN`, `AUD`.
 - **Tags**: priority (`@P0` critical … `@P3`) and module (`@sale-orders`, `@security`, …).
 - **Seed through the API, act through the UI, verify both.** Use `api` (see `fixtures/api.ts`) to create products, stock and orders; click through the screen under test; check results with `api.stock(...)` etc.
 - **Locate elements by role, label or test id** — never by CSS classes.

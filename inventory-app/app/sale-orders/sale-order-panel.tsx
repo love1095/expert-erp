@@ -105,13 +105,23 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
     <div data-testid={`so-panel-${orderId}`} className="bg-gray-50 border-t border-gray-200 px-6 py-5 space-y-5">
       {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
+      {order.needsReview && (
+        <div data-testid={`so-review-${orderId}`} className="text-sm text-amber-900 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
+          <p className="font-semibold">Needs review before shipping</p>
+          <p className="mt-0.5">{order.reviewReason}</p>
+          <p className="mt-1 text-xs text-amber-700">
+            Items not found in the ERP are not on this order. Fix them in Shopify or add the products here, or confirm to accept the order as it is.
+          </p>
+        </div>
+      )}
+
       {/* Actions */}
       {mode === "view" && (
         <div className="flex flex-wrap gap-2">
           {order.status === "DRAFT" && (
             <button disabled={busy} onClick={() => confirmMutation.mutate(order.id)}
               className="bg-sky-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-sky-700 disabled:opacity-50">
-              Confirm order
+              {order.needsReview ? "Confirm as it is" : "Confirm order"}
             </button>
           )}
           {canShip && (

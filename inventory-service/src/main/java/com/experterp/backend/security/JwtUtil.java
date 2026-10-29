@@ -1,6 +1,8 @@
 package com.experterp.backend.security;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -11,11 +13,36 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    @Value("${app.jwt.expiration:86400000}")
-    private long expiration;
+    // HS256 needs at least 256 bits of key material
+    static final int MIN_SECRET_BYTES = 32;
 
-    // New random key on every startup — all tokens from previous runs are immediately invalid
-    private final SecretKey key = Jwts.SIG.HS256.key().build();
+    private final long expiration;
+    private final SecretKey key;
+
+    /**
+     * The signing key comes from configuration (APP_JWT_SECRET, base64) so tokens survive restarts and
+     * every backend instance accepts the same tokens. Startup fails rather than falling back to a random key.
+     */
+    public JwtUtil(@Value("${app.jwt.secret:}") String secret,
+                   @Value("${app.jwt.expiration:86400000}") long expiration) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "app.jwt.secret is not set. Provide APP_JWT_SECRET (base64, at least " + MIN_SECRET_BYTES
+                            + " bytes), e.g. generate one with: openssl rand -base64 48");
+        }
+        byte[] bytes;
+        try {
+            bytes = Decoders.BASE64.decode(secret.trim());
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("app.jwt.secret must be base64-encoded", e);
+        }
+        if (bytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException("app.jwt.secret is too short: " + bytes.length
+                    + " bytes, need at least " + MIN_SECRET_BYTES);
+        }
+        this.key = Keys.hmacShaKeyFor(bytes);
+        this.expiration = expiration;
+    }
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();

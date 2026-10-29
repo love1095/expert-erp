@@ -1,5 +1,6 @@
 package com.experterp.backend.dto;
 
+import com.experterp.backend.entity.SaleOrder;
 import com.experterp.backend.entity.SaleOrder.FulfilmentStatus;
 import com.experterp.backend.entity.SaleOrder.Status;
 import lombok.Data;
@@ -11,12 +12,17 @@ import java.util.List;
 @Data
 public class SaleOrderResponse {
     private Long id;
+    private Long customerId;
     private String customerName;
     private Long warehouseId;
     private String warehouseName;
     private Status status;
     private FulfilmentStatus fulfilmentStatus;
     private String notes;
+    private SaleOrder.Source source;
+    private String externalReference;
+    private boolean needsReview;
+    private String reviewReason;
     private LocalDateTime createdAt;
     private LocalDateTime confirmedAt;
     private LocalDateTime fulfilledAt;

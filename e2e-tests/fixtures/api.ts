@@ -34,11 +34,28 @@ export interface SaleOrderLine {
   remainingQuantity: number;
 }
 
+export interface CustomerContact { name?: string; email?: string; phone?: string; defaultContact: boolean }
+export interface Customer {
+  id: number; name: string; status: 'ACTIVE' | 'DEPRECATED'; orderCount: number; source: 'MANUAL' | 'SHOPIFY';
+  paymentTerm?: string; creditLimit?: number; contacts: CustomerContact[];
+}
+
 export interface SaleOrder {
   id: number;
+  customerId: number;
+  customerName: string;
   status: 'DRAFT' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   fulfilmentStatus: 'UNFULFILLED' | 'PARTIALLY_FULFILLED' | 'FULFILLED';
   lines: SaleOrderLine[];
+}
+
+export interface Dashboard {
+  days: number;
+  kpis: Record<'products' | 'warehouses' | 'customers' | 'stockValue' | 'lowStockProducts' | 'ordersToShip' | 'draftOrders'
+    | 'ordersInPeriod' | 'salesValueInPeriod' | 'unitsShippedInPeriod' | 'receivablesOutstanding', number>;
+  daily: { date: string; orders: number; salesValue: number; unitsIn: number; unitsOut: number }[];
+  topProducts: { sku: string; unitsShipped: number }[];
+  lowStock: { sku: string; stock: number; minStock: number }[];
 }
 
 export const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -55,7 +72,7 @@ export class ErpApi {
 
   // ---- products & stock ----
 
-  async createProduct(overrides: Partial<{ sku: string; name: string; unit: string }> = {}): Promise<Product> {
+  async createProduct(overrides: Partial<{ sku: string; name: string; unit: string; costPrice: number; minStock: number }> = {}): Promise<Product> {
     const id = uid();
     return ok(await this.http.post('/api/products', {
       data: { sku: `E2E-${id}`, name: `E2E product ${id}`, unit: 'pcs', ...overrides },
@@ -92,12 +109,32 @@ export class ErpApi {
     }), 'create purchase order');
   }
 
+  // ---- customers ----
+
+  async createCustomer(overrides: Partial<{ name: string; email: string }> = {}): Promise<Customer> {
+    const { email, ...rest } = overrides;
+    return ok(await this.http.post('/api/customers', {
+      data: { name: `E2E Customer ${uid()}`, contacts: email ? [{ email, defaultContact: true }] : [], ...rest },
+    }), 'create customer');
+  }
+
+  async getCustomer(id: number): Promise<Customer> {
+    return ok(await this.http.get(`/api/customers/${id}`), 'get customer');
+  }
+
+  async findCustomers(search: string): Promise<Customer[]> {
+    const page = await ok<{ content: Customer[] }>(
+      await this.http.get('/api/customers', { params: { search, size: 100 } }), 'search customers');
+    return page.content;
+  }
+
   // ---- sale orders ----
 
-  async createSaleOrder(warehouse: Warehouse, lines: { product: Product; quantity: number }[]): Promise<SaleOrder> {
+  /** Pass a customer to order for it; otherwise the order goes to a customer named "E2E Customer". */
+  async createSaleOrder(warehouse: Warehouse, lines: { product: Product; quantity: number }[], customer?: Customer): Promise<SaleOrder> {
     return ok(await this.http.post('/api/sale-orders', {
       data: {
-        customerName: 'E2E Customer',
+        ...(customer ? { customerId: customer.id } : { customerName: 'E2E Customer' }),
         warehouseId: warehouse.id,
         lines: lines.map(l => ({ productId: l.product.id, quantity: l.quantity, unitPrice: 10 })),
       },
@@ -116,6 +153,10 @@ export class ErpApi {
 
   async getSaleOrder(id: number): Promise<SaleOrder> {
     return ok(await this.http.get(`/api/sale-orders/${id}`), 'get sale order');
+  }
+
+  async dashboard(days = 30): Promise<Dashboard> {
+    return ok(await this.http.get('/api/dashboard', { params: { days } }), 'get dashboard');
   }
 
   async upgradePlan(planTier: PlanTier): Promise<void> {

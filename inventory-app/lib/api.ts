@@ -38,6 +38,20 @@ export const createSupplier = (data: unknown) => api.post("/suppliers", data).th
 export const updateSupplier = (id: number, data: unknown) => api.put(`/suppliers/${id}`, data).then(r => r.data);
 export const deleteSupplier = (id: number) => api.delete(`/suppliers/${id}`).then(r => r.data);
 
+// Customers
+export const getCustomers     = () => api.get("/customers", { params: { size: 9999 } }).then(r => r.data.content);
+export const getCustomersPage = (params?: { search?: string; page?: number; size?: number }) =>
+  api.get("/customers", { params: { size: 20, ...params } }).then(r => r.data);
+export const createCustomer = (data: unknown) => api.post("/customers", data).then(r => r.data);
+export const updateCustomer = ({ id, data }: { id: number; data: unknown }) => api.put(`/customers/${id}`, data).then(r => r.data);
+export const deleteCustomer = (id: number) => api.delete(`/customers/${id}`);
+// Cin7 Core customer export (CSV)
+export const importCustomers = (file: File) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post("/customers/import", body, { headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
+};
+
 // Stock movements — array for dropdowns (fetches all)
 export const getMovements   = (params?: { productId?: number; warehouseId?: number }) =>
   api.get("/stock-movements", { params: { size: 9999, ...params } }).then(r => r.data.content);
@@ -66,7 +80,7 @@ export const receivePurchaseOrder = (id: number) => api.post(`/purchase-orders/$
 export const cancelPurchaseOrder  = (id: number) => api.post(`/purchase-orders/${id}/cancel`).then(r => r.data);
 
 // Sale orders — Page
-export const getSaleOrders    = (params?: { page?: number; size?: number }) =>
+export const getSaleOrders    = (params?: { customerId?: number; page?: number; size?: number }) =>
   api.get("/sale-orders", { params: { size: 20, ...params } }).then(r => r.data);
 export const getSaleOrder     = (id: number) => api.get(`/sale-orders/${id}`).then(r => r.data);
 export const createSaleOrder  = (data: unknown) => api.post("/sale-orders", data).then(r => r.data);
@@ -96,6 +110,21 @@ export const createInvoice  = (data: unknown) => api.post("/invoices", data).the
 export const issueInvoice   = (id: number) => api.post(`/invoices/${id}/issue`).then(r => r.data);
 export const cancelInvoice  = (id: number) => api.post(`/invoices/${id}/cancel`).then(r => r.data);
 export const payInvoice     = (id: number, data: unknown) => api.post(`/invoices/${id}/pay`, data).then(r => r.data);
+
+// Dashboard
+export const getDashboard = (days: number) => api.get("/dashboard", { params: { days } }).then(r => r.data);
+
+// Shopify connection (ADMIN) — GET returns 204 / empty when no store is connected
+export const getShopifyConnection    = () => api.get("/integrations/shopify").then(r => (r.status === 204 ? null : r.data));
+export const saveShopifyConnection   = (data: { shopDomain: string; clientId: string; clientSecret: string }) =>
+  api.put("/integrations/shopify", data).then(r => r.data);
+export const testShopifyConnection   = () => api.post("/integrations/shopify/test").then(r => r.data);
+export const deleteShopifyConnection = () => api.delete("/integrations/shopify");
+export const saveShopifySettings     = (data: { defaultWarehouseId: number | null; publicUrl: string }) =>
+  api.put("/integrations/shopify/settings", data).then(r => r.data);
+export const registerShopifyWebhooks = () => api.post("/integrations/shopify/webhooks").then(r => r.data);
+export const importShopifyOrders     = (days: number) => api.post("/integrations/shopify/import", null, { params: { days } }).then(r => r.data);
+export const getShopifyEvents        = () => api.get("/integrations/shopify/events", { params: { size: 20 } }).then(r => r.data);
 
 // Subscription / Plans
 export const getSubscription = () => api.get("/subscription").then(r => r.data);

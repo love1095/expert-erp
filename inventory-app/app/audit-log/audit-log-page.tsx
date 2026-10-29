@@ -43,7 +43,7 @@ export default function AuditLogPage() {
         <select value={entityType} onChange={e => { setEntityType(e.target.value); setPage(0); }}
           className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-44">
           <option value="">All entities</option>
-          {["PURCHASE_ORDER", "SALE_ORDER", "STOCK_MOVEMENT"].map(t => (
+          {["CUSTOMER", "PURCHASE_ORDER", "SALE_ORDER", "STOCK_MOVEMENT"].map(t => (
             <option key={t} value={t}>{t.replace("_", " ")}</option>
           ))}
         </select>

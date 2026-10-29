@@ -8,6 +8,9 @@ node_modules/
 .next/
 .env.local
 
+# Local secrets (docker compose reads .env)
+.env
+
 # IDE
 .idea/
 .vscode/

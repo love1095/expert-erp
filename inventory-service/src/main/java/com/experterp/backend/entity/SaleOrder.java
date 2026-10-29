@@ -23,6 +23,11 @@ public class SaleOrder {
     @Column(name = "tenant_id")
     private Long tenantId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
+
+    // The customer's name when the order was placed; kept even if the customer is renamed later
     @Column(nullable = false)
     private String customerName;
 
@@ -40,6 +45,25 @@ public class SaleOrder {
 
     @Column
     private String notes;
+
+    // Where the order came from; imported orders keep the other system's id and order number
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Source source = Source.MANUAL;
+
+    @Column(length = 100)
+    private String externalId;
+
+    // e.g. Shopify's #1001
+    @Column(length = 100)
+    private String externalReference;
+
+    // Imported but something needs a person (unknown SKU, other currency, ...); stays DRAFT until fixed
+    @Column(nullable = false)
+    private boolean needsReview;
+
+    @Column(columnDefinition = "TEXT")
+    private String reviewReason;
 
     @OneToMany(mappedBy = "saleOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
@@ -63,6 +87,8 @@ public class SaleOrder {
      * DRAFT → CONFIRMED → COMPLETED (nothing left to ship); DRAFT/CONFIRMED → CANCELLED (nothing shipped).
      */
     public enum Status { DRAFT, CONFIRMED, COMPLETED, CANCELLED }
+
+    public enum Source { MANUAL, SHOPIFY }
 
     public enum FulfilmentStatus { UNFULFILLED, PARTIALLY_FULFILLED, FULFILLED }
 

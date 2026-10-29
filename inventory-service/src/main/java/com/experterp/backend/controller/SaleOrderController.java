@@ -22,9 +22,10 @@ public class SaleOrderController {
 
     @GetMapping
     public Page<SaleOrderResponse> findAll(
+            @RequestParam(required = false) Long customerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return saleOrderService.findAll(page, size);
+        return saleOrderService.findAll(customerId, page, size);
     }
 
     @GetMapping("/{id}")

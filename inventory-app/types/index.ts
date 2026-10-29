@@ -64,6 +64,60 @@ export interface Supplier {
   createdAt: string;
 }
 
+export type MarketingConsent = "UNKNOWN" | "OPT_IN" | "OPT_OUT";
+
+export interface CustomerContact {
+  id?: number;
+  name?: string;
+  jobTitle?: string;
+  phone?: string;
+  mobilePhone?: string;
+  fax?: string;
+  email?: string;
+  website?: string;
+  comment?: string;
+  defaultContact: boolean;
+  includeInEmail: boolean;
+  marketingConsent: MarketingConsent;
+}
+
+// Fields follow the Cin7 Core customer export
+export interface Customer {
+  id: number;
+  name: string;
+  status: "ACTIVE" | "DEPRECATED";
+  currency?: string;
+  paymentTerm?: string;
+  taxRule?: string;
+  taxNumber?: string;
+  priceTier?: string;
+  discount?: number;
+  creditLimit?: number;
+  accountReceivable?: string;
+  saleAccount?: string;
+  carrier?: string;
+  salesRepresentative?: string;
+  location?: string;
+  tags?: string;
+  address?: string;
+  notes?: string;
+  // Default contact first
+  contacts: CustomerContact[];
+  source: "MANUAL" | "SHOPIFY";
+  externalId?: string;
+  orderCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerImportResult {
+  rows: number;
+  customersCreated: number;
+  customersUpdated: number;
+  contacts: number;
+  warnings: string[];
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -178,6 +232,14 @@ export interface SaleOrderReturn {
 
 export interface SaleOrder {
   id: number;
+  source: "MANUAL" | "SHOPIFY";
+  // Shopify order number, e.g. #1001
+  externalReference?: string;
+  // Imported, but something needs a person before shipping
+  needsReview: boolean;
+  reviewReason?: string;
+  customerId: number;
+  // Name when the order was placed
   customerName: string;
   warehouseId: number;
   warehouseName: string;
@@ -274,4 +336,69 @@ export interface SubscriptionInfo {
   productCount: number;
   userCount: number;
   warehouseCount: number;
+}
+
+// GET /dashboard — figures for the last `days` days, today included
+export interface Dashboard {
+  days: number;
+  kpis: {
+    products: number;
+    warehouses: number;
+    customers: number;
+    stockValue: number;
+    lowStockProducts: number;
+    ordersToShip: number;
+    draftOrders: number;
+    ordersInPeriod: number;
+    salesValueInPeriod: number;
+    unitsShippedInPeriod: number;
+    receivablesOutstanding: number;
+  };
+  ordersByStatus: Record<SaleOrderStatus, number>;
+  daily: { date: string; orders: number; salesValue: number; unitsIn: number; unitsOut: number }[];
+  topProducts: { productId: number; sku: string; name: string; unitsShipped: number }[];
+  lowStock: { productId: number; sku: string; name: string; stock: number; minStock: number }[];
+  recentOrders: { id: number; customerName: string; status: SaleOrderStatus; fulfilmentStatus: FulfilmentStatus; total: number; createdAt: string }[];
+}
+
+export interface ShopifyConnection {
+  shopDomain: string;
+  clientId: string;
+  secretSaved: boolean;
+  status: "NOT_TESTED" | "CONNECTED" | "ERROR";
+  shopName?: string;
+  shopCurrency?: string;
+  grantedScopes: string[];
+  missingScopes: string[];
+  lastError?: string;
+  lastCheckedAt?: string;
+  tokenExpiresAt?: string;
+  apiVersion: string;
+  defaultWarehouseId?: number;
+  defaultWarehouseName?: string;
+  publicUrl?: string;
+  webhookUrl?: string;
+  webhooksRegisteredAt?: string;
+  webhookTopics: string[];
+  lastImportAt?: string;
+}
+
+export interface ShopifyImportResult {
+  fetched: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  needsReview: number;
+  problems: string[];
+}
+
+export interface ShopifyWebhookEvent {
+  id: number;
+  topic: string;
+  eventId: string;
+  status: "RECEIVED" | "PROCESSED" | "IGNORED" | "FAILED";
+  error?: string;
+  receivedAt: string;
+  processedAt?: string;
 }

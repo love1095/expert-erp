@@ -46,12 +46,17 @@ public class SaleOrderService {
     private final SaleReturnRepository returnRepository;
     private final WarehouseRepository warehouseRepository;
     private final ProductService productService;
+    private final CustomerService customerService;
     private final StockMovementService movementService;
     private final AuditService auditService;
 
-    public Page<SaleOrderResponse> findAll(int page, int size) {
+    @Transactional(readOnly = true)
+    public Page<SaleOrderResponse> findAll(Long customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return soRepository.findAll(pageable).map(this::toResponse);
+        Page<SaleOrder> orders = customerId != null
+                ? soRepository.findByCustomerId(customerId, pageable)
+                : soRepository.findAll(pageable);
+        return orders.map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -64,8 +69,11 @@ public class SaleOrderService {
         Warehouse warehouse = warehouseRepository.findById(req.getWarehouseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found: " + req.getWarehouseId()));
 
+        Customer customer = customerService.resolveForOrder(req.getCustomerId(), req.getCustomerName());
+
         SaleOrder so = new SaleOrder();
-        so.setCustomerName(req.getCustomerName());
+        so.setCustomer(customer);
+        so.setCustomerName(customer.getName());
         so.setWarehouse(warehouse);
         so.setNotes(req.getNotes());
 
@@ -81,7 +89,7 @@ public class SaleOrderService {
 
         SaleOrderResponse saved = toResponse(soRepository.save(so));
         auditService.log("SALE_ORDER", saved.getId(), "CREATE",
-                Map.of("customer", so.getCustomerName(), "lines", so.getLines().size()));
+                Map.of("customer", so.getCustomerName(), "customerId", customer.getId(), "lines", so.getLines().size()));
         return saved;
     }
 
@@ -93,7 +101,13 @@ public class SaleOrderService {
         }
         so.setStatus(Status.CONFIRMED);
         so.setConfirmedAt(LocalDateTime.now());
-        auditService.log("SALE_ORDER", id, "CONFIRM", Map.of("status", Status.CONFIRMED));
+        Map<String, Object> changes = new HashMap<>(Map.of("status", Status.CONFIRMED));
+        if (so.isNeedsReview()) {
+            // Confirming an imported order that needed review means a person accepted it as it is
+            changes.put("reviewed", so.getReviewReason() == null ? "" : so.getReviewReason());
+            so.setNeedsReview(false);
+        }
+        auditService.log("SALE_ORDER", id, "CONFIRM", changes);
         return toDetailResponse(so);
     }
 
@@ -385,12 +399,17 @@ public class SaleOrderService {
     private SaleOrderResponse toResponse(SaleOrder so) {
         SaleOrderResponse r = new SaleOrderResponse();
         r.setId(so.getId());
+        r.setCustomerId(so.getCustomer().getId());
         r.setCustomerName(so.getCustomerName());
         r.setWarehouseId(so.getWarehouse().getId());
         r.setWarehouseName(so.getWarehouse().getName());
         r.setStatus(so.getStatus());
         r.setFulfilmentStatus(so.getFulfilmentStatus());
         r.setNotes(so.getNotes());
+        r.setSource(so.getSource());
+        r.setExternalReference(so.getExternalReference());
+        r.setNeedsReview(so.isNeedsReview());
+        r.setReviewReason(so.getReviewReason());
         r.setCreatedAt(so.getCreatedAt());
         r.setConfirmedAt(so.getConfirmedAt());
         r.setFulfilledAt(so.getFulfilledAt());

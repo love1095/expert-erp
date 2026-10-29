@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSaleOrders, createSaleOrder, getProducts, getWarehouses, getCategories } from "@/lib/api";
-import { SaleOrder, Product, Warehouse, SaleOrderStatus, FulfilmentStatus, Category, Page } from "@/types";
+import { getSaleOrders, createSaleOrder, getProducts, getWarehouses, getCategories, getCustomers } from "@/lib/api";
+import { SaleOrder, Product, Warehouse, SaleOrderStatus, FulfilmentStatus, Category, Customer, Page } from "@/types";
 import { Fragment, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
@@ -33,6 +33,7 @@ export default function SaleOrdersPage() {
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ["products"], queryFn: () => getProducts() });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["categories"], queryFn: getCategories });
+  const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers });
 
   const orders: SaleOrder[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
@@ -50,6 +51,8 @@ export default function SaleOrdersPage() {
     mutationFn: createSaleOrder,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sale-orders"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customers-page"] });
       setShowForm(false);
       resetForm();
     },
@@ -60,8 +63,11 @@ export default function SaleOrdersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // A name matching an existing customer orders for that customer; any other name creates a new one
+    const existing = customers.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
     createMutation.mutate({
-      customerName, warehouseId: Number(warehouseId), notes,
+      customerId: existing?.id, customerName: existing ? undefined : customerName.trim(),
+      warehouseId: Number(warehouseId), notes,
       lines: lines.map(l => ({ productId: Number(l.productId), quantity: Number(l.quantity), unitPrice: l.unitPrice ? Number(l.unitPrice) : null })),
     });
   };
@@ -84,8 +90,15 @@ export default function SaleOrdersPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="sale-orders-customer" className="block text-xs font-medium text-gray-600 mb-1">Customer *</label>
-              <input id="sale-orders-customer" value={customerName} onChange={e => setCustomerName(e.target.value)} required placeholder="Customer name"
+              <input id="sale-orders-customer" list="sale-orders-customer-list" value={customerName} onChange={e => setCustomerName(e.target.value)} required
+                placeholder="Pick a customer or type a new name" autoComplete="off"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+              <datalist id="sale-orders-customer-list">
+                {customers.filter(c => c.status === "ACTIVE").map(c => <option key={c.id} value={c.name}>{c.contacts[0]?.email ?? ""}</option>)}
+              </datalist>
+              {customerName.trim() && !customers.some(c => c.name.toLowerCase() === customerName.trim().toLowerCase()) && (
+                <p className="text-[11px] text-gray-400 mt-1">New customer — will be added to Customers</p>
+              )}
             </div>
             <div>
               <label htmlFor="sale-orders-ship-from-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Ship from Warehouse *</label>
@@ -160,7 +173,14 @@ export default function SaleOrdersPage() {
                 {orders.map(o => (
                   <Fragment key={o.id}>
                   <tr data-testid={`so-row-${o.id}`} className={`hover:bg-gray-50 ${openId === o.id ? "bg-gray-50" : ""}`}>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-400">SO-{o.id}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-400">
+                      SO-{o.id}
+                      {o.source === "SHOPIFY" && (
+                        <span className="block mt-1 font-sans text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 w-fit">
+                          Shopify {o.externalReference}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-medium">{o.customerName}</td>
                     <td className="px-4 py-3 text-gray-600">{o.warehouseName}</td>
                     <td className="px-4 py-3 text-gray-500">{o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</td>
@@ -169,6 +189,9 @@ export default function SaleOrdersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
+                      {o.needsReview && (
+                        <span title={o.reviewReason} className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Needs review</span>
+                      )}
                       {o.status !== "DRAFT" && o.status !== "CANCELLED" && (
                         <span className={`block mt-1 text-[11px] ${FULFILMENT_LABEL[o.fulfilmentStatus].color}`}>
                           {FULFILMENT_LABEL[o.fulfilmentStatus].label}
