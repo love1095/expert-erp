@@ -83,13 +83,13 @@ export default function SaleOrdersPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Customer *</label>
-              <input value={customerName} onChange={e => setCustomerName(e.target.value)} required placeholder="Customer name"
+              <label htmlFor="sale-orders-customer" className="block text-xs font-medium text-gray-600 mb-1">Customer *</label>
+              <input id="sale-orders-customer" value={customerName} onChange={e => setCustomerName(e.target.value)} required placeholder="Customer name"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Ship from Warehouse *</label>
-              <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required
+              <label htmlFor="sale-orders-ship-from-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Ship from Warehouse *</label>
+              <select id="sale-orders-ship-from-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
                 <option value="">Select warehouse</option>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -132,8 +132,8 @@ export default function SaleOrdersPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
+            <label htmlFor="sale-orders-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+            <input id="sale-orders-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
           </div>
 
@@ -159,7 +159,7 @@ export default function SaleOrdersPage() {
                 {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No sale orders yet</td></tr>}
                 {orders.map(o => (
                   <Fragment key={o.id}>
-                  <tr className={`hover:bg-gray-50 ${openId === o.id ? "bg-gray-50" : ""}`}>
+                  <tr data-testid={`so-row-${o.id}`} className={`hover:bg-gray-50 ${openId === o.id ? "bg-gray-50" : ""}`}>
                     <td className="px-4 py-3 font-mono text-xs text-gray-400">SO-{o.id}</td>
                     <td className="px-4 py-3 font-medium">{o.customerName}</td>
                     <td className="px-4 py-3 text-gray-600">{o.warehouseName}</td>

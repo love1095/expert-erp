@@ -177,18 +177,18 @@ export default function InvoicesPage() {
           {/* type + party */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Type</label>
-              <select value={formType} onChange={e => setFormType(e.target.value as InvoiceType)}
+              <label htmlFor="invoices-type" className="text-xs font-medium text-gray-600 block mb-1">Type</label>
+              <select id="invoices-type" value={formType} onChange={e => setFormType(e.target.value as InvoiceType)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
                 <option value="SALES">Sales</option>
                 <option value="PURCHASE">Purchase</option>
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">
+              <label htmlFor="invoices-party" className="text-xs font-medium text-gray-600 block mb-1">
                 {formType === "SALES" ? "Customer" : "Supplier"}
               </label>
-              <input value={partyName} onChange={e => setPartyName(e.target.value)} required
+              <input id="invoices-party" value={partyName} onChange={e => setPartyName(e.target.value)} required
                 placeholder={formType === "SALES" ? "Customer name" : "Supplier name"}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
             </div>
@@ -197,10 +197,10 @@ export default function InvoicesPage() {
           {/* optional order link */}
           {formType === "SALES" && salesOrders?.content && (
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">
+              <label htmlFor="invoices-sale-order" className="text-xs font-medium text-gray-600 block mb-1">
                 Link to Sale Order (optional)
               </label>
-              <select value={saleOrderId} onChange={e => setSaleOrderId(e.target.value)}
+              <select id="invoices-sale-order" value={saleOrderId} onChange={e => setSaleOrderId(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
                 <option value="">— none —</option>
                 {salesOrders.content.map(so => (
@@ -212,10 +212,10 @@ export default function InvoicesPage() {
 
           {formType === "PURCHASE" && purchaseOrders?.content && (
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">
+              <label htmlFor="invoices-purchase-order" className="text-xs font-medium text-gray-600 block mb-1">
                 Link to Purchase Order (optional)
               </label>
-              <select value={poId} onChange={e => setPoId(e.target.value)}
+              <select id="invoices-purchase-order" value={poId} onChange={e => setPoId(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
                 <option value="">— none —</option>
                 {purchaseOrders.content.map(po => (
@@ -228,18 +228,18 @@ export default function InvoicesPage() {
           {/* dates + currency */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Issue Date</label>
-              <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} required
+              <label htmlFor="invoices-issue-date" className="text-xs font-medium text-gray-600 block mb-1">Issue Date</label>
+              <input id="invoices-issue-date" type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} required
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Due Date (optional)</label>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+              <label htmlFor="invoices-due-date-optional" className="text-xs font-medium text-gray-600 block mb-1">Due Date (optional)</label>
+              <input id="invoices-due-date-optional" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Currency</label>
-              <select value={currency} onChange={e => setCurrency(e.target.value)}
+              <label htmlFor="invoices-currency" className="text-xs font-medium text-gray-600 block mb-1">Currency</label>
+              <select id="invoices-currency" value={currency} onChange={e => setCurrency(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
                 {CURRENCIES.map(c => <option key={c}>{c}</option>)}
               </select>
@@ -295,8 +295,8 @@ export default function InvoicesPage() {
 
           {/* notes */}
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Notes (optional)</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+            <label htmlFor="invoices-notes-optional" className="text-xs font-medium text-gray-600 block mb-1">Notes (optional)</label>
+            <textarea id="invoices-notes-optional" value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm resize-none" />
           </div>
 
@@ -383,7 +383,7 @@ export default function InvoicesPage() {
             </div>
           )}
           {data && data.totalPages > 1 && (
-            <Pagination page={page} totalPages={data.totalPages} onChange={setPage} />
+            <Pagination page={page} totalPages={data.totalPages} onPageChange={setPage} />
           )}
         </div>
 

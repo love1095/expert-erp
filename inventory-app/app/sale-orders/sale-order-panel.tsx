@@ -102,7 +102,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
   };
 
   return (
-    <div className="bg-gray-50 border-t border-gray-200 px-6 py-5 space-y-5">
+    <div data-testid={`so-panel-${orderId}`} className="bg-gray-50 border-t border-gray-200 px-6 py-5 space-y-5">
       {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
       {/* Actions */}
@@ -178,6 +178,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                   {mode !== "view" && (
                     <td className="px-3 py-2">
                       <input type="number" min="0" max={max} step="any" disabled={max <= 0}
+                        aria-label={`${mode === "ship" ? "Ship" : "Return"} quantity for ${l.productSku}`}
                         value={amounts[l.id] ?? ""} placeholder={max > 0 ? `max ${qty(max)}` : "—"}
                         onChange={e => setAmounts({ ...amounts, [l.id]: e.target.value })}
                         className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm disabled:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
@@ -186,6 +187,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                   {mode === "return" && (
                     <td className="px-3 py-2">
                       <input type="checkbox" disabled={max <= 0} checked={restock[l.id] ?? true}
+                        aria-label={`Back to stock for ${l.productSku}`}
                         onChange={e => setRestock({ ...restock, [l.id]: e.target.checked })} />
                     </td>
                   )}
@@ -198,14 +200,14 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
         {mode !== "view" && (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-48">
-              <label className="block text-xs font-medium text-gray-600 mb-1">{mode === "ship" ? "Shipment notes" : "Reason"}</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
+              <label htmlFor="so-panel-notes" className="block text-xs font-medium text-gray-600 mb-1">{mode === "ship" ? "Shipment notes" : "Reason"}</label>
+              <input id="so-panel-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
                 className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
             </div>
             {mode === "return" && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Return to warehouse</label>
-                <select value={returnWarehouseId} onChange={e => setReturnWarehouseId(e.target.value)}
+                <label htmlFor="sale-orders-return-to-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Return to warehouse</label>
+                <select id="sale-orders-return-to-warehouse" value={returnWarehouseId} onChange={e => setReturnWarehouseId(e.target.value)}
                   className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
                   {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>

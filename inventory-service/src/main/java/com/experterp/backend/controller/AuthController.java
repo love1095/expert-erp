@@ -82,8 +82,10 @@ public class AuthController {
         }
 
         Long tenantId;
+        User.Role role;
         if (req.getOrganizationName() != null && !req.getOrganizationName().isBlank()) {
-            // New organization signup
+            // New organization signup — the founder is always the tenant ADMIN; a requested role is ignored
+            role = User.Role.ADMIN;
             String slug = req.getOrganizationName().trim().toLowerCase()
                     .replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
             if (tenantRepo.existsBySlug(slug)) {
@@ -105,6 +107,18 @@ public class AuthController {
             if (currentUser.getRole() != User.Role.ADMIN && currentUser.getRole() != User.Role.SUPER_ADMIN) {
                 return ResponseEntity.status(403).body(Map.of("error", "Only admins can add users"));
             }
+            role = User.Role.ADMIN;
+            if (req.getRole() != null && !req.getRole().isBlank()) {
+                try {
+                    role = User.Role.valueOf(req.getRole());
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Unknown role: " + req.getRole()));
+                }
+            }
+            // Platform-wide role: only an existing SUPER_ADMIN may grant it
+            if (role == User.Role.SUPER_ADMIN && currentUser.getRole() != User.Role.SUPER_ADMIN) {
+                return ResponseEntity.status(403).body(Map.of("error", "Only a super admin can create super admins"));
+            }
             tenantId = currentUser.getTenantId();
             subscriptionService.checkUserLimit(tenantId);
         }
@@ -114,12 +128,7 @@ public class AuthController {
         user.setEmail(req.getEmail());
         user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         user.setTenantId(tenantId);
-        try {
-            user.setRole(req.getRole() != null && !req.getRole().isBlank()
-                    ? User.Role.valueOf(req.getRole()) : User.Role.ADMIN);
-        } catch (IllegalArgumentException e) {
-            user.setRole(User.Role.ADMIN);
-        }
+        user.setRole(role);
         userRepository.save(user);
 
         Tenant tenant = tenantRepo.findById(tenantId).orElseThrow();

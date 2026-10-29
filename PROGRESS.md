@@ -9,7 +9,8 @@
 | Frontend | Next.js 16 (App Router, React 19), React Query v5, Axios, Tailwind CSS |
 | Infra | Docker Compose, multi-stage Dockerfile, Makefile (`make up`) |
 | Schema | Flyway migrations (`inventory-service/src/main/resources/db/migration`), Hibernate `ddl-auto=validate` |
-| Tests | JUnit 5 + Testcontainers (throwaway Postgres 16; requires Docker) |
+| Tests | Backend: JUnit 5 + Testcontainers (throwaway Postgres 16). End-to-end: Playwright (`e2e-tests/`) |
+| CI | GitHub Actions (`.github/workflows/ci.yml`): backend tests + end-to-end tests on every push / PR to `main` |
 
 Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` column in every entity, filtered automatically by Hibernate via `TenantContext` (ThreadLocal).
 
@@ -131,6 +132,33 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
+## Automated Testing (Option C) ✅
+
+> Goal: a regression safety net before Shopify. Option B (an in-app testing module) comes later, near the end of the project.
+
+### Testable UI
+- [x] All form labels linked to their inputs (`htmlFor` / `id`) — tests find fields by label; also better accessibility
+- [x] `data-testid` on sale-order rows/panels and purchase-order rows; accessible names on per-line ship/return inputs
+
+### `e2e-tests/` (Playwright)
+- [x] **Every test registers its own tenant** (ENTERPRISE by default, `plan` option for limit tests) — tests are isolated, parallel, and never touch real tenants
+- [x] Fixtures: logged-in `page`, tenant `api` client, `warehouses`; page helpers in `fixtures/pages/` (e.g. `SaleOrdersPage`)
+- [x] Test case IDs + tags in titles (`SO-004 … @P0 @sale-orders`); `npm run catalog` exports every case to JSON
+- [x] Reports: HTML (`npm run report`), interactive UI mode (`npm run test:ui`), JSON (`test-results/results.json`)
+- [x] **30 test cases**: AUTH (5), PRD (2), STK (3), PO (1), SO (7), SEC (5), MT multi-tenant (4), PLAN (2), AUD (1)
+
+### CI
+- [x] GitHub Actions: backend JUnit + Testcontainers job; end-to-end job (Docker Compose backend, built frontend, Playwright) with the HTML report uploaded as an artifact
+
+### Bugs found by the tests and fixed
+- [x] SKU / warehouse / category / supplier names were unique across **all** tenants (leftover global constraints) → `V3__per_tenant_uniqueness.sql`
+- [x] Wrong-password error never shown (401 interceptor reloaded the login page) → login call excluded from the redirect
+- [x] Unhandled errors surfaced as HTTP 403 (`/error` was secured) → `/error` permitted; DB constraint violations → HTTP 409
+- [x] Sign-up trusted a client-supplied `role` (SUPER_ADMIN was blocked only by a DB check) → founders are always ADMIN; only a SUPER_ADMIN can grant SUPER_ADMIN; unknown role → 400; DB now accepts SUPER_ADMIN
+- [x] Invoice list pagination never worked (wrong prop name) — caught by the CI type-check
+
+---
+
 ## Cross-cutting (done throughout)
 
 - [x] **JWT authentication** — random key per startup (all old tokens invalid after rebuild)
@@ -148,7 +176,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | Method | Path | Description |
 |---|---|---|
 | POST | `/auth/login` | Login, returns JWT |
-| POST | `/auth/register` | Register org + first admin user |
+| POST | `/auth/register` | With `organizationName`: new org + its ADMIN (requested role ignored). Without: ADMIN adds a user to their tenant (`role` ADMIN/MANAGER/STAFF; SUPER_ADMIN only by a SUPER_ADMIN) |
 | GET  | `/auth/me` | Validate token, return current user |
 | GET  | `/auth/users` | List users in tenant (ADMIN) |
 | GET/POST | `/products` | List / create products |
@@ -186,7 +214,10 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ## What to build next
 
-1. **Phase 4 — Custom Fields**: add `extra_fields JSONB` column to `products` table; let admins define schema; render dynamic form in React
-2. **Billing integration**: Stripe webhook to drive subscription status changes
-3. **Dashboard**: KPI cards (total products, low-stock count, recent movements, order totals)
-4. **Notifications**: in-app or email for low-stock events (hook into `StockChangedEvent`)
+Agreed order (each phase is done when its feature works, its tests are written, all existing tests pass, then this file is updated):
+
+1. **Persistent JWT / secret key** — tokens currently die on every backend restart; Shopify token encryption needs the same secret handling
+2. **Phase 8 — Customers (minimal)** — a Customer entity instead of a free-text name on sale orders
+3. **Phase 6 — Dashboard** — KPI cards and charts from aggregation queries
+4. **Phase 7 — Shopify integration** (7.1 connection → 7.2 order import → 7.3 fulfilment → 7.4 cancellations/returns → 7.5 reliability → 7.6 stock sync)
+5. Then: Stripe billing, notifications, custom fields (former Phase 4), advanced inventory, purchasing, reporting; production hardening throughout

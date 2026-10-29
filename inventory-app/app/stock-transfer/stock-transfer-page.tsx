@@ -62,8 +62,8 @@ export default function StockTransferPage() {
         )}
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Filter by Category</label>
-          <select
+          <label htmlFor="stock-transfer-filter-by-category" className="block text-xs font-medium text-gray-600 mb-1">Filter by Category</label>
+          <select id="stock-transfer-filter-by-category"
             value={categoryId ?? ""}
             onChange={(e) => {
               setCategoryId(e.target.value ? Number(e.target.value) : undefined);
@@ -77,8 +77,8 @@ export default function StockTransferPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Product *</label>
-          <select
+          <label htmlFor="stock-transfer-product" className="block text-xs font-medium text-gray-600 mb-1">Product *</label>
+          <select id="stock-transfer-product"
             value={form.productId}
             onChange={(e) => setForm({ ...form, productId: e.target.value })}
             required
@@ -93,8 +93,8 @@ export default function StockTransferPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">From Warehouse *</label>
-            <select
+            <label htmlFor="stock-transfer-from-warehouse" className="block text-xs font-medium text-gray-600 mb-1">From Warehouse *</label>
+            <select id="stock-transfer-from-warehouse"
               value={form.fromWarehouseId}
               onChange={(e) => setForm({ ...form, fromWarehouseId: e.target.value })}
               required
@@ -105,8 +105,8 @@ export default function StockTransferPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">To Warehouse *</label>
-            <select
+            <label htmlFor="stock-transfer-to-warehouse" className="block text-xs font-medium text-gray-600 mb-1">To Warehouse *</label>
+            <select id="stock-transfer-to-warehouse"
               value={form.toWarehouseId}
               onChange={(e) => setForm({ ...form, toWarehouseId: e.target.value })}
               required
@@ -119,8 +119,8 @@ export default function StockTransferPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
-          <input
+          <label htmlFor="stock-transfer-quantity" className="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
+          <input id="stock-transfer-quantity"
             type="number" min="0.0001" step="any"
             value={form.quantity}
             onChange={(e) => setForm({ ...form, quantity: e.target.value })}
@@ -131,8 +131,8 @@ export default function StockTransferPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-          <input
+          <label htmlFor="stock-transfer-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+          <input id="stock-transfer-notes"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             placeholder="Optional reason"

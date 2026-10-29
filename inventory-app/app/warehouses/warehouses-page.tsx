@@ -62,8 +62,8 @@ export default function WarehousesPage() {
             { label: "Location", key: "location", placeholder: "e.g. Ho Chi Minh City" },
           ].map(({ label, key, placeholder }) => (
             <div key={key}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-              <input value={form[key as keyof typeof form]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              <label htmlFor={`warehouses-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+              <input id={`warehouses-${key}`} value={form[key as keyof typeof form]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                 placeholder={placeholder}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
             </div>

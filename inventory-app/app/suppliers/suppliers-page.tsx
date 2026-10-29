@@ -66,13 +66,13 @@ export default function SuppliersPage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
-              <input value={form.name} onChange={e => set("name", e.target.value)} required placeholder="Supplier name"
+              <label htmlFor="suppliers-name" className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
+              <input id="suppliers-name" value={form.name} onChange={e => set("name", e.target.value)} required placeholder="Supplier name"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-              <select value={form.status} onChange={e => set("status", e.target.value)}
+              <label htmlFor="suppliers-status" className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+              <select id="suppliers-status" value={form.status} onChange={e => set("status", e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
                 <option>Active</option>
                 <option>Inactive</option>
@@ -82,36 +82,36 @@ export default function SuppliersPage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
-              <input value={form.currency} onChange={e => set("currency", e.target.value)} placeholder="GBP"
+              <label htmlFor="suppliers-currency" className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
+              <input id="suppliers-currency" value={form.currency} onChange={e => set("currency", e.target.value)} placeholder="GBP"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
-              <input value={form.paymentTerm} onChange={e => set("paymentTerm", e.target.value)} placeholder="e.g. 30 Day EOM"
+              <label htmlFor="suppliers-payment-term" className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
+              <input id="suppliers-payment-term" value={form.paymentTerm} onChange={e => set("paymentTerm", e.target.value)} placeholder="e.g. 30 Day EOM"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Tax Number</label>
-              <input value={form.taxNumber} onChange={e => set("taxNumber", e.target.value)} placeholder="VAT number"
+              <label htmlFor="suppliers-tax-number" className="block text-xs font-medium text-gray-600 mb-1">Tax Number</label>
+              <input id="suppliers-tax-number" value={form.taxNumber} onChange={e => set("taxNumber", e.target.value)} placeholder="VAT number"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Contact Name</label>
-              <input value={form.contactName} onChange={e => set("contactName", e.target.value)}
+              <label htmlFor="suppliers-contact-name" className="block text-xs font-medium text-gray-600 mb-1">Contact Name</label>
+              <input id="suppliers-contact-name" value={form.contactName} onChange={e => set("contactName", e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
-              <input value={form.phone} onChange={e => set("phone", e.target.value)}
+              <label htmlFor="suppliers-phone" className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+              <input id="suppliers-phone" value={form.phone} onChange={e => set("phone", e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-              <input type="email" value={form.email} onChange={e => set("email", e.target.value)}
+              <label htmlFor="suppliers-email" className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+              <input id="suppliers-email" type="email" value={form.email} onChange={e => set("email", e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
           </div>

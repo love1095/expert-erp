@@ -91,16 +91,16 @@ export default function PurchaseOrdersPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Supplier *</label>
-              <select value={supplierName} onChange={e => setSupplierName(e.target.value)} required
+              <label htmlFor="purchase-orders-supplier" className="block text-xs font-medium text-gray-600 mb-1">Supplier *</label>
+              <select id="purchase-orders-supplier" value={supplierName} onChange={e => setSupplierName(e.target.value)} required
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                 <option value="">Select supplier</option>
                 {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Receive to Warehouse *</label>
-              <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required
+              <label htmlFor="purchase-orders-receive-to-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Receive to Warehouse *</label>
+              <select id="purchase-orders-receive-to-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                 <option value="">Select warehouse</option>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -143,8 +143,8 @@ export default function PurchaseOrdersPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
+            <label htmlFor="purchase-orders-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+            <input id="purchase-orders-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
           </div>
 
@@ -169,7 +169,7 @@ export default function PurchaseOrdersPage() {
               <tbody className="divide-y divide-gray-100">
                 {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No purchase orders yet</td></tr>}
                 {orders.map(o => (
-                  <tr key={o.id} className="hover:bg-gray-50">
+                  <tr key={o.id} data-testid={`po-row-${o.id}`} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-xs text-gray-400">PO-{o.id}</td>
                     <td className="px-4 py-3 font-medium">{o.supplierName}</td>
                     <td className="px-4 py-3 text-gray-600">{o.warehouseName}</td>

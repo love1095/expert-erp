@@ -71,23 +71,23 @@ export default function UsersPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
-              <input value={form.username} onChange={e => set("username", e.target.value)} required
+              <label htmlFor="users-username" className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
+              <input id="users-username" value={form.username} onChange={e => set("username", e.target.value)} required
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-              <input type="email" value={form.email} onChange={e => set("email", e.target.value)}
+              <label htmlFor="users-email" className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+              <input id="users-email" type="email" value={form.email} onChange={e => set("email", e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
-              <input type="password" value={form.password} onChange={e => set("password", e.target.value)} required minLength={6}
+              <label htmlFor="users-password" className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
+              <input id="users-password" type="password" value={form.password} onChange={e => set("password", e.target.value)} required minLength={6}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
-              <select value={form.role} onChange={e => set("role", e.target.value)}
+              <label htmlFor="users-role" className="block text-xs font-medium text-gray-600 mb-1">Role</label>
+              <select id="users-role" value={form.role} onChange={e => set("role", e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                 <option value="STAFF">Staff</option>
                 <option value="MANAGER">Manager</option>

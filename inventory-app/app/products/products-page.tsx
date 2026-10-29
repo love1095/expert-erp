@@ -81,8 +81,9 @@ export default function ProductsPage() {
             { label: "Description", key: "description", placeholder: "Optional description" },
           ].map(({ label, key, placeholder }) => (
             <div key={key}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+              <label htmlFor={`products-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
               <input
+                id={`products-${key}`}
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                 placeholder={placeholder}
@@ -91,8 +92,8 @@ export default function ProductsPage() {
             </div>
           ))}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
-            <select
+            <label htmlFor="products-category" className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+            <select id="products-category"
               value={form.categoryId}
               onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"

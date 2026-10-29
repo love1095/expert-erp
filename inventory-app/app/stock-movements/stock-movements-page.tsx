@@ -77,8 +77,8 @@ export default function StockMovementsPage() {
           {error && <p className="col-span-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Filter by Category</label>
-            <select
+            <label htmlFor="stock-movements-filter-by-category" className="block text-xs font-medium text-gray-600 mb-1">Filter by Category</label>
+            <select id="stock-movements-filter-by-category"
               value={formCategoryId ?? ""}
               onChange={(e) => {
                 setFormCategoryId(e.target.value ? Number(e.target.value) : undefined);
@@ -92,8 +92,8 @@ export default function StockMovementsPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Product *</label>
-            <select
+            <label htmlFor="stock-movements-product" className="block text-xs font-medium text-gray-600 mb-1">Product *</label>
+            <select id="stock-movements-product"
               value={form.productId}
               onChange={(e) => setForm({ ...form, productId: e.target.value })}
               required
@@ -105,8 +105,8 @@ export default function StockMovementsPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Warehouse *</label>
-            <select
+            <label htmlFor="stock-movements-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Warehouse *</label>
+            <select id="stock-movements-warehouse"
               value={form.warehouseId}
               onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
               required
@@ -118,8 +118,8 @@ export default function StockMovementsPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Type *</label>
-            <select
+            <label htmlFor="stock-movements-type" className="block text-xs font-medium text-gray-600 mb-1">Type *</label>
+            <select id="stock-movements-type"
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
               required
@@ -131,8 +131,8 @@ export default function StockMovementsPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
-            <input
+            <label htmlFor="stock-movements-quantity" className="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
+            <input id="stock-movements-quantity"
               type="number" min="0.0001" step="any"
               value={form.quantity}
               onChange={(e) => setForm({ ...form, quantity: e.target.value })}
@@ -143,8 +143,8 @@ export default function StockMovementsPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-            <input
+            <label htmlFor="stock-movements-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+            <input id="stock-movements-notes"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="Optional notes"

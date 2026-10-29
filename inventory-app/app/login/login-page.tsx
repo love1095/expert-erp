@@ -44,8 +44,8 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Username</label>
-            <input
+            <label htmlFor="login-username" className="block text-xs font-medium text-gray-600 mb-1">Username</label>
+            <input id="login-username"
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
@@ -56,8 +56,8 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
-            <input
+            <label htmlFor="login-password" className="block text-xs font-medium text-gray-600 mb-1">Password</label>
+            <input id="login-password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}

@@ -50,37 +50,37 @@ export default function RegisterPage() {
           {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Organization name *</label>
-            <input value={form.organizationName} onChange={e => set("organizationName", e.target.value)}
+            <label htmlFor="register-organization-name" className="block text-xs font-medium text-gray-600 mb-1">Organization name *</label>
+            <input id="register-organization-name" value={form.organizationName} onChange={e => set("organizationName", e.target.value)}
               required placeholder="Acme Safety Ltd"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
-              <input value={form.username} onChange={e => set("username", e.target.value)}
+              <label htmlFor="register-username" className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
+              <input id="register-username" value={form.username} onChange={e => set("username", e.target.value)}
                 required placeholder="admin"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-              <input type="email" value={form.email} onChange={e => set("email", e.target.value)}
+              <label htmlFor="register-email" className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+              <input id="register-email" type="email" value={form.email} onChange={e => set("email", e.target.value)}
                 placeholder="you@company.com"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
-            <input type="password" value={form.password} onChange={e => set("password", e.target.value)}
+            <label htmlFor="register-password" className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
+            <input id="register-password" type="password" value={form.password} onChange={e => set("password", e.target.value)}
               required placeholder="••••••••" minLength={6}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Confirm password *</label>
-            <input type="password" value={form.confirm} onChange={e => set("confirm", e.target.value)}
+            <label htmlFor="register-confirm-password" className="block text-xs font-medium text-gray-600 mb-1">Confirm password *</label>
+            <input id="register-confirm-password" type="password" value={form.confirm} onChange={e => set("confirm", e.target.value)}
               required placeholder="••••••••"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
           </div>
