@@ -6,8 +6,10 @@
 |---|---|
 | Backend | Spring Boot 3.5, Hibernate 6.6, Spring Security (JWT), Spring Data JPA |
 | Database | PostgreSQL 16 (Docker) |
-| Frontend | Next.js 14 (App Router), React Query v5, Axios, Tailwind CSS |
+| Frontend | Next.js 16 (App Router, React 19), React Query v5, Axios, Tailwind CSS |
 | Infra | Docker Compose, multi-stage Dockerfile, Makefile (`make up`) |
+| Schema | Flyway migrations (`inventory-service/src/main/resources/db/migration`), Hibernate `ddl-auto=validate` |
+| Tests | JUnit 5 + Testcontainers (throwaway Postgres 16; requires Docker) |
 
 Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` column in every entity, filtered automatically by Hibernate via `TenantContext` (ThreadLocal).
 
@@ -27,12 +29,12 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 ## Phase 2 — Usable Inventory ✅
 
 - [x] **Stock Transfer** — warehouse A → B creates two movements (TRANSFER_OUT + TRANSFER_IN)
-- [x] **Movement types** — `PURCHASE_IN`, `SALE_OUT`, `ADJUSTMENT_IN`, `ADJUSTMENT_OUT`, `TRANSFER_IN`, `TRANSFER_OUT`
-- [x] **Reference tracking** — `reference_type` (ORDER, TRANSFER, ADJUSTMENT, MANUAL) + `reference_id` on every movement
+- [x] **Movement types** — `PURCHASE_IN`, `SALE_OUT`, `ADJUSTMENT_IN`, `ADJUSTMENT_OUT`, `TRANSFER_IN`, `TRANSFER_OUT`, `SALE_RETURN_IN` (added in Phase 6A)
+- [x] **Reference tracking** — `reference_type` (PURCHASE_ORDER, SALE_ORDER, SALE_RETURN, TRANSFER, ADJUSTMENT, MANUAL) + `reference_id` on every movement
 - [x] **Stock History (timeline)** — all movements per product, sorted by time, paginated
 - [x] **Validation** — `InsufficientStockException` (HTTP 422) before any OUT movement; prevents negative stock
 - [x] **Purchase Orders** — create order → receive → auto-creates PURCHASE_IN movements per line
-- [x] **Sale Orders** — create order → fulfill → auto-creates SALE_OUT movements per line
+- [x] **Sale Orders** — create order → fulfill → auto-creates SALE_OUT movements per line (lifecycle extended in Phase 6A)
 - [x] **Stock summary** — per product per warehouse, with `lowStock` flag
 - [x] **Low stock alert** — `minStock` threshold, highlighted in UI (red/amber)
 - [x] **Supplier management** — CRUD + search + pagination
@@ -46,6 +48,15 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Permissions & Roles** — `SUPER_ADMIN`, `ADMIN`, `MANAGER`, `STAFF`; DELETE endpoints require ADMIN, user management requires ADMIN
 - [x] **Event-driven foundation** — `StockChangedEvent` published by `StockMovementService` (Spring `ApplicationEvent`); ready for async listeners
 - [x] **CSV export** — `GET /api/stock-movements/export/csv` with product/warehouse filters
+
+---
+
+## Invoicing ✅
+
+- [x] `Invoice` (SALES / PURCHASE), `InvoiceItem`, `Payment` (CASH / BANK / STRIPE), per-tenant `InvoiceSequence` numbering
+- [x] Invoice lifecycle — DRAFT → ISSUED → PAID (payments recorded against issued invoices), cancel unless paid
+- [x] Optional link to a sale order or purchase order (`saleOrderId` / `purchaseOrderId`)
+- [x] Frontend `/invoices` page
 
 ---
 
@@ -80,6 +91,43 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Plans seeded by `DataSeeder` on startup
 - [x] Frontend `/settings/subscription` page — usage bars, plan comparison cards
 - [x] Sidebar shows current plan tier badge
+
+---
+
+## Phase 6A — Core Order Model (gap fixes) ✅
+
+> Goal: make the sale-order lifecycle reliable before connecting external systems (Shopify).
+
+### Foundation
+- [x] **Flyway** — `V1__baseline.sql` = schema as it was under `ddl-auto=update`; existing databases are baselined at V1 automatically (`baseline-on-migrate`)
+- [x] Hibernate switched to `ddl-auto=validate` — **every schema or enum change now needs a migration** (enum columns have CHECK constraints)
+- [x] **Testcontainers** test suite (`./mvnw test`) — fresh Postgres per run; never touches the dev DB
+- [x] `DataSeeder` no longer crashes on an empty database (no warehouse yet)
+
+### Order lifecycle (gap: all-or-nothing fulfilment)
+- [x] Order status `DRAFT → CONFIRMED → COMPLETED` / `CANCELLED`, tracked separately from fulfilment status `UNFULFILLED / PARTIALLY_FULFILLED / FULFILLED`
+- [x] Explicit **confirm** step — only CONFIRMED orders can ship
+- [x] **Partial fulfilment** — `Fulfilment` + `FulfilmentLine` entities; per-line `fulfilledQuantity`; SALE_OUT movements only for shipped quantities
+- [x] **Idempotency** — optional `idempotencyKey` (unique per tenant) on fulfilments and returns; retries are applied once
+- [x] **Concurrency** — order row locked (`PESSIMISTIC_WRITE`) for confirm / fulfil / cancel / return
+- [x] Insufficient-stock protection kept (HTTP 422); stock checked per product across all lines of a shipment
+
+### Cancellations & returns (gap: only DRAFT could be cancelled)
+- [x] Cancel before shipping → `CANCELLED`; cancel after partial shipment → remaining quantities cancelled, order `COMPLETED`, shipped quantities kept
+- [x] **Returns** — `SaleReturn` + `SaleReturnLine`; per-line `restock` flag: restocked lines create `SALE_RETURN_IN`, damaged ones are recorded only; cannot return more than shipped
+- [x] Refunds stay financial (invoices) — not linked to stock
+
+### Audit actor (gap: audit required a logged-in user)
+- [x] `audit_log.actor_type` (`USER` / `SYSTEM` / `INTEGRATION`) + `actor_id`; `AuditActorContext.runAs(...)` for jobs and webhooks
+- [x] Audit log UI shows actor badge; new actions CONFIRM, RETURN, CANCEL_REMAINING
+
+### Frontend
+- [x] Sale orders: "Manage" panel — confirm, ship (per-line quantities), cancel / cancel remaining, record return (restock toggle, target warehouse), shipment & return history
+- [x] Order status + fulfilment progress badges
+
+### Fixed along the way
+- [x] Stock queries now share one `StockMovementRepository.IN_TYPES` constant (was copied in 5 queries); a test enforces it matches `MovementType.isIn()`
+- [x] `IllegalArgumentException` → HTTP 400 (was 500)
 
 ---
 
@@ -118,8 +166,15 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/purchase-orders/{id}/receive` | Receive PO → IN movements |
 | POST | `/purchase-orders/{id}/cancel` | Cancel PO |
 | GET/POST | `/sale-orders` | List / create SOs |
-| POST | `/sale-orders/{id}/fulfill` | Fulfill SO → OUT movements |
-| POST | `/sale-orders/{id}/cancel` | Cancel SO |
+| POST | `/sale-orders/{id}/confirm` | DRAFT → CONFIRMED |
+| POST | `/sale-orders/{id}/fulfill` | Ship given line quantities (no body = all remaining) → SALE_OUT movements |
+| POST | `/sale-orders/{id}/cancel` | Cancel SO, or cancel remaining quantities if partly shipped |
+| POST | `/sale-orders/{id}/returns` | Record customer return → SALE_RETURN_IN for restocked lines |
+| GET/POST | `/invoices` | List / create invoices |
+| GET | `/invoices/{id}` | Get invoice |
+| POST | `/invoices/{id}/issue` | DRAFT → ISSUED |
+| POST | `/invoices/{id}/pay` | Record payment |
+| POST | `/invoices/{id}/cancel` | Cancel invoice |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | List tenants (SUPER_ADMIN) |
 | PUT  | `/tenants/{id}/toggle` | Enable/disable tenant (SUPER_ADMIN) |

@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Component
 @Order(1)
@@ -154,12 +155,13 @@ public class DataSeeder implements ApplicationRunner {
                 "SELECT COUNT(*) FROM stock_movements WHERE tenant_id = ?", Long.class, tenantId);
         if (existing != null && existing > 0) return;
 
-        Long warehouseId = jdbcTemplate.queryForObject(
+        List<Long> warehouseIds = jdbcTemplate.queryForList(
                 "SELECT id FROM warehouses WHERE tenant_id = ? ORDER BY id LIMIT 1", Long.class, tenantId);
-        if (warehouseId == null) {
+        if (warehouseIds.isEmpty()) {
             System.out.println("==> No warehouse found, skipping initial stock seed");
             return;
         }
+        Long warehouseId = warehouseIds.get(0);
 
         int rows = jdbcTemplate.update("""
             INSERT INTO stock_movements (created_at, notes, quantity, reference, type, product_id, warehouse_id, reference_id, reference_type, tenant_id)

@@ -31,4 +31,24 @@ public class SaleOrderLine {
 
     @Column(precision = 18, scale = 4)
     private BigDecimal unitPrice;
+
+    // Invariant (DB check constraint): fulfilled + cancelled <= quantity, returned <= fulfilled
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal fulfilledQuantity = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal cancelledQuantity = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal returnedQuantity = BigDecimal.ZERO;
+
+    /** Quantity still to be shipped. */
+    public BigDecimal getRemainingQuantity() {
+        return quantity.subtract(fulfilledQuantity).subtract(cancelledQuantity);
+    }
+
+    /** Quantity shipped and not yet returned. */
+    public BigDecimal getReturnableQuantity() {
+        return fulfilledQuantity.subtract(returnedQuantity);
+    }
 }

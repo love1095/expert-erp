@@ -1,4 +1,5 @@
 import api from "@/lib/apiInstance";
+import type { FulfilmentRequest, SaleReturnRequest } from "@/types";
 
 // Normalises a backend response that may be a flat array (old) or a Page object (new)
 const toPage = (data: any) =>
@@ -69,8 +70,13 @@ export const getSaleOrders    = (params?: { page?: number; size?: number }) =>
   api.get("/sale-orders", { params: { size: 20, ...params } }).then(r => r.data);
 export const getSaleOrder     = (id: number) => api.get(`/sale-orders/${id}`).then(r => r.data);
 export const createSaleOrder  = (data: unknown) => api.post("/sale-orders", data).then(r => r.data);
-export const fulfillSaleOrder = (id: number) => api.post(`/sale-orders/${id}/fulfill`).then(r => r.data);
+export const confirmSaleOrder = (id: number) => api.post(`/sale-orders/${id}/confirm`).then(r => r.data);
+// No body = ship everything remaining
+export const fulfillSaleOrder = ({ id, data }: { id: number; data?: FulfilmentRequest }) =>
+  api.post(`/sale-orders/${id}/fulfill`, data).then(r => r.data);
 export const cancelSaleOrder  = (id: number) => api.post(`/sale-orders/${id}/cancel`).then(r => r.data);
+export const createSaleReturn = ({ id, data }: { id: number; data: SaleReturnRequest }) =>
+  api.post(`/sale-orders/${id}/returns`, data).then(r => r.data);
 
 // Auth / Users
 export const getUsersPage  = (params?: { page?: number; size?: number }) =>

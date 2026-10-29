@@ -11,7 +11,10 @@ const ACTION_COLOR: Record<string, string> = {
   CREATE:  "bg-emerald-100 text-emerald-700",
   RECEIVE: "bg-blue-100 text-blue-700",
   FULFILL: "bg-indigo-100 text-indigo-700",
+  CONFIRM: "bg-sky-100 text-sky-700",
+  RETURN:  "bg-teal-100 text-teal-700",
   CANCEL:  "bg-gray-100 text-gray-500",
+  CANCEL_REMAINING: "bg-gray-100 text-gray-500",
 };
 
 export default function AuditLogPage() {
@@ -48,7 +51,7 @@ export default function AuditLogPage() {
         <select value={action} onChange={e => { setAction(e.target.value); setPage(0); }}
           className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-36">
           <option value="">All actions</option>
-          {["CREATE", "RECEIVE", "FULFILL", "CANCEL"].map(a => (
+          {["CREATE", "CONFIRM", "RECEIVE", "FULFILL", "RETURN", "CANCEL", "CANCEL_REMAINING"].map(a => (
             <option key={a} value={a}>{a}</option>
           ))}
         </select>
@@ -82,7 +85,12 @@ export default function AuditLogPage() {
                         {e.action}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-600">{e.username ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-gray-600">
+                      {e.actorId ?? e.username ?? "—"}
+                      {e.actorType && e.actorType !== "USER" && (
+                        <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{e.actorType}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-400 max-w-xs truncate font-mono">{e.changes ?? "—"}</td>
                     <td className="px-4 py-3 text-xs text-gray-400"><ClientDate iso={e.createdAt} showTime /></td>
                   </tr>

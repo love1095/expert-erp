@@ -23,14 +23,23 @@ public class AuditService {
         entry.setEntityId(entityId);
         entry.setAction(action);
 
+        AuditActorContext.Actor actor = AuditActorContext.get();
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl u) {
+        if (actor != null) {
+            entry.setActorType(actor.type());
+            entry.setActorId(actor.id());
+            entry.setUsername(actor.id());
+        } else if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl u) {
             entry.setUserId(u.getId());
             entry.setUsername(u.getUsername());
+            entry.setActorId(u.getUsername());
         } else if (auth != null && !"anonymousUser".equals(auth.getPrincipal())) {
             entry.setUsername(auth.getName());
+            entry.setActorId(auth.getName());
         } else {
+            entry.setActorType(AuditLog.ActorType.SYSTEM);
             entry.setUsername("system");
+            entry.setActorId("system");
         }
 
         try {
@@ -40,5 +49,14 @@ public class AuditService {
         }
 
         auditLogRepository.save(entry);
+    }
+
+    /** Name of whoever is acting on this thread — for created_by columns. */
+    public String currentActorName() {
+        AuditActorContext.Actor actor = AuditActorContext.get();
+        if (actor != null) return actor.id();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && !"anonymousUser".equals(auth.getPrincipal())) return auth.getName();
+        return "system";
     }
 }

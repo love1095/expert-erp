@@ -11,6 +11,7 @@ const TYPE_COLORS: Record<string, string> = {
   PURCHASE_IN:    "bg-emerald-100 text-emerald-700",
   ADJUSTMENT_IN:  "bg-blue-100 text-blue-700",
   TRANSFER_IN:    "bg-sky-100 text-sky-700",
+  SALE_RETURN_IN: "bg-teal-100 text-teal-700",
   SALE_OUT:       "bg-red-100 text-red-700",
   ADJUSTMENT_OUT: "bg-orange-100 text-orange-700",
   TRANSFER_OUT:   "bg-purple-100 text-purple-700",

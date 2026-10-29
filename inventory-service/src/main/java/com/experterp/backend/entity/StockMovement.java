@@ -70,7 +70,8 @@ public class StockMovement {
         ADJUSTMENT_IN,
         ADJUSTMENT_OUT,
         TRANSFER_IN,
-        TRANSFER_OUT;
+        TRANSFER_OUT,
+        SALE_RETURN_IN;
 
         public boolean isIn() {
             return name().endsWith("_IN");
@@ -80,6 +81,7 @@ public class StockMovement {
     public enum ReferenceType {
         PURCHASE_ORDER,
         SALE_ORDER,
+        SALE_RETURN,
         TRANSFER,
         ADJUSTMENT,
         MANUAL

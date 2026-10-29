@@ -1,7 +1,9 @@
 package com.experterp.backend.controller;
 
+import com.experterp.backend.dto.FulfilmentRequest;
 import com.experterp.backend.dto.SaleOrderRequest;
 import com.experterp.backend.dto.SaleOrderResponse;
+import com.experterp.backend.dto.SaleReturnRequest;
 import com.experterp.backend.service.SaleOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +37,21 @@ public class SaleOrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(saleOrderService.create(req));
     }
 
+    @PostMapping("/{id}/confirm")
+    public SaleOrderResponse confirm(@PathVariable Long id) {
+        return saleOrderService.confirm(id);
+    }
+
+    // No body = ship everything remaining
     @PostMapping("/{id}/fulfill")
-    public SaleOrderResponse fulfill(@PathVariable Long id) {
-        return saleOrderService.fulfill(id);
+    public SaleOrderResponse fulfill(@PathVariable Long id,
+                                     @Valid @RequestBody(required = false) FulfilmentRequest req) {
+        return saleOrderService.fulfill(id, req);
+    }
+
+    @PostMapping("/{id}/returns")
+    public SaleOrderResponse createReturn(@PathVariable Long id, @Valid @RequestBody SaleReturnRequest req) {
+        return saleOrderService.createReturn(id, req);
     }
 
     @PostMapping("/{id}/cancel")

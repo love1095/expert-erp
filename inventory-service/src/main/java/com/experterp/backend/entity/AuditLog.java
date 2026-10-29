@@ -38,9 +38,19 @@ public class AuditLog {
 
     private String username;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "actor_type", nullable = false)
+    private ActorType actorType = ActorType.USER;
+
+    // Username for USER, job or integration name for SYSTEM / INTEGRATION (e.g. "shopify")
+    @Column(name = "actor_id")
+    private String actorId;
+
     @Column(columnDefinition = "TEXT")
     private String changes;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    public enum ActorType { USER, SYSTEM, INTEGRATION }
 }

@@ -1,17 +1,25 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSaleOrders, createSaleOrder, fulfillSaleOrder, cancelSaleOrder, getProducts, getWarehouses, getCategories } from "@/lib/api";
-import { SaleOrder, Product, Warehouse, SaleOrderStatus, Category, Page } from "@/types";
-import { useState } from "react";
+import { getSaleOrders, createSaleOrder, getProducts, getWarehouses, getCategories } from "@/lib/api";
+import { SaleOrder, Product, Warehouse, SaleOrderStatus, FulfilmentStatus, Category, Page } from "@/types";
+import { Fragment, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
+import SaleOrderPanel from "./sale-order-panel";
 
 const STATUS_COLOR: Record<SaleOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
-  FULFILLED: "bg-emerald-100 text-emerald-700",
+  CONFIRMED: "bg-sky-100 text-sky-700",
+  COMPLETED: "bg-emerald-100 text-emerald-700",
   CANCELLED: "bg-gray-100 text-gray-500",
+};
+
+const FULFILMENT_LABEL: Record<FulfilmentStatus, { label: string; color: string }> = {
+  UNFULFILLED:         { label: "Not shipped", color: "text-gray-400" },
+  PARTIALLY_FULFILLED: { label: "Partly shipped", color: "text-amber-600" },
+  FULFILLED:           { label: "Shipped", color: "text-emerald-600" },
 };
 
 export default function SaleOrdersPage() {
@@ -36,6 +44,7 @@ export default function SaleOrdersPage() {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState([{ categoryId: "", productId: "", quantity: "", unitPrice: "" }]);
   const [error, setError] = useState("");
+  const [openId, setOpenId] = useState<number | null>(null);
 
   const createMutation = useMutation({
     mutationFn: createSaleOrder,
@@ -45,22 +54,6 @@ export default function SaleOrdersPage() {
       resetForm();
     },
     onError: (e: any) => setError(e.response?.data?.error || "Failed to create order"),
-  });
-
-  const fulfillMutation = useMutation({
-    mutationFn: fulfillSaleOrder,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sale-orders"] });
-      qc.invalidateQueries({ queryKey: ["stock-overview"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
-      qc.invalidateQueries({ queryKey: ["products-page"] });
-    },
-    onError: (e: any) => alert(e.response?.data?.error || "Failed to fulfill"),
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: cancelSaleOrder,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sale-orders"] }),
   });
 
   const resetForm = () => { setCustomerName(""); setWarehouseId(""); setNotes(""); setLines([{ categoryId: "", productId: "", quantity: "", unitPrice: "" }]); setError(""); };
@@ -165,7 +158,8 @@ export default function SaleOrdersPage() {
               <tbody className="divide-y divide-gray-100">
                 {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No sale orders yet</td></tr>}
                 {orders.map(o => (
-                  <tr key={o.id} className="hover:bg-gray-50">
+                  <Fragment key={o.id}>
+                  <tr className={`hover:bg-gray-50 ${openId === o.id ? "bg-gray-50" : ""}`}>
                     <td className="px-4 py-3 font-mono text-xs text-gray-400">SO-{o.id}</td>
                     <td className="px-4 py-3 font-medium">{o.customerName}</td>
                     <td className="px-4 py-3 text-gray-600">{o.warehouseName}</td>
@@ -175,19 +169,28 @@ export default function SaleOrdersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      {o.status === "DRAFT" && (
-                        <>
-                          <button onClick={() => { if (confirm("Fulfill this order? This will deduct stock.")) fulfillMutation.mutate(o.id); }}
-                            className="text-xs text-emerald-600 hover:text-emerald-800 font-medium">Fulfill</button>
-                          <button onClick={() => { if (confirm("Cancel this SO?")) cancelMutation.mutate(o.id); }}
-                            className="text-xs text-red-500 hover:text-red-700">Cancel</button>
-                        </>
+                      {o.status !== "DRAFT" && o.status !== "CANCELLED" && (
+                        <span className={`block mt-1 text-[11px] ${FULFILMENT_LABEL[o.fulfilmentStatus].color}`}>
+                          {FULFILMENT_LABEL[o.fulfilmentStatus].label}
+                        </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => setOpenId(openId === o.id ? null : o.id)}
+                        className="text-xs text-rose-600 hover:text-rose-800 font-medium">
+                        {openId === o.id ? "Close" : "Manage"}
+                      </button>
+                    </td>
                   </tr>
+                  {openId === o.id && (
+                    <tr>
+                      <td colSpan={8} className="p-0">
+                        <SaleOrderPanel orderId={o.id} warehouses={warehouses} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

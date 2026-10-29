@@ -33,6 +33,8 @@ export interface AuthUser {
   tenantSlug: string;
 }
 
+export type AuditActorType = "USER" | "SYSTEM" | "INTEGRATION";
+
 export interface AuditLog {
   id: number;
   entityType: string;
@@ -40,6 +42,8 @@ export interface AuditLog {
   action: string;
   userId?: number;
   username?: string;
+  actorType: AuditActorType;
+  actorId?: string;
   changes?: string;
   createdAt: string;
 }
@@ -76,10 +80,11 @@ export interface Warehouse {
 export type MovementType =
   | "PURCHASE_IN" | "SALE_OUT"
   | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT"
-  | "TRANSFER_IN" | "TRANSFER_OUT";
+  | "TRANSFER_IN" | "TRANSFER_OUT"
+  | "SALE_RETURN_IN";
 
 export type ReferenceType =
-  | "PURCHASE_ORDER" | "SALE_ORDER" | "TRANSFER" | "ADJUSTMENT" | "MANUAL";
+  | "PURCHASE_ORDER" | "SALE_ORDER" | "SALE_RETURN" | "TRANSFER" | "ADJUSTMENT" | "MANUAL";
 
 export interface StockMovement {
   id: number;
@@ -113,7 +118,8 @@ export interface StockLevel {
 }
 
 export type PurchaseOrderStatus = "DRAFT" | "RECEIVED" | "CANCELLED";
-export type SaleOrderStatus     = "DRAFT" | "FULFILLED" | "CANCELLED";
+export type SaleOrderStatus     = "DRAFT" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+export type FulfilmentStatus    = "UNFULFILLED" | "PARTIALLY_FULFILLED" | "FULFILLED";
 
 export interface OrderLine {
   id: number;
@@ -137,16 +143,68 @@ export interface PurchaseOrder {
   lines: OrderLine[];
 }
 
+export interface SaleOrderLine extends OrderLine {
+  fulfilledQuantity: number;
+  cancelledQuantity: number;
+  returnedQuantity: number;
+  remainingQuantity: number;
+}
+
+export interface SaleOrderEntryLine {
+  saleOrderLineId: number;
+  productSku: string;
+  productName: string;
+  quantity: number;
+  restock?: boolean;
+}
+
+export interface SaleOrderFulfilment {
+  id: number;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  lines: SaleOrderEntryLine[];
+}
+
+export interface SaleOrderReturn {
+  id: number;
+  reason?: string;
+  warehouseId: number;
+  warehouseName: string;
+  createdBy?: string;
+  createdAt: string;
+  lines: SaleOrderEntryLine[];
+}
+
 export interface SaleOrder {
   id: number;
   customerName: string;
   warehouseId: number;
   warehouseName: string;
   status: SaleOrderStatus;
+  fulfilmentStatus: FulfilmentStatus;
   notes?: string;
   createdAt: string;
+  confirmedAt?: string;
   fulfilledAt?: string;
-  lines: OrderLine[];
+  cancelledAt?: string;
+  lines: SaleOrderLine[];
+  // Only on single-order responses
+  fulfilments?: SaleOrderFulfilment[];
+  returns?: SaleOrderReturn[];
+}
+
+export interface FulfilmentRequest {
+  idempotencyKey?: string;
+  notes?: string;
+  lines?: { saleOrderLineId: number; quantity: number }[];
+}
+
+export interface SaleReturnRequest {
+  idempotencyKey?: string;
+  reason?: string;
+  warehouseId?: number;
+  lines: { saleOrderLineId: number; quantity: number; restock: boolean }[];
 }
 
 export type InvoiceType   = "SALES" | "PURCHASE";

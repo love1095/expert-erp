@@ -13,6 +13,10 @@ import java.util.List;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
 
+    // Movement types that add stock; every other type subtracts.
+    // Must list exactly the MovementType values whose isIn() is true (enforced by StockMovementTypesTest).
+    String IN_TYPES = "'PURCHASE_IN','ADJUSTMENT_IN','TRANSFER_IN','SALE_RETURN_IN'";
+
     Page<StockMovement> findByProductId(Long productId, Pageable pageable);
 
     Page<StockMovement> findByWarehouseId(Long warehouseId, Pageable pageable);
@@ -22,14 +26,14 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     Page<StockMovement> findByProduct_Category_Id(Long categoryId, Pageable pageable);
 
     // Stock for one product in one warehouse
-    @Query("SELECT COALESCE(SUM(CASE WHEN m.type IN ('PURCHASE_IN','ADJUSTMENT_IN','TRANSFER_IN') " +
+    @Query("SELECT COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
            "THEN m.quantity ELSE -m.quantity END), 0) " +
            "FROM StockMovement m " +
            "WHERE m.product.id = :productId AND m.warehouse.id = :warehouseId")
     BigDecimal calculateStock(@Param("productId") Long productId, @Param("warehouseId") Long warehouseId);
 
     // Total stock for one product across all warehouses
-    @Query("SELECT COALESCE(SUM(CASE WHEN m.type IN ('PURCHASE_IN','ADJUSTMENT_IN','TRANSFER_IN') " +
+    @Query("SELECT COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
            "THEN m.quantity ELSE -m.quantity END), 0) " +
            "FROM StockMovement m WHERE m.product.id = :productId")
     BigDecimal calculateTotalStock(@Param("productId") Long productId);
@@ -39,7 +43,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     //          w.id[5], w.name[6], c.id[7], c.name[8], stock[9]
     @Query(value =
         "SELECT p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, " +
-        "COALESCE(SUM(CASE WHEN m.type IN ('PURCHASE_IN','ADJUSTMENT_IN','TRANSFER_IN') " +
+        "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
         "    THEN m.quantity ELSE -m.quantity END), 0) AS stock " +
         "FROM stock_movements m " +
         "JOIN products p ON m.product_id = p.id " +
@@ -53,7 +57,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     @Query(value =
         "SELECT p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, " +
-        "COALESCE(SUM(CASE WHEN m.type IN ('PURCHASE_IN','ADJUSTMENT_IN','TRANSFER_IN') " +
+        "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
         "    THEN m.quantity ELSE -m.quantity END), 0) AS stock " +
         "FROM stock_movements m " +
         "JOIN products p ON m.product_id = p.id " +
@@ -75,7 +79,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     @Query(value =
         "SELECT p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, " +
-        "COALESCE(SUM(CASE WHEN m.type IN ('PURCHASE_IN','ADJUSTMENT_IN','TRANSFER_IN') " +
+        "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
         "    THEN m.quantity ELSE -m.quantity END), 0) AS stock " +
         "FROM stock_movements m " +
         "JOIN products p ON m.product_id = p.id " +
