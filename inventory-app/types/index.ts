@@ -664,6 +664,18 @@ export interface ReorderLine {
   onOrder: number;
   minStock: number;
   suggestedQuantity: number;
+  // Default supplier (absent = none), their code for it, cost (supplier price, else cost price)
+  supplierId?: number;
+  supplierSku?: string;
+  unitCost?: number;
+  unit?: string;
+}
+
+// Reorder screen: suppliers with products to reorder (no supplierId = products without a supplier)
+export interface ReorderSupplier {
+  supplierId?: number;
+  supplierName?: string;
+  products: number;
 }
 
 export interface ShopifyConnection {

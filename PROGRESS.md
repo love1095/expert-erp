@@ -357,8 +357,14 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [ ] Stock cost following the bill price (decision 3) needs the FIFO layers — done in E5 as a cost adjustment
 - [ ] Purchase invoices typed by hand on the Invoices page still take a number from the INV- series (bills from POs don't)
 
+### E4 Reorder → purchase orders in bulk ✅
+- [x] **Reorder** page (Purchase → Reorder) like Cin7's: suppliers with products to reorder and how many (plus *No supplier*), the products of all or one supplier with available, on order, minimum, **Cin7's suggested quantity** (reorder quantity, else up to the minimum — decision 5), supplier SKU and cost (supplier price, else cost price)
+- [x] Tick products (kept across pages and suppliers), change quantities, choose the warehouse → **one draft PO per default supplier** (`POST /reorder/purchase-orders`), each line with the supplier's code, price and VAT as on any new PO; products without a supplier are refused by name; links to the new POs
+- [x] `GET /reorder` (supplier filter, search, paging) and `GET /reorder/suppliers` reuse the dashboard's reorder query (one rule, one count: 429 on the real data)
+- [x] Tests: `ReorderTest` (3) — per-supplier list and suggestions, two suppliers → two draft POs now on order, no-supplier refused (127 backend tests); E2E RO-001 (74 cases)
+
 ### Next
-- [ ] E4 reorder → POs in bulk · E5 FIFO (incl. bill price → stock cost)
+- [ ] E5 FIFO cost layers (incl. bill price → stock cost)
 
 ---
 

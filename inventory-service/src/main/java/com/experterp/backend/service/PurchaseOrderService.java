@@ -10,6 +10,7 @@ import com.experterp.backend.repository.PurchaseOrderRepository;
 import com.experterp.backend.repository.SupplierRepository;
 import com.experterp.backend.repository.PurchaseReceiptRepository;
 import com.experterp.backend.dto.PurchaseReceiptRequest;
+import com.experterp.backend.dto.ReorderRequest;
 import com.experterp.backend.dto.InvoiceResponse;
 import com.experterp.backend.repository.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
@@ -116,6 +117,41 @@ public class PurchaseOrderService {
         if (!taxOverrides.isEmpty()) audit.put("taxOverrides", taxOverrides);
         auditService.log("PURCHASE_ORDER", saved.getId(), "CREATE", audit);
         return saved;
+    }
+
+    /**
+     * Cin7's "Reorder": the products chosen on the reorder screen become one draft PO per default supplier, each line
+     * with the supplier's code, price and VAT as on any new PO. Products without a supplier are refused by name.
+     */
+    @Transactional
+    public List<PurchaseOrderResponse> createFromReorder(ReorderRequest req) {
+        Map<Long, List<ReorderRequest.Line>> bySupplier = new LinkedHashMap<>();
+        List<String> noSupplier = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        for (ReorderRequest.Line l : req.getLines()) {
+            Product product = productService.getProduct(l.getProductId());
+            if (!seen.add(product.getId())) throw new IllegalArgumentException(product.getSku() + " appears more than once");
+            if (product.getDefaultSupplier() == null) noSupplier.add(product.getSku());
+            else bySupplier.computeIfAbsent(product.getDefaultSupplier().getId(), k -> new ArrayList<>()).add(l);
+        }
+        if (!noSupplier.isEmpty()) {
+            throw new IllegalArgumentException("No supplier set for " + String.join(", ", noSupplier) + ": give them one on the product first");
+        }
+        List<PurchaseOrderResponse> created = new ArrayList<>();
+        bySupplier.forEach((supplierId, lines) -> {
+            PurchaseOrderRequest po = new PurchaseOrderRequest();
+            po.setSupplierId(supplierId);
+            po.setWarehouseId(req.getWarehouseId());
+            po.setNotes("Raised from the reorder list");
+            po.setLines(lines.stream().map(l -> {
+                PurchaseOrderRequest.Line pl = new PurchaseOrderRequest.Line();
+                pl.setProductId(l.getProductId());
+                pl.setQuantity(l.getQuantity());
+                return pl;
+            }).toList());
+            created.add(create(po));
+        });
+        return created;
     }
 
     /** What the order would look like (defaults, VAT, totals) without saving it; for the form. */

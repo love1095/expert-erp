@@ -167,6 +167,11 @@ export const updateOrganisationSettings = (data: unknown) => api.put("/settings/
 export const getDashboard = (period: { from: string; to: string }) => api.get("/dashboard", { params: period }).then(r => r.data);
 export const getDashboardReorder = (params: { search?: string; page?: number; size?: number }) =>
   api.get("/dashboard/reorder", { params }).then(r => r.data);
+// Reorder screen: products at or below their minimum by supplier, raised as one draft PO per supplier
+export const getReorder = (params: { search?: string; supplierId?: number; noSupplier?: boolean; page?: number; size?: number }) =>
+  api.get("/reorder", { params }).then(r => r.data);
+export const getReorderSuppliers = () => api.get("/reorder/suppliers").then(r => r.data);
+export const raiseReorderPurchaseOrders = (data: unknown) => api.post("/reorder/purchase-orders", data).then(r => r.data);
 
 // Shopify connection (ADMIN) — GET returns 204 / empty when no store is connected
 export const getShopifyConnection    = () => api.get("/integrations/shopify").then(r => (r.status === 204 ? null : r.data));

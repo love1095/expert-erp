@@ -58,7 +58,7 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* PO-19064's case works: bill 006387333 for the 5 units at 65.50 plus £12 shipping = £407.40 shows the £14.40 difference from the PO as an extra cost, not as a price difference; a bill for more than was received is flagged.
 
-### E4 — Reorder suggestions → POs in bulk
+### E4 — Reorder suggestions → POs in bulk ✅
 - Reorder page like Cin7's: suppliers with products to reorder, suggested quantity per product, choose / change, **create one draft PO per supplier** in one click.
 - Suggested quantity: first Cin7's rule (reorder quantity, or up to minimum when there is none); then **sales velocity and lead time** (needs a lead time on the supplier — see question 5).
 - *Should:* backorder-to-PO (a backordered sale line → the supplier's draft PO).

@@ -238,16 +238,32 @@ public class DashboardService {
     /** The reorder list, lowest stock + on order first; {@code search} matches SKU, name or supplier. */
     @Transactional(readOnly = true)
     public Page<ReorderLine> reorder(String search, int page, int size) {
+        return reorder(search, null, false, page, size);
+    }
+
+    /**
+     * The reorder list for the reorder screen: one supplier's products ({@code supplierId}), those without a supplier
+     * ({@code noSupplier}), or all; {@code search} matches SKU, name or supplier.
+     */
+    @Transactional(readOnly = true)
+    public Page<ReorderLine> reorder(String search, Long supplierId, boolean noSupplier, int page, int size) {
         var p = new MapSqlParameterSource().addValue("t", TenantContext.get());
         String filter = "";
         if (search != null && !search.isBlank()) {
             filter = "AND (p.sku ILIKE :q OR p.name ILIKE :q OR s.name ILIKE :q) ";
             p.addValue("q", "%" + search.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
         }
+        if (supplierId != null) {
+            filter += "AND p.default_supplier_id = :supplier ";
+            p.addValue("supplier", supplierId);
+        } else if (noSupplier) {
+            filter += "AND p.default_supplier_id IS NULL ";
+        }
         long total = count("SELECT COUNT(*) " + REORDER_FROM + filter, p);
         p.addValue("limit", size).addValue("offset", (long) page * size);
         List<ReorderLine> rows = jdbc.query(
-                "SELECT p.id, p.sku, p.name, s.name AS supplier, p.min_stock, p.reorder_quantity, " +
+                "SELECT p.id, p.sku, p.name, s.name AS supplier, s.id AS supplier_id, p.supplier_product_code, p.unit, " +
+                "       COALESCE((p.details ->> 'supplierPrice')::numeric, p.cost_price) AS unit_cost, p.min_stock, p.reorder_quantity, " +
                 "       COALESCE(st.qty, 0) - COALESCE(rv.qty, 0) AS stock, COALESCE(oo.qty, 0) AS on_order " +
                 REORDER_FROM + filter +
                 " ORDER BY COALESCE(st.qty, 0) - COALESCE(rv.qty, 0) + COALESCE(oo.qty, 0), p.sku LIMIT :limit OFFSET :offset", p,
@@ -258,10 +274,24 @@ public class DashboardService {
                     BigDecimal reorderQty = rs.getBigDecimal("reorder_quantity");
                     BigDecimal suggested = reorderQty != null && reorderQty.signum() > 0
                             ? reorderQty : min.subtract(stock).subtract(onOrder).max(BigDecimal.ZERO);
+                    long sid = rs.getLong("supplier_id");
                     return new ReorderLine(rs.getLong("id"), rs.getString("sku"), rs.getString("name"),
-                            rs.getString("supplier"), stock, onOrder, min, suggested);
+                            rs.getString("supplier"), stock, onOrder, min, suggested,
+                            rs.wasNull() ? null : sid, rs.getString("supplier_product_code"), rs.getBigDecimal("unit_cost"), rs.getString("unit"));
                 });
         return new PageImpl<>(rows, PageRequest.of(page, size), total);
+    }
+
+    /** Suppliers with products to reorder and how many, A–Z; products without a supplier last. */
+    @Transactional(readOnly = true)
+    public List<ReorderSupplier> reorderSuppliers() {
+        var p = new MapSqlParameterSource().addValue("t", TenantContext.get());
+        return jdbc.query("SELECT s.id, s.name, COUNT(*) AS products " + REORDER_FROM +
+                " GROUP BY s.id, s.name ORDER BY s.name NULLS LAST", p,
+                (rs, i) -> {
+                    long id = rs.getLong("id");
+                    return new ReorderSupplier(rs.wasNull() ? null : id, rs.getString("name"), rs.getLong("products"));
+                });
     }
 
     private Seller seller(java.sql.ResultSet rs, int i) throws java.sql.SQLException {

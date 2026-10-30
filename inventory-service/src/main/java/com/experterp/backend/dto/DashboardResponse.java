@@ -66,5 +66,10 @@ public record DashboardResponse(
                               // available = on hand − reserved for sale orders
                               BigDecimal stock, BigDecimal onOrder, BigDecimal minStock,
                               // The product's reorder quantity, or else what brings it back to its minimum
-                              BigDecimal suggestedQuantity) {}
+                              BigDecimal suggestedQuantity,
+                              // Its default supplier (null = none), their code for it, and its cost (supplier price, else cost price)
+                              Long supplierId, String supplierSku, BigDecimal unitCost, String unit) {}
+
+    // Reorder screen: suppliers with products to reorder (supplierId null = products without a supplier)
+    public record ReorderSupplier(Long supplierId, String supplierName, long products) {}
 }
