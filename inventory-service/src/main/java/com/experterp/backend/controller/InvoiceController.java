@@ -27,8 +27,10 @@ public class InvoiceController {
     public Page<InvoiceResponse> findAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) Invoice.InvoiceType type) {
-        return invoiceService.findAll(page, size, type);
+            @RequestParam(required = false) Invoice.InvoiceType type,
+            @RequestParam(required = false) Invoice.InvoiceStatus status,
+            @RequestParam(required = false) String q) {
+        return invoiceService.findAll(page, size, type, status, q);
     }
 
     @GetMapping("/{id}")

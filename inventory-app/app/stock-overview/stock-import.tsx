@@ -42,7 +42,7 @@ export default function StockImport({ onImported }: { onImported: () => void }) 
         <input id="stock-import-file" type="file" accept=".csv,text/csv"
           onChange={e => { setFile(e.target.files?.[0] ?? null); reset(); }} className="text-sm" />
         <button onClick={() => run.mutate(false)} disabled={!file || !warehouseId || run.isPending}
-          className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+          className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
           Preview
         </button>
         {run.isPending && <span className="text-sm text-gray-500">Working…</span>}
@@ -87,7 +87,7 @@ export default function StockImport({ onImported }: { onImported: () => void }) 
           )}
           {!result.applied && result.changed > 0 && (
             <button onClick={() => run.mutate(true)} disabled={run.isPending}
-              className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               Import {qty(result.changed)} changes
             </button>
           )}

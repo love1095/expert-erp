@@ -68,8 +68,13 @@ public class SaleOrderService {
 
     @Transactional(readOnly = true)
     public Page<SaleOrderResponse> findAll(Long customerId, Status status, int page, int size) {
+        return findAll(customerId, status, null, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SaleOrderResponse> findAll(Long customerId, Status status, String q, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
-        Page<SaleOrder> orders = soRepository.search(customerId, status, pageable);
+        Page<SaleOrder> orders = soRepository.search(customerId, status, Search.pattern(q), pageable);
         // One allocation query for the whole page
         Map<Long, AllocationService.LineAllocation> allocations =
                 allocationService.forOrders(orders.getContent().stream().map(SaleOrder::getId).toList());

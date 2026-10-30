@@ -65,7 +65,7 @@ export default function StockMovementsPage() {
         <h1 className="text-2xl font-bold">Stock Movements</h1>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+          className="bg-amber-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-colors"
         >
           {showForm ? "Cancel" : "+ Record Movement"}
         </button>
@@ -156,7 +156,7 @@ export default function StockMovementsPage() {
             <button
               type="submit"
               disabled={createMutation.isPending}
-              className="bg-amber-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+              className="bg-amber-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
             >
               {createMutation.isPending ? "Saving..." : "Record Movement"}
             </button>

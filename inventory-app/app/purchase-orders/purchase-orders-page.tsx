@@ -7,6 +7,7 @@ import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
+import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
 
 const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -17,10 +18,13 @@ const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
 export default function PurchaseOrdersPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery<Page<PurchaseOrder>>({
-    queryKey: ["purchase-orders", page],
-    queryFn: () => getPurchaseOrders({ page }),
+  const { data, isLoading, isFetching, refetch } = useQuery<Page<PurchaseOrder>>({
+    queryKey: ["purchase-orders", page, size, statusFilter, search],
+    queryFn: () => getPurchaseOrders({ page, size, status: statusFilter || undefined, q: search || undefined }),
   });
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ["products"], queryFn: () => getProducts() });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
@@ -76,13 +80,26 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Purchase Orders</h1>
+      <PageHeader title="Purchase Orders" subtitle="Orders to suppliers, newest first">
         <button onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
-          className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
+          className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
           {showForm ? "Cancel" : "+ New PO"}
         </button>
-      </div>
+      </PageHeader>
+
+      <ListToolbar
+        search={search} onSearch={q => { setSearch(q); setPage(0); }}
+        placeholder="PO # or supplier"
+        onRefresh={() => refetch()} refreshing={isFetching}
+        filters={<>
+          <label htmlFor="po-status-filter" className="sr-only">Status</label>
+          <select id="po-status-filter" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={FILTER_SELECT}>
+            <option value="">All statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="RECEIVED">Received</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </>} />
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4">
@@ -149,7 +166,7 @@ export default function PurchaseOrdersPage() {
           </div>
 
           <button type="submit" disabled={createMutation.isPending}
-            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {createMutation.isPending ? "Saving..." : "Create Purchase Order"}
           </button>
         </form>
@@ -167,7 +184,7 @@ export default function PurchaseOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No purchase orders yet</td></tr>}
+                {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No purchase orders match" : "No purchase orders yet"}</td></tr>}
                 {orders.map(o => (
                   <tr key={o.id} data-testid={`po-row-${o.id}`} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-xs text-gray-400">PO-{o.id}</td>
@@ -196,7 +213,8 @@ export default function PurchaseOrdersPage() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
+          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage}
+            size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
     </div>

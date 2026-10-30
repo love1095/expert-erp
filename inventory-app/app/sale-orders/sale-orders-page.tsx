@@ -7,6 +7,7 @@ import { Fragment, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
+import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
 import SaleOrderPanel from "./sale-order-panel";
 import SaleOrderForm from "./sale-order-form";
 import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
@@ -34,11 +35,13 @@ export default function SaleOrdersPage() {
   const [showShopifyImport, setShowShopifyImport] = useState(false);
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery<Page<SaleOrder>>({
-    queryKey: ["sale-orders", page, statusFilter],
-    queryFn: () => getSaleOrders({ page, status: statusFilter || undefined }),
+  const { data, isLoading, isFetching, refetch } = useQuery<Page<SaleOrder>>({
+    queryKey: ["sale-orders", page, size, statusFilter, search],
+    queryFn: () => getSaleOrders({ page, size, status: statusFilter || undefined, q: search || undefined }),
   });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers });
@@ -60,16 +63,13 @@ export default function SaleOrdersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Sale Orders</h1>
-        <div className="flex gap-2">
-          {isAdmin && <ShopifyImportButton onOpen={() => setShowShopifyImport(true)} />}
-          <button onClick={() => setShowForm(!showForm)}
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
-            {showForm ? "Cancel" : "+ New SO"}
-          </button>
-        </div>
-      </div>
+      <PageHeader title="Sale Orders" subtitle="Quotes and orders, newest first">
+        {isAdmin && <ShopifyImportButton onOpen={() => setShowShopifyImport(true)} />}
+        <button onClick={() => setShowForm(!showForm)}
+          className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
+          {showForm ? "Cancel" : "+ New SO"}
+        </button>
+      </PageHeader>
 
       {isAdmin && showShopifyImport && <ShopifyImportPanel onClose={() => setShowShopifyImport(false)} />}
 
@@ -77,10 +77,14 @@ export default function SaleOrdersPage() {
         <SaleOrderForm customers={customers} warehouses={warehouses} onCreated={onCreated} />
       )}
 
-      <div className="mb-4">
+      <ListToolbar
+        search={search} onSearch={q => { setSearch(q); setPage(0); }}
+        placeholder="Order #, customer, reference, Shopify #"
+        onRefresh={() => refetch()} refreshing={isFetching}
+        filters={<>
         <label htmlFor="sale-orders-status-filter" className="sr-only">Show</label>
         <select id="sale-orders-status-filter" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+          className={FILTER_SELECT}>
           <option value="">All quotes and orders</option>
           <option value="QUOTE">Quotes</option>
           <option value="DRAFT">Draft orders</option>
@@ -89,7 +93,7 @@ export default function SaleOrdersPage() {
           <option value="CANCELLED">Cancelled</option>
           <option value="REJECTED">Rejected quotes</option>
         </select>
-      </div>
+        </>} />
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
@@ -103,7 +107,7 @@ export default function SaleOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No sale orders yet</td></tr>}
+                {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
                 {orders.map(o => (
                   <Fragment key={o.id}>
                   <tr data-testid={`so-row-${o.id}`} className={`hover:bg-gray-50 ${openId === o.id ? "bg-gray-50" : ""}`}>
@@ -157,7 +161,8 @@ export default function SaleOrdersPage() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
+          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage}
+            size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
     </div>

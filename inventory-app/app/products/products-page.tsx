@@ -8,9 +8,10 @@ import { Product, Category, Page, ProductImportResult } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useEffect, useRef, useState } from "react";
 import Pagination from "@/components/Pagination";
+import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
-const BUTTON_SECONDARY = "border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
+const BUTTON_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
 
 const EMPTY_FORM = {
   sku: "", name: "", unit: "", categoryId: "", status: "ACTIVE", brand: "", barcode: "",
@@ -46,9 +47,9 @@ export default function ProductsPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   // Like Cin7: active products by default
   const [status, setStatus] = useState("ACTIVE");
-  const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   // The full product being edited (keeps fields the form does not show); null = adding a new product
   const [editing, setEditing] = useState<Product | null>(null);
@@ -61,21 +62,15 @@ export default function ProductsPage() {
   const [exporting, setExporting] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // Search as you type, once typing pauses
-  useEffect(() => {
-    const t = setTimeout(() => { setQ(search.trim()); setPage(0); }, 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["categories"],
     queryFn: getCategories,
   });
 
-  const { data, isLoading } = useQuery<Page<Product>>({
-    queryKey: ["products-page", selectedCategoryId, status, q, page],
+  const { data, isLoading, isFetching, refetch } = useQuery<Page<Product>>({
+    queryKey: ["products-page", selectedCategoryId, status, q, page, size],
     queryFn: () => getProductsPage({
-      categoryId: selectedCategoryId, status: status === "ALL" ? undefined : status, q: q || undefined, page, size: 20,
+      categoryId: selectedCategoryId, status: status === "ALL" ? undefined : status, q: q || undefined, page, size,
     }),
   });
 
@@ -169,9 +164,7 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold">Products</h1>
-        <div className="flex gap-2">
+      <PageHeader title="Products" count={data?.totalElements} noun="products">
           <button onClick={() => { setShowImport(!showImport); setImportError(""); }} className={BUTTON_SECONDARY}>
             Import
           </button>
@@ -180,12 +173,11 @@ export default function ProductsPage() {
           </button>
           <button
             onClick={() => (showForm ? closeForm() : setShowForm(true))}
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+            className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition-colors"
           >
             {showForm ? "Cancel" : "+ Add Product"}
           </button>
-        </div>
-      </div>
+      </PageHeader>
 
       {showImport && (
         <section data-testid="products-import" className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-3">
@@ -279,20 +271,21 @@ export default function ProductsPage() {
           </div>
           <div className="col-span-2 lg:col-span-3 flex justify-end">
             <button type="submit" disabled={saveMutation.isPending}
-              className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {saveMutation.isPending ? "Saving..." : "Save Product"}
             </button>
           </div>
         </form>
       )}
 
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <label htmlFor="products-search" className="sr-only">Search products</label>
-        <input id="products-search" type="search" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search SKU or name" className="border border-gray-300 rounded-md px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-brand-400" />
+      <ListToolbar
+        search={q} onSearch={v => { setQ(v); setPage(0); }}
+        searchLabel="Search products" placeholder="SKU or name"
+        onRefresh={() => refetch()} refreshing={isFetching}
+        filters={<>
         <label htmlFor="products-filter-status" className="sr-only">Status</label>
         <select id="products-filter-status" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
+          className={FILTER_SELECT}>
           <option value="ACTIVE">Active</option>
           <option value="DEPRECATED">Deprecated</option>
           <option value="ALL">All statuses</option>
@@ -304,12 +297,12 @@ export default function ProductsPage() {
             setSelectedCategoryId(e.target.value ? Number(e.target.value) : undefined);
             setPage(0);
           }}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-48"
+          className={`${FILTER_SELECT} w-48`}
         >
           <option value="">All categories</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-      </div>
+        </>} />
 
       {isLoading ? (
         <p className="text-gray-400 text-sm">Loading...</p>
@@ -381,7 +374,8 @@ export default function ProductsPage() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
+          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage}
+            size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
     </div>

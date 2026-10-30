@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { Invoice, InvoiceStatus, InvoiceType, PaymentMethod, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
 import Pagination from "@/components/Pagination";
+import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
 import CreditNoteForm from "./credit-note-form";
 
 // ─── constants ──────────────────────────────────────────────────────────────
@@ -34,6 +35,9 @@ export default function InvoicesPage() {
   // list state
   const [page, setPage]         = useState(0);
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [size, setSize] = useState(20);
 
   // form state
   const [showForm, setShowForm] = useState(false);
@@ -58,9 +62,9 @@ export default function InvoicesPage() {
 
   // ── queries ────────────────────────────────────────────────────────────────
 
-  const { data, isLoading } = useQuery<Page<Invoice>>({
-    queryKey: ["invoices", page, typeFilter],
-    queryFn:  () => getInvoices({ page, ...(typeFilter ? { type: typeFilter } : {}) }),
+  const { data, isLoading, isFetching, refetch } = useQuery<Page<Invoice>>({
+    queryKey: ["invoices", page, size, typeFilter, statusFilter, search],
+    queryFn:  () => getInvoices({ page, size, type: typeFilter || undefined, status: statusFilter || undefined, q: search || undefined }),
   });
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -156,16 +160,12 @@ export default function InvoicesPage() {
   return (
     <div>
       {/* header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Invoices</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Manage sales and purchase invoices</p>
-        </div>
+      <PageHeader title="Invoices" subtitle="Sales and purchase invoices and credit notes">
         <button onClick={() => { setShowForm(s => !s); setFormError(""); }}
-          className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
+          className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
           {showForm ? "Cancel" : "+ New Invoice"}
         </button>
-      </div>
+      </PageHeader>
 
       {/* create form */}
       {showForm && (
@@ -304,25 +304,33 @@ export default function InvoicesPage() {
           </div>
 
           <button type="submit" disabled={createMut.isPending}
-            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {createMut.isPending ? "Creating..." : "Create Invoice"}
           </button>
         </form>
       )}
 
       {/* filter bar */}
-      <div className="flex gap-2 mb-4">
-        {(["", "SALES", "PURCHASE"] as const).map(t => (
-          <button key={t} onClick={() => { setTypeFilter(t); setPage(0); }}
-            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-              typeFilter === t
-                ? "bg-brand-600 text-white border-brand-600"
-                : "bg-white text-gray-600 border-gray-300 hover:border-brand-400"
-            }`}>
-            {t === "" ? "All" : t === "SALES" ? "Sales" : "Purchase"}
-          </button>
-        ))}
-      </div>
+      <ListToolbar
+        search={search} onSearch={q => { setSearch(q); setPage(0); }}
+        placeholder="Number, customer or supplier"
+        onRefresh={() => refetch()} refreshing={isFetching}
+        filters={<>
+          <label htmlFor="invoices-type-filter" className="sr-only">Type</label>
+          <select id="invoices-type-filter" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(0); }} className={FILTER_SELECT}>
+            <option value="">Sales and purchase</option>
+            <option value="SALES">Sales</option>
+            <option value="PURCHASE">Purchase</option>
+          </select>
+          <label htmlFor="invoices-status-filter" className="sr-only">Status</label>
+          <select id="invoices-status-filter" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }} className={FILTER_SELECT}>
+            <option value="">All statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="ISSUED">Issued (awaiting payment)</option>
+            <option value="PAID">Paid</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </>} />
 
       {/* two-column layout when detail panel is open */}
       <div className={`flex gap-4 ${selected ? "items-start" : ""}`}>
@@ -375,7 +383,7 @@ export default function InvoicesPage() {
                       <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
                         {inv.status === "DRAFT" && (
                           <button onClick={e => { e.stopPropagation(); issueMut.mutate(inv.id); }}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium">Issue</button>
+                            className="text-xs text-brand-700 hover:underline font-medium">Issue</button>
                         )}
                         {(inv.status === "DRAFT" || inv.status === "ISSUED") && inv.kind !== "CREDIT_NOTE" && (
                           <button onClick={e => { e.stopPropagation(); cancelMut.mutate(inv.id); }}
@@ -388,8 +396,9 @@ export default function InvoicesPage() {
               </table>
             </div>
           )}
-          {data && data.totalPages > 1 && (
-            <Pagination page={page} totalPages={data.totalPages} onPageChange={setPage} />
+          {data && (
+            <Pagination page={page} totalPages={data.totalPages} totalElements={data.totalElements} onPageChange={setPage}
+              size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
           )}
         </div>
 
@@ -502,7 +511,7 @@ export default function InvoicesPage() {
                   <button
                     disabled={!payAmount || payMut.isPending}
                     onClick={() => payMut.mutate({ id: selected.id, amount: payAmount, method: payMethod })}
-                    className="w-full bg-emerald-600 text-white py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+                    className="w-full bg-brand-600 text-white py-1.5 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                     {payMut.isPending ? "Saving…" : isCreditNote ? "Record refund" : "Record Payment"}
                   </button>
                 </div>
@@ -514,7 +523,7 @@ export default function InvoicesPage() {
               {selected.status === "DRAFT" && (
                 <button onClick={() => issueMut.mutate(selected.id)}
                   disabled={issueMut.isPending}
-                  className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50">
+                  className="flex-1 bg-brand-600 text-white py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
                   Issue Invoice
                 </button>
               )}

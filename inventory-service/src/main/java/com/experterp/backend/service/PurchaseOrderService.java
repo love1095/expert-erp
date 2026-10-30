@@ -30,9 +30,10 @@ public class PurchaseOrderService {
     private final StockMovementService movementService;
     private final AuditService auditService;
 
-    public Page<PurchaseOrderResponse> findAll(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return poRepository.findAll(pageable).map(this::toResponse);
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderResponse> findAll(int page, int size, PurchaseOrder.Status status, String q) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return poRepository.search(status, Search.pattern(q), pageable).map(this::toResponse);
     }
 
     public PurchaseOrderResponse findById(Long id) {

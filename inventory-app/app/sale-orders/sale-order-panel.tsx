@@ -215,13 +215,13 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
           )}
           {order.status === "DRAFT" && (
             <button disabled={busy} onClick={() => confirmMutation.mutate(order.id)}
-              className="bg-sky-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-sky-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
               {order.needsReview ? "Confirm as it is" : "Confirm order"}
             </button>
           )}
           {canShip && (
             <button disabled={busy} onClick={() => startMode("ship")}
-              className="bg-emerald-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-emerald-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
               Ship items
             </button>
           )}
@@ -233,7 +233,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
           )}
           {canReturn && (
             <button disabled={busy} onClick={() => startMode("return")}
-              className="bg-teal-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-teal-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
               Record return
             </button>
           )}
@@ -401,7 +401,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
               </>
             ) : (
               <button type="submit" disabled={busy}
-                className={`text-white px-4 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 ${mode === "ship" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-teal-600 hover:bg-teal-700"}`}>
+                className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-1.5 rounded-md text-sm font-medium disabled:opacity-50">
                 {busy ? "Saving..." : mode === "ship" ? "Ship & deduct stock" : "Record return"}
               </button>
             )}

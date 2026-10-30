@@ -137,11 +137,15 @@ public class StockMovementService {
     }
 
     public Page<StockLevelResponse> getStockOverviewPage(int page, int size, Long categoryId) {
+        return getStockOverviewPage(page, size, categoryId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<StockLevelResponse> getStockOverviewPage(int page, int size, Long categoryId, String q) {
         Long tenantId = com.experterp.backend.multitenancy.TenantContext.get();
         Pageable pageable = PageRequest.of(page, size);
-        Page<StockLevelResponse> levels = categoryId != null
-                ? movementRepository.getStockOverviewPagedByCategory(tenantId, categoryId, pageable).map(this::mapRow)
-                : movementRepository.getStockOverviewPaged(tenantId, pageable).map(this::mapRow);
+        Page<StockLevelResponse> levels = movementRepository
+                .getStockOverviewPaged(tenantId, categoryId, Search.pattern(q), pageable).map(this::mapRow);
         // Reservations for the whole page in one query
         Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(
                 levels.getContent().stream().map(StockLevelResponse::getProductId).distinct().toList());

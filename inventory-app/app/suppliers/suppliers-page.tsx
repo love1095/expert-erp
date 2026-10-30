@@ -5,6 +5,7 @@ import { getSuppliersPage, createSupplier, deleteSupplier } from "@/lib/api";
 import { Supplier, Page } from "@/types";
 import { useState } from "react";
 import Pagination from "@/components/Pagination";
+import { PageHeader, ListToolbar } from "@/components/ListToolbar";
 
 const EMPTY_FORM = { name: "", status: "Active", currency: "GBP", paymentTerm: "", taxNumber: "", website: "", contactName: "", phone: "", email: "", comments: "" };
 
@@ -12,13 +13,14 @@ export default function SuppliersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
 
-  const { data, isLoading } = useQuery<Page<Supplier>>({
-    queryKey: ["suppliers-page", search, page],
-    queryFn: () => getSuppliersPage({ search: search || undefined, page, size: 20 }),
+  const { data, isLoading, isFetching, refetch } = useQuery<Page<Supplier>>({
+    queryKey: ["suppliers-page", search, page, size],
+    queryFn: () => getSuppliersPage({ search: search || undefined, page, size }),
   });
 
   const suppliers = data?.content ?? [];
@@ -47,16 +49,12 @@ export default function SuppliersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Suppliers</h1>
-          {totalElements != null && <p className="text-gray-500 text-sm mt-0.5">{totalElements} suppliers</p>}
-        </div>
+      <PageHeader title="Suppliers" count={totalElements} noun="suppliers">
         <button onClick={() => { setShowForm(!showForm); if (showForm) { setForm(EMPTY_FORM); setError(""); } }}
-          className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">
+          className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
           {showForm ? "Cancel" : "+ New Supplier"}
         </button>
-      </div>
+      </PageHeader>
 
       {showForm && (
         <form onSubmit={e => { e.preventDefault(); createMutation.mutate(form); }}
@@ -68,12 +66,12 @@ export default function SuppliersPage() {
             <div className="col-span-2">
               <label htmlFor="suppliers-name" className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
               <input id="suppliers-name" value={form.name} onChange={e => set("name", e.target.value)} required placeholder="Supplier name"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="suppliers-status" className="block text-xs font-medium text-gray-600 mb-1">Status</label>
               <select id="suppliers-status" value={form.status} onChange={e => set("status", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option>Active</option>
                 <option>Inactive</option>
               </select>
@@ -84,17 +82,17 @@ export default function SuppliersPage() {
             <div>
               <label htmlFor="suppliers-currency" className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
               <input id="suppliers-currency" value={form.currency} onChange={e => set("currency", e.target.value)} placeholder="GBP"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="suppliers-payment-term" className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
               <input id="suppliers-payment-term" value={form.paymentTerm} onChange={e => set("paymentTerm", e.target.value)} placeholder="e.g. 30 Day EOM"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="suppliers-tax-number" className="block text-xs font-medium text-gray-600 mb-1">Tax Number</label>
               <input id="suppliers-tax-number" value={form.taxNumber} onChange={e => set("taxNumber", e.target.value)} placeholder="VAT number"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           </div>
 
@@ -102,35 +100,31 @@ export default function SuppliersPage() {
             <div>
               <label htmlFor="suppliers-contact-name" className="block text-xs font-medium text-gray-600 mb-1">Contact Name</label>
               <input id="suppliers-contact-name" value={form.contactName} onChange={e => set("contactName", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="suppliers-phone" className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
               <input id="suppliers-phone" value={form.phone} onChange={e => set("phone", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="suppliers-email" className="block text-xs font-medium text-gray-600 mb-1">Email</label>
               <input id="suppliers-email" type="email" value={form.email} onChange={e => set("email", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           </div>
 
           <button type="submit" disabled={createMutation.isPending}
-            className="bg-teal-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {createMutation.isPending ? "Saving..." : "Create Supplier"}
           </button>
         </form>
       )}
 
-      <div className="mb-4">
-        <input
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          placeholder="Search by name, email or contact..."
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 w-72"
-        />
-      </div>
+      <ListToolbar
+        search={search} onSearch={q => { setSearch(q); setPage(0); }}
+        searchLabel="Search suppliers" placeholder="Name, email or contact"
+        onRefresh={() => refetch()} refreshing={isFetching} />
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
@@ -160,7 +154,7 @@ export default function SuppliersPage() {
                     <td className="px-4 py-3 text-gray-600">{s.contactName || "—"}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{s.phone || "—"}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{s.email ? (
-                      <a href={`mailto:${s.email}`} className="text-teal-600 hover:underline">{s.email}</a>
+                      <a href={`mailto:${s.email}`} className="text-brand-700 hover:underline">{s.email}</a>
                     ) : "—"}</td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={() => { if (confirm(`Delete supplier "${s.name}"?`)) deleteMutation.mutate(s.id); }}
@@ -171,7 +165,8 @@ export default function SuppliersPage() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
+          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage}
+            size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
     </div>

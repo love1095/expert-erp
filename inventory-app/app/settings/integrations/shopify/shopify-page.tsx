@@ -114,11 +114,11 @@ export default function ShopifyPage() {
 
               <div className="mt-5 flex gap-2">
                 <button onClick={() => { setResult(null); testMutation.mutate(); }} disabled={busy}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+                  className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                   {testMutation.isPending ? "Testing..." : "Test connection"}
                 </button>
                 {!editing && (
-                  <button onClick={() => setEditing(true)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
+                  <button onClick={() => setEditing(true)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50">
                     Change credentials
                   </button>
                 )}
@@ -170,7 +170,7 @@ export default function ShopifyPage() {
 
               <div className="flex gap-2">
                 <button type="submit" disabled={busy}
-                  className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+                  className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                   {saveMutation.isPending ? "Saving and testing..." : "Save & test connection"}
                 </button>
                 {conn && (

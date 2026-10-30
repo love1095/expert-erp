@@ -5,18 +5,21 @@ import { getStockOverviewPage, getCategories } from "@/lib/api";
 import { StockLevel, Category, Page } from "@/types";
 import { useState } from "react";
 import Pagination from "@/components/Pagination";
+import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
 import StockImport from "./stock-import";
 
 export default function StockOverviewPage() {
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
+  const [search, setSearch] = useState("");
   const [showImport, setShowImport] = useState(false);
 
   const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["categories"], queryFn: getCategories });
 
-  const { data, isLoading, refetch } = useQuery<Page<StockLevel>>({
-    queryKey: ["stock-overview", categoryId, page],
-    queryFn: () => getStockOverviewPage({ categoryId, page, size: 20 }),
+  const { data, isLoading, isFetching, refetch } = useQuery<Page<StockLevel>>({
+    queryKey: ["stock-overview", categoryId, page, size, search],
+    queryFn: () => getStockOverviewPage({ categoryId, page, size, q: search || undefined }),
   });
 
   const levels = data?.content ?? [];
@@ -25,35 +28,29 @@ export default function StockOverviewPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Stock Overview</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Current stock computed from all movements (IN − OUT)</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowImport(!showImport)}
-            className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
-            Import stock
-          </button>
-          <button onClick={() => refetch()}
-            className="text-sm text-sky-600 border border-sky-200 bg-sky-50 px-4 py-2 rounded-lg hover:bg-sky-100 transition-colors">
-            Refresh
-          </button>
-        </div>
-      </div>
+      <PageHeader title="Stock Overview" subtitle="On hand, reserved and available per product and warehouse">
+        <button onClick={() => setShowImport(!showImport)}
+          className="border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50">
+          Import stock
+        </button>
+      </PageHeader>
 
       {showImport && <StockImport onImported={() => refetch()} />}
 
-      <div className="mb-5">
-        <select
-          value={categoryId ?? ""}
-          onChange={e => { setCategoryId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-48"
-        >
-          <option value="">All categories</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </div>
+      <ListToolbar
+        search={search} onSearch={q => { setSearch(q); setPage(0); }}
+        placeholder="SKU or product name"
+        onRefresh={() => refetch()} refreshing={isFetching}
+        filters={<>
+          <label htmlFor="stock-category-filter" className="sr-only">Category</label>
+          <select id="stock-category-filter"
+            value={categoryId ?? ""}
+            onChange={e => { setCategoryId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
+            className={`${FILTER_SELECT} w-48`}>
+            <option value="">All categories</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </>} />
 
       {isLoading ? (
         <p className="text-gray-400 text-sm">Loading...</p>
@@ -105,7 +102,8 @@ export default function StockOverviewPage() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
+          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage}
+            size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
     </div>

@@ -66,6 +66,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
         nativeQuery = true)
     List<Object[]> getStockOverviewRaw(@Param("tenantId") Long tenantId);
 
+    // Optional filters: category, and text (q = lower-case LIKE pattern, '' = any) on SKU or name
     @Query(value =
         "SELECT p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, " +
         "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
@@ -75,6 +76,8 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
         "JOIN warehouses w ON m.warehouse_id = w.id " +
         "LEFT JOIN categories c ON p.category_id = c.id " +
         "WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
+        "  AND (CAST(:categoryId AS bigint) IS NULL OR p.category_id = :categoryId) " +
+        "  AND (:q = '' OR LOWER(p.sku) LIKE :q OR LOWER(p.name) LIKE :q) " +
         "GROUP BY p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name " +
         "ORDER BY p.name, w.name",
         countQuery =
@@ -83,32 +86,11 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
         "  JOIN products p ON m.product_id = p.id " +
         "  JOIN warehouses w ON m.warehouse_id = w.id " +
         "  WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
+        "    AND (CAST(:categoryId AS bigint) IS NULL OR p.category_id = :categoryId) " +
+        "    AND (:q = '' OR LOWER(p.sku) LIKE :q OR LOWER(p.name) LIKE :q) " +
         "  GROUP BY p.id, w.id" +
         ") sub",
         nativeQuery = true)
-    Page<Object[]> getStockOverviewPaged(@Param("tenantId") Long tenantId, Pageable pageable);
-
-    @Query(value =
-        "SELECT p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, " +
-        "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
-        "    THEN m.quantity ELSE -m.quantity END), 0) AS stock " +
-        "FROM stock_movements m " +
-        "JOIN products p ON m.product_id = p.id " +
-        "JOIN warehouses w ON m.warehouse_id = w.id " +
-        "LEFT JOIN categories c ON p.category_id = c.id " +
-        "WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
-        "  AND p.category_id = :categoryId " +
-        "GROUP BY p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name " +
-        "ORDER BY p.name, w.name",
-        countQuery =
-        "SELECT COUNT(*) FROM (" +
-        "  SELECT p.id FROM stock_movements m " +
-        "  JOIN products p ON m.product_id = p.id " +
-        "  JOIN warehouses w ON m.warehouse_id = w.id " +
-        "  WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
-        "    AND p.category_id = :categoryId " +
-        "  GROUP BY p.id, w.id" +
-        ") sub",
-        nativeQuery = true)
-    Page<Object[]> getStockOverviewPagedByCategory(@Param("tenantId") Long tenantId, @Param("categoryId") Long categoryId, Pageable pageable);
+    Page<Object[]> getStockOverviewPaged(@Param("tenantId") Long tenantId, @Param("categoryId") Long categoryId,
+                                         @Param("q") String q, Pageable pageable);
 }

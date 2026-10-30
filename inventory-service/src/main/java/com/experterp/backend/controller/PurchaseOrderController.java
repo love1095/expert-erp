@@ -21,8 +21,10 @@ public class PurchaseOrderController {
     @GetMapping
     public Page<PurchaseOrderResponse> findAll(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return purchaseOrderService.findAll(page, size);
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) com.experterp.backend.entity.PurchaseOrder.Status status,
+            @RequestParam(required = false) String q) {
+        return purchaseOrderService.findAll(page, size, status, q);
     }
 
     @GetMapping("/{id}")

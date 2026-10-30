@@ -7,6 +7,7 @@ import { Fragment, useRef, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
+import { PageHeader, ListToolbar } from "@/components/ListToolbar";
 
 const EMPTY_CONTACT: CustomerContact = {
   name: "", jobTitle: "", phone: "", mobilePhone: "", email: "",
@@ -27,6 +28,7 @@ export default function CustomersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
@@ -37,9 +39,9 @@ export default function CustomersPage() {
   const [importError, setImportError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading } = useQuery<Page<Customer>>({
-    queryKey: ["customers-page", search, page],
-    queryFn: () => getCustomersPage({ search: search || undefined, page, size: 20 }),
+  const { data, isLoading, isFetching, refetch } = useQuery<Page<Customer>>({
+    queryKey: ["customers-page", search, page, size],
+    queryFn: () => getCustomersPage({ search: search || undefined, page, size }),
   });
 
   const customers = data?.content ?? [];
@@ -105,24 +107,18 @@ export default function CustomersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Customers</h1>
-          {totalElements != null && <p className="text-gray-500 text-sm mt-0.5">{totalElements} customers</p>}
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader title="Customers" count={totalElements} noun="customers">
           <input ref={fileInput} type="file" accept=".csv,text/csv" className="hidden" aria-label="Customer CSV file"
             onChange={e => { const f = e.target.files?.[0]; if (f) importMutation.mutate(f); }} />
           <button onClick={() => fileInput.current?.click()} disabled={importMutation.isPending}
-            className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+            className="border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
             {importMutation.isPending ? "Importing..." : "Import CSV"}
           </button>
           <button onClick={() => (showForm ? closeForm() : startCreate())}
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
+            className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
             {showForm ? "Cancel" : "+ New Customer"}
           </button>
-        </div>
-      </div>
+      </PageHeader>
 
       {importError && <p role="alert" data-testid="customer-import-error" className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{importError}</p>}
       {importResult && (
@@ -215,21 +211,16 @@ export default function CustomersPage() {
           </div>
 
           <button type="submit" disabled={saving}
-            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {saving ? "Saving..." : editingId != null ? "Save Customer" : "Create Customer"}
           </button>
         </form>
       )}
 
-      <div className="mb-4">
-        <input
-          aria-label="Search customers"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          placeholder="Search by name, contact, email or phone..."
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-80"
-        />
-      </div>
+      <ListToolbar
+        search={search} onSearch={q => { setSearch(q); setPage(0); }}
+        searchLabel="Search customers" placeholder="Name, contact, email or phone"
+        onRefresh={() => refetch()} refreshing={isFetching} />
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
@@ -301,7 +292,8 @@ export default function CustomersPage() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
+          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage}
+            size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
     </div>

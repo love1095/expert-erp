@@ -6,7 +6,7 @@ import { getShopifyConnection, importShopifyOrders } from "@/lib/api";
 import { ShopifyConnection, ShopifyImportResult } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 
-const BUTTON_SECONDARY = "border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
+const BUTTON_SECONDARY = "border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
 
 /**
  * Catch-up import of Shopify orders the ERP may have missed (e.g. while the backend was off). Only for admins, and
@@ -62,7 +62,7 @@ export function ShopifyImportPanel({ onClose }: { onClose: () => void }) {
           <option value={60}>Last 60 days</option>
         </select>
         <button onClick={() => importMutation.mutate(days)} disabled={importMutation.isPending}
-          className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+          className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
           {importMutation.isPending ? "Importing..." : "Import orders"}
         </button>
       </div>

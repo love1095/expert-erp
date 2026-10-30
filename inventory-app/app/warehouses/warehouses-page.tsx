@@ -48,7 +48,7 @@ export default function WarehousesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Warehouses</h1>
         <button onClick={() => setShowForm(!showForm)}
-          className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+          className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition-colors">
           {showForm ? "Cancel" : "+ Add Warehouse"}
         </button>
       </div>
@@ -70,7 +70,7 @@ export default function WarehousesPage() {
           ))}
           <div className="col-span-2 flex justify-end">
             <button type="submit" disabled={createMutation.isPending}
-              className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {createMutation.isPending ? "Saving..." : "Save Warehouse"}
             </button>
           </div>

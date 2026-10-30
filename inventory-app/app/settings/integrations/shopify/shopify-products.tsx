@@ -14,7 +14,7 @@ const PHASE_LABEL: Record<ShopifyProductSync["phase"], string> = {
   STOCK: "Setting stock",
 };
 
-const BUTTON = "bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50";
+const BUTTON = "bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50";
 
 /** Product sync: sends every ERP product (details, price, cost, stock) to Shopify, in the background. */
 export default function ShopifyProducts({ conn }: { conn: ShopifyConnection }) {

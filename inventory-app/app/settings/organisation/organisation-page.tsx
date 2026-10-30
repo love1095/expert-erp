@@ -99,7 +99,7 @@ export default function OrganisationPage() {
         <div className="col-span-2 flex items-center gap-3">
           {isAdmin ? (
             <button type="submit" disabled={save.isPending}
-              className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {save.isPending ? "Saving..." : "Save"}
             </button>
           ) : <p className="text-xs text-gray-400">Only an admin can change these settings.</p>}

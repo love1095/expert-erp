@@ -23,10 +23,15 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
 
     Page<SaleOrder> findByCustomerId(Long customerId, Pageable pageable);
 
-    // Optional filters: customer and / or status
-    @Query("SELECT so FROM SaleOrder so WHERE (:customerId IS NULL OR so.customer.id = :customerId) " +
-           "AND (:status IS NULL OR so.status = :status)")
-    Page<SaleOrder> search(@Param("customerId") Long customerId, @Param("status") SaleOrder.Status status, Pageable pageable);
+    // Optional filters: customer, status and text (q = lower-case LIKE pattern, '' = any) on the order number,
+    // customer, customer reference or channel order (e.g. Shopify #1004)
+    @Query("SELECT so FROM SaleOrder so LEFT JOIN so.customer c WHERE (:customerId IS NULL OR c.id = :customerId) " +
+           "AND (:status IS NULL OR so.status = :status) " +
+           "AND (:q = '' OR LOWER(COALESCE(so.orderNumber, '')) LIKE :q OR LOWER(COALESCE(so.customerName, '')) LIKE :q " +
+           "  OR LOWER(COALESCE(c.name, '')) LIKE :q OR LOWER(COALESCE(so.customerReference, '')) LIKE :q " +
+           "  OR LOWER(COALESCE(so.externalReference, '')) LIKE :q)")
+    Page<SaleOrder> search(@Param("customerId") Long customerId, @Param("status") SaleOrder.Status status,
+                           @Param("q") String q, Pageable pageable);
 
     Optional<SaleOrder> findBySourceAndExternalId(SaleOrder.Source source, String externalId);
 

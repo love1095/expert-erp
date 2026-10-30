@@ -57,7 +57,7 @@ export default function UsersPage() {
         </div>
         {isAdmin && (
           <button onClick={() => { setShowForm(!showForm); if (showForm) { setForm(EMPTY); setError(""); } }}
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
+            className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
             {showForm ? "Cancel" : "+ Invite User"}
           </button>
         )}
@@ -97,7 +97,7 @@ export default function UsersPage() {
           </div>
 
           <button type="submit" disabled={addMutation.isPending}
-            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {addMutation.isPending ? "Creating..." : "Create User"}
           </button>
         </form>

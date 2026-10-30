@@ -79,13 +79,13 @@ export const exportMovementsCsv = (params?: { productId?: number; warehouseId?: 
 
 // Stock levels
 export const getStockOverview = () => api.get("/stock/overview").then(r => r.data);
-export const getStockOverviewPage = (params?: { categoryId?: number; page?: number; size?: number }) =>
+export const getStockOverviewPage = (params?: { categoryId?: number; q?: string; page?: number; size?: number }) =>
   api.get("/stock/overview", { params: { size: 20, ...params } }).then(r => toPage(r.data));
 export const getStockLevel    = (productId: number, warehouseId: number) =>
   api.get("/stock", { params: { productId, warehouseId } }).then(r => r.data);
 
 // Purchase orders — Page
-export const getPurchaseOrders    = (params?: { page?: number; size?: number }) =>
+export const getPurchaseOrders    = (params?: { status?: string; q?: string; page?: number; size?: number }) =>
   api.get("/purchase-orders", { params: { size: 20, ...params } }).then(r => r.data);
 export const getPurchaseOrder     = (id: number) => api.get(`/purchase-orders/${id}`).then(r => r.data);
 export const createPurchaseOrder  = (data: unknown) => api.post("/purchase-orders", data).then(r => r.data);
@@ -93,7 +93,7 @@ export const receivePurchaseOrder = (id: number) => api.post(`/purchase-orders/$
 export const cancelPurchaseOrder  = (id: number) => api.post(`/purchase-orders/${id}/cancel`).then(r => r.data);
 
 // Sale orders — Page
-export const getSaleOrders    = (params?: { customerId?: number; status?: string; page?: number; size?: number }) =>
+export const getSaleOrders    = (params?: { customerId?: number; status?: string; q?: string; page?: number; size?: number }) =>
   api.get("/sale-orders", { params: { size: 20, ...params } }).then(r => r.data);
 export const getSaleOrder     = (id: number) => api.get(`/sale-orders/${id}`).then(r => r.data);
 export const createSaleOrder  = (data: unknown) => api.post("/sale-orders", data).then(r => r.data);
@@ -127,7 +127,7 @@ export const getAuditLog = (params?: { entityType?: string; action?: string; use
   api.get("/audit-log", { params: { size: 50, ...params } }).then(r => r.data);
 
 // Invoices
-export const getInvoices = (params?: { type?: string; page?: number; size?: number }) =>
+export const getInvoices = (params?: { type?: string; status?: string; q?: string; page?: number; size?: number }) =>
   api.get("/invoices", { params: { size: 20, ...params } }).then(r => r.data);
 export const getInvoice     = (id: number) => api.get(`/invoices/${id}`).then(r => r.data);
 export const createInvoice  = (data: unknown) => api.post("/invoices", data).then(r => r.data);

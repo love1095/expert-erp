@@ -143,7 +143,7 @@ export default function StockTransferPage() {
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+          className="w-full bg-brand-600 text-white py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
         >
           {mutation.isPending ? "Processing..." : "Transfer Stock"}
         </button>

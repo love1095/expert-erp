@@ -28,9 +28,10 @@ public class SaleOrderController {
     public Page<SaleOrderResponse> findAll(
             @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) com.experterp.backend.entity.SaleOrder.Status status,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return saleOrderService.findAll(customerId, status, page, size);
+        return saleOrderService.findAll(customerId, status, q, page, size);
     }
 
     // Quotes and draft orders (not Shopify ones) can be changed; VAT and totals are worked out again

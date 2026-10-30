@@ -59,8 +59,9 @@ public class StockMovementController {
     public Page<StockLevelResponse> getOverview(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) Long categoryId) {
-        return stockMovementService.getStockOverviewPage(page, size, categoryId);
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String q) {
+        return stockMovementService.getStockOverviewPage(page, size, categoryId, q);
     }
 
     // Cin7 stock file (Inventory → Availability → Export): stock in one warehouse set to the file's OnHand.
