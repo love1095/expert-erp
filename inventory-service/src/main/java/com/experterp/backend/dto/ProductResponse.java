@@ -39,5 +39,8 @@ public class ProductResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private BigDecimal totalStock;
+    // Reserved for sale orders (all warehouses) and what is left to promise: total − reserved, can be < 0
+    private BigDecimal reservedStock = BigDecimal.ZERO;
+    private BigDecimal availableStock;
     private boolean lowStock;
 }

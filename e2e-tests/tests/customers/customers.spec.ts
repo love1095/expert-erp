@@ -54,7 +54,8 @@ test.describe('Customers', () => {
       // Different case on purpose: matching ignores case
       await page.getByLabel('Customer *').fill(customer.name.toUpperCase());
       await page.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));
-      await page.getByRole('combobox').filter({ hasText: 'Product' }).selectOption({ label: product.sku });
+      await page.getByLabel('Product for line 1').fill(product.sku);
+      await page.getByRole('listbox', { name: 'Product for line 1 matches' }).getByRole('button').filter({ hasText: product.sku }).click();
       await page.getByPlaceholder('Qty').fill('2');
       await page.getByRole('button', { name: 'Create Sale Order' }).click();
 
@@ -73,7 +74,8 @@ test.describe('Customers', () => {
       await page.getByLabel('Customer *').fill(name);
       await expect(page.getByText('New customer — will be added to Customers')).toBeVisible();
       await page.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));
-      await page.getByRole('combobox').filter({ hasText: 'Product' }).selectOption({ label: product.sku });
+      await page.getByLabel('Product for line 1').fill(product.sku);
+      await page.getByRole('listbox', { name: 'Product for line 1 matches' }).getByRole('button').filter({ hasText: product.sku }).click();
       await page.getByPlaceholder('Qty').fill('1');
       await page.getByRole('button', { name: 'Create Sale Order' }).click();
 

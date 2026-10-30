@@ -16,5 +16,8 @@ public class StockLevelResponse {
     private Long categoryId;
     private String categoryName;
     private BigDecimal stock;
+    // Reserved for sale orders shipping from this warehouse; available = stock − reserved (can be < 0)
+    private BigDecimal reserved = BigDecimal.ZERO;
+    private BigDecimal available;
     private boolean lowStock; // true when stock <= minStock (and minStock is set)
 }

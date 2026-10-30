@@ -42,7 +42,8 @@ public record DashboardResponse(
             BigDecimal receivablesOutstanding) {}
 
     // Invoices "awaiting payment" are issued and not fully paid; "overdue" ones are also past their due date
-    public record SalesStatus(long draftOrders, long toShip, long draftInvoices, long awaitingPayment, long overdueInvoices) {}
+    // backordered = reserving orders the stock on hand cannot cover in full (first confirmed, first served)
+    public record SalesStatus(long draftOrders, long toShip, long backordered, long draftInvoices, long awaitingPayment, long overdueInvoices) {}
 
     // Purchase orders are DRAFT until received, so a draft PO is also the one awaiting delivery
     public record PurchaseStatus(long awaitingDelivery, long draftInvoices, long awaitingPayment, long overdueInvoices) {}
@@ -60,8 +61,9 @@ public record DashboardResponse(
     public record RecentOrder(Long id, String orderNumber, String customerName, String status, String fulfilmentStatus,
                               BigDecimal total, LocalDateTime createdAt) {}
 
-    /** A product to reorder: stock + on order is at or below its minimum. */
+    /** A product to reorder: available stock + on order is at or below its minimum. */
     public record ReorderLine(Long productId, String sku, String name, String supplierName,
+                              // available = on hand − reserved for sale orders
                               BigDecimal stock, BigDecimal onOrder, BigDecimal minStock,
                               // The product's reorder quantity, or else what brings it back to its minimum
                               BigDecimal suggestedQuantity) {}

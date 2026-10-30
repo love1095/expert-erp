@@ -32,6 +32,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final AllocationService allocationService;
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
     private final SubscriptionService subscriptionService;
@@ -54,8 +55,10 @@ public class ProductService {
                 stock.put((Long) row[0], (BigDecimal) row[1]);
             }
         }
+        Map<Long, BigDecimal> reserved = allocationService.reservedByProduct(ids);
         return products.map(p -> {
             ProductResponse r = toResponse(p, stock.getOrDefault(p.getId(), BigDecimal.ZERO));
+            withReserved(r, reserved.getOrDefault(p.getId(), BigDecimal.ZERO));
             r.setDescription(null);
             r.setDetails(null);
             return r;
@@ -80,7 +83,9 @@ public class ProductService {
     @Transactional(readOnly = true)
     public ProductResponse findById(Long id) {
         Product p = getProduct(id);
-        return toResponse(p, stockMovementRepository.calculateTotalStock(p.getId()));
+        ProductResponse single = toResponse(p, stockMovementRepository.calculateTotalStock(p.getId()));
+        withReserved(single, allocationService.reservedByProduct(List.of(p.getId())).getOrDefault(p.getId(), BigDecimal.ZERO));
+        return single;
     }
 
     @Transactional
@@ -106,7 +111,9 @@ public class ProductService {
         applyRequest(p, req);
         p.setUpdatedAt(LocalDateTime.now());
         p = productRepository.save(p);
-        return toResponse(p, stockMovementRepository.calculateTotalStock(p.getId()));
+        ProductResponse single = toResponse(p, stockMovementRepository.calculateTotalStock(p.getId()));
+        withReserved(single, allocationService.reservedByProduct(List.of(p.getId())).getOrDefault(p.getId(), BigDecimal.ZERO));
+        return single;
     }
 
     public void delete(Long id) {
@@ -152,6 +159,11 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Supplier not found: " + req.getDefaultSupplierId())));
     }
 
+    private static void withReserved(ProductResponse r, BigDecimal reserved) {
+        r.setReservedStock(reserved);
+        r.setAvailableStock(r.getTotalStock().subtract(reserved));
+    }
+
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s.trim();
     }
@@ -182,6 +194,7 @@ public class ProductService {
         r.setCreatedAt(p.getCreatedAt());
         r.setUpdatedAt(p.getUpdatedAt());
         r.setTotalStock(totalStock);
+        r.setAvailableStock(totalStock);
         if (p.getCategory() != null) {
             r.setCategoryId(p.getCategory().getId());
             r.setCategoryName(p.getCategory().getName());

@@ -36,7 +36,7 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* an order for a customer with a 20 % product and a zero-rated product shows the right VAT per line and in total; a line override is refused for STAFF and audited for MANAGER; old orders keep their figures when a rate changes; the dashboard's revenue equals Σ lines ex-VAT.
 
-### D2 — Reservation, available stock and backorders
+### D2 — Reservation, available stock and backorders ✅
 - Confirming reserves stock; **available = on hand − reserved** shown on Stock Overview, Products and the order lines; shipping or cancelling ends the reservation.
 - Not enough available at confirm: allowed, order shows **Backordered** with the quantity short per line; shipping can only take what is on hand.
 - Shopify orders reserve when imported (see business rules).

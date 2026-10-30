@@ -206,7 +206,7 @@ class DashboardServiceTest {
         invoice(Invoice.InvoiceType.PURCHASE, LocalDate.now().minusDays(3), true); // bill overdue
 
         DashboardResponse d = dashboardService.get(30);
-        assertThat(d.sales()).isEqualTo(new DashboardResponse.SalesStatus(1, 1, 1, 2, 1));
+        assertThat(d.sales()).isEqualTo(new DashboardResponse.SalesStatus(1, 1, 0, 1, 2, 1));
         assertThat(d.purchases()).isEqualTo(new DashboardResponse.PurchaseStatus(1, 0, 1, 1));
         assertThat(d.kpis().receivablesOutstanding()).isEqualByComparingTo("200");
     }

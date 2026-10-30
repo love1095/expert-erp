@@ -63,14 +63,14 @@ export default function StockOverviewPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {["SKU", "Product", "Category", "Warehouse", "Unit", "Min Stock", "Stock", ""].map((h) => (
+                  {["SKU", "Product", "Category", "Warehouse", "Unit", "Min Stock", "On hand", "Reserved", "Available", ""].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {levels.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No stock data — record some movements first</td></tr>
+                  <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No stock data — record some movements first</td></tr>
                 )}
                 {levels.map((l, i) => (
                   <tr key={i} className={`hover:bg-gray-50 ${l.lowStock ? "bg-red-50" : ""}`}>
@@ -90,6 +90,10 @@ export default function StockOverviewPage() {
                       <span className={`font-bold text-base ${Number(l.stock) <= 0 ? "text-red-600" : l.lowStock ? "text-amber-600" : "text-emerald-700"}`}>
                         {Number(l.stock).toLocaleString()}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-gray-500">{Number(l.reserved) ? Number(l.reserved).toLocaleString() : "—"}</td>
+                    <td className={`px-4 py-3 tabular-nums font-semibold ${Number(l.available) < 0 ? "text-red-600" : "text-gray-800"}`}>
+                      {Number(l.available).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
                       {l.lowStock && (

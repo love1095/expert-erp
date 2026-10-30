@@ -99,7 +99,7 @@ test.describe('Dashboard', () => {
         expect(d.kpis).toMatchObject({
           products: 0, stockValue: 0, productsToReorder: 0, ordersInPeriod: 0, salesValueInPeriod: 0, unitsShippedInPeriod: 0,
         });
-        expect(d.sales).toEqual({ draftOrders: 0, toShip: 0, draftInvoices: 0, awaitingPayment: 0, overdueInvoices: 0 });
+        expect(d.sales).toEqual({ draftOrders: 0, toShip: 0, backordered: 0, draftInvoices: 0, awaitingPayment: 0, overdueInvoices: 0 });
         expect(d.topSellers).toEqual([]);
         expect((await other.dashboardReorder()).totalElements).toBe(0);
         expect(d.daily.every(day => day.unitsIn === 0 && day.unitsOut === 0)).toBe(true);

@@ -40,6 +40,7 @@ public class StockMovementService {
     private final WarehouseRepository warehouseRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditService auditService;
+    private final AllocationService allocationService;
 
     @Transactional
     public StockMovementResponse create(StockMovementRequest req) {
@@ -138,12 +139,17 @@ public class StockMovementService {
     public Page<StockLevelResponse> getStockOverviewPage(int page, int size, Long categoryId) {
         Long tenantId = com.experterp.backend.multitenancy.TenantContext.get();
         Pageable pageable = PageRequest.of(page, size);
-        if (categoryId != null) {
-            return movementRepository.getStockOverviewPagedByCategory(tenantId, categoryId, pageable)
-                    .map(this::mapRow);
-        }
-        return movementRepository.getStockOverviewPaged(tenantId, pageable)
-                .map(this::mapRow);
+        Page<StockLevelResponse> levels = categoryId != null
+                ? movementRepository.getStockOverviewPagedByCategory(tenantId, categoryId, pageable).map(this::mapRow)
+                : movementRepository.getStockOverviewPaged(tenantId, pageable).map(this::mapRow);
+        // Reservations for the whole page in one query
+        Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(
+                levels.getContent().stream().map(StockLevelResponse::getProductId).distinct().toList());
+        levels.forEach(l -> {
+            l.setReserved(reserved.getOrDefault(AllocationService.key(l.getProductId(), l.getWarehouseId()), BigDecimal.ZERO));
+            l.setAvailable(l.getStock().subtract(l.getReserved()));
+        });
+        return levels;
     }
 
     // row: p.id[0], p.sku[1], p.name[2], p.unit[3], p.min_stock[4],
@@ -174,6 +180,12 @@ public class StockMovementService {
                 "product", saved.getProduct().getSku(),
                 "warehouse", saved.getWarehouse().getName()));
         return saved;
+    }
+
+    /** Locks the products (in id order, so two callers never wait on each other) until the transaction ends. */
+    public void lockProducts(java.util.Collection<Long> productIds) {
+        productIds.stream().distinct().sorted().forEach(id -> productRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id)));
     }
 
     public void assertSufficientStock(Long productId, Long warehouseId, BigDecimal required) {
@@ -229,6 +241,7 @@ public class StockMovementService {
         r.setCategoryId(categoryId);
         r.setCategoryName(categoryName);
         r.setStock(stock);
+        r.setAvailable(stock);
         r.setLowStock(minStock != null && stock.compareTo(minStock) <= 0);
         return r;
     }

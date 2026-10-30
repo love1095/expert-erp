@@ -59,6 +59,7 @@ public class SaleOrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final TaxService taxService;
     private final OrganisationSettingsService settingsService;
+    private final AllocationService allocationService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
     private static final Set<String> TAX_OVERRIDE_ROLES = Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SUPER_ADMIN");
@@ -69,7 +70,10 @@ public class SaleOrderService {
         Page<SaleOrder> orders = customerId != null
                 ? soRepository.findByCustomerId(customerId, pageable)
                 : soRepository.findAll(pageable);
-        return orders.map(this::toResponse);
+        // One allocation query for the whole page
+        Map<Long, AllocationService.LineAllocation> allocations =
+                allocationService.forOrders(orders.getContent().stream().map(SaleOrder::getId).toList());
+        return orders.map(so -> toResponse(so, allocations));
     }
 
     @Transactional(readOnly = true)
@@ -136,7 +140,12 @@ public class SaleOrderService {
         return toDetailResponse(so);
     }
 
-    /** Ships the requested quantities (or everything remaining) and creates one SALE_OUT movement per line. */
+    /**
+     * Ships the requested quantities (or everything allocated) and creates one SALE_OUT movement per line.
+     * Like Cin7, a line can only ship what is allocated to it — stock promised to orders confirmed earlier is
+     * not taken (first confirmed, first served). The products are locked first, so shipments of other orders
+     * running at the same time are counted before the allocation is worked out.
+     */
     @Transactional
     public SaleOrderResponse fulfill(Long id, FulfilmentRequest req) {
         SaleOrder so = lockSO(id);
@@ -154,7 +163,9 @@ public class SaleOrderService {
             throw new IllegalStateException("Only CONFIRMED orders can be fulfilled (order is " + so.getStatus() + ")");
         }
 
-        List<LineQty> toShip = resolveFulfilmentLines(so, req);
+        movementService.lockProducts(so.getLines().stream().map(l -> l.getProduct().getId()).toList());
+        Map<Long, AllocationService.LineAllocation> allocations = allocationService.forOrders(List.of(so.getId()));
+        List<LineQty> toShip = resolveFulfilmentLines(so, req, allocations);
 
         // Check stock for all lines up front (summed per product) so the error names the real shortfall
         Map<Long, BigDecimal> perProduct = new HashMap<>();
@@ -404,17 +415,23 @@ public class SaleOrderService {
     // Entities use Lombok @Data (hashCode walks the order<->line graph), so never use them as map keys
     private record LineQty(SaleOrderLine line, BigDecimal qty) {}
 
-    private List<LineQty> resolveFulfilmentLines(SaleOrder so, FulfilmentRequest req) {
+    private List<LineQty> resolveFulfilmentLines(SaleOrder so, FulfilmentRequest req,
+                                                 Map<Long, AllocationService.LineAllocation> allocations) {
         List<LineQty> toShip = new ArrayList<>();
 
         if (req == null || req.getLines() == null || req.getLines().isEmpty()) {
+            boolean anythingLeft = false;
             for (SaleOrderLine line : so.getLines()) {
-                if (line.getRemainingQuantity().signum() > 0) {
-                    toShip.add(new LineQty(line, line.getRemainingQuantity()));
-                }
+                if (line.getRemainingQuantity().signum() > 0) anythingLeft = true;
+                BigDecimal allocated = allocated(line, allocations);
+                if (allocated.signum() > 0) toShip.add(new LineQty(line, allocated));
+            }
+            if (!anythingLeft) {
+                throw new IllegalStateException("Nothing left to fulfil on " + so.getOrderNumber());
             }
             if (toShip.isEmpty()) {
-                throw new IllegalStateException("Nothing left to fulfil on SO #" + so.getId());
+                throw new IllegalStateException("Nothing is allocated to " + so.getOrderNumber()
+                        + " yet: the stock on hand is promised to orders confirmed earlier");
             }
             return toShip;
         }
@@ -432,9 +449,21 @@ public class SaleOrderService {
                         l.getQuantity().stripTrailingZeros().toPlainString(), line.getProduct().getSku(),
                         line.getRemainingQuantity().stripTrailingZeros().toPlainString()));
             }
+            BigDecimal allocated = allocated(line, allocations);
+            if (l.getQuantity().compareTo(allocated) > 0) {
+                throw new IllegalStateException(String.format(
+                        "Cannot ship %s of %s: only %s allocated to this order (the rest of the stock is promised to orders confirmed earlier)",
+                        l.getQuantity().stripTrailingZeros().toPlainString(), line.getProduct().getSku(),
+                        allocated.stripTrailingZeros().toPlainString()));
+            }
             toShip.add(new LineQty(line, l.getQuantity()));
         }
         return toShip;
+    }
+
+    private static BigDecimal allocated(SaleOrderLine line, Map<Long, AllocationService.LineAllocation> allocations) {
+        AllocationService.LineAllocation a = allocations.get(line.getId());
+        return a == null ? BigDecimal.ZERO : a.allocated();
     }
 
     private Map<Long, SaleOrderLine> linesById(SaleOrder so) {
@@ -476,7 +505,9 @@ public class SaleOrderService {
     }
 
     private SaleOrderResponse toDetailResponse(SaleOrder so) {
-        SaleOrderResponse r = toResponse(so);
+        // Changes made in this transaction must be visible to the allocation query
+        soRepository.flush();
+        SaleOrderResponse r = toResponse(so, allocationService.forOrders(List.of(so.getId())));
         r.setFulfilments(fulfilmentRepository.findBySaleOrderIdOrderByCreatedAtAsc(so.getId()).stream().map(f -> {
             SaleOrderResponse.FulfilmentEntry e = new SaleOrderResponse.FulfilmentEntry();
             e.setId(f.getId());
@@ -517,6 +548,10 @@ public class SaleOrderService {
     }
 
     private SaleOrderResponse toResponse(SaleOrder so) {
+        return toResponse(so, Map.of());
+    }
+
+    private SaleOrderResponse toResponse(SaleOrder so, Map<Long, AllocationService.LineAllocation> allocations) {
         SaleOrderResponse r = new SaleOrderResponse();
         r.setId(so.getId());
         r.setOrderNumber(so.getOrderNumber());
@@ -567,6 +602,12 @@ public class SaleOrderService {
             lr.setTaxAmount(tax);
             lr.setTotalAmount(net.add(tax));
             lr.setMarginPercent(SaleAmounts.marginPercent(net, qty, l.getProduct().getCostPrice()));
+            AllocationService.LineAllocation a = l.getId() == null ? null : allocations.get(l.getId());
+            if (a != null) {
+                lr.setAllocatedQuantity(a.allocated());
+                lr.setBackorderedQuantity(a.backordered());
+                if (a.backordered().signum() > 0) r.setBackordered(true);
+            }
             totals[0] = totals[0].add(net);
             totals[1] = totals[1].add(tax);
             return lr;

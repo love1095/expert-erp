@@ -26,6 +26,8 @@ public class SaleOrderResponse {
     private BigDecimal taxTotal;
     private BigDecimal total;
     private List<Charge> charges;
+    // A reserving order (confirmed, or imported from Shopify) the stock on hand cannot cover in full
+    private boolean backordered;
     private Long customerId;
     private String customerName;
     private Long warehouseId;
@@ -68,6 +70,10 @@ public class SaleOrderResponse {
         private BigDecimal totalAmount;
         // Over the product's cost price (FIFO cost once costing exists); null without a cost
         private BigDecimal marginPercent;
+        // Reserving orders only (null otherwise): of the quantity still to ship, what the stock on hand covers
+        // (first confirmed, first served) and what is short
+        private BigDecimal allocatedQuantity;
+        private BigDecimal backorderedQuantity;
     }
 
     @Data

@@ -153,11 +153,12 @@ class SaleOrderLifecycleTest {
     }
 
     @Test
-    void insufficientStockRejectsTheWholeShipment() {
+    void askingForMoreThanIsAllocatedRejectsTheWholeShipment() {
         SaleOrderResponse so = confirmedOrder(10, 150); // only 100 gloves in stock
-
-        assertThatThrownBy(() -> saleOrderService.fulfill(so.getId(), null))
-                .isInstanceOf(InsufficientStockException.class);
+        FulfilmentRequest req = new FulfilmentRequest();
+        req.setLines(List.of(line(so, 0, 10), line(so, 1, 150)));
+        assertThatThrownBy(() -> saleOrderService.fulfill(so.getId(), req))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("only 100 allocated");
 
         SaleOrderResponse after = saleOrderService.findById(so.getId());
         assertThat(after.getFulfilments()).isEmpty();
@@ -167,16 +168,32 @@ class SaleOrderLifecycleTest {
     }
 
     @Test
-    void sameProductOnTwoLinesIsCheckedAgainstCombinedQuantity() {
+    void shippingEverythingShipsWhatIsAllocatedAndKeepsTheRestBackordered() {
+        SaleOrderResponse so = confirmedOrder(10, 150); // only 100 gloves in stock
+
+        SaleOrderResponse after = saleOrderService.fulfill(so.getId(), null);
+        assertThat(after.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("10");
+        assertThat(after.getLines().get(1).getFulfilledQuantity()).isEqualByComparingTo("100");
+        assertThat(after.getStatus()).isEqualTo(Status.CONFIRMED);
+        assertThat(after.isBackordered()).isTrue();
+        assertThat(stock(gloves)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void sameProductOnTwoLinesIsAllocatedAgainstCombinedQuantity() {
         SaleOrderRequest req = orderRequest();
         req.getLines().add(orderLine(helmet, 60));
         req.getLines().add(orderLine(helmet, 60)); // 120 total, 100 in stock
-        SaleOrderResponse so = saleOrderService.create(req);
-        saleOrderService.confirm(so.getId());
-
-        assertThatThrownBy(() -> saleOrderService.fulfill(so.getId(), null))
-                .isInstanceOf(InsufficientStockException.class);
+        SaleOrderResponse so = saleOrderService.confirm(saleOrderService.create(req).getId());
+        // The first line gets 60, the second the 40 left
+        FulfilmentRequest both = new FulfilmentRequest();
+        both.setLines(List.of(line(so, 0, 60), line(so, 1, 60)));
+        assertThatThrownBy(() -> saleOrderService.fulfill(so.getId(), both))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("only 40 allocated");
         assertThat(stock(helmet)).isEqualByComparingTo("100");
+
+        saleOrderService.fulfill(so.getId(), null);
+        assertThat(stock(helmet)).isEqualByComparingTo("0");
     }
 
     @Test

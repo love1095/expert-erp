@@ -59,17 +59,20 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
 
   const shipped    = order.lines.some(l => l.fulfilledQuantity > 0);
   const returnable = order.lines.some(l => l.fulfilledQuantity - l.returnedQuantity > 0);
-  const canShip    = order.status === "CONFIRMED" && order.lines.some(l => l.remainingQuantity > 0);
+  // Like Cin7, a line can only ship what is allocated to it (first confirmed, first served)
+  const allocatedOf = (l: SaleOrderLine) => Math.min(l.allocatedQuantity ?? 0, l.remainingQuantity);
+  const canShip    = order.status === "CONFIRMED" && order.lines.some(l => allocatedOf(l) > 0);
+  const waitingForStock = order.status === "CONFIRMED" && !canShip && order.lines.some(l => l.remainingQuantity > 0);
   const canCancel  = order.status === "DRAFT" || order.status === "CONFIRMED";
   const canReturn  = (order.status === "CONFIRMED" || order.status === "COMPLETED") && returnable;
 
   const maxFor = (l: SaleOrderLine) =>
-    mode === "ship" ? l.remainingQuantity : l.fulfilledQuantity - l.returnedQuantity;
+    mode === "ship" ? allocatedOf(l) : l.fulfilledQuantity - l.returnedQuantity;
 
   const startMode = (m: Mode) => {
     const prefill: Record<number, string> = {};
-    // Shipping defaults to everything remaining; returns start empty
-    order.lines.forEach(l => { prefill[l.id] = m === "ship" && l.remainingQuantity > 0 ? String(l.remainingQuantity) : ""; });
+    // Shipping defaults to everything allocated; returns start empty
+    order.lines.forEach(l => { prefill[l.id] = m === "ship" && allocatedOf(l) > 0 ? String(allocatedOf(l)) : ""; });
     setAmounts(prefill);
     setRestock(Object.fromEntries(order.lines.map(l => [l.id, true])));
     setNotes("");
@@ -124,6 +127,14 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
         </div>
       )}
 
+      {order.backordered && (
+        <p data-testid={`so-backordered-${orderId}`} className="text-sm text-orange-900 bg-orange-50 border border-orange-200 px-3 py-2 rounded">
+          <b>Backordered:</b>{" "}
+          {order.lines.filter(l => (l.backorderedQuantity ?? 0) > 0)
+            .map(l => `${qty(l.backorderedQuantity!)} × ${l.productSku}`).join(", ")} short. Stock goes to orders in the order they were confirmed.
+        </p>
+      )}
+
       <dl data-testid={`so-details-${orderId}`} className="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-1 text-xs">
         {([["Order", order.orderNumber], ["Reference", order.customerReference], ["Sales rep", order.salesRep], ["Terms", order.paymentTerm],
            ["Ship by", order.shipBy], ["Carrier", order.carrier]] as [string, string | undefined][]).map(([k, v]) => (
@@ -168,6 +179,9 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
           {order.status === "DRAFT" && (
             <span className="text-xs text-gray-400 self-center">Confirm the order before shipping.</span>
           )}
+          {waitingForStock && (
+            <span className="text-xs text-orange-700 self-center">Nothing to ship yet: the stock on hand is promised to orders confirmed earlier.</span>
+          )}
         </div>
       )}
 
@@ -176,7 +190,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
         <table className="w-full text-sm bg-white border border-gray-200 rounded-lg overflow-hidden">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {["Product", "Ordered", "Shipped", "Cancelled", "Returned", "Remaining", "Price", "Disc", "VAT", "Net", "Margin"].map(h => (
+              {["Product", "Ordered", "Shipped", "Cancelled", "Returned", "Remaining", "Allocated", "Price", "Disc", "VAT", "Net", "Margin"].map(h => (
                 <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
               ))}
               {mode === "ship" && <th className="text-left px-3 py-2 text-xs font-semibold text-emerald-700 uppercase">Ship now</th>}
@@ -202,6 +216,10 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                   <td className="px-3 py-2 tabular-nums text-gray-500">{qty(l.cancelledQuantity)}</td>
                   <td className="px-3 py-2 tabular-nums text-teal-700">{qty(l.returnedQuantity)}</td>
                   <td className="px-3 py-2 tabular-nums font-medium">{qty(l.remainingQuantity)}</td>
+                  <td className={`px-3 py-2 tabular-nums ${(l.backorderedQuantity ?? 0) > 0 ? "text-orange-700 font-semibold" : "text-gray-500"}`}
+                    title={(l.backorderedQuantity ?? 0) > 0 ? `${qty(l.backorderedQuantity!)} short` : undefined}>
+                    {l.allocatedQuantity != null ? qty(l.allocatedQuantity) : "—"}
+                  </td>
                   <td className="px-3 py-2 tabular-nums">{l.unitPrice != null ? formatGBP(l.unitPrice) : "—"}</td>
                   <td className="px-3 py-2 tabular-nums text-gray-500">{l.discountPercent ? `${l.discountPercent}%` : "—"}</td>
                   <td className="px-3 py-2 text-xs text-gray-600" title={l.taxOverridden ? "Changed by hand" : undefined}>

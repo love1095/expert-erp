@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSaleOrders, getProducts, getWarehouses, getCategories, getCustomers } from "@/lib/api";
-import { SaleOrder, Product, Warehouse, SaleOrderStatus, FulfilmentStatus, Category, Customer, Page } from "@/types";
+import { getSaleOrders, getWarehouses, getCustomers } from "@/lib/api";
+import { SaleOrder, Warehouse, SaleOrderStatus, FulfilmentStatus, Customer, Page } from "@/types";
 import { Fragment, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
@@ -37,9 +37,7 @@ export default function SaleOrdersPage() {
     queryKey: ["sale-orders", page],
     queryFn: () => getSaleOrders({ page }),
   });
-  const { data: products = [] } = useQuery<Product[]>({ queryKey: ["products"], queryFn: () => getProducts() });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
-  const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["categories"], queryFn: getCategories });
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers });
 
   const orders: SaleOrder[] = data?.content ?? [];
@@ -73,7 +71,7 @@ export default function SaleOrdersPage() {
       {isAdmin && showShopifyImport && <ShopifyImportPanel onClose={() => setShowShopifyImport(false)} />}
 
       {showForm && (
-        <SaleOrderForm customers={customers} products={products} categories={categories} warehouses={warehouses} onCreated={onCreated} />
+        <SaleOrderForm customers={customers} warehouses={warehouses} onCreated={onCreated} />
       )}
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
@@ -109,6 +107,9 @@ export default function SaleOrdersPage() {
                     <td className="px-4 py-3 tabular-nums text-gray-700">{formatGBP(o.total)}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
+                      {o.backordered && (
+                        <span className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-800">Backordered</span>
+                      )}
                       {o.needsReview && (
                         <span title={o.reviewReason} className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Needs review</span>
                       )}

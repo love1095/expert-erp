@@ -16,6 +16,7 @@ Each rule says what was decided, then how it is built. Country: **UK**, currency
 - Stock is reserved when a sale order is **confirmed**; the reservation ends when the line ships or is cancelled.
 - **Shopify orders reserve stock as soon as they are imported** (also the drafts kept for review, because the customer has already bought). May change later.
 - Confirming is allowed when not enough is available: the shortfall is a **backorder**, shown on the order and the dashboard.
+- Stock goes to orders **first confirmed, first served**, and **shipping is strict like Cin7**: a line ships at most what is allocated to it, never stock promised to an earlier order (decided 2026-10-30).
 
 **Built as**
 - Allocated is computed from order lines like on-hand is computed from movements: no allocation table, nothing to get out of step. Per product and warehouse.

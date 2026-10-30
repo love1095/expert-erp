@@ -63,6 +63,9 @@ export interface Product {
   variantOptions?: VariantOption[];
   details?: ProductDetails;
   totalStock: number;
+  // Reserved for sale orders, and total − reserved (can be < 0)
+  reservedStock: number;
+  availableStock: number;
   lowStock: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -234,6 +237,9 @@ export interface StockLevel {
   categoryId?: number;
   categoryName?: string;
   stock: number;
+  // Reserved for sale orders shipping from this warehouse; available = stock − reserved (can be < 0)
+  reserved: number;
+  available: number;
   lowStock: boolean;
 }
 
@@ -279,6 +285,9 @@ export interface SaleOrderLine extends OrderLine {
   totalAmount: number;
   // Over the product's cost price; absent without a cost
   marginPercent?: number;
+  // Reserving orders only: what the stock on hand covers (first confirmed, first served) and what is short
+  allocatedQuantity?: number;
+  backorderedQuantity?: number;
 }
 
 // Carriage, delivery... (no product, no stock)
@@ -352,6 +361,8 @@ export interface SaleOrder {
   subtotal: number;
   taxTotal: number;
   total: number;
+  // Confirmed (or imported from Shopify) and the stock on hand can't cover it all
+  backordered: boolean;
   source: "MANUAL" | "SHOPIFY";
   // Shopify order number, e.g. #1001
   externalReference?: string;
@@ -496,7 +507,7 @@ export interface Dashboard {
     receivablesOutstanding: number;
   };
   ordersByStatus: Record<SaleOrderStatus, number>;
-  sales: { draftOrders: number; toShip: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
+  sales: { draftOrders: number; toShip: number; backordered: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
   purchases: { awaitingDelivery: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
   daily: { date: string; orders: number; salesValue: number; unitsIn: number; unitsOut: number }[];
   topSellers: DashboardSeller[];

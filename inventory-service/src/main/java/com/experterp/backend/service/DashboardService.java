@@ -35,9 +35,9 @@ public class DashboardService {
     private static final String UNITS_IN_TYPES = "'PURCHASE_IN','ADJUSTMENT_IN','SALE_RETURN_IN'";
     private static final String UNITS_OUT_TYPES = "'SALE_OUT','ADJUSTMENT_OUT'";
 
-    // Cin7's reorder rule: active stock products with a minimum or a reorder quantity, whose stock + quantity on
-    // (not yet received) purchase orders is at or below the minimum (no minimum = 0). Cin7 uses available stock
-    // (on hand − allocated); until allocation exists, on hand. Needs :t; the caller adds filter, order and paging.
+    // Cin7's reorder rule: active stock products with a minimum or a reorder quantity, whose available stock
+    // (on hand − reserved for sale orders) + quantity on (not yet received) purchase orders is at or below the
+    // minimum (no minimum = 0). Needs :t; the caller adds filter, order and paging.
     private static final String REORDER_FROM =
             "  FROM products p " +
             "  LEFT JOIN (SELECT product_id, SUM(CASE WHEN type IN (" + StockMovementRepository.IN_TYPES + ") " +
@@ -46,10 +46,11 @@ public class DashboardService {
             "  LEFT JOIN (SELECT l.product_id, SUM(l.quantity) AS qty " +
             "               FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id " +
             "              WHERE po.tenant_id = :t AND po.status = 'DRAFT' GROUP BY l.product_id) oo ON oo.product_id = p.id " +
+            "  LEFT JOIN (" + AllocationService.RESERVED_PER_PRODUCT_SQL + ") rv ON rv.product_id = p.id " +
             "  LEFT JOIN suppliers s ON s.id = p.default_supplier_id " +
             " WHERE p.tenant_id = :t AND p.status = 'ACTIVE' AND p.product_type = 'STOCK' " +
             "   AND (p.min_stock > 0 OR p.reorder_quantity > 0) " +
-            "   AND COALESCE(st.qty, 0) + COALESCE(oo.qty, 0) <= COALESCE(p.min_stock, 0) ";
+            "   AND COALESCE(st.qty, 0) - COALESCE(rv.qty, 0) + COALESCE(oo.qty, 0) <= COALESCE(p.min_stock, 0) ";
 
     // Issued invoices with something left to pay; needs :t and :type
     private static final String UNPAID_INVOICES =
@@ -68,6 +69,7 @@ public class DashboardService {
             "so.tenant_id = :t AND so.status <> 'CANCELLED' AND so.created_at >= :from AND so.created_at < :until";
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final AllocationService allocationService;
 
     @Transactional(readOnly = true)
     public DashboardResponse get(int days) {
@@ -184,6 +186,7 @@ public class DashboardService {
         SalesStatus sales = new SalesStatus(
                 byStatus.get("DRAFT"),
                 byStatus.get("CONFIRMED"),
+                allocationService.backorderedOrderIds().size(),
                 salesDraftInvoices,
                 count("SELECT COUNT(*) " + UNPAID_INVOICES, sp),
                 count("SELECT COUNT(*) " + UNPAID_INVOICES + "AND i.due_date < :today", sp));
@@ -237,9 +240,9 @@ public class DashboardService {
         p.addValue("limit", size).addValue("offset", (long) page * size);
         List<ReorderLine> rows = jdbc.query(
                 "SELECT p.id, p.sku, p.name, s.name AS supplier, p.min_stock, p.reorder_quantity, " +
-                "       COALESCE(st.qty, 0) AS stock, COALESCE(oo.qty, 0) AS on_order " +
+                "       COALESCE(st.qty, 0) - COALESCE(rv.qty, 0) AS stock, COALESCE(oo.qty, 0) AS on_order " +
                 REORDER_FROM + filter +
-                " ORDER BY COALESCE(st.qty, 0) + COALESCE(oo.qty, 0), p.sku LIMIT :limit OFFSET :offset", p,
+                " ORDER BY COALESCE(st.qty, 0) - COALESCE(rv.qty, 0) + COALESCE(oo.qty, 0), p.sku LIMIT :limit OFFSET :offset", p,
                 (rs, i) -> {
                     BigDecimal stock = rs.getBigDecimal("stock");
                     BigDecimal onOrder = rs.getBigDecimal("on_order");

@@ -3,14 +3,15 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createSaleOrder, getTaxRates, previewSaleOrder } from "@/lib/api";
-import { Category, Customer, Product, SaleOrder, TaxRate, Warehouse } from "@/types";
+import { Customer, SaleOrder, TaxRate, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
+import ProductPicker from "./product-picker";
 
-type LineForm = { categoryId: string; productId: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
+type LineForm = { productId: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 type ChargeForm = { description: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 
-const emptyLine = (): LineForm => ({ categoryId: "", productId: "", quantity: "", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
+const emptyLine = (): LineForm => ({ productId: "", quantity: "", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
 const emptyCharge = (): ChargeForm => ({ description: "", quantity: "1", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
 const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
 const text = (s: string) => (s.trim() === "" ? undefined : s.trim());
@@ -23,8 +24,8 @@ const LABEL = "block text-xs font-medium text-gray-600 mb-1";
  * the customer or the organisation default (docs/business-rules.md §3) — a manager or admin may choose another
  * rate per line, with a reason when it is less VAT. Figures are calculated by the server as the form is filled in.
  */
-export default function SaleOrderForm({ customers, products, categories, warehouses, onCreated }: {
-  customers: Customer[]; products: Product[]; categories: Category[]; warehouses: Warehouse[];
+export default function SaleOrderForm({ customers, warehouses, onCreated }: {
+  customers: Customer[]; warehouses: Warehouse[];
   onCreated: (order: SaleOrder) => void;
 }) {
   const { user } = useAuth();
@@ -157,7 +158,7 @@ export default function SaleOrderForm({ customers, products, categories, warehou
           <button type="button" onClick={() => setLines([...lines, emptyLine()])} className="text-xs text-rose-600 hover:text-rose-800">+ Add line</button>
         </div>
         <div className="grid grid-cols-12 gap-2 mb-1 text-[11px] text-gray-400">
-          <span className="col-span-2">Category</span><span className="col-span-2">Product</span><span>Qty</span><span>£ price</span>
+          <span className="col-span-4">Product</span><span>Qty</span><span>£ price</span>
           <span>Disc %</span><span className="col-span-2">VAT</span><span className="text-right">Net</span><span className="text-right">VAT £</span><span />
         </div>
         {lines.map((l, i) => {
@@ -165,14 +166,11 @@ export default function SaleOrderForm({ customers, products, categories, warehou
           return (
             <div key={i} className="mb-2" data-testid={`so-form-line-${i}`}>
               <div className="grid grid-cols-12 gap-2 items-center">
-                <select aria-label={`Category for line ${i + 1}`} value={l.categoryId} onChange={e => setLine(i, { categoryId: e.target.value, productId: "" })} className={`${INPUT} col-span-2`}>
-                  <option value="">All categories</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <select aria-label={`Product for line ${i + 1}`} value={l.productId} onChange={e => setLine(i, { productId: e.target.value })} required className={`${INPUT} col-span-2`}>
-                  <option value="">Product</option>
-                  {(l.categoryId ? products.filter(pr => pr.categoryId === Number(l.categoryId)) : products).map(pr => <option key={pr.id} value={pr.id}>{pr.sku}</option>)}
-                </select>
+                <div className="col-span-4">
+                  {/* Picking a product fills in its shop price when no price is typed yet */}
+                  <ProductPicker label={`Product for line ${i + 1}`}
+                    onSelect={pr => setLine(i, { productId: String(pr.id), unitPrice: l.unitPrice || (pr.sellPrice != null ? String(pr.sellPrice) : "") })} />
+                </div>
                 <input aria-label={`Quantity for line ${i + 1}`} type="number" min="0.0001" step="any" value={l.quantity} placeholder="Qty" required
                   onChange={e => setLine(i, { quantity: e.target.value })} className={INPUT} />
                 <input aria-label={`Unit price for line ${i + 1}`} type="number" min="0" step="any" value={l.unitPrice} placeholder="£"

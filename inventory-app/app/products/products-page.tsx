@@ -354,6 +354,11 @@ export default function ProductsPage() {
                       <span className={`font-semibold ${Number(p.totalStock) <= 0 ? "text-red-600" : "text-emerald-700"}`}>
                         {Number(p.totalStock).toLocaleString()}
                       </span>
+                      {Number(p.reservedStock) > 0 && (
+                        <span className={`block text-[11px] ${Number(p.availableStock) < 0 ? "text-red-600" : "text-gray-400"}`}>
+                          {Number(p.availableStock).toLocaleString()} available
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_BADGE[p.status]}`}>

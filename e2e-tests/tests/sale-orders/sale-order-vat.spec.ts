@@ -14,7 +14,12 @@ test.describe('Sale order VAT and totals', () => {
       await form.getByLabel('Customer *').fill(customer.name);
       await form.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));
       await form.getByLabel('Customer reference').fill('PO-024297');
-      await form.getByLabel('Product for line 1').selectOption(String(helmet.id));
+      await api.addStock(helmet, warehouses.main, 7);
+      // Search by SKU and pick the match: it shows the stock available and fills in the shop price (none here)
+      await form.getByLabel('Product for line 1').fill(helmet.sku);
+      const match = form.getByRole('listbox', { name: 'Product for line 1 matches' }).getByRole('option').filter({ hasText: helmet.sku });
+      await expect(match).toContainText('7 available');
+      await match.getByRole('button').click();
       await form.getByLabel('Quantity for line 1').fill('2');
       await form.getByLabel('Unit price for line 1').fill('10');
       await form.getByRole('button', { name: '+ Add charge' }).click();
@@ -84,5 +89,40 @@ test.describe('Sale order VAT and totals', () => {
       const second = await api.createSaleOrder(warehouses.main, [{ product, quantity: 1 }]);
       expect(first.orderNumber).toBe('SO-66006');
       expect(second.orderNumber).toBe('SO-66007');
+    });
+
+  test('SO-011 stock goes to the order confirmed first; the next one is backordered and cannot ship it until stock is freed', { tag: ['@P0', '@sale-orders', '@stock'] },
+    async ({ page, api, warehouses }) => {
+      const helmet = await api.createProduct();
+      await api.addStock(helmet, warehouses.main, 5);
+      const first = await api.confirmSaleOrder((await api.createSaleOrder(warehouses.main, [{ product: helmet, quantity: 3 }])).id);
+      const second = await api.confirmSaleOrder((await api.createSaleOrder(warehouses.main, [{ product: helmet, quantity: 4 }])).id);
+
+      await page.goto('/sale-orders');
+      await expect(page.getByTestId(`so-row-${second.id}`)).toContainText('Backordered');
+      await expect(page.getByTestId(`so-row-${first.id}`)).not.toContainText('Backordered');
+      await page.getByTestId(`so-row-${second.id}`).getByRole('button', { name: 'Manage' }).click();
+      await expect(page.getByTestId(`so-backordered-${second.id}`)).toContainText(`2 × ${helmet.sku} short`);
+
+      // 5 on hand, 7 reserved
+      await page.goto('/stock-overview');
+      const row = page.getByRole('row').filter({ hasText: helmet.sku }).filter({ hasText: warehouses.main.name });
+      await expect(row.getByRole('cell').nth(7)).toHaveText('7');
+      await expect(row.getByRole('cell').nth(8)).toHaveText('-2');
+
+      await page.goto('/');
+      await expect(page.getByTestId('sales-status')).toContainText('Backordered1');
+
+      // Like Cin7, the second order can't ship stock promised to the first: only 2 of its 4 are allocated
+      const refused = await api.http.post(`/api/sale-orders/${second.id}/fulfill`,
+        { data: { lines: [{ saleOrderLineId: second.lines[0].id, quantity: 3 }] } });
+      expect(refused.status()).toBe(422);
+      expect((await refused.json()).error).toContain('only 2 allocated');
+
+      // Shipping the first order and cancelling the second frees everything
+      await api.fulfilSaleOrder(first.id);
+      await api.http.post(`/api/sale-orders/${second.id}/cancel`);
+      await page.goto('/stock-overview');
+      await expect(row.getByRole('cell').nth(8)).toHaveText('2');
     });
 });

@@ -48,7 +48,7 @@ test.describe('Sale order lifecycle', () => {
     await expect(so.panel(order.id).getByText(/Shipment #/)).toHaveCount(2);
   });
 
-  test('SO-003 shipping more than stock shows an error and changes nothing', { tag: ['@P0', '@sale-orders'] }, async ({ page, api, warehouses }) => {
+  test('SO-003 shipping more than is allocated shows an error and changes nothing', { tag: ['@P0', '@sale-orders'] }, async ({ page, api, warehouses }) => {
     const { order, helmet, glove } = await seedOrder(api, warehouses.main, 10, 150);
     await api.confirmSaleOrder(order.id);
     const so = new SaleOrdersPage(page);
@@ -56,7 +56,10 @@ test.describe('Sale order lifecycle', () => {
 
     await so.ship(order.id, { [helmet.sku]: 10, [glove.sku]: 150 });
 
-    await expect(so.panel(order.id).getByText(/Insufficient stock/)).toBeVisible();
+    // Only 100 gloves are allocated to the order (Cin7's rule): the form won't take more, nothing is shipped
+    const glovesInput = so.panel(order.id).getByLabel(`Ship quantity for ${glove.sku}`);
+    await expect(glovesInput).toHaveAttribute('max', '100');
+    expect(await glovesInput.evaluate((el: HTMLInputElement) => el.validity.rangeOverflow)).toBe(true);
     expect(await api.stock(helmet, warehouses.main)).toBe(100);
     expect(await api.stock(glove, warehouses.main)).toBe(100);
     expect((await api.getSaleOrder(order.id)).fulfilmentStatus).toBe('UNFULFILLED');

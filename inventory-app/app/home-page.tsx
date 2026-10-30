@@ -142,9 +142,10 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Panel title="Sales — waiting now">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2" data-testid="sales-status">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="sales-status">
             <Count label="Draft orders" value={data.sales.draftOrders} href="/sale-orders" />
             <Count label="To ship" value={data.sales.toShip} href="/sale-orders" />
+            <Count label="Backordered" value={data.sales.backordered} href="/sale-orders" warn />
             <Count label="Draft invoices" value={data.sales.draftInvoices} href="/invoices" />
             <Count label="Awaiting payment" value={data.sales.awaitingPayment} href="/invoices" />
             <Count label="Overdue invoices" value={data.sales.overdueInvoices} href="/invoices" warn />

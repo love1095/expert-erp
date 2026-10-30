@@ -277,8 +277,20 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Checked on real data: AE Yates Ltd + HVJC-F01-Y-M at £25.65 gives rep Dwaine Silverblade, 30 Day EOM, Expert Van, 20 % VAT and **36.10 % margin — the same as Cin7's SO-66003**
 - [x] Tests: `SaleOrderVatTest` (6) — VAT rule order, discounts, charges, totals, rates changing later, override permissions and reasons, numbering, preview, dashboard revenue and reps (90 backend tests); E2E SO-008…SO-010 (64 cases)
 
+### D2 Reservation, available stock and backorders ✅
+- [x] **Reserved** stock is computed from order lines, never stored (`AllocationService`): the quantity still to ship on CONFIRMED orders and on Shopify orders from the moment they are imported (drafts kept for review included). Shipping or cancelling ends a reservation by itself
+- [x] **Available = on hand − reserved**, per product and warehouse; below 0 when more is promised than there is
+- [x] **First confirmed, first served**: per product and warehouse, stock covers lines in order of confirmation; each line of a reserving order shows its **allocated** and **backordered** quantity, and the order is **Backordered** when any line is short (one query for a whole page of orders)
+- [x] Confirming without enough stock is allowed (the shortfall is a backorder)
+- [x] **Shipping is strict like Cin7**: a line ships at most what is allocated to it, so stock promised to orders confirmed earlier is never taken; "Ship items" pre-fills the allocated quantities, more is refused with the reason (422); products are locked before the allocation is worked out, so shipments running at the same time can't take the same units
+- [x] Shown on: order list (Backordered badge), order panel (allocated column, "N × SKU short"), Stock Overview (on hand / reserved / available), Products (available under total), dashboard (**Backordered** count)
+- [x] Reorder list and "Products to reorder" use **available** + on order, as Cin7 does
+- [x] Order form: a **product search box** (SKU or name, active products, with available stock and price, fills in the shop price) instead of a dropdown of all ~14,000 products
+- [x] Checked on real data: every call under 0.05 s; reorder list still 429 (no open orders locally); leftover Shopify test order SO-265 correctly backordered (its product has no stock)
+- [x] Tests: `AllocationTest` (5) — first confirmed first served, confirmed-later-wins-by-confirmation, release on ship / cancel, drafts vs Shopify imports, warehouses kept apart, reorder on available, shipping limited to allocated; `SaleOrderLifecycleTest` updated to the strict rule (96 backend tests); E2E SO-011 (incl. refused shipment), SO-003, SO-008 and CUS-002/003 use the search box (65 cases)
+
 ### Next
-- [ ] D2 reservation, available stock, backorders · D3 quotes · D4 invoices (by hand and automatic on shipment) and credit notes · D5 PDFs
+- [ ] D3 quotes · D4 invoices (by hand and automatic on shipment) and credit notes · D5 PDFs
 
 ---
 
@@ -405,7 +417,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/sale-orders/preview` | The order as it would be created (defaults, VAT, totals); nothing saved |
 | GET/PUT | `/settings/organisation` | Order numbering, Shopify sales rep, default sale tax rule (PUT: ADMIN) |
 | GET  | `/tax-rates` | The organisation's VAT rates (`usage` SALE / PURCHASE) |
-| GET  | `/dashboard/reorder` | Products whose stock + on order is at or below their minimum (`search`, `page`, `size`) |
+| GET  | `/dashboard/reorder` | Products whose available stock + on order is at or below their minimum (`search`, `page`, `size`) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | List tenants (SUPER_ADMIN) |
