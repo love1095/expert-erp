@@ -98,6 +98,15 @@ public class SaleOrder {
     @Column(columnDefinition = "TEXT")
     private String shippingNotes;
 
+    // When the sale became an order (created as one, or converted from a quote); null for quotes.
+    // Sales figures are dated by it.
+    @Column
+    private LocalDateTime orderedAt;
+
+    // Quotes only: the last day the quote can be turned into an order
+    @Column
+    private LocalDate quoteValidUntil;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -113,9 +122,10 @@ public class SaleOrder {
 
     /**
      * Order lifecycle. Fulfilment progress is tracked separately in {@link FulfilmentStatus}.
-     * DRAFT → CONFIRMED → COMPLETED (nothing left to ship); DRAFT/CONFIRMED → CANCELLED (nothing shipped).
+     * QUOTE → DRAFT (converted) or REJECTED; DRAFT → CONFIRMED → COMPLETED (nothing left to ship);
+     * DRAFT/CONFIRMED → CANCELLED (nothing shipped).
      */
-    public enum Status { DRAFT, CONFIRMED, COMPLETED, CANCELLED }
+    public enum Status { QUOTE, REJECTED, DRAFT, CONFIRMED, COMPLETED, CANCELLED }
 
     public enum Source { MANUAL, SHOPIFY }
 

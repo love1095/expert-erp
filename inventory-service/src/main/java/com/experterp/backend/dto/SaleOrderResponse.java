@@ -28,6 +28,10 @@ public class SaleOrderResponse {
     private List<Charge> charges;
     // A reserving order (confirmed, or imported from Shopify) the stock on hand cannot cover in full
     private boolean backordered;
+    // When it became an order (null for quotes); quotes: last day it can be converted, and whether that has passed
+    private LocalDateTime orderedAt;
+    private LocalDate quoteValidUntil;
+    private boolean quoteExpired;
     private Long customerId;
     private String customerName;
     private Long warehouseId;

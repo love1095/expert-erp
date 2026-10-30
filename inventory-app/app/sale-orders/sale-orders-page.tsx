@@ -13,6 +13,8 @@ import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STATUS_COLOR: Record<SaleOrderStatus, string> = {
+  QUOTE:     "bg-violet-100 text-violet-700",
+  REJECTED:  "bg-gray-100 text-gray-400",
   DRAFT:     "bg-amber-100 text-amber-700",
   CONFIRMED: "bg-sky-100 text-sky-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
@@ -32,10 +34,11 @@ export default function SaleOrdersPage() {
   const [showShopifyImport, setShowShopifyImport] = useState(false);
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("");
 
   const { data, isLoading } = useQuery<Page<SaleOrder>>({
-    queryKey: ["sale-orders", page],
-    queryFn: () => getSaleOrders({ page }),
+    queryKey: ["sale-orders", page, statusFilter],
+    queryFn: () => getSaleOrders({ page, status: statusFilter || undefined }),
   });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers });
@@ -74,6 +77,20 @@ export default function SaleOrdersPage() {
         <SaleOrderForm customers={customers} warehouses={warehouses} onCreated={onCreated} />
       )}
 
+      <div className="mb-4">
+        <label htmlFor="sale-orders-status-filter" className="sr-only">Show</label>
+        <select id="sale-orders-status-filter" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+          <option value="">All quotes and orders</option>
+          <option value="QUOTE">Quotes</option>
+          <option value="DRAFT">Draft orders</option>
+          <option value="CONFIRMED">Confirmed</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="REJECTED">Rejected quotes</option>
+        </select>
+      </div>
+
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -107,13 +124,14 @@ export default function SaleOrdersPage() {
                     <td className="px-4 py-3 tabular-nums text-gray-700">{formatGBP(o.total)}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
+                      {o.quoteExpired && <span className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-red-50 text-red-700">Expired</span>}
                       {o.backordered && (
                         <span className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-800">Backordered</span>
                       )}
                       {o.needsReview && (
                         <span title={o.reviewReason} className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Needs review</span>
                       )}
-                      {o.status !== "DRAFT" && o.status !== "CANCELLED" && (
+                      {(o.status === "CONFIRMED" || o.status === "COMPLETED") && (
                         <span className={`block mt-1 text-[11px] ${FULFILMENT_LABEL[o.fulfilmentStatus].color}`}>
                           {FULFILMENT_LABEL[o.fulfilmentStatus].label}
                         </span>

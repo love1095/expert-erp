@@ -43,7 +43,7 @@ public record DashboardResponse(
 
     // Invoices "awaiting payment" are issued and not fully paid; "overdue" ones are also past their due date
     // backordered = reserving orders the stock on hand cannot cover in full (first confirmed, first served)
-    public record SalesStatus(long draftOrders, long toShip, long backordered, long draftInvoices, long awaitingPayment, long overdueInvoices) {}
+    public record SalesStatus(long openQuotes, long draftOrders, long toShip, long backordered, long draftInvoices, long awaitingPayment, long overdueInvoices) {}
 
     // Purchase orders are DRAFT until received, so a draft PO is also the one awaiting delivery
     public record PurchaseStatus(long awaitingDelivery, long draftInvoices, long awaitingPayment, long overdueInvoices) {}

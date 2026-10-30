@@ -64,6 +64,11 @@ export default function OrganisationPage() {
           </select>
           <p className="text-[11px] text-gray-400 mt-1">Used when neither the product nor the customer has a tax rule.</p>
         </div>
+        <div>
+          <label htmlFor="org-quote-days" className={LABEL}>Quotes valid for (days)</label>
+          <input id="org-quote-days" type="number" min="1" max="365" value={form.quoteValidDays} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, quoteValidDays: Number(e.target.value) })} className={INPUT} />
+        </div>
         <div className="col-span-2 flex items-center gap-3">
           {isAdmin ? (
             <button type="submit" disabled={save.isPending}

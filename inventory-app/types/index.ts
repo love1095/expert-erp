@@ -244,7 +244,8 @@ export interface StockLevel {
 }
 
 export type PurchaseOrderStatus = "DRAFT" | "RECEIVED" | "CANCELLED";
-export type SaleOrderStatus     = "DRAFT" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+// QUOTE → DRAFT (converted) or REJECTED; DRAFT → CONFIRMED → COMPLETED; DRAFT/CONFIRMED → CANCELLED
+export type SaleOrderStatus     = "QUOTE" | "REJECTED" | "DRAFT" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
 export type FulfilmentStatus    = "UNFULFILLED" | "PARTIALLY_FULFILLED" | "FULFILLED";
 
 export interface OrderLine {
@@ -312,6 +313,8 @@ export interface OrganisationSettings {
   nextSaleOrderNumber: number;
   webSalesRep: string;
   defaultSaleTaxRule: string;
+  // Default validity of a new quote, in days
+  quoteValidDays: number;
 }
 
 export interface SaleOrderEntryLine {
@@ -363,6 +366,10 @@ export interface SaleOrder {
   total: number;
   // Confirmed (or imported from Shopify) and the stock on hand can't cover it all
   backordered: boolean;
+  // When it became an order (absent for quotes); quotes: last day it can be converted
+  orderedAt?: string;
+  quoteValidUntil?: string;
+  quoteExpired: boolean;
   source: "MANUAL" | "SHOPIFY";
   // Shopify order number, e.g. #1001
   externalReference?: string;
@@ -507,7 +514,7 @@ export interface Dashboard {
     receivablesOutstanding: number;
   };
   ordersByStatus: Record<SaleOrderStatus, number>;
-  sales: { draftOrders: number; toShip: number; backordered: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
+  sales: { openQuotes: number; draftOrders: number; toShip: number; backordered: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
   purchases: { awaitingDelivery: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
   daily: { date: string; orders: number; salesValue: number; unitsIn: number; unitsOut: number }[];
   topSellers: DashboardSeller[];

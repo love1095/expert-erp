@@ -135,7 +135,7 @@ class CustomerServiceTest {
         assertThat(created.getCustomerId()).isNotEqualTo(acme.getId());
         assertThat(customerService.findById(created.getCustomerId()).getName()).isEqualTo("Brand New Co");
 
-        assertThat(saleOrderService.findAll(acme.getId(), 0, 20).getContent())
+        assertThat(saleOrderService.findAll(acme.getId(), null, 0, 20).getContent())
                 .extracting(SaleOrderResponse::getId).containsExactly(reused.getId());
     }
 

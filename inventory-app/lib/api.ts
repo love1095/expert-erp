@@ -93,10 +93,14 @@ export const receivePurchaseOrder = (id: number) => api.post(`/purchase-orders/$
 export const cancelPurchaseOrder  = (id: number) => api.post(`/purchase-orders/${id}/cancel`).then(r => r.data);
 
 // Sale orders — Page
-export const getSaleOrders    = (params?: { customerId?: number; page?: number; size?: number }) =>
+export const getSaleOrders    = (params?: { customerId?: number; status?: string; page?: number; size?: number }) =>
   api.get("/sale-orders", { params: { size: 20, ...params } }).then(r => r.data);
 export const getSaleOrder     = (id: number) => api.get(`/sale-orders/${id}`).then(r => r.data);
 export const createSaleOrder  = (data: unknown) => api.post("/sale-orders", data).then(r => r.data);
+// Quotes and draft orders only
+export const updateSaleOrder  = ({ id, data }: { id: number; data: unknown }) => api.put(`/sale-orders/${id}`, data).then(r => r.data);
+export const convertQuote     = (id: number) => api.post(`/sale-orders/${id}/convert`).then(r => r.data);
+export const rejectQuote      = (id: number) => api.post(`/sale-orders/${id}/reject`).then(r => r.data);
 export const confirmSaleOrder = (id: number) => api.post(`/sale-orders/${id}/confirm`).then(r => r.data);
 // No body = ship everything remaining
 export const fulfillSaleOrder = ({ id, data }: { id: number; data?: FulfilmentRequest }) =>

@@ -168,7 +168,7 @@ class SaleOrderVatTest {
 
     @Test
     void orderNumbersFollowTheOrganisationSequenceAndSkipNumbersInUse() {
-        settingsService.update(new OrganisationSettingsService.Settings("SO-", 66006, "Web Sales", "20% (VAT on Income)"));
+        settingsService.update(new OrganisationSettingsService.Settings("SO-", 66006, "Web Sales", "20% (VAT on Income)", 30));
         SaleOrderResponse first = saleOrderService.create(simpleOrder());
         assertThat(first.getOrderNumber()).isEqualTo("SO-66006");
 
@@ -179,7 +179,7 @@ class SaleOrderVatTest {
         assertThat(saleOrderService.create(simpleOrder()).getOrderNumber()).isEqualTo("SO-66008");
         assertThat(settingsService.get().nextSaleOrderNumber()).isEqualTo(66009);
 
-        assertThatThrownBy(() -> settingsService.update(new OrganisationSettingsService.Settings("SO-", 1, "Web", "Nope")))
+        assertThatThrownBy(() -> settingsService.update(new OrganisationSettingsService.Settings("SO-", 1, "Web", "Nope", 30)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

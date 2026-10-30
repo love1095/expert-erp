@@ -42,6 +42,12 @@ public class SaleOrderRequest {
 
     private String shippingNotes;
 
+    // Make a quote instead of an order: reserves nothing, becomes the order when converted
+    private boolean quote;
+
+    // Quotes: last day it can be converted (empty = today + the organisation's quote validity)
+    private LocalDate quoteValidUntil;
+
     @NotEmpty(message = "At least one line is required")
     @Valid
     private List<Line> lines;

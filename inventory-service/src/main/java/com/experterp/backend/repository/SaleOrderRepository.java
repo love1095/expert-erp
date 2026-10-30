@@ -23,6 +23,11 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
 
     Page<SaleOrder> findByCustomerId(Long customerId, Pageable pageable);
 
+    // Optional filters: customer and / or status
+    @Query("SELECT so FROM SaleOrder so WHERE (:customerId IS NULL OR so.customer.id = :customerId) " +
+           "AND (:status IS NULL OR so.status = :status)")
+    Page<SaleOrder> search(@Param("customerId") Long customerId, @Param("status") SaleOrder.Status status, Pageable pageable);
+
     Optional<SaleOrder> findBySourceAndExternalId(SaleOrder.Source source, String externalId);
 
     long countByCustomerId(Long customerId);

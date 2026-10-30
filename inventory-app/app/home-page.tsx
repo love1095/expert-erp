@@ -12,6 +12,8 @@ import { PERIOD_LABELS, Period, PeriodKey, periodFor, ukDate } from "@/lib/perio
 import { DailyBars, InOutBars, RankedBars, dayLabel } from "./dashboard-charts";
 
 const STATUS_COLOR: Record<SaleOrderStatus, string> = {
+  QUOTE:     "bg-violet-100 text-violet-700",
+  REJECTED:  "bg-gray-100 text-gray-400",
   DRAFT:     "bg-amber-100 text-amber-700",
   CONFIRMED: "bg-sky-100 text-sky-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
@@ -142,7 +144,8 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Panel title="Sales — waiting now">
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="sales-status">
+          <div className="grid grid-cols-3 sm:grid-cols-7 gap-2" data-testid="sales-status">
+            <Count label="Quotes" value={data.sales.openQuotes} href="/sale-orders" />
             <Count label="Draft orders" value={data.sales.draftOrders} href="/sale-orders" />
             <Count label="To ship" value={data.sales.toShip} href="/sale-orders" />
             <Count label="Backordered" value={data.sales.backordered} href="/sale-orders" warn />

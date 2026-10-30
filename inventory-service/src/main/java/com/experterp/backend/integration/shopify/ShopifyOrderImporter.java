@@ -78,6 +78,7 @@ public class ShopifyOrderImporter {
             if (o.createdAt() != null) {
                 so.setCreatedAt(o.createdAt().atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime());
             }
+            so.setOrderedAt(so.getCreatedAt());
         }
         so.setExternalReference(o.name());
         so.setCustomerReference(o.name());

@@ -23,9 +23,26 @@ public class SaleOrderController {
     @GetMapping
     public Page<SaleOrderResponse> findAll(
             @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) com.experterp.backend.entity.SaleOrder.Status status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return saleOrderService.findAll(customerId, page, size);
+        return saleOrderService.findAll(customerId, status, page, size);
+    }
+
+    // Quotes and draft orders (not Shopify ones) can be changed; VAT and totals are worked out again
+    @PutMapping("/{id}")
+    public SaleOrderResponse update(@PathVariable Long id, @Valid @RequestBody SaleOrderRequest req) {
+        return saleOrderService.update(id, req);
+    }
+
+    @PostMapping("/{id}/convert")
+    public SaleOrderResponse convertQuote(@PathVariable Long id) {
+        return saleOrderService.convertQuote(id);
+    }
+
+    @PostMapping("/{id}/reject")
+    public SaleOrderResponse rejectQuote(@PathVariable Long id) {
+        return saleOrderService.rejectQuote(id);
     }
 
     @GetMapping("/{id}")

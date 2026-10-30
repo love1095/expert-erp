@@ -66,7 +66,7 @@ public class DashboardService {
     private static final String CHARGE_NET = "ROUND(c.quantity * c.unit_price * (100 - c.discount_percent) / 100, 2)";
     // Orders of the period that count as sales; needs :t, :from, :until
     private static final String PERIOD_ORDERS =
-            "so.tenant_id = :t AND so.status <> 'CANCELLED' AND so.created_at >= :from AND so.created_at < :until";
+            "so.tenant_id = :t AND so.status <> 'CANCELLED' AND so.ordered_at >= :from AND so.ordered_at < :until";
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AllocationService allocationService;
@@ -109,11 +109,11 @@ public class DashboardService {
         Map<LocalDate, Long> orderCounts = new HashMap<>();
         Map<LocalDate, BigDecimal> salesValue = new HashMap<>();
         jdbc.query(
-                "SELECT CAST(so.created_at AS date) AS d, COUNT(DISTINCT so.id) AS orders, " +
+                "SELECT CAST(so.ordered_at AS date) AS d, COUNT(DISTINCT so.id) AS orders, " +
                 "       COALESCE(SUM(" + LINE_NET + "), 0) AS value " +
                 "  FROM sale_orders so JOIN sale_order_lines l ON l.sale_order_id = so.id " +
                 " WHERE " + PERIOD_ORDERS +
-                " GROUP BY CAST(so.created_at AS date)", p,
+                " GROUP BY CAST(so.ordered_at AS date)", p,
                 rs -> {
                     LocalDate d = rs.getDate("d").toLocalDate();
                     orderCounts.put(d, rs.getLong("orders"));
@@ -121,10 +121,10 @@ public class DashboardService {
                 });
         // Additional charges (carriage...) are revenue too
         jdbc.query(
-                "SELECT CAST(so.created_at AS date) AS d, SUM(" + CHARGE_NET + ") AS value " +
+                "SELECT CAST(so.ordered_at AS date) AS d, SUM(" + CHARGE_NET + ") AS value " +
                 "  FROM sale_orders so JOIN sale_order_charges c ON c.sale_order_id = so.id " +
                 " WHERE " + PERIOD_ORDERS +
-                " GROUP BY CAST(so.created_at AS date)", p,
+                " GROUP BY CAST(so.ordered_at AS date)", p,
                 rs -> { salesValue.merge(rs.getDate("d").toLocalDate(), rs.getBigDecimal("value"), BigDecimal::add); });
 
         Map<LocalDate, BigDecimal[]> units = new HashMap<>();
@@ -184,6 +184,7 @@ public class DashboardService {
         var sp = new MapSqlParameterSource(p.getValues()).addValue("type", "SALES");
         var pp = new MapSqlParameterSource(p.getValues()).addValue("type", "PURCHASE");
         SalesStatus sales = new SalesStatus(
+                byStatus.getOrDefault("QUOTE", 0L),
                 byStatus.get("DRAFT"),
                 byStatus.get("CONFIRMED"),
                 allocationService.backorderedOrderIds().size(),

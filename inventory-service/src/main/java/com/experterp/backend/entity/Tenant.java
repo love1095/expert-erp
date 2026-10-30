@@ -46,4 +46,8 @@ public class Tenant {
     // Sale tax rule used when neither the product nor the customer has one
     @Column(nullable = false, length = 100)
     private String defaultSaleTaxRule = "20% (VAT on Income)";
+
+    // Default validity of a new quote, in days
+    @Column(nullable = false)
+    private int quoteValidDays = 30;
 }

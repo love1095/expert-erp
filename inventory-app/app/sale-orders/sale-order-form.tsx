@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createSaleOrder, getTaxRates, previewSaleOrder } from "@/lib/api";
+import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder } from "@/lib/api";
 import { Customer, SaleOrder, TaxRate, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "./product-picker";
 
-type LineForm = { productId: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
+// productSku / productName: shown in the search box when editing an existing line
+type LineForm = { productSku?: string; productName?: string; productId: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 type ChargeForm = { description: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 
 const emptyLine = (): LineForm => ({ productId: "", quantity: "", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
@@ -24,19 +25,33 @@ const LABEL = "block text-xs font-medium text-gray-600 mb-1";
  * the customer or the organisation default (docs/business-rules.md §3) — a manager or admin may choose another
  * rate per line, with a reason when it is less VAT. Figures are calculated by the server as the form is filled in.
  */
-export default function SaleOrderForm({ customers, warehouses, onCreated }: {
+// With `editing`: changes that quote or draft order (same number); without: a new quote or order.
+export default function SaleOrderForm({ customers, warehouses, onCreated, editing, onCancel }: {
   customers: Customer[]; warehouses: Warehouse[];
   onCreated: (order: SaleOrder) => void;
+  editing?: SaleOrder;
+  onCancel?: () => void;
 }) {
   const { user } = useAuth();
   const mayChangeVat = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "SALE"], queryFn: () => getTaxRates("SALE") });
 
-  const [customerName, setCustomerName] = useState("");
-  const [warehouseId, setWarehouseId] = useState("");
-  const [header, setHeader] = useState({ customerReference: "", salesRep: "", paymentTerm: "", shipBy: "", carrier: "", shippingNotes: "", notes: "" });
-  const [lines, setLines] = useState<LineForm[]>([emptyLine()]);
-  const [charges, setCharges] = useState<ChargeForm[]>([]);
+  const str = (v: unknown) => (v == null ? "" : String(v));
+  const [customerName, setCustomerName] = useState(editing?.customerName ?? "");
+  const [warehouseId, setWarehouseId] = useState(str(editing?.warehouseId));
+  const [header, setHeader] = useState({
+    customerReference: str(editing?.customerReference), salesRep: str(editing?.salesRep), paymentTerm: str(editing?.paymentTerm),
+    shipBy: str(editing?.shipBy), carrier: str(editing?.carrier), shippingNotes: str(editing?.shippingNotes), notes: str(editing?.notes),
+  });
+  const [quoteValidUntil, setQuoteValidUntil] = useState(str(editing?.quoteValidUntil));
+  const [lines, setLines] = useState<LineForm[]>(editing ? editing.lines.map(l => ({
+    productSku: l.productSku, productName: l.productName, productId: String(l.productId), quantity: str(l.quantity),
+    unitPrice: str(l.unitPrice), discountPercent: str(l.discountPercent), taxRule: l.taxOverridden ? str(l.taxName) : "", taxReason: "",
+  })) : [emptyLine()]);
+  const [charges, setCharges] = useState<ChargeForm[]>(editing ? editing.charges.map(c => ({
+    description: c.description, quantity: str(c.quantity), unitPrice: str(c.unitPrice), discountPercent: str(c.discountPercent),
+    taxRule: c.taxOverridden ? str(c.taxName) : "", taxReason: "",
+  })) : []);
   const [error, setError] = useState("");
 
   const existing = customers.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
@@ -80,11 +95,15 @@ export default function SaleOrderForm({ customers, warehouses, onCreated }: {
     return isComplete ? preview?.charges[complete - 1] : undefined;
   };
 
-  const create = useMutation({
-    mutationFn: createSaleOrder,
+  const save = useMutation({
+    mutationFn: ({ asQuote }: { asQuote: boolean }) => {
+      const data = { ...request, quote: asQuote, quoteValidUntil: asQuote ? text(quoteValidUntil) : undefined };
+      return editing ? updateSaleOrder({ id: editing.id, data }) : createSaleOrder(data);
+    },
     onSuccess: (so: SaleOrder) => onCreated(so),
-    onError: (e: any) => setError(e.response?.data?.error || "Failed to create order"),
+    onError: (e: any) => setError(e.response?.data?.error || "Could not save"),
   });
+  const isQuote = editing?.status === "QUOTE";
 
   const setLine = (i: number, patch: Partial<LineForm>) => setLines(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const setCharge = (i: number, patch: Partial<ChargeForm>) => setCharges(charges.map((c, j) => (j === i ? { ...c, ...patch } : c)));
@@ -99,9 +118,16 @@ export default function SaleOrderForm({ customers, warehouses, onCreated }: {
   );
 
   return (
-    <form onSubmit={e => { e.preventDefault(); setError(""); create.mutate(request); }}
+    <form onSubmit={e => {
+        e.preventDefault(); setError("");
+        // Which button was pressed: "Create quote" or "Create sale order" (editing keeps the stage)
+        const as = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
+        save.mutate({ asQuote: editing ? isQuote : as === "quote" });
+      }}
       className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4" data-testid="sale-order-form">
-      <h2 className="font-semibold text-gray-800">New Sale Order</h2>
+      <h2 className="font-semibold text-gray-800">
+        {editing ? `Edit ${isQuote ? "quote" : "order"} ${editing.orderNumber}` : "New quote or sale order"}
+      </h2>
       {error && <p role="alert" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -145,6 +171,13 @@ export default function SaleOrderForm({ customers, warehouses, onCreated }: {
           <input id="sale-orders-carrier" value={header.carrier} onChange={e => setHeader({ ...header, carrier: e.target.value })}
             placeholder={preview?.carrier ? `${preview.carrier} (customer's)` : "None"} autoComplete="off" className={`${INPUT} w-full`} />
         </div>
+        {(!editing || isQuote) && (
+          <div>
+            <label htmlFor="sale-orders-valid-until" className={LABEL}>Quote valid until</label>
+            <input id="sale-orders-valid-until" type="date" value={quoteValidUntil} onChange={e => setQuoteValidUntil(e.target.value)} className={`${INPUT} w-full`} />
+            {!editing && <p className="text-[11px] text-gray-400 mt-1">Quotes only; empty = the organisation&apos;s default</p>}
+          </div>
+        )}
         <div className="col-span-2 lg:col-span-4">
           <label htmlFor="sale-orders-shipping-notes" className={LABEL}>Shipping notes</label>
           <input id="sale-orders-shipping-notes" value={header.shippingNotes} onChange={e => setHeader({ ...header, shippingNotes: e.target.value })}
@@ -169,6 +202,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated }: {
                 <div className="col-span-4">
                   {/* Picking a product fills in its shop price when no price is typed yet */}
                   <ProductPicker label={`Product for line ${i + 1}`}
+                    selected={l.productSku ? { id: Number(l.productId), sku: l.productSku, name: l.productName ?? "" } : undefined}
                     onSelect={pr => setLine(i, { productId: String(pr.id), unitPrice: l.unitPrice || (pr.sellPrice != null ? String(pr.sellPrice) : "") })} />
                 </div>
                 <input aria-label={`Quantity for line ${i + 1}`} type="number" min="0.0001" step="any" value={l.quantity} placeholder="Qty" required
@@ -234,10 +268,29 @@ export default function SaleOrderForm({ customers, warehouses, onCreated }: {
       </div>
       {previewError && <p className="text-xs text-amber-700">{previewError}</p>}
 
-      <button type="submit" disabled={create.isPending}
-        className="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
-        {create.isPending ? "Saving..." : "Create Sale Order"}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        {editing ? (
+          <>
+            <button type="submit" disabled={save.isPending}
+              className="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+              {save.isPending ? "Saving..." : "Save changes"}
+            </button>
+            {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>}
+          </>
+        ) : (
+          <>
+            <button type="submit" value="order" disabled={save.isPending}
+              className="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+              {save.isPending ? "Saving..." : "Create Sale Order"}
+            </button>
+            <button type="submit" value="quote" disabled={save.isPending}
+              className="border border-violet-300 text-violet-700 px-5 py-2 rounded-lg text-sm font-medium hover:bg-violet-50 disabled:opacity-50">
+              Create quote
+            </button>
+            <span className="text-xs text-gray-400">A quote reserves no stock and becomes the order when the customer accepts it.</span>
+          </>
+        )}
+      </div>
     </form>
   );
 }

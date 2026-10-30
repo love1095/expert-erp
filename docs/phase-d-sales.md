@@ -44,7 +44,7 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* two orders cannot both promise the last unit unseen (concurrent test); a backordered order shows the shortfall; cancelling releases it; stock overview's available matches on hand − Σ open confirmed quantities.
 
-### D3 — Quotes
+### D3 — Quotes ✅
 - An order can start as a **quote** (optional, like Cin7's "Skip quote"); a quote reserves nothing; **convert to order** in one click; expiry date; quotes listed and filtered separately.
 
 *Done when:* a quote converts into a draft or confirmed order with the same lines and prices, and expired quotes can't be converted without being renewed.

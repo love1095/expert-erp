@@ -30,12 +30,14 @@ public class OrganisationSettingsService {
             @NotBlank @Size(max = 10) String saleOrderPrefix,
             @Min(1) long nextSaleOrderNumber,
             @NotBlank @Size(max = 100) String webSalesRep,
-            @NotBlank @Size(max = 100) String defaultSaleTaxRule) {}
+            @NotBlank @Size(max = 100) String defaultSaleTaxRule,
+            @Min(1) @jakarta.validation.constraints.Max(365) int quoteValidDays) {}
 
     @Transactional(readOnly = true)
     public Settings get() {
         Tenant t = tenant();
-        return new Settings(t.getSaleOrderPrefix(), t.getNextSaleOrderNumber(), t.getWebSalesRep(), t.getDefaultSaleTaxRule());
+        return new Settings(t.getSaleOrderPrefix(), t.getNextSaleOrderNumber(), t.getWebSalesRep(), t.getDefaultSaleTaxRule(),
+                t.getQuoteValidDays());
     }
 
     @Transactional
@@ -47,9 +49,10 @@ public class OrganisationSettingsService {
         t.setNextSaleOrderNumber(s.nextSaleOrderNumber());
         t.setWebSalesRep(s.webSalesRep().trim());
         t.setDefaultSaleTaxRule(defaultRule);
+        t.setQuoteValidDays(s.quoteValidDays());
         auditService.log("ORGANISATION", t.getId(), "UPDATE", Map.of(
                 "saleOrderPrefix", t.getSaleOrderPrefix(), "nextSaleOrderNumber", t.getNextSaleOrderNumber(),
-                "webSalesRep", t.getWebSalesRep(), "defaultSaleTaxRule", defaultRule));
+                "webSalesRep", t.getWebSalesRep(), "defaultSaleTaxRule", defaultRule, "quoteValidDays", s.quoteValidDays()));
         return get();
     }
 
@@ -67,6 +70,10 @@ public class OrganisationSettingsService {
 
     public String webSalesRep() {
         return tenant().getWebSalesRep();
+    }
+
+    public int quoteValidDays() {
+        return tenant().getQuoteValidDays();
     }
 
     private Tenant tenant() {

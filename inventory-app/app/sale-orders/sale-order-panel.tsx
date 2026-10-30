@@ -2,12 +2,14 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn, retryShopifyFulfilment } from "@/lib/api";
-import { SaleOrder, SaleOrderLine, Warehouse } from "@/types";
+import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn, retryShopifyFulfilment,
+  convertQuote, rejectQuote, getCustomers } from "@/lib/api";
+import { Customer, SaleOrder, SaleOrderLine, Warehouse } from "@/types";
+import SaleOrderForm from "./sale-order-form";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 
-type Mode = "view" | "ship" | "return";
+type Mode = "view" | "ship" | "return" | "edit";
 
 // One key per submission attempt: a retried click/network retry is applied only once by the backend
 const newKey = () =>
@@ -52,10 +54,24 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
   const shipMutation    = useMutation({ mutationFn: fulfillSaleOrder, onSuccess: onDone, onError: onFail });
   const returnMutation  = useMutation({ mutationFn: createSaleReturn, onSuccess: onDone, onError: onFail });
   const retryMutation   = useMutation({ mutationFn: retryShopifyFulfilment, onSuccess: onDone, onError: onFail });
+  const convertMutation = useMutation({ mutationFn: convertQuote, onSuccess: onDone, onError: onFail });
+  const rejectMutation  = useMutation({ mutationFn: rejectQuote, onSuccess: onDone, onError: onFail });
   const busy = confirmMutation.isPending || cancelMutation.isPending || shipMutation.isPending || returnMutation.isPending
-    || retryMutation.isPending;
+    || retryMutation.isPending || convertMutation.isPending || rejectMutation.isPending;
+  // Only needed for editing
+  const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers, enabled: mode === "edit" });
 
   if (isLoading || !order) return <p className="text-gray-400 text-sm px-2 py-3">Loading order...</p>;
+
+  if (mode === "edit") {
+    return (
+      <div data-testid={`so-panel-${orderId}`} className="bg-gray-50 border-t border-gray-200 px-6 py-5">
+        <SaleOrderForm editing={order} customers={customers} warehouses={warehouses}
+          onCreated={onDone} onCancel={() => setMode("view")} />
+      </div>
+    );
+  }
+  const editable = (order.status === "QUOTE" || order.status === "DRAFT") && order.source === "MANUAL";
 
   const shipped    = order.lines.some(l => l.fulfilledQuantity > 0);
   const returnable = order.lines.some(l => l.fulfilledQuantity - l.returnedQuantity > 0);
@@ -136,6 +152,14 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
       )}
 
       <dl data-testid={`so-details-${orderId}`} className="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-1 text-xs">
+        {order.status === "QUOTE" && (
+          <div data-testid={`so-valid-until-${orderId}`}>
+            <dt className="text-gray-400">Quote valid until</dt>
+            <dd className={order.quoteExpired ? "text-red-600 font-semibold" : "text-gray-800"}>
+              {order.quoteValidUntil ?? "—"}{order.quoteExpired && " · Expired"}
+            </dd>
+          </div>
+        )}
         {([["Order", order.orderNumber], ["Reference", order.customerReference], ["Sales rep", order.salesRep], ["Terms", order.paymentTerm],
            ["Ship by", order.shipBy], ["Carrier", order.carrier]] as [string, string | undefined][]).map(([k, v]) => (
           <div key={k}><dt className="text-gray-400">{k}</dt><dd className="text-gray-800">{v || "—"}</dd></div>
@@ -146,6 +170,25 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
       {/* Actions */}
       {mode === "view" && (
         <div className="flex flex-wrap gap-2">
+          {order.status === "QUOTE" && (
+            <>
+              <button disabled={busy || order.quoteExpired} onClick={() => convertMutation.mutate(order.id)}
+                title={order.quoteExpired ? "Expired: edit the quote and give it a new valid-until date first" : undefined}
+                className="bg-violet-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-violet-700 disabled:opacity-50">
+                Convert to order
+              </button>
+              <button disabled={busy} onClick={() => { if (confirm("Reject this quote?")) rejectMutation.mutate(order.id); }}
+                className="border border-gray-300 text-gray-600 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-gray-100 disabled:opacity-50">
+                Reject quote
+              </button>
+            </>
+          )}
+          {editable && (
+            <button disabled={busy} onClick={() => { setError(""); setMode("edit"); }}
+              className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-gray-100 disabled:opacity-50">
+              Edit
+            </button>
+          )}
           {order.status === "DRAFT" && (
             <button disabled={busy} onClick={() => confirmMutation.mutate(order.id)}
               className="bg-sky-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-sky-700 disabled:opacity-50">

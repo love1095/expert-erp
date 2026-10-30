@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -65,11 +66,9 @@ public class SaleOrderService {
     private static final Set<String> TAX_OVERRIDE_ROLES = Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SUPER_ADMIN");
 
     @Transactional(readOnly = true)
-    public Page<SaleOrderResponse> findAll(Long customerId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<SaleOrder> orders = customerId != null
-                ? soRepository.findByCustomerId(customerId, pageable)
-                : soRepository.findAll(pageable);
+    public Page<SaleOrderResponse> findAll(Long customerId, Status status, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        Page<SaleOrder> orders = soRepository.search(customerId, status, pageable);
         // One allocation query for the whole page
         Map<Long, AllocationService.LineAllocation> allocations =
                 allocationService.forOrders(orders.getContent().stream().map(SaleOrder::getId).toList());
@@ -91,9 +90,16 @@ public class SaleOrderService {
         List<Map<String, Object>> taxOverrides = new ArrayList<>();
         SaleOrder so = build(req, warehouse, customer, taxOverrides);
         so.setOrderNumber(settingsService.nextSaleOrderNumber());
+        if (req.isQuote()) {
+            so.setStatus(Status.QUOTE);
+            so.setQuoteValidUntil(req.getQuoteValidUntil() != null ? req.getQuoteValidUntil()
+                    : LocalDate.now().plusDays(settingsService.quoteValidDays()));
+        } else {
+            so.setOrderedAt(LocalDateTime.now());
+        }
 
         SaleOrderResponse saved = toResponse(soRepository.save(so));
-        Map<String, Object> audit = new HashMap<>(Map.of("orderNumber", so.getOrderNumber(), "customer", so.getCustomerName(),
+        Map<String, Object> audit = new HashMap<>(Map.of("orderNumber", so.getOrderNumber(), "status", so.getStatus(), "customer", so.getCustomerName(),
                 "customerId", customer.getId(), "lines", so.getLines().size(), "total", saved.getTotal()));
         if (!so.getCharges().isEmpty()) audit.put("charges", so.getCharges().size());
         if (!taxOverrides.isEmpty()) audit.put("taxOverrides", taxOverrides);
@@ -120,6 +126,84 @@ public class SaleOrderService {
         SaleOrder so = build(complete, warehouse, customer, new ArrayList<>());
         if (customer == null) so.setCustomerName(req.getCustomerName());
         return toResponse(so);
+    }
+
+    /**
+     * Replaces a quote's or draft order's header, lines and charges; VAT and defaults are worked out again as for
+     * a new order. Shopify drafts are rebuilt from Shopify instead, and nothing is edited once confirmed.
+     */
+    @Transactional
+    public SaleOrderResponse update(Long id, SaleOrderRequest req) {
+        SaleOrder so = lockSO(id);
+        if (so.getStatus() != Status.QUOTE && so.getStatus() != Status.DRAFT) {
+            throw new IllegalStateException("Only quotes and draft orders can be changed (" + so.getOrderNumber() + " is " + so.getStatus() + ")");
+        }
+        if (so.getSource() != SaleOrder.Source.MANUAL) {
+            throw new IllegalStateException(so.getOrderNumber() + " comes from Shopify; change it there");
+        }
+        Warehouse warehouse = warehouseRepository.findById(req.getWarehouseId())
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found: " + req.getWarehouseId()));
+        Customer customer = customerService.resolveForOrder(req.getCustomerId(), req.getCustomerName());
+
+        List<Map<String, Object>> taxOverrides = new ArrayList<>();
+        SaleOrder built = build(req, warehouse, customer, taxOverrides);
+        so.setCustomer(built.getCustomer());
+        so.setCustomerName(built.getCustomerName());
+        so.setWarehouse(warehouse);
+        so.setNotes(built.getNotes());
+        so.setCustomerReference(built.getCustomerReference());
+        so.setSalesRep(built.getSalesRep());
+        so.setPaymentTerm(built.getPaymentTerm());
+        so.setShipBy(built.getShipBy());
+        so.setCarrier(built.getCarrier());
+        so.setShippingNotes(built.getShippingNotes());
+        if (so.getStatus() == Status.QUOTE && req.getQuoteValidUntil() != null) so.setQuoteValidUntil(req.getQuoteValidUntil());
+        so.getLines().clear();
+        built.getLines().forEach(l -> { l.setSaleOrder(so); so.getLines().add(l); });
+        so.getCharges().clear();
+        built.getCharges().forEach(c -> { c.setSaleOrder(so); so.getCharges().add(c); });
+
+        SaleOrderResponse saved = toDetailResponse(soRepository.save(so));
+        Map<String, Object> audit = new HashMap<>(Map.of("orderNumber", so.getOrderNumber(), "customer", so.getCustomerName(),
+                "lines", so.getLines().size(), "total", saved.getTotal()));
+        if (so.getQuoteValidUntil() != null) audit.put("quoteValidUntil", so.getQuoteValidUntil().toString());
+        if (!taxOverrides.isEmpty()) audit.put("taxOverrides", taxOverrides);
+        auditService.log("SALE_ORDER", id, "UPDATE", audit);
+        return saved;
+    }
+
+    /** A quote becomes the (draft) order, same number and lines; an expired quote must be renewed first. */
+    @Transactional
+    public SaleOrderResponse convertQuote(Long id) {
+        SaleOrder so = lockSO(id);
+        if (so.getStatus() != Status.QUOTE) {
+            throw new IllegalStateException("Only quotes can be converted (" + so.getOrderNumber() + " is " + so.getStatus() + ")");
+        }
+        if (isExpired(so)) {
+            throw new IllegalStateException("Quote " + so.getOrderNumber() + " expired on " + so.getQuoteValidUntil()
+                    + "; give it a new valid-until date to renew it first");
+        }
+        so.setStatus(Status.DRAFT);
+        so.setOrderedAt(LocalDateTime.now());
+        auditService.log("SALE_ORDER", id, "CONVERT", Map.of("orderNumber", so.getOrderNumber(), "status", Status.DRAFT));
+        return toDetailResponse(so);
+    }
+
+    @Transactional
+    public SaleOrderResponse rejectQuote(Long id) {
+        SaleOrder so = lockSO(id);
+        if (so.getStatus() != Status.QUOTE) {
+            throw new IllegalStateException("Only quotes can be rejected (" + so.getOrderNumber() + " is " + so.getStatus() + ")");
+        }
+        so.setStatus(Status.REJECTED);
+        so.setCancelledAt(LocalDateTime.now());
+        auditService.log("SALE_ORDER", id, "REJECT", Map.of("orderNumber", so.getOrderNumber(), "status", Status.REJECTED));
+        return toDetailResponse(so);
+    }
+
+    private static boolean isExpired(SaleOrder so) {
+        return so.getStatus() == Status.QUOTE && so.getQuoteValidUntil() != null
+                && so.getQuoteValidUntil().isBefore(LocalDate.now());
     }
 
     @Transactional
@@ -568,6 +652,9 @@ public class SaleOrderService {
         r.setShipBy(so.getShipBy());
         r.setCarrier(so.getCarrier());
         r.setShippingNotes(so.getShippingNotes());
+        r.setOrderedAt(so.getOrderedAt());
+        r.setQuoteValidUntil(so.getQuoteValidUntil());
+        r.setQuoteExpired(isExpired(so));
         r.setSource(so.getSource());
         r.setExternalReference(so.getExternalReference());
         r.setNeedsReview(so.isNeedsReview());

@@ -289,8 +289,17 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Checked on real data: every call under 0.05 s; reorder list still 429 (no open orders locally); leftover Shopify test order SO-265 correctly backordered (its product has no stock)
 - [x] Tests: `AllocationTest` (5) — first confirmed first served, confirmed-later-wins-by-confirmation, release on ship / cancel, drafts vs Shopify imports, warehouses kept apart, reorder on available, shipping limited to allocated; `SaleOrderLifecycleTest` updated to the strict rule (96 backend tests); E2E SO-011 (incl. refused shipment), SO-003, SO-008 and CUS-002/003 use the search box (65 cases)
 
+### D3 Quotes ✅
+- [x] A **quote** is the first stage of the same sale document (same number, as in Cin7): status `QUOTE` (`V13`), reserves no stock, is not a sale, cannot be confirmed or shipped
+- [x] **Valid until** date (default: today + the organisation's quote validity, 30 days, in Settings → Organisation); an **expired** quote can't be converted until it gets a new date
+- [x] **Convert to order** (→ DRAFT, same number and lines) and **Reject quote** (→ `REJECTED`); all audited
+- [x] **Edit** quotes and draft orders (`PUT /sale-orders/{id}`): header, lines and charges replaced, VAT and defaults worked out again; not for Shopify orders (rebuilt from Shopify) or anything confirmed
+- [x] Sales are dated by **`ordered_at`** (when the sale became an order), so a quote counts in revenue from the day it is accepted; existing orders backfilled with their creation date
+- [x] Frontend: "Create quote" next to "Create sale order", valid-until date; panel shows valid until / Expired, Convert to order, Reject quote, Edit (the same form, prefilled); list filter by stage (quotes, drafts, confirmed, completed, cancelled, rejected) and an Expired badge; dashboard **Quotes** count; quote validity in Settings
+- [x] Tests: `QuoteTest` (4) — no reservation / not a sale until converted, revise keeps the number, expired and renewed, rejected, draft edits, Shopify drafts not editable, list filter (100 backend tests); E2E SO-012, SO-013 (67 cases)
+
 ### Next
-- [ ] D3 quotes · D4 invoices (by hand and automatic on shipment) and credit notes · D5 PDFs
+- [ ] D4 invoices (by hand and automatic on shipment) and credit notes · D5 PDFs
 
 ---
 
@@ -414,6 +423,8 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/webhooks/shopify` | Shopify webhooks (public; HMAC-signed) |
 | POST | `/sale-orders/{id}/fulfilments/{fid}/shopify-sync` | Send a shipment of a Shopify order to Shopify again |
 | GET  | `/dashboard` | Dashboard figures for `from`–`to`, or the last `days` days (default 30) |
+| PUT  | `/sale-orders/{id}` | Change a quote or draft order (not Shopify ones) |
+| POST | `/sale-orders/{id}/convert` · `/reject` | Quote → draft order · quote rejected |
 | POST | `/sale-orders/preview` | The order as it would be created (defaults, VAT, totals); nothing saved |
 | GET/PUT | `/settings/organisation` | Order numbering, Shopify sales rep, default sale tax rule (PUT: ADMIN) |
 | GET  | `/tax-rates` | The organisation's VAT rates (`usage` SALE / PURCHASE) |
