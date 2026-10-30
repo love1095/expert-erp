@@ -53,6 +53,10 @@ public class PurchaseOrderLine {
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal receivedQuantity = BigDecimal.ZERO;
 
+    // On the supplier's bills (not cancelled)
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal billedQuantity = BigDecimal.ZERO;
+
     // Closed short: not coming any more
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal closedShortQuantity = BigDecimal.ZERO;
@@ -60,6 +64,11 @@ public class PurchaseOrderLine {
     /** Still to come: ordered − received − closed short, never below 0. */
     public BigDecimal getOutstandingQuantity() {
         return quantity.subtract(receivedQuantity).subtract(closedShortQuantity).max(BigDecimal.ZERO);
+    }
+
+    /** What can still be billed: what was received, or what is still expected if more (bills can come first). */
+    public BigDecimal getToBillQuantity() {
+        return quantity.subtract(closedShortQuantity).max(receivedQuantity).subtract(billedQuantity).max(BigDecimal.ZERO);
     }
 
     /** Received above what was ordered. */

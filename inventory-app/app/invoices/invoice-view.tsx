@@ -67,6 +67,9 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
             <span className={`text-xs font-semibold px-2 py-0.5 rounded ${INVOICE_STATUS_COLOR[inv.status]}`}>{inv.status}</span>
             <span className="text-xs font-medium text-gray-500">{inv.type === "SALES" ? "Sales" : "Purchase"}</span>
             {isCreditNote && <span className="text-xs font-semibold text-gray-700">Credit note for {inv.creditedInvoiceNumber}</span>}
+            {inv.type === "PURCHASE" && inv.purchaseOrderId && inv.status !== "CANCELLED" && (inv.matchIssueCount > 0
+              ? <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800">⚠ {inv.matchIssueCount} line{inv.matchIssueCount > 1 ? "s" : ""} don&apos;t match the PO</span>
+              : <span className="text-xs font-semibold text-emerald-700">✓ Matches the PO and receipts</span>)}
           </div>
         }
         actions={!crediting && <>
@@ -84,7 +87,7 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
         {(inv.saleOrderId || inv.purchaseOrderId || inv.creditedInvoiceId) && (
           <TrailCard title="Made from">
             {inv.saleOrderId && <Link href={`/sale-orders/${inv.saleOrderId}`} className="block text-brand-700 hover:underline">Sale order ›</Link>}
-            {inv.purchaseOrderId && <Link href={`/purchase-orders/${inv.purchaseOrderId}`} className="block text-brand-700 hover:underline">PO-{inv.purchaseOrderId} ›</Link>}
+            {inv.purchaseOrderId && <Link href={`/purchase-orders/${inv.purchaseOrderId}`} className="block text-brand-700 hover:underline">{inv.purchaseOrderNumber ?? `PO-${inv.purchaseOrderId}`} ›</Link>}
             {inv.fulfilmentId && <p className="text-xs text-gray-500">For shipment #{inv.fulfilmentId}</p>}
             {inv.creditedInvoiceId && (
               <Link href={`/invoices/${inv.creditedInvoiceId}`} className="block text-brand-700 hover:underline">Invoice {inv.creditedInvoiceNumber} ›</Link>
@@ -165,7 +168,8 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>{["Product", "Quantity", "Price", "Disc", "Tax rule", "Net", "VAT"].map(h => <th key={h} className={TH}>{h}</th>)}
-                  {!isCreditNote && inv.type === "SALES" && <th className={TH}>Credited</th>}</tr>
+                  {!isCreditNote && inv.type === "SALES" && <th className={TH}>Credited</th>}
+                  {inv.type === "PURCHASE" && inv.purchaseOrderId && <th className={TH}>Match</th>}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {inv.items.map(item => (
@@ -182,6 +186,14 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
                     <td className={`${TD} tabular-nums text-gray-600`}>{Number(item.taxAmount).toFixed(2)}</td>
                     {!isCreditNote && inv.type === "SALES" && (
                       <td className={`${TD} tabular-nums text-gray-500`}>{Number(item.creditedQuantity) > 0 ? Number(item.creditedQuantity).toLocaleString() : "—"}</td>
+                    )}
+                    {inv.type === "PURCHASE" && inv.purchaseOrderId && (
+                      <td className={`${TD} text-xs`}>
+                        {!item.purchaseOrderLineId ? <span className="text-gray-400">Charge (expense)</span>
+                          : item.matchIssues && item.matchIssues.length > 0
+                            ? item.matchIssues.map(m => <span key={m} className="block text-amber-700">⚠ {m}</span>)
+                            : <span className="text-emerald-700">✓</span>}
+                      </td>
                     )}
                   </tr>
                 ))}

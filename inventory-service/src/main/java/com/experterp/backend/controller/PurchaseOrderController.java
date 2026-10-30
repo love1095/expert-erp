@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;
+    private final com.experterp.backend.service.InvoiceService invoiceService;
 
     @GetMapping
     public Page<PurchaseOrderResponse> findAll(
@@ -64,6 +65,13 @@ public class PurchaseOrderController {
     @PostMapping("/{id}/receipts")
     public PurchaseOrderResponse receipt(@PathVariable Long id, @Valid @RequestBody com.experterp.backend.dto.PurchaseReceiptRequest req) {
         return purchaseOrderService.receive(id, req);
+    }
+
+    // The supplier's bill for this order (three-way match with the PO and the receipts)
+    @PostMapping("/{id}/bills")
+    public ResponseEntity<com.experterp.backend.dto.InvoiceResponse> bill(@PathVariable Long id,
+                                                                          @Valid @RequestBody com.experterp.backend.dto.BillRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(invoiceService.billPurchaseOrder(id, req));
     }
 
     // Nothing more is coming: the rest is closed short

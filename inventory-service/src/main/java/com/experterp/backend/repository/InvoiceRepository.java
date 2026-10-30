@@ -21,6 +21,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     java.util.List<Invoice> findBySaleOrderIdOrderByCreatedAtAscIdAsc(Long saleOrderId);
 
+    java.util.List<Invoice> findByPurchaseOrderIdOrderByCreatedAtAscIdAsc(Long purchaseOrderId);
+
+    // A supplier's invoice number is entered once (cancelled bills aside)
+    boolean existsByTypeAndSupplierIdAndInvoiceNumberIgnoreCaseAndStatusNot(Invoice.InvoiceType type, Long supplierId,
+                                                                             String invoiceNumber, Invoice.InvoiceStatus status);
+
     // Invoices and credit notes of a page of orders (the sales list's Documents column)
     java.util.List<Invoice> findBySaleOrderIdInOrderByCreatedAtAscIdAsc(java.util.Collection<Long> saleOrderIds);
 }

@@ -50,7 +50,7 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* PO-19069's case works: 18 ordered, 13 received → partially received, stock +13, 5 still on order; a second receipt completes it; an over-delivery is flagged.
 
-### E3 — Supplier bills and three-way match
+### E3 — Supplier bills and three-way match ✅
 - **Bill** from the PO (like invoices from sale orders): supplier invoice number, invoice date, **due date from the supplier's terms**, lines prefilled with what was received and not billed yet, additional costs (e.g. shipping on the bill).
 - **Three-way match** per line: ordered vs received vs billed quantity, PO price vs bill price; differences flagged (see question 3) and shown on the PO and the bill.
 - Billing status *Not / Partially / Fully billed*; payments on bills (part payments), *Unpaid / Paid*; supplier credit notes.

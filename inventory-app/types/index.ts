@@ -272,6 +272,8 @@ export interface PurchaseOrderLine extends OrderLine {
   taxAmount: number;
   totalAmount: number;
   receivedQuantity: number;
+  // On the supplier's bills (not cancelled)
+  billedQuantity: number;
   // Not coming any more
   closedShortQuantity: number;
   // ordered − received − closed short
@@ -324,6 +326,10 @@ export interface PurchaseOrder {
   receivingStatus: "NOT_RECEIVED" | "PARTIALLY_RECEIVED" | "RECEIVED";
   overDelivered: boolean;
   closedShort: boolean;
+  billingStatus: "NOT_BILLED" | "PARTIALLY_BILLED" | "BILLED";
+  // Only on a single order; absent when there are no bills
+  paymentStatus?: "UNPAID" | "PARTIALLY_PAID" | "PAID";
+  bills?: { id: number; invoiceNumber: string; status: InvoiceStatus; issueDate?: string; dueDate?: string; total: number; amountPaid: number; matchIssueCount: number }[];
   lines: PurchaseOrderLine[];
   costs: PurchaseOrderCost[];
   // Only on a single order
@@ -528,6 +534,9 @@ export interface InvoiceItem {
   saleOrderLineId?: number;
   // Invoice items: quantity already on credit notes
   creditedQuantity: number;
+  // Bills: the purchase order line, and what differs from the PO and the receipts (three-way match)
+  purchaseOrderLineId?: number;
+  matchIssues?: string[];
 }
 
 export interface InvoicePayment {
@@ -546,6 +555,10 @@ export interface Invoice {
   partyName: string;
   saleOrderId?: number;
   purchaseOrderId?: number;
+  purchaseOrderNumber?: string;
+  supplierId?: number;
+  // Bills: lines that don't match the PO or the receipts
+  matchIssueCount: number;
   status: InvoiceStatus;
   issueDate?: string;
   dueDate?: string;

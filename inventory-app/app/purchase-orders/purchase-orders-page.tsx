@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, getWarehouses } from "@/lib/api";
 import { PurchaseOrder, Warehouse, Page } from "@/types";
-import { PO_STATUS_COLOR as STATUS_COLOR, RECEIVING_LABEL } from "./purchase-order-view";
+import { PO_STATUS_COLOR as STATUS_COLOR, RECEIVING_LABEL, BILLING_LABEL } from "./purchase-order-view";
 import PurchaseOrderForm from "./purchase-order-form";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -113,6 +113,7 @@ export default function PurchaseOrdersPage() {
                       {o.status !== "DRAFT" && o.status !== "CANCELLED" && (
                         <span className={`block mt-1 text-[11px] ${RECEIVING_LABEL[o.receivingStatus].color}`}>
                           {RECEIVING_LABEL[o.receivingStatus].label}{o.closedShort ? " · closed short" : ""}
+                          <span className={BILLING_LABEL[o.billingStatus].color}> · {BILLING_LABEL[o.billingStatus].label}</span>
                         </span>
                       )}
                     </td>

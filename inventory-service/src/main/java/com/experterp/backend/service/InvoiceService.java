@@ -1,5 +1,6 @@
 package com.experterp.backend.service;
 
+import com.experterp.backend.dto.BillRequest;
 import com.experterp.backend.dto.InvoiceRequest;
 import com.experterp.backend.dto.OrderInvoiceRequest;
 import com.experterp.backend.dto.InvoiceResponse;
@@ -31,6 +32,8 @@ public class InvoiceService {
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
     private final AuditService auditService;
+    private final PurchaseOrderRepository purchaseOrderRepository;
+    private final TaxService taxService;
 
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(int page, int size, Invoice.InvoiceType type) {
@@ -196,6 +199,118 @@ public class InvoiceService {
         return saved;
     }
 
+    /**
+     * A supplier's bill for a purchase order (as in Cin7, PO-19064's 006387333): the supplier's invoice number, a due date
+     * from the order's terms, the lines received and not billed yet (or those given) at the PO price unless the bill says
+     * otherwise, and the supplier's extra charges (an expense). Ordered vs received vs billed and price differences are
+     * flagged on the bill's lines (three-way match).
+     */
+    @Transactional
+    public InvoiceResponse billPurchaseOrder(Long purchaseOrderId, BillRequest req) {
+        PurchaseOrder po = purchaseOrderRepository.findByIdForUpdate(purchaseOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order not found: " + purchaseOrderId));
+        if (po.getStatus() != PurchaseOrder.Status.ORDERED && po.getStatus() != PurchaseOrder.Status.RECEIVED) {
+            throw new IllegalStateException("Only ordered or received purchase orders can be billed (" + po.getOrderNumber() + " is " + po.getStatus() + ")");
+        }
+        String number = req.getSupplierInvoiceNumber().trim();
+        Long supplierId = po.getSupplier() != null ? po.getSupplier().getId() : null;
+        if (supplierId != null && invoiceRepository.existsByTypeAndSupplierIdAndInvoiceNumberIgnoreCaseAndStatusNot(
+                Invoice.InvoiceType.PURCHASE, supplierId, number, Invoice.InvoiceStatus.CANCELLED)) {
+            throw new IllegalStateException(po.getSupplierName() + "'s invoice " + number + " is already entered");
+        }
+        Invoice inv = new Invoice();
+        inv.setType(Invoice.InvoiceType.PURCHASE);
+        inv.setInvoiceNumber(number);
+        inv.setPartyName(po.getSupplierName());
+        inv.setSupplierId(supplierId);
+        inv.setPurchaseOrderId(po.getId());
+        inv.setCurrency("GBP");
+        inv.setNotes(req.getNotes());
+
+        // Which lines: the given ones, or everything received and not billed yet
+        Map<Long, BillRequest.Line> given = new HashMap<>();
+        for (BillRequest.Line l : req.getLines()) {
+            if (given.put(l.getPurchaseOrderLineId(), l) != null) throw new IllegalArgumentException("Line " + l.getPurchaseOrderLineId() + " appears more than once");
+        }
+        Set<Long> known = new HashSet<>();
+        BigDecimal net = BigDecimal.ZERO, tax = BigDecimal.ZERO;
+        for (PurchaseOrderLine line : po.getLines()) {
+            known.add(line.getId());
+            BillRequest.Line g = given.get(line.getId());
+            BigDecimal qty = !given.isEmpty() ? (g != null ? g.getQuantity() : BigDecimal.ZERO)
+                    : line.getReceivedQuantity().subtract(line.getBilledQuantity()).max(BigDecimal.ZERO);
+            if (qty.signum() <= 0) continue;
+            if (qty.compareTo(line.getToBillQuantity()) > 0) {
+                throw new IllegalStateException(String.format("Cannot bill %s of %s: only %s left to bill",
+                        qty.stripTrailingZeros().toPlainString(), line.getProduct().getSku(),
+                        line.getToBillQuantity().stripTrailingZeros().toPlainString()));
+            }
+            BigDecimal price = g != null && g.getUnitPrice() != null ? g.getUnitPrice() : line.getUnitCost();
+            InvoiceItem item = item(inv, qty, price, line.getDiscountPercent(), line.getTaxName(), line.getTaxRate());
+            item.setProduct(line.getProduct());
+            item.setDescription(line.getProduct().getSku() + ": " + line.getProduct().getName());
+            item.setPurchaseOrderLineId(line.getId());
+            line.setBilledQuantity(line.getBilledQuantity().add(qty));
+            net = net.add(item.getTotalPrice());
+            tax = tax.add(item.getTaxAmount());
+        }
+        given.keySet().stream().filter(id -> !known.contains(id)).findFirst().ifPresent(id -> {
+            throw new ResourceNotFoundException("Line " + id + " does not belong to " + po.getOrderNumber());
+        });
+        for (BillRequest.Charge c : req.getCharges()) {
+            TaxRate rate = c.getTaxRule() == null || c.getTaxRule().isBlank()
+                    ? taxService.resolvePurchase(null, po.getSupplier()) : taxService.rate(TaxRate.Usage.PURCHASE, c.getTaxRule());
+            InvoiceItem item = item(inv, c.getQuantity() != null ? c.getQuantity() : BigDecimal.ONE, c.getUnitPrice(), BigDecimal.ZERO,
+                    rate.getName(), rate.getRate());
+            item.setDescription(c.getDescription().trim());
+            net = net.add(item.getTotalPrice());
+            tax = tax.add(item.getTaxAmount());
+        }
+        if (inv.getItems().isEmpty()) throw new IllegalStateException("Nothing to bill on " + po.getOrderNumber() + ": enter the quantities billed");
+
+        inv.setSubtotal(net);
+        inv.setTaxTotal(tax);
+        inv.setTotalAmount(net.add(tax));
+        LocalDate issued = req.getIssueDate() != null ? req.getIssueDate() : LocalDate.now();
+        inv.setIssueDate(issued);
+        inv.setDueDate(req.getDueDate() != null ? req.getDueDate() : PaymentTerms.dueDate(po.getPaymentTerm(), issued));
+        if (!req.isDraft()) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
+        Invoice saved = invoiceRepository.save(inv);
+        InvoiceResponse r = toResponse(saved);
+        auditService.log("INVOICE", saved.getId(), "CREATE", Map.of("bill", number, "order", po.getOrderNumber(),
+                "total", saved.getTotalAmount(), "status", saved.getStatus(), "matchIssues", r.getMatchIssueCount()));
+        return r;
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvoiceResponse> forPurchaseOrder(Long purchaseOrderId) {
+        return invoiceRepository.findByPurchaseOrderIdOrderByCreatedAtAscIdAsc(purchaseOrderId).stream().map(this::toResponse).toList();
+    }
+
+    // Three-way match for one bill line: the PO price, and billed vs ordered vs received on the PO line
+    private List<String> matchIssues(InvoiceItem item, PurchaseOrderLine line) {
+        List<String> issues = new ArrayList<>();
+        BigDecimal poPrice = line.getUnitCost() == null ? BigDecimal.ZERO : line.getUnitCost();
+        if (item.getUnitPrice().compareTo(poPrice) != 0) {
+            issues.add("Price " + money(item.getUnitPrice()) + " differs from the PO (" + money(poPrice) + ")");
+        }
+        if (line.getBilledQuantity().compareTo(line.getReceivedQuantity()) > 0) {
+            issues.add("Billed " + qty(line.getBilledQuantity()) + ", received " + qty(line.getReceivedQuantity()));
+        }
+        if (line.getBilledQuantity().compareTo(line.getQuantity()) > 0) {
+            issues.add("Billed " + qty(line.getBilledQuantity()) + ", ordered " + qty(line.getQuantity()));
+        }
+        return issues;
+    }
+
+    private static String money(BigDecimal v) {
+        return "£" + v.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private static String qty(BigDecimal v) {
+        return v.stripTrailingZeros().toPlainString();
+    }
+
     private static InvoiceItem item(Invoice inv, BigDecimal qty, BigDecimal unitPrice, BigDecimal discount, String taxName, BigDecimal taxRate) {
         InvoiceItem item = new InvoiceItem();
         item.setInvoice(inv);
@@ -240,6 +355,14 @@ public class InvoiceService {
         }
         if (inv.getItems().stream().anyMatch(i -> i.getCreditedQuantity().signum() > 0)) {
             throw new IllegalStateException(inv.getInvoiceNumber() + " has credit notes and cannot be cancelled");
+        }
+        // A bill gives its quantities back to "to bill" on the purchase order
+        if (inv.getPurchaseOrderId() != null && inv.getItems().stream().anyMatch(i -> i.getPurchaseOrderLineId() != null)) {
+            PurchaseOrder po = purchaseOrderRepository.findByIdForUpdate(inv.getPurchaseOrderId()).orElseThrow();
+            for (InvoiceItem item : inv.getItems()) {
+                po.getLines().stream().filter(l -> l.getId().equals(item.getPurchaseOrderLineId())).findFirst()
+                        .ifPresent(l -> l.setBilledQuantity(l.getBilledQuantity().subtract(item.getQuantity()).max(BigDecimal.ZERO)));
+            }
         }
         if (inv.getSaleOrderId() != null && inv.getItems().stream()
                 .anyMatch(i -> i.getSaleOrderLineId() != null || i.getSaleOrderChargeId() != null)) {
@@ -306,6 +429,10 @@ public class InvoiceService {
         r.setPartyName(inv.getPartyName());
         r.setSaleOrderId(inv.getSaleOrderId());
         r.setPurchaseOrderId(inv.getPurchaseOrderId());
+        r.setSupplierId(inv.getSupplierId());
+        // Bills: the PO's lines for the three-way match
+        PurchaseOrder po = inv.getPurchaseOrderId() == null ? null : purchaseOrderRepository.findById(inv.getPurchaseOrderId()).orElse(null);
+        if (po != null) r.setPurchaseOrderNumber(po.getOrderNumber());
         r.setStatus(inv.getStatus());
         r.setIssueDate(inv.getIssueDate());
         r.setDueDate(inv.getDueDate());
@@ -341,9 +468,15 @@ public class InvoiceService {
             ir.setTaxAmount(item.getTaxAmount());
             ir.setSaleOrderLineId(item.getSaleOrderLineId());
             ir.setSaleOrderChargeId(item.getSaleOrderChargeId());
+            ir.setPurchaseOrderLineId(item.getPurchaseOrderLineId());
+            if (po != null && item.getPurchaseOrderLineId() != null && inv.getStatus() != Invoice.InvoiceStatus.CANCELLED) {
+                po.getLines().stream().filter(l -> l.getId().equals(item.getPurchaseOrderLineId())).findFirst()
+                        .ifPresent(l -> ir.setMatchIssues(matchIssues(item, l)));
+            }
             ir.setCreditedQuantity(item.getCreditedQuantity());
             return ir;
         }).collect(Collectors.toList()));
+        r.setMatchIssueCount((int) r.getItems().stream().filter(i -> i.getMatchIssues() != null && !i.getMatchIssues().isEmpty()).count());
 
         r.setPayments(inv.getPayments().stream().map(p -> {
             InvoiceResponse.PaymentResponse pr = new InvoiceResponse.PaymentResponse();

@@ -18,6 +18,10 @@ public class InvoiceResponse {
     private String partyName;
     private Long saleOrderId;
     private Long purchaseOrderId;
+    private String purchaseOrderNumber;
+    private Long supplierId;
+    // Bills: number of lines that don't match the PO or the receipts
+    private int matchIssueCount;
     private Invoice.InvoiceStatus status;
     private LocalDate issueDate;
     private LocalDate dueDate;
@@ -57,6 +61,9 @@ public class InvoiceResponse {
         private BigDecimal taxAmount;
         private Long saleOrderLineId;
         private Long saleOrderChargeId;
+        private Long purchaseOrderLineId;
+        // Bills, three-way match: what differs from the PO and the receipts (empty = matches)
+        private List<String> matchIssues;
         // Invoice items: quantity already on credit notes
         private BigDecimal creditedQuantity;
     }

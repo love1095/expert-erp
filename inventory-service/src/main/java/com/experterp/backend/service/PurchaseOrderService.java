@@ -10,6 +10,7 @@ import com.experterp.backend.repository.PurchaseOrderRepository;
 import com.experterp.backend.repository.SupplierRepository;
 import com.experterp.backend.repository.PurchaseReceiptRepository;
 import com.experterp.backend.dto.PurchaseReceiptRequest;
+import com.experterp.backend.dto.InvoiceResponse;
 import com.experterp.backend.repository.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,7 @@ public class PurchaseOrderService {
     private final TaxService taxService;
     private final OrganisationSettingsService settingsService;
     private final PurchaseReceiptRepository receiptRepository;
+    private final InvoiceService invoiceService;
 
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> findAll(int page, int size, PurchaseOrder.Status status, String q) {
@@ -58,6 +60,25 @@ public class PurchaseOrderService {
 
     private PurchaseOrderResponse toDetailResponse(PurchaseOrder po) {
         PurchaseOrderResponse r = toResponse(po);
+        List<InvoiceResponse> bills = invoiceService.forPurchaseOrder(po.getId());
+        r.setBills(bills.stream().map(b -> {
+            PurchaseOrderResponse.Bill e = new PurchaseOrderResponse.Bill();
+            e.setId(b.getId());
+            e.setInvoiceNumber(b.getInvoiceNumber());
+            e.setStatus(b.getStatus());
+            e.setIssueDate(b.getIssueDate());
+            e.setDueDate(b.getDueDate());
+            e.setTotal(b.getTotalAmount());
+            e.setAmountPaid(b.getAmountPaid());
+            e.setMatchIssueCount(b.getMatchIssueCount());
+            return e;
+        }).toList());
+        List<InvoiceResponse> live = bills.stream().filter(b -> b.getStatus() != Invoice.InvoiceStatus.CANCELLED).toList();
+        if (!live.isEmpty()) {
+            boolean allPaid = live.stream().allMatch(b -> b.getStatus() == Invoice.InvoiceStatus.PAID);
+            boolean anyPaid = live.stream().anyMatch(b -> b.getAmountPaid() != null && b.getAmountPaid().signum() > 0);
+            r.setPaymentStatus(allPaid ? "PAID" : anyPaid ? "PARTIALLY_PAID" : "UNPAID");
+        }
         r.setReceipts(receiptRepository.findByPurchaseOrderIdOrderByCreatedAtAscIdAsc(po.getId()).stream().map(rc -> {
             PurchaseOrderResponse.Receipt e = new PurchaseOrderResponse.Receipt();
             e.setId(rc.getId());
@@ -337,6 +358,9 @@ public class PurchaseOrderService {
         if (po.getLines().stream().anyMatch(l -> l.getReceivedQuantity().signum() > 0)) {
             throw new IllegalStateException("Stock has been received on " + po.getOrderNumber() + ": close the rest short instead");
         }
+        if (po.getLines().stream().anyMatch(l -> l.getBilledQuantity().signum() > 0)) {
+            throw new IllegalStateException(po.getOrderNumber() + " has supplier bills: cancel them first");
+        }
         po.setStatus(PurchaseOrder.Status.CANCELLED);
         PurchaseOrderResponse saved = toResponse(poRepository.save(po));
         auditService.log("PURCHASE_ORDER", id, "CANCEL", Map.of("status", "CANCELLED"));
@@ -385,6 +409,7 @@ public class PurchaseOrderService {
             lr.setTaxAmount(tax);
             lr.setTotalAmount(net.add(tax));
             lr.setReceivedQuantity(l.getReceivedQuantity());
+            lr.setBilledQuantity(l.getBilledQuantity());
             lr.setClosedShortQuantity(l.getClosedShortQuantity());
             lr.setOutstandingQuantity(l.getOutstandingQuantity());
             lr.setOverQuantity(l.getOverQuantity());
@@ -424,6 +449,10 @@ public class PurchaseOrderService {
         r.setReceivingStatus(po.getStatus() == PurchaseOrder.Status.RECEIVED || (allIn && anyIn) ? "RECEIVED"
                 : anyIn ? "PARTIALLY_RECEIVED" : "NOT_RECEIVED");
         r.setOverDelivered(po.getLines().stream().anyMatch(l -> l.getOverQuantity().signum() > 0));
+        // Billed in full when every line's bills cover what came in (or is still expected)
+        boolean anyBilled = po.getLines().stream().anyMatch(l -> l.getBilledQuantity().signum() > 0);
+        boolean allBilled = anyBilled && po.getLines().stream().allMatch(l -> l.getToBillQuantity().signum() == 0);
+        r.setBillingStatus(allBilled ? "BILLED" : anyBilled ? "PARTIALLY_BILLED" : "NOT_BILLED");
         r.setClosedShort(po.getLines().stream().anyMatch(l -> l.getClosedShortQuantity().signum() > 0));
         return r;
     }

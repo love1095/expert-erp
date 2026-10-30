@@ -346,8 +346,19 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Frontend: PO page *Receive stock* (quantity per line prefilled with what is outstanding, "more than outstanding" warning, date, warehouse, notes), Receipts card in the trail, Received / Outstanding columns, Close short; list shows the receiving status
 - [x] Tests: `PurchaseReceivingTest` (4) — PO-19069's 18 ordered / 13 received case, over-delivery, close short, retried receipt (120 backend tests); E2E PO-002 extended (73 cases)
 
+### E3 Supplier bills and three-way match ✅
+- [x] `V18`: a **bill from the PO** (`POST /purchase-orders/{id}/bills`, an invoice of type PURCHASE linked to the supplier): the **supplier's own invoice number** (entered once per supplier, cancelled bills aside), invoice date, **due date from the order's terms**, lines received and not billed yet (or those given) at the PO price unless the bill says otherwise, VAT and discount from the PO line
+- [x] The supplier's **extra charges** on the bill (e.g. shipping) with their own VAT — an **expense** (decision 4), not a price difference
+- [x] **Three-way match** per bill line: price vs the PO, billed vs received, billed vs ordered — shown on the bill ("⚠ Price £66.00 differs from the PO (£65.50)", "Billed 2, received 0") and counted on the PO's Bills card; billing more than is left is refused
+- [x] PO: **billed** quantity per line, *Not / Partially / Fully billed*, *Unpaid / Partially paid / Paid* from its bills; cancelling a bill gives its quantities back; a PO with bills can't be cancelled
+- [x] Payments on bills as on invoices; bills count in the dashboard's bills to pay / overdue
+- [x] Frontend: PO page *Enter bill* (supplier's number, dates, quantity and price per line with "PO price" / "more than received" hints, charges), Bills card in the trail, Billed column; bill page with a Match column and "✓ Matches the PO and receipts"; list shows the billing status
+- [x] Tests: `SupplierBillTest` (4) — Cin7's PO-19064 bill 006387333: 5 × 65.50 + £12 shipping = **£407.40**, due 30/11/2026 (30 Day EOM), no mismatch; price and quantity flags; cancel gives back; drafts not billable (124 backend tests); E2E PO-002 extended (73 cases)
+- [ ] Stock cost following the bill price (decision 3) needs the FIFO layers — done in E5 as a cost adjustment
+- [ ] Purchase invoices typed by hand on the Invoices page still take a number from the INV- series (bills from POs don't)
+
 ### Next
-- [ ] E3 supplier bills and three-way match · E4 reorder → POs in bulk · E5 FIFO
+- [ ] E4 reorder → POs in bulk · E5 FIFO (incl. bill price → stock cost)
 
 ---
 

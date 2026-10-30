@@ -12,6 +12,7 @@ import {
   BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, TH, TD,
 } from "@/components/DetailParts";
 import PurchaseOrderForm from "./purchase-order-form";
+import BillForm from "./bill-form";
 
 export const PO_STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -28,6 +29,16 @@ export const RECEIVING_LABEL: Record<PurchaseOrder["receivingStatus"], { label: 
   RECEIVED:           { label: "Received", color: "text-emerald-600" },
 };
 
+export const BILLING_LABEL: Record<PurchaseOrder["billingStatus"], { label: string; color: string }> = {
+  NOT_BILLED:       { label: "Not billed", color: "text-gray-400" },
+  PARTIALLY_BILLED: { label: "Partially billed", color: "text-amber-600" },
+  BILLED:           { label: "Fully billed", color: "text-emerald-600" },
+};
+
+const BILL_STATUS: Record<string, string> = {
+  DRAFT: "bg-amber-100 text-amber-700", ISSUED: "bg-sky-100 text-sky-700", PAID: "bg-emerald-100 text-emerald-700", CANCELLED: "bg-gray-100 text-gray-400",
+};
+
 // One key per receipt attempt: a retried click / network retry is applied only once
 const newKey = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -41,6 +52,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
   const [editing, setEditing] = useState(false);
   // Receiving: quantities per line, date, warehouse, notes
   const [receiving, setReceiving] = useState(false);
+  const [billing, setBilling] = useState(false);
   const [amounts, setAmounts] = useState<Record<number, string>>({});
   const [receipt, setReceipt] = useState({ receivedOn: "", warehouseId: "", notes: "", key: "" });
 
@@ -53,6 +65,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
     setError("");
     setEditing(false);
     setReceiving(false);
+    setBilling(false);
   };
   const onFail = (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Request failed");
   const orderMut = useMutation({ mutationFn: orderPurchaseOrder, onSuccess: onDone, onError: onFail });
@@ -76,6 +89,11 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
   const open = po.status === "DRAFT" || po.status === "ORDERED";
   const anyReceived = po.lines.some(l => Number(l.receivedQuantity) > 0);
   const receiving_ = RECEIVING_LABEL[po.receivingStatus];
+  const billing_ = BILLING_LABEL[po.billingStatus];
+  // Something can still be billed: received and not billed, or still expected
+  const canBill = (po.status === "ORDERED" || po.status === "RECEIVED") && po.lines.some(l =>
+    Math.max(Number(l.quantity) - Number(l.closedShortQuantity), Number(l.receivedQuantity)) - Number(l.billedQuantity) > 0);
+  const busyMode = receiving || billing;
 
   const startReceiving = () => {
     setAmounts(Object.fromEntries(po.lines.map(l => [l.id, Number(l.outstandingQuantity) > 0 ? String(l.outstandingQuantity) : ""])));
@@ -105,9 +123,14 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
             {po.status !== "DRAFT" && po.status !== "CANCELLED" && <span className={`text-xs font-medium ${receiving_.color}`}>{receiving_.label}</span>}
             {po.overDelivered && <span className="text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-800">Over-delivered</span>}
             {po.closedShort && <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">Closed short</span>}
+            {po.status !== "DRAFT" && po.status !== "CANCELLED" && <span className={`text-xs font-medium ${billing_.color}`}>· {billing_.label}</span>}
+            {po.paymentStatus && <span className={`text-xs font-medium ${po.paymentStatus === "PAID" ? "text-emerald-600" : "text-gray-500"}`}>
+              · {po.paymentStatus === "PAID" ? "Paid" : po.paymentStatus === "PARTIALLY_PAID" ? "Partially paid" : "Unpaid"}</span>}
           </div>
         }
-        actions={open && !receiving && <>
+        actions={!busyMode && (open || canBill) && <>
+          {canBill && <button disabled={busy} onClick={() => { setError(""); setBilling(true); }} className={BTN_SECONDARY}>Enter bill</button>}
+          {open && <>
           {anyReceived ? (
             <button disabled={busy} onClick={() => { if (confirm("Nothing more is coming? What is still outstanding is closed short.")) shortMut.mutate(po.id); }}
               className={BTN_SECONDARY}>Close short</button>
@@ -117,6 +140,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
           {po.status === "DRAFT" && <button disabled={busy} onClick={() => setEditing(true)} className={BTN_SECONDARY}>Edit</button>}
           {po.status === "DRAFT" && <button disabled={busy} onClick={() => orderMut.mutate(po.id)} className={BTN_SECONDARY}>Mark as ordered</button>}
           <button disabled={busy} onClick={startReceiving} className={BTN_PRIMARY}>Receive stock</button>
+          </>}
         </>}
       />
 
@@ -150,10 +174,34 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
               <p className="text-[11px] text-gray-400">{r.warehouseName} · {r.createdBy}{r.notes ? ` · ${r.notes}` : ""}</p>
             </div>
           ))}
-          {open && !receiving && (
+          {open && !busyMode && (
             <button type="button" disabled={busy} onClick={startReceiving}
               className="w-full mt-1 border border-dashed border-gray-300 rounded-md py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
               + Receipt
+            </button>
+          )}
+        </TrailCard>
+
+        <TrailCard title="Bills" testId={`po-bills-${po.id}`}
+          badge={po.status !== "DRAFT" && po.status !== "CANCELLED" ? <span className={`text-[11px] font-semibold ${billing_.color}`}>{billing_.label}</span> : undefined}>
+          {(po.bills?.length ?? 0) === 0 && <p className="text-xs text-gray-400">No supplier bill yet</p>}
+          {po.bills?.map(b => (
+            <div key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <Link href={`/invoices/${b.id}`} className="font-mono text-xs font-medium text-brand-700 hover:underline">{b.invoiceNumber}</Link>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${BILL_STATUS[b.status]}`}>{b.status}</span>
+              <span className="ml-auto tabular-nums text-gray-800">{formatGBP(b.total)}</span>
+              <span className="w-full text-[11px] text-gray-400">
+                {b.dueDate && `due ${new Date(b.dueDate).toLocaleDateString("en-GB")}`}{Number(b.amountPaid) > 0 && ` · paid ${formatGBP(b.amountPaid)}`}
+              </span>
+              {b.matchIssueCount > 0 && b.status !== "CANCELLED" && (
+                <span className="w-full text-[11px] font-medium text-amber-700">⚠ {b.matchIssueCount} line{b.matchIssueCount > 1 ? "s" : ""} don&apos;t match the PO</span>
+              )}
+            </div>
+          ))}
+          {canBill && !busyMode && (
+            <button type="button" disabled={busy} onClick={() => { setError(""); setBilling(true); }}
+              className="w-full mt-1 border border-dashed border-gray-300 rounded-md py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+              + Bill
             </button>
           )}
         </TrailCard>
@@ -166,6 +214,16 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
         </TrailCard>
       </>}>
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
+
+        {billing && (
+          <BillForm po={po} onCancel={() => setBilling(false)}
+            onSaved={() => {
+              setBilling(false);
+              qc.invalidateQueries({ queryKey: ["purchase-order", orderId] });
+              qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+              qc.invalidateQueries({ queryKey: ["invoices"] });
+            }} />
+        )}
 
         <DetailColumns testId={`po-details-${po.id}`} columns={[
           { title: "Supplier details", fields: <>
@@ -190,7 +248,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{["Product", "Supplier SKU", "Unit", "Ordered", "Received", "Outstanding", "Cost", "Disc", "VAT", "Net"].map(h => <th key={h} className={TH}>{h}</th>)}
+                <tr>{["Product", "Supplier SKU", "Unit", "Ordered", "Received", "Outstanding", "Billed", "Cost", "Disc", "VAT", "Net"].map(h => <th key={h} className={TH}>{h}</th>)}
                   {receiving && <th className="text-left px-3 py-2 text-xs font-semibold text-gray-900 uppercase">Received now</th>}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -211,6 +269,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
                       {qty(l.outstandingQuantity)}
                       {Number(l.closedShortQuantity) > 0 && <span className="block text-[11px] font-normal text-gray-500">{qty(l.closedShortQuantity)} closed short</span>}
                     </td>
+                    <td className={`${TD} tabular-nums text-gray-600`}>{qty(l.billedQuantity)}</td>
                     <td className={`${TD} tabular-nums`}>{l.unitCost != null ? formatGBP(l.unitCost) : "—"}</td>
                     <td className={`${TD} tabular-nums text-gray-500`}>{Number(l.discountPercent) ? `${l.discountPercent}%` : "—"}</td>
                     <td className={`${TD} text-xs text-gray-600`}>{l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}</td>

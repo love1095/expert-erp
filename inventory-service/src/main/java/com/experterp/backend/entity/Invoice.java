@@ -41,6 +41,10 @@ public class Invoice {
     @Column
     private Long purchaseOrderId;
 
+    // Bills: the supplier record (the invoice number is the supplier's own)
+    @Column
+    private Long supplierId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private InvoiceStatus status = InvoiceStatus.DRAFT;

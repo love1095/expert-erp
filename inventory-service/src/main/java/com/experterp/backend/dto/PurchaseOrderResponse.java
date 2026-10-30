@@ -28,6 +28,11 @@ public class PurchaseOrderResponse {
     // NOT_RECEIVED, PARTIALLY_RECEIVED or RECEIVED (everything in, or the rest closed short)
     private String receivingStatus;
     private boolean overDelivered;
+    // NOT_BILLED, PARTIALLY_BILLED or BILLED
+    private String billingStatus;
+    // Only on a single order: UNPAID, PARTIALLY_PAID or PAID across its bills (null when there are none)
+    private String paymentStatus;
+    private List<Bill> bills;
     private boolean closedShort;
     private List<Line> lines;
     private List<Cost> costs;
@@ -60,10 +65,24 @@ public class PurchaseOrderResponse {
         private BigDecimal taxAmount;
         private BigDecimal totalAmount;
         private BigDecimal receivedQuantity;
+        private BigDecimal billedQuantity;
         private BigDecimal closedShortQuantity;
         private BigDecimal outstandingQuantity;
         // Received above what was ordered
         private BigDecimal overQuantity;
+    }
+
+    @Data
+    public static class Bill {
+        private Long id;
+        // The supplier's invoice number
+        private String invoiceNumber;
+        private com.experterp.backend.entity.Invoice.InvoiceStatus status;
+        private LocalDate issueDate;
+        private LocalDate dueDate;
+        private BigDecimal total;
+        private BigDecimal amountPaid;
+        private int matchIssueCount;
     }
 
     @Data

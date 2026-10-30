@@ -62,4 +62,26 @@ test('PO-002 a PO takes the supplier\'s terms and purchase VAT, is placed with t
     await expect(status).toContainText('Over-delivered');
     await expect(page.locator('[data-testid^="po-receipts-"]')).toContainText('(1 over)');
     expect(await api.stock(fleece, warehouses.main)).toBe(6);
+
+    // E3: the supplier's bill for the 6 received, at the PO price, with their shipping
+    const billNo = `ORN-INV-${Date.now()}`;
+    await page.getByRole('button', { name: 'Enter bill' }).click();
+    const bill = page.getByTestId('bill-form');
+    await bill.getByLabel("Supplier's invoice number *").fill(billNo);
+    await expect(bill.getByLabel(`Billed quantity for ${fleece.sku}`)).toHaveValue('6');
+    await bill.getByRole('button', { name: '+ Add charge' }).click();
+    await bill.getByLabel('Charge 1 description').fill('Shipping - Standard');
+    await bill.getByLabel('Charge 1 price').fill('12');
+    await bill.getByRole('button', { name: 'Enter bill' }).click();
+
+    const bills = page.locator('[data-testid^="po-bills-"]');
+    await expect(bills).toContainText(billNo);
+    await expect(bills).toContainText('Fully billed');
+    // 6 × 9.21 = 55.26 + 11.05 VAT, shipping 12 + 2.40 VAT = 80.71
+    await expect(bills).toContainText('£80.71');
+    // 6 billed against 5 ordered is flagged by the three-way match
+    await expect(bills).toContainText("1 line don't match the PO");
+    await bills.getByRole('link', { name: billNo }).click();
+    await expect(page.getByText('Billed 6, ordered 5')).toBeVisible();
+    await expect(page.getByText('Charge (expense)')).toBeVisible();
   });

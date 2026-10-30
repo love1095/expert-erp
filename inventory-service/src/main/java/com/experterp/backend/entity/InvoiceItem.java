@@ -43,6 +43,10 @@ public class InvoiceItem {
     @Column
     private Long saleOrderChargeId;
 
+    // Bills: the purchase order line this pays for
+    @Column
+    private Long purchaseOrderLineId;
+
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal discountPercent = BigDecimal.ZERO;
 
