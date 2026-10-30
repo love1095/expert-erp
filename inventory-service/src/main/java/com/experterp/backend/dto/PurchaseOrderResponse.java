@@ -25,8 +25,14 @@ public class PurchaseOrderResponse {
     private LocalDateTime createdAt;
     private LocalDateTime orderedAt;
     private LocalDateTime receivedAt;
+    // NOT_RECEIVED, PARTIALLY_RECEIVED or RECEIVED (everything in, or the rest closed short)
+    private String receivingStatus;
+    private boolean overDelivered;
+    private boolean closedShort;
     private List<Line> lines;
     private List<Cost> costs;
+    // Only on a single order
+    private List<Receipt> receipts;
     // Totals like Cin7: order lines, additional costs, and both together, before tax / tax
     private BigDecimal linesNet;
     private BigDecimal linesTax;
@@ -53,6 +59,31 @@ public class PurchaseOrderResponse {
         private BigDecimal netAmount;
         private BigDecimal taxAmount;
         private BigDecimal totalAmount;
+        private BigDecimal receivedQuantity;
+        private BigDecimal closedShortQuantity;
+        private BigDecimal outstandingQuantity;
+        // Received above what was ordered
+        private BigDecimal overQuantity;
+    }
+
+    @Data
+    public static class Receipt {
+        private Long id;
+        private LocalDate receivedOn;
+        private String warehouseName;
+        private String notes;
+        private String createdBy;
+        private LocalDateTime createdAt;
+        private List<ReceiptLine> lines;
+    }
+
+    @Data
+    public static class ReceiptLine {
+        private Long purchaseOrderLineId;
+        private String productSku;
+        private String productName;
+        private BigDecimal quantity;
+        private BigDecimal overQuantity;
     }
 
     @Data

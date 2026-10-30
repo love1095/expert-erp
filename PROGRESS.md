@@ -337,8 +337,17 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Real data: Orn Clothing + WWJC-3200-BK-L fills supplier SKU 3200.BK.L, £9.21, 20 % VAT on Expenses, 30 Day EOM — 5 units = £46.05 as on Cin7's PO-19069
 - [x] Tests: `PurchaseOrderTest` (3) (116 backend tests); E2E PO-002 (73 cases)
 
+### E2 Goods receiving ✅
+- [x] `V17`: **receipts** against a PO (several per order, Cin7's "Stock receiving"), each with its date, warehouse, notes, who; lines with the quantity and any **over-delivery**; retried requests applied once (idempotency key)
+- [x] Per PO line: ordered, **received**, **outstanding**, **closed short**; receiving status *Not / Partially / Received*; the PO becomes RECEIVED once nothing is outstanding
+- [x] **More than ordered is accepted and flagged** (decision 2) on the receipt, the line (▲) and the PO (*Over-delivered*)
+- [x] **Close short**: nothing more is coming, the rest is closed and the PO is RECEIVED; a PO with stock in can't be cancelled (close short instead)
+- [x] Stock comes in at the line's cost **after discount**; **on order** (reorder list) = outstanding on draft / ordered POs only
+- [x] Frontend: PO page *Receive stock* (quantity per line prefilled with what is outstanding, "more than outstanding" warning, date, warehouse, notes), Receipts card in the trail, Received / Outstanding columns, Close short; list shows the receiving status
+- [x] Tests: `PurchaseReceivingTest` (4) — PO-19069's 18 ordered / 13 received case, over-delivery, close short, retried receipt (120 backend tests); E2E PO-002 extended (73 cases)
+
 ### Next
-- [ ] E2 goods receiving (part / short / over, on order) · E3 supplier bills and three-way match · E4 reorder → POs in bulk · E5 FIFO
+- [ ] E3 supplier bills and three-way match · E4 reorder → POs in bulk · E5 FIFO
 
 ---
 

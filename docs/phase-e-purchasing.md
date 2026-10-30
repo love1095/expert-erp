@@ -42,7 +42,7 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* a PO for a Portwest product fills supplier SKU, cost and 20 % VAT by itself; the totals match Cin7's grid for PO-19069 (202.39 + 40.48 = 242.87); numbering continues from the setting.
 
-### E2 — Goods receiving (part, short, over)
+### E2 — Goods receiving (part, short, over) ✅
 - **Receipts** against an ordered PO, several per PO, each with its date, warehouse and quantities per line; stock comes **in at the PO line cost**.
 - Per line: ordered, received, **outstanding**; receiving status *Not / Partially / Fully received*; "close short" ends a line without receiving the rest.
 - **Over-delivery** and **short delivery** flagged on the receipt and the PO (see question 2).

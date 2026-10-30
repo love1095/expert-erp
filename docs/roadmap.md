@@ -14,7 +14,7 @@ The spec's phase 1 ("Replace Cin7 Core") sets the order: build a module before t
 | B ✅ | Rules for the next modules | Decided: reserve on confirm, FIFO, VAT precedence, rep per order, ERP is product master, accounting for any package — see `business-rules.md` | C–E built once, not redesigned |
 | C ✅ | Cin7 stock migration | Stock on hand as opening balances; suppliers if missing | Real stock, Shopify not "Sold out", accurate reorder list |
 | D 🔄 | Sales (spec §2) — D1 ✅ D2 ✅ D3 ✅ D4 ✅ | Quotes, VAT 20 % / 0 %, sales rep on each order, allocation + available stock, backorders, invoice on shipment, credit notes, PDFs | Dashboard 6.2 |
-| E 🔄 | Purchasing (spec §3) — E1 ✅ | Authorise, part / over / short receipts, supplier bills with three-way match, reorder suggestions → bulk POs, landed cost | Dashboard 6.3 |
+| E 🔄 | Purchasing (spec §3) — E1 ✅ E2 ✅ | Authorise, part / over / short receipts, supplier bills with three-way match, reorder suggestions → bulk POs, landed cost | Dashboard 6.3 |
 | F | Shopify 7.4–7.6 | Cancellations and refunds, retries and monitoring, stock push | The integration that "cannot fail" |
 | G | Customers and pricing (spec §5) | Price tiers, contract prices, credit hold, statements | |
 | H | Finance and accounting (spec §6) | Sales / purchase ledgers, aged debtors and creditors, VAT report, FIFO COGS, accounting export queue: CSV first, then Xero / QuickBooks / Sage adapters | Spec phase 1 complete |

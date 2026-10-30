@@ -43,7 +43,7 @@ public class DashboardService {
             "  LEFT JOIN (SELECT product_id, SUM(CASE WHEN type IN (" + StockMovementRepository.IN_TYPES + ") " +
             "                                    THEN quantity ELSE -quantity END) AS qty " +
             "               FROM stock_movements WHERE tenant_id = :t GROUP BY product_id) st ON st.product_id = p.id " +
-            "  LEFT JOIN (SELECT l.product_id, SUM(l.quantity) AS qty " +
+            "  LEFT JOIN (SELECT l.product_id, SUM(GREATEST(l.quantity - l.received_quantity - l.closed_short_quantity, 0)) AS qty " +
             "               FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id " +
             "              WHERE po.tenant_id = :t AND po.status IN ('DRAFT', 'ORDERED') GROUP BY l.product_id) oo ON oo.product_id = p.id " +
             "  LEFT JOIN (" + AllocationService.RESERVED_PER_PRODUCT_SQL + ") rv ON rv.product_id = p.id " +

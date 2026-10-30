@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getPurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder, orderPurchaseOrder, getWarehouses } from "@/lib/api";
+import { getPurchaseOrder, receivePurchaseLines, cancelPurchaseOrder, orderPurchaseOrder, closeShortPurchaseOrder, getWarehouses } from "@/lib/api";
 import { PurchaseOrder, PurchaseOrderStatus, Warehouse } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
@@ -22,6 +22,16 @@ export const PO_STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
 
 const qty = (n: number) => Number(n).toLocaleString();
 
+export const RECEIVING_LABEL: Record<PurchaseOrder["receivingStatus"], { label: string; color: string }> = {
+  NOT_RECEIVED:       { label: "Not received", color: "text-gray-400" },
+  PARTIALLY_RECEIVED: { label: "Partially received", color: "text-amber-600" },
+  RECEIVED:           { label: "Received", color: "text-emerald-600" },
+};
+
+// One key per receipt attempt: a retried click / network retry is applied only once
+const newKey = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 // One purchase order on its own page, like Cin7's purchase screen
 export default function PurchaseOrderView({ orderId }: { orderId: number }) {
   const qc = useQueryClient();
@@ -29,6 +39,10 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
+  // Receiving: quantities per line, date, warehouse, notes
+  const [receiving, setReceiving] = useState(false);
+  const [amounts, setAmounts] = useState<Record<number, string>>({});
+  const [receipt, setReceipt] = useState({ receivedOn: "", warehouseId: "", notes: "", key: "" });
 
   const onDone = (updated: PurchaseOrder) => {
     qc.setQueryData(["purchase-order", orderId], updated);
@@ -38,12 +52,14 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
     qc.invalidateQueries({ queryKey: ["products-page"] });
     setError("");
     setEditing(false);
+    setReceiving(false);
   };
   const onFail = (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Request failed");
   const orderMut = useMutation({ mutationFn: orderPurchaseOrder, onSuccess: onDone, onError: onFail });
-  const receiveMut = useMutation({ mutationFn: receivePurchaseOrder, onSuccess: onDone, onError: onFail });
+  const receiveMut = useMutation({ mutationFn: receivePurchaseLines, onSuccess: onDone, onError: onFail });
   const cancelMut = useMutation({ mutationFn: cancelPurchaseOrder, onSuccess: onDone, onError: onFail });
-  const busy = orderMut.isPending || receiveMut.isPending || cancelMut.isPending;
+  const shortMut = useMutation({ mutationFn: closeShortPurchaseOrder, onSuccess: onDone, onError: onFail });
+  const busy = orderMut.isPending || receiveMut.isPending || cancelMut.isPending || shortMut.isPending;
 
   if (isLoading || !po) return <p className="text-gray-400 text-sm">Loading…</p>;
 
@@ -58,6 +74,24 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
 
   const units = po.lines.reduce((t, l) => t + Number(l.quantity ?? 0), 0);
   const open = po.status === "DRAFT" || po.status === "ORDERED";
+  const anyReceived = po.lines.some(l => Number(l.receivedQuantity) > 0);
+  const receiving_ = RECEIVING_LABEL[po.receivingStatus];
+
+  const startReceiving = () => {
+    setAmounts(Object.fromEntries(po.lines.map(l => [l.id, Number(l.outstandingQuantity) > 0 ? String(l.outstandingQuantity) : ""])));
+    setReceipt({ receivedOn: new Date().toISOString().slice(0, 10), warehouseId: String(po.warehouseId), notes: "", key: newKey() });
+    setError("");
+    setReceiving(true);
+  };
+  const submitReceipt = (e: React.FormEvent) => {
+    e.preventDefault();
+    const lines = po.lines.map(l => ({ purchaseOrderLineId: l.id, quantity: Number(amounts[l.id] || 0) })).filter(x => x.quantity > 0);
+    if (lines.length === 0) { setError("Enter what arrived for at least one line"); return; }
+    receiveMut.mutate({ id: po.id, data: {
+      idempotencyKey: receipt.key, receivedOn: receipt.receivedOn || undefined,
+      warehouseId: receipt.warehouseId ? Number(receipt.warehouseId) : undefined, notes: receipt.notes || undefined, lines,
+    }});
+  };
 
   return (
     <div data-testid={`po-page-${po.id}`}>
@@ -68,16 +102,21 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
         badges={
           <div data-testid={`po-status-${po.id}`} className="flex items-center gap-1.5 mt-1.5">
             <span className={`text-xs font-semibold px-2 py-0.5 rounded ${PO_STATUS_COLOR[po.status]}`}>{po.status}</span>
-            {po.status === "ORDERED" && <span className="text-xs text-gray-500">Not received</span>}
+            {po.status !== "DRAFT" && po.status !== "CANCELLED" && <span className={`text-xs font-medium ${receiving_.color}`}>{receiving_.label}</span>}
+            {po.overDelivered && <span className="text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-800">Over-delivered</span>}
+            {po.closedShort && <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">Closed short</span>}
           </div>
         }
-        actions={open && <>
-          <button disabled={busy} onClick={() => { if (confirm(`Cancel ${po.orderNumber}?`)) cancelMut.mutate(po.id); }} className={BTN_DANGER}>Cancel PO</button>
+        actions={open && !receiving && <>
+          {anyReceived ? (
+            <button disabled={busy} onClick={() => { if (confirm("Nothing more is coming? What is still outstanding is closed short.")) shortMut.mutate(po.id); }}
+              className={BTN_SECONDARY}>Close short</button>
+          ) : (
+            <button disabled={busy} onClick={() => { if (confirm(`Cancel ${po.orderNumber}?`)) cancelMut.mutate(po.id); }} className={BTN_DANGER}>Cancel PO</button>
+          )}
           {po.status === "DRAFT" && <button disabled={busy} onClick={() => setEditing(true)} className={BTN_SECONDARY}>Edit</button>}
           {po.status === "DRAFT" && <button disabled={busy} onClick={() => orderMut.mutate(po.id)} className={BTN_SECONDARY}>Mark as ordered</button>}
-          <button disabled={busy} onClick={() => { if (confirm("Receive everything on this order? This adds the stock.")) receiveMut.mutate(po.id); }} className={BTN_PRIMARY}>
-            Receive stock
-          </button>
+          <button disabled={busy} onClick={startReceiving} className={BTN_PRIMARY}>Receive stock</button>
         </>}
       />
 
@@ -94,6 +133,31 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
               : <span className="text-gray-400">{po.status === "CANCELLED" ? "Cancelled" : "Not yet"}</span>}
           </div>
         </TrailCard>
+        <TrailCard title="Receipts" testId={`po-receipts-${po.id}`}
+          badge={po.status !== "DRAFT" ? <span className={`text-[11px] font-semibold ${receiving_.color}`}>{receiving_.label}</span> : undefined}>
+          {(po.receipts?.length ?? 0) === 0 && (
+            po.receivedAt
+              // Received before receipts were recorded one by one
+              ? <p className="text-xs text-gray-600">Received in full on <ClientDate iso={po.receivedAt} /></p>
+              : <p className="text-xs text-gray-400">Nothing received yet</p>
+          )}
+          {po.receipts?.map((r, i) => (
+            <div key={r.id} className="border-t border-gray-100 first:border-0 pt-2 first:pt-0">
+              <p className="font-medium text-gray-800">Receipt #{i + 1} · {new Date(r.receivedOn).toLocaleDateString("en-GB")}</p>
+              <p className="text-xs text-gray-600">
+                {r.lines.map(l => `${qty(l.quantity)} × ${l.productSku}${Number(l.overQuantity) > 0 ? ` (${qty(l.overQuantity)} over)` : ""}`).join(", ")}
+              </p>
+              <p className="text-[11px] text-gray-400">{r.warehouseName} · {r.createdBy}{r.notes ? ` · ${r.notes}` : ""}</p>
+            </div>
+          ))}
+          {open && !receiving && (
+            <button type="button" disabled={busy} onClick={startReceiving}
+              className="w-full mt-1 border border-dashed border-gray-300 rounded-md py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+              + Receipt
+            </button>
+          )}
+        </TrailCard>
+
         <TrailCard title="Supplier">
           <p className="text-gray-800">{po.supplierName}</p>
           <Link href={`/purchase-orders?q=${encodeURIComponent(po.supplierName)}`} className="block text-xs text-brand-700 hover:underline">
@@ -120,11 +184,14 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
           </> },
         ]} />
 
-        <Card title="Products" flush>
+        <form onSubmit={submitReceipt}>
+        <Card title="Products" flush
+          right={receiving ? <span className="text-xs font-semibold text-gray-900">Receiving: enter what arrived</span> : undefined}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{["Product", "Supplier SKU", "Unit", "Quantity", "Cost", "Disc", "VAT", "Net"].map(h => <th key={h} className={TH}>{h}</th>)}</tr>
+                <tr>{["Product", "Supplier SKU", "Unit", "Ordered", "Received", "Outstanding", "Cost", "Disc", "VAT", "Net"].map(h => <th key={h} className={TH}>{h}</th>)}
+                  {receiving && <th className="text-left px-3 py-2 text-xs font-semibold text-gray-900 uppercase">Received now</th>}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {po.lines.map(l => (
@@ -136,16 +203,65 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
                     <td className={`${TD} font-mono text-xs text-gray-600`}>{l.supplierSku ?? "—"}</td>
                     <td className={`${TD} text-gray-600`}>{l.unit ?? "—"}</td>
                     <td className={`${TD} tabular-nums`}>{qty(l.quantity)}</td>
+                    <td className={`${TD} tabular-nums ${Number(l.overQuantity) > 0 ? "text-orange-700 font-semibold" : "text-emerald-700"}`}
+                      title={Number(l.overQuantity) > 0 ? `${qty(l.overQuantity)} more than ordered` : undefined}>
+                      {qty(l.receivedQuantity)}{Number(l.overQuantity) > 0 && " ▲"}
+                    </td>
+                    <td className={`${TD} tabular-nums font-medium`}>
+                      {qty(l.outstandingQuantity)}
+                      {Number(l.closedShortQuantity) > 0 && <span className="block text-[11px] font-normal text-gray-500">{qty(l.closedShortQuantity)} closed short</span>}
+                    </td>
                     <td className={`${TD} tabular-nums`}>{l.unitCost != null ? formatGBP(l.unitCost) : "—"}</td>
                     <td className={`${TD} tabular-nums text-gray-500`}>{Number(l.discountPercent) ? `${l.discountPercent}%` : "—"}</td>
                     <td className={`${TD} text-xs text-gray-600`}>{l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}</td>
                     <td className={`${TD} tabular-nums`}>{formatGBP(l.netAmount)}</td>
+                    {receiving && (() => {
+                      const typed = Number(amounts[l.id] || 0);
+                      const over = typed - Number(l.outstandingQuantity);
+                      return (
+                        <td className={TD}>
+                          <input type="number" min="0" step="any" aria-label={`Received quantity for ${l.productSku}`}
+                            value={amounts[l.id] ?? ""} placeholder="0" onChange={e => setAmounts({ ...amounts, [l.id]: e.target.value })}
+                            className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                          {typed > 0 && over > 0 && <span className="block text-[11px] text-orange-700">{qty(over)} more than outstanding</span>}
+                        </td>
+                      );
+                    })()}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </Card>
+        {receiving && (
+          <section className="mt-4 bg-white border-2 border-brand-600 rounded-lg p-4 space-y-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="po-receipt-date" className="block text-xs font-medium text-gray-600 mb-1">Date received</label>
+                <input id="po-receipt-date" type="date" value={receipt.receivedOn} onChange={e => setReceipt({ ...receipt, receivedOn: e.target.value })}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label htmlFor="po-receipt-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Into warehouse</label>
+                <select id="po-receipt-warehouse" value={receipt.warehouseId} onChange={e => setReceipt({ ...receipt, warehouseId: e.target.value })}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-48">
+                <label htmlFor="po-receipt-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                <input id="po-receipt-notes" value={receipt.notes} onChange={e => setReceipt({ ...receipt, notes: e.target.value })} placeholder="e.g. delivery note number"
+                  className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm" />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="submit" disabled={busy} className={BTN_PRIMARY}>{receiveMut.isPending ? "Saving..." : "Receive & add stock"}</button>
+              <button type="button" onClick={() => { setReceiving(false); setError(""); }} className="text-sm text-gray-500 hover:text-gray-800 px-2 py-1.5">Close</button>
+              <span className="text-xs text-gray-400">More than outstanding is accepted and flagged as an over-delivery.</span>
+            </div>
+          </section>
+        )}
+        </form>
 
         {po.costs.length > 0 && (
           <Card title="Additional costs" flush right={<span className="text-xs text-gray-400">expense, not stock cost</span>}>

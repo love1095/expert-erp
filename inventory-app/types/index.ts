@@ -271,6 +271,23 @@ export interface PurchaseOrderLine extends OrderLine {
   netAmount: number;
   taxAmount: number;
   totalAmount: number;
+  receivedQuantity: number;
+  // Not coming any more
+  closedShortQuantity: number;
+  // ordered − received − closed short
+  outstandingQuantity: number;
+  // Received above what was ordered
+  overQuantity: number;
+}
+
+export interface PurchaseReceipt {
+  id: number;
+  receivedOn: string;
+  warehouseName: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  lines: { purchaseOrderLineId: number; productSku: string; productName: string; quantity: number; overQuantity: number }[];
 }
 
 // Freight, duty... on the order: an expense, not stock cost
@@ -304,8 +321,13 @@ export interface PurchaseOrder {
   createdAt: string;
   orderedAt?: string;
   receivedAt?: string;
+  receivingStatus: "NOT_RECEIVED" | "PARTIALLY_RECEIVED" | "RECEIVED";
+  overDelivered: boolean;
+  closedShort: boolean;
   lines: PurchaseOrderLine[];
   costs: PurchaseOrderCost[];
+  // Only on a single order
+  receipts?: PurchaseReceipt[];
   // Like Cin7's totals grid: order lines, additional costs, total
   linesNet: number;
   linesTax: number;

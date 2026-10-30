@@ -11,6 +11,11 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
 
     boolean existsByOrderNumber(String orderNumber);
 
+    // Serialises receiving / closing on the same order
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT po FROM PurchaseOrder po WHERE po.id = :id")
+    java.util.Optional<PurchaseOrder> findByIdForUpdate(@Param("id") Long id);
+
     // Optional filters: status and text (q = lower-case LIKE pattern, '' = any) on the supplier, PO number or supplier reference
     @Query("SELECT po FROM PurchaseOrder po WHERE (:status IS NULL OR po.status = :status) " +
            "AND (:q = '' OR LOWER(po.supplierName) LIKE :q OR LOWER(po.orderNumber) LIKE :q " +

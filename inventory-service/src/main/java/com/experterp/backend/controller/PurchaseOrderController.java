@@ -54,9 +54,22 @@ public class PurchaseOrderController {
         return purchaseOrderService.markOrdered(id);
     }
 
+    // Everything still outstanding
     @PostMapping("/{id}/receive")
     public PurchaseOrderResponse receive(@PathVariable Long id) {
         return purchaseOrderService.receive(id);
+    }
+
+    // A receipt: the quantities that arrived (more than outstanding is accepted and flagged)
+    @PostMapping("/{id}/receipts")
+    public PurchaseOrderResponse receipt(@PathVariable Long id, @Valid @RequestBody com.experterp.backend.dto.PurchaseReceiptRequest req) {
+        return purchaseOrderService.receive(id, req);
+    }
+
+    // Nothing more is coming: the rest is closed short
+    @PostMapping("/{id}/close-short")
+    public PurchaseOrderResponse closeShort(@PathVariable Long id) {
+        return purchaseOrderService.closeShort(id);
     }
 
     @PostMapping("/{id}/cancel")

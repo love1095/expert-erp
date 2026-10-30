@@ -96,6 +96,10 @@ export const previewPurchaseOrder = (data: unknown) => api.post("/purchase-order
 export const updatePurchaseOrder  = ({ id, data }: { id: number; data: unknown }) => api.put(`/purchase-orders/${id}`, data).then(r => r.data);
 // Placed with the supplier (Cin7's Authorise)
 export const orderPurchaseOrder   = (id: number) => api.post(`/purchase-orders/${id}/order`).then(r => r.data);
+// A receipt: the quantities that arrived (more than outstanding is accepted and flagged)
+export const receivePurchaseLines = ({ id, data }: { id: number; data: unknown }) => api.post(`/purchase-orders/${id}/receipts`, data).then(r => r.data);
+// Nothing more is coming: the rest is closed short
+export const closeShortPurchaseOrder = (id: number) => api.post(`/purchase-orders/${id}/close-short`).then(r => r.data);
 
 // Sale orders — Page
 export const getSaleOrders    = (params?: { customerId?: number; status?: string; q?: string; page?: number; size?: number }) =>

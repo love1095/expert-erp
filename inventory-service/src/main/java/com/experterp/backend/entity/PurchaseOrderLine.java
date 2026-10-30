@@ -48,4 +48,22 @@ public class PurchaseOrderLine {
 
     @Column(nullable = false)
     private boolean taxOverridden;
+
+    // Received so far (may be more than ordered: an over-delivery)
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal receivedQuantity = BigDecimal.ZERO;
+
+    // Closed short: not coming any more
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal closedShortQuantity = BigDecimal.ZERO;
+
+    /** Still to come: ordered − received − closed short, never below 0. */
+    public BigDecimal getOutstandingQuantity() {
+        return quantity.subtract(receivedQuantity).subtract(closedShortQuantity).max(BigDecimal.ZERO);
+    }
+
+    /** Received above what was ordered. */
+    public BigDecimal getOverQuantity() {
+        return receivedQuantity.subtract(quantity).max(BigDecimal.ZERO);
+    }
 }

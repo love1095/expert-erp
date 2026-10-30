@@ -42,7 +42,24 @@ test('PO-002 a PO takes the supplier\'s terms and purchase VAT, is placed with t
     await expect(details).toContainText(/PO-\d+/);
     await expect(page.locator('[data-testid^="po-totals-"]')).toContainText('£55.26');
 
+    // E2: 3 of the 5 arrive first — partially received, 2 still on order
     await page.getByRole('button', { name: 'Receive stock' }).click();
+    await page.getByLabel(`Received quantity for ${fleece.sku}`).fill('3');
+    await page.getByLabel('Notes').fill('DN-1001');
+    await page.getByRole('button', { name: 'Receive & add stock' }).click();
+    await expect(status).toContainText('ORDERED');
+    await expect(status).toContainText('Partially received');
+    await expect(page.locator('[data-testid^="po-receipts-"]')).toContainText(`3 × ${fleece.sku}`);
+    expect(await api.stock(fleece, warehouses.main)).toBe(3);
+
+    // Then 3 more instead of the 2 outstanding: accepted and flagged
+    await page.getByRole('button', { name: 'Receive stock' }).click();
+    await expect(page.getByLabel(`Received quantity for ${fleece.sku}`)).toHaveValue('2');
+    await page.getByLabel(`Received quantity for ${fleece.sku}`).fill('3');
+    await expect(page.getByText('1 more than outstanding')).toBeVisible();
+    await page.getByRole('button', { name: 'Receive & add stock' }).click();
     await expect(status).toContainText('RECEIVED');
-    expect(await api.stock(fleece, warehouses.main)).toBe(5);
+    await expect(status).toContainText('Over-delivered');
+    await expect(page.locator('[data-testid^="po-receipts-"]')).toContainText('(1 over)');
+    expect(await api.stock(fleece, warehouses.main)).toBe(6);
   });

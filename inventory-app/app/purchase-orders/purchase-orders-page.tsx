@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, getWarehouses } from "@/lib/api";
 import { PurchaseOrder, Warehouse, Page } from "@/types";
-import { PO_STATUS_COLOR as STATUS_COLOR } from "./purchase-order-view";
+import { PO_STATUS_COLOR as STATUS_COLOR, RECEIVING_LABEL } from "./purchase-order-view";
 import PurchaseOrderForm from "./purchase-order-form";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -109,12 +109,18 @@ export default function PurchaseOrdersPage() {
                     <td className="px-4 py-3 tabular-nums text-gray-700">{formatGBP(o.total)}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
+                      {o.overDelivered && <span className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-800">Over</span>}
+                      {o.status !== "DRAFT" && o.status !== "CANCELLED" && (
+                        <span className={`block mt-1 text-[11px] ${RECEIVING_LABEL[o.receivingStatus].color}`}>
+                          {RECEIVING_LABEL[o.receivingStatus].label}{o.closedShort ? " · closed short" : ""}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
                     <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       {(o.status === "DRAFT" || o.status === "ORDERED") && (
                         <>
-                          <button onClick={() => { if (confirm("Mark as received? This will add stock.")) receiveMutation.mutate(o.id); }}
+                          <button onClick={() => { if (confirm("Receive everything still outstanding? This adds the stock.")) receiveMutation.mutate(o.id); }}
                             className="text-xs text-gray-800 hover:underline font-medium">Receive</button>
                           <button onClick={() => { if (confirm("Cancel this PO?")) cancelMutation.mutate(o.id); }}
                             className="text-xs text-red-500 hover:text-red-700">Cancel</button>
