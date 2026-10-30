@@ -37,6 +37,23 @@ public class PurchaseOrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(purchaseOrderService.create(req));
     }
 
+    // Defaults, VAT and totals for the form, nothing saved
+    @PostMapping("/preview")
+    public PurchaseOrderResponse preview(@Valid @RequestBody PurchaseOrderRequest req) {
+        return purchaseOrderService.preview(req);
+    }
+
+    @PutMapping("/{id}")
+    public PurchaseOrderResponse update(@PathVariable Long id, @Valid @RequestBody PurchaseOrderRequest req) {
+        return purchaseOrderService.update(id, req);
+    }
+
+    // Placed with the supplier (Cin7's Authorise)
+    @PostMapping("/{id}/order")
+    public PurchaseOrderResponse markOrdered(@PathVariable Long id) {
+        return purchaseOrderService.markOrdered(id);
+    }
+
     @PostMapping("/{id}/receive")
     public PurchaseOrderResponse receive(@PathVariable Long id) {
         return purchaseOrderService.receive(id);

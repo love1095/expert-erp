@@ -243,7 +243,8 @@ export interface StockLevel {
   lowStock: boolean;
 }
 
-export type PurchaseOrderStatus = "DRAFT" | "RECEIVED" | "CANCELLED";
+// DRAFT (editable) → ORDERED (placed with the supplier, Cin7's Authorise) → RECEIVED; or CANCELLED
+export type PurchaseOrderStatus = "DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED";
 // QUOTE → DRAFT (converted) or REJECTED; DRAFT → CONFIRMED → COMPLETED; DRAFT/CONFIRMED → CANCELLED
 export type SaleOrderStatus     = "QUOTE" | "REJECTED" | "DRAFT" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
 export type FulfilmentStatus    = "UNFULFILLED" | "PARTIALLY_FULFILLED" | "FULFILLED";
@@ -258,16 +259,61 @@ export interface OrderLine {
   unitPrice?: number;
 }
 
+export interface PurchaseOrderLine extends OrderLine {
+  unit?: string;
+  // The supplier's code for the product, e.g. 3200.BK.L
+  supplierSku?: string;
+  discountPercent: number;
+  // Purchase VAT copied onto the line (empty on older orders)
+  taxName?: string;
+  taxRate: number;
+  taxOverridden: boolean;
+  netAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
+// Freight, duty... on the order: an expense, not stock cost
+export interface PurchaseOrderCost {
+  id?: number;
+  description: string;
+  reference?: string;
+  quantity: number;
+  unitPrice: number;
+  discountPercent: number;
+  taxName?: string;
+  taxRate: number;
+  netAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
 export interface PurchaseOrder {
   id: number;
+  // e.g. PO-19074 (absent on a preview)
+  orderNumber: string;
+  supplierId?: number;
   supplierName: string;
+  supplierReference?: string;
+  paymentTerm?: string;
+  requiredBy?: string;
   warehouseId: number;
   warehouseName: string;
   status: PurchaseOrderStatus;
   notes?: string;
   createdAt: string;
+  orderedAt?: string;
   receivedAt?: string;
-  lines: OrderLine[];
+  lines: PurchaseOrderLine[];
+  costs: PurchaseOrderCost[];
+  // Like Cin7's totals grid: order lines, additional costs, total
+  linesNet: number;
+  linesTax: number;
+  costsNet: number;
+  costsTax: number;
+  subtotal: number;
+  taxTotal: number;
+  total: number;
 }
 
 export interface SaleOrderLine extends OrderLine {
@@ -336,6 +382,9 @@ export interface OrganisationSettings {
   autoInvoiceOnShipment: boolean;
   creditNotePrefix: string;
   nextCreditNoteNumber: number;
+  purchaseOrderPrefix: string;
+  nextPurchaseOrderNumber: number;
+  defaultPurchaseTaxRule: string;
 }
 
 export interface SaleOrderEntryLine {

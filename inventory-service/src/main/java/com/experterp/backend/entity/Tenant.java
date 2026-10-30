@@ -67,4 +67,15 @@ public class Tenant {
 
     @Column(nullable = false)
     private long nextCreditNoteNumber = 1;
+
+    // Purchase order numbers, e.g. PO-19074 (continues Cin7's series at cutover)
+    @Column(nullable = false, length = 10)
+    private String purchaseOrderPrefix = "PO-";
+
+    @Column(nullable = false)
+    private long nextPurchaseOrderNumber = 1;
+
+    // Purchase tax rule used when neither the product nor the supplier has one
+    @Column(nullable = false, length = 100)
+    private String defaultPurchaseTaxRule = "20% (VAT on Expenses)";
 }

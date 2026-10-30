@@ -124,7 +124,8 @@ class InvoiceFromOrderTest {
     void withTheSettingOnEveryShipmentIsInvoicedAndNumbersCarryOnFromTheSetting() {
         OrganisationSettingsService.Settings s = settingsService.get();
         settingsService.update(new OrganisationSettingsService.Settings(s.saleOrderPrefix(), s.nextSaleOrderNumber(),
-                s.webSalesRep(), s.defaultSaleTaxRule(), s.quoteValidDays(), "INV-", 118554, true, s.creditNotePrefix(), s.nextCreditNoteNumber()));
+                s.webSalesRep(), s.defaultSaleTaxRule(), s.quoteValidDays(), "INV-", 118554, true, s.creditNotePrefix(), s.nextCreditNoteNumber(),
+                s.purchaseOrderPrefix(), s.nextPurchaseOrderNumber(), s.defaultPurchaseTaxRule()));
         receive(helmet, 10);
         receive(firstAid, 10);
         SaleOrderResponse so = saleOrderService.confirm(order().getId());

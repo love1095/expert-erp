@@ -45,7 +45,7 @@ public class DashboardService {
             "               FROM stock_movements WHERE tenant_id = :t GROUP BY product_id) st ON st.product_id = p.id " +
             "  LEFT JOIN (SELECT l.product_id, SUM(l.quantity) AS qty " +
             "               FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id " +
-            "              WHERE po.tenant_id = :t AND po.status = 'DRAFT' GROUP BY l.product_id) oo ON oo.product_id = p.id " +
+            "              WHERE po.tenant_id = :t AND po.status IN ('DRAFT', 'ORDERED') GROUP BY l.product_id) oo ON oo.product_id = p.id " +
             "  LEFT JOIN (" + AllocationService.RESERVED_PER_PRODUCT_SQL + ") rv ON rv.product_id = p.id " +
             "  LEFT JOIN suppliers s ON s.id = p.default_supplier_id " +
             " WHERE p.tenant_id = :t AND p.status = 'ACTIVE' AND p.product_type = 'STOCK' " +
@@ -192,7 +192,7 @@ public class DashboardService {
                 count("SELECT COUNT(*) " + UNPAID_INVOICES, sp),
                 count("SELECT COUNT(*) " + UNPAID_INVOICES + "AND i.due_date < :today", sp));
         PurchaseStatus purchases = new PurchaseStatus(
-                count("SELECT COUNT(*) FROM purchase_orders WHERE tenant_id = :t AND status = 'DRAFT'", p),
+                count("SELECT COUNT(*) FROM purchase_orders WHERE tenant_id = :t AND status IN ('DRAFT', 'ORDERED')", p),
                 purchaseDraftInvoices,
                 count("SELECT COUNT(*) " + UNPAID_INVOICES, pp),
                 count("SELECT COUNT(*) " + UNPAID_INVOICES + "AND i.due_date < :today", pp));

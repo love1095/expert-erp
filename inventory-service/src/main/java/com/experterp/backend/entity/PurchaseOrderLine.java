@@ -31,4 +31,21 @@ public class PurchaseOrderLine {
 
     @Column(precision = 18, scale = 4)
     private BigDecimal unitCost;
+
+    // The supplier's code for the product, e.g. 3200.BK.L
+    @Column(length = 100)
+    private String supplierSku;
+
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal discountPercent = BigDecimal.ZERO;
+
+    // Purchase VAT copied onto the line (empty on older orders: no VAT recorded)
+    @Column(length = 100)
+    private String taxName;
+
+    @Column(nullable = false, precision = 6, scale = 3)
+    private BigDecimal taxRate = BigDecimal.ZERO;
+
+    @Column(nullable = false)
+    private boolean taxOverridden;
 }

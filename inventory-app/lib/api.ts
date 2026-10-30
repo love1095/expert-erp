@@ -92,6 +92,10 @@ export const getPurchaseOrder     = (id: number) => api.get(`/purchase-orders/${
 export const createPurchaseOrder  = (data: unknown) => api.post("/purchase-orders", data).then(r => r.data);
 export const receivePurchaseOrder = (id: number) => api.post(`/purchase-orders/${id}/receive`).then(r => r.data);
 export const cancelPurchaseOrder  = (id: number) => api.post(`/purchase-orders/${id}/cancel`).then(r => r.data);
+export const previewPurchaseOrder = (data: unknown) => api.post("/purchase-orders/preview", data).then(r => r.data);
+export const updatePurchaseOrder  = ({ id, data }: { id: number; data: unknown }) => api.put(`/purchase-orders/${id}`, data).then(r => r.data);
+// Placed with the supplier (Cin7's Authorise)
+export const orderPurchaseOrder   = (id: number) => api.post(`/purchase-orders/${id}/order`).then(r => r.data);
 
 // Sale orders — Page
 export const getSaleOrders    = (params?: { customerId?: number; status?: string; q?: string; page?: number; size?: number }) =>

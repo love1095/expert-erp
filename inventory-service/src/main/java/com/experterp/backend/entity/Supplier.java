@@ -48,6 +48,10 @@ public class Supplier {
     @Column(columnDefinition = "TEXT")
     private String comments;
 
+    // Purchase tax rule for this supplier's orders when the product has none, e.g. "20% (VAT on Expenses)"
+    @Column(length = 100)
+    private String taxRule;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

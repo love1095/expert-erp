@@ -22,10 +22,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,7 +61,6 @@ public class SaleOrderService {
     private final InvoiceService invoiceService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
-    private static final Set<String> TAX_OVERRIDE_ROLES = Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SUPER_ADMIN");
 
     @Transactional(readOnly = true)
     public Page<SaleOrderResponse> findAll(Long customerId, Status status, int page, int size) {
@@ -484,31 +479,9 @@ public class SaleOrderService {
         return so;
     }
 
-    /**
-     * The rule's rate, unless the request names another one: only a manager or admin may do that, and less VAT
-     * than the rule needs a reason. Every change is collected for the audit log.
-     */
     private TaxChoice chooseTax(String requested, String reason, TaxRate rule, String what, List<Map<String, Object>> overrides) {
-        if (requested == null || requested.isBlank() || requested.trim().equalsIgnoreCase(rule.getName())) {
-            return new TaxChoice(rule, false);
-        }
-        TaxRate chosen = taxService.saleRate(requested);
-        if (!mayOverrideTax()) {
-            throw new AccessDeniedException("Only a manager or admin can change the VAT on " + what);
-        }
-        if (chosen.getRate().compareTo(rule.getRate()) < 0 && (reason == null || reason.isBlank())) {
-            throw new IllegalArgumentException("Give a reason for less VAT than " + rule.getName() + " on " + what);
-        }
-        overrides.add(Map.of("line", what, "from", rule.getName(), "to", chosen.getName(),
-                "reason", reason == null ? "" : reason.trim()));
-        return new TaxChoice(chosen, true);
-    }
-
-    private static boolean mayOverrideTax() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        // Jobs and integrations run without a user
-        if (auth == null || "anonymousUser".equals(auth.getPrincipal())) return true;
-        return auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(TAX_OVERRIDE_ROLES::contains);
+        TaxService.Choice c = taxService.choose(TaxRate.Usage.SALE, requested, reason, rule, what, overrides);
+        return new TaxChoice(c.rate(), c.overridden());
     }
 
     private static String orElse(String value, String fallback) {

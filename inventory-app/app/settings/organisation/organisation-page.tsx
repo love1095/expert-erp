@@ -91,6 +91,26 @@ export default function OrganisationPage() {
             onChange={e => setForm({ ...form, nextCreditNoteNumber: Number(e.target.value) })} className={INPUT} />
           <p className="text-[11px] text-gray-400 mt-1">Next credit note: <b>{form.creditNotePrefix}{String(form.nextCreditNoteNumber).padStart(5, "0")}</b></p>
         </div>
+        <div>
+          <label htmlFor="org-po-prefix" className={LABEL}>Purchase order prefix</label>
+          <input id="org-po-prefix" value={form.purchaseOrderPrefix} disabled={!isAdmin} maxLength={10}
+            onChange={e => setForm({ ...form, purchaseOrderPrefix: e.target.value })} className={INPUT} />
+        </div>
+        <div>
+          <label htmlFor="org-next-po" className={LABEL}>Next purchase order number</label>
+          <input id="org-next-po" type="number" min="1" value={form.nextPurchaseOrderNumber} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, nextPurchaseOrderNumber: Number(e.target.value) })} className={INPUT} />
+          <p className="text-[11px] text-gray-400 mt-1">Next purchase order: <b>{form.purchaseOrderPrefix}{form.nextPurchaseOrderNumber}</b> (Cin7&apos;s next at cutover)</p>
+        </div>
+        <div>
+          <label htmlFor="org-default-purchase-tax" className={LABEL}>Default purchase tax rule</label>
+          <select id="org-default-purchase-tax" value={form.defaultPurchaseTaxRule} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, defaultPurchaseTaxRule: e.target.value })} className={INPUT}>
+            {purchaseRates.filter(r => r.active).map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+          </select>
+          <p className="text-[11px] text-gray-400 mt-1">Used when neither the product nor the supplier has a purchase tax rule.</p>
+        </div>
+        <div />
         <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700">
           <input type="checkbox" checked={form.autoInvoiceOnShipment} disabled={!isAdmin}
             onChange={e => setForm({ ...form, autoInvoiceOnShipment: e.target.checked })} />

@@ -24,6 +24,7 @@ public class OrganisationSettingsService {
     private final TenantRepository tenantRepository;
     private final SaleOrderRepository saleOrderRepository;
     private final InvoiceRepository invoiceRepository;
+    private final com.experterp.backend.repository.PurchaseOrderRepository purchaseOrderRepository;
     private final TaxService taxService;
     private final AuditService auditService;
     private final EntityManager em;
@@ -38,20 +39,25 @@ public class OrganisationSettingsService {
             @Min(1) long nextInvoiceNumber,
             boolean autoInvoiceOnShipment,
             @NotBlank @Size(max = 10) String creditNotePrefix,
-            @Min(1) long nextCreditNoteNumber) {}
+            @Min(1) long nextCreditNoteNumber,
+            @NotBlank @Size(max = 10) String purchaseOrderPrefix,
+            @Min(1) long nextPurchaseOrderNumber,
+            @NotBlank @Size(max = 100) String defaultPurchaseTaxRule) {}
 
     @Transactional(readOnly = true)
     public Settings get() {
         Tenant t = tenant();
         return new Settings(t.getSaleOrderPrefix(), t.getNextSaleOrderNumber(), t.getWebSalesRep(), t.getDefaultSaleTaxRule(),
                 t.getQuoteValidDays(), t.getInvoicePrefix(), t.getNextInvoiceNumber(), t.isAutoInvoiceOnShipment(),
-                t.getCreditNotePrefix(), t.getNextCreditNoteNumber());
+                t.getCreditNotePrefix(), t.getNextCreditNoteNumber(),
+                t.getPurchaseOrderPrefix(), t.getNextPurchaseOrderNumber(), t.getDefaultPurchaseTaxRule());
     }
 
     @Transactional
     public Settings update(Settings s) {
         // Refuses a default that is not an active sale rate
         String defaultRule = taxService.saleRate(s.defaultSaleTaxRule()).getName();
+        String purchaseRule = taxService.rate(com.experterp.backend.entity.TaxRate.Usage.PURCHASE, s.defaultPurchaseTaxRule()).getName();
         Tenant t = em.find(Tenant.class, TenantContext.get(), LockModeType.PESSIMISTIC_WRITE);
         t.setSaleOrderPrefix(s.saleOrderPrefix().trim());
         t.setNextSaleOrderNumber(s.nextSaleOrderNumber());
@@ -63,12 +69,24 @@ public class OrganisationSettingsService {
         t.setAutoInvoiceOnShipment(s.autoInvoiceOnShipment());
         t.setCreditNotePrefix(s.creditNotePrefix().trim());
         t.setNextCreditNoteNumber(s.nextCreditNoteNumber());
-        auditService.log("ORGANISATION", t.getId(), "UPDATE", Map.of(
-                "saleOrderPrefix", t.getSaleOrderPrefix(), "nextSaleOrderNumber", t.getNextSaleOrderNumber(),
-                "webSalesRep", t.getWebSalesRep(), "defaultSaleTaxRule", defaultRule, "quoteValidDays", s.quoteValidDays(),
-                "invoicePrefix", t.getInvoicePrefix(), "nextInvoiceNumber", t.getNextInvoiceNumber(),
-                "autoInvoiceOnShipment", t.isAutoInvoiceOnShipment(),
-                "creditNotePrefix", t.getCreditNotePrefix(), "nextCreditNoteNumber", t.getNextCreditNoteNumber()));
+        t.setPurchaseOrderPrefix(s.purchaseOrderPrefix().trim());
+        t.setNextPurchaseOrderNumber(s.nextPurchaseOrderNumber());
+        t.setDefaultPurchaseTaxRule(purchaseRule);
+        Map<String, Object> audit = new java.util.LinkedHashMap<>();
+        audit.put("saleOrderPrefix", t.getSaleOrderPrefix());
+        audit.put("nextSaleOrderNumber", t.getNextSaleOrderNumber());
+        audit.put("webSalesRep", t.getWebSalesRep());
+        audit.put("defaultSaleTaxRule", defaultRule);
+        audit.put("quoteValidDays", s.quoteValidDays());
+        audit.put("invoicePrefix", t.getInvoicePrefix());
+        audit.put("nextInvoiceNumber", t.getNextInvoiceNumber());
+        audit.put("autoInvoiceOnShipment", t.isAutoInvoiceOnShipment());
+        audit.put("creditNotePrefix", t.getCreditNotePrefix());
+        audit.put("nextCreditNoteNumber", t.getNextCreditNoteNumber());
+        audit.put("purchaseOrderPrefix", t.getPurchaseOrderPrefix());
+        audit.put("nextPurchaseOrderNumber", t.getNextPurchaseOrderNumber());
+        audit.put("defaultPurchaseTaxRule", purchaseRule);
+        auditService.log("ORGANISATION", t.getId(), "UPDATE", audit);
         return get();
     }
 
@@ -105,6 +123,18 @@ public class OrganisationSettingsService {
             t.setNextCreditNoteNumber(n + 1);
             String number = t.getCreditNotePrefix() + String.format("%05d", n);
             if (!invoiceRepository.existsByInvoiceNumber(number)) return number;
+        }
+    }
+
+    /** Takes the next purchase order number (e.g. PO-19074), skipping numbers already used; locks the organisation row. */
+    @Transactional
+    public String nextPurchaseOrderNumber() {
+        Tenant t = em.find(Tenant.class, TenantContext.get(), LockModeType.PESSIMISTIC_WRITE);
+        while (true) {
+            long n = t.getNextPurchaseOrderNumber();
+            t.setNextPurchaseOrderNumber(n + 1);
+            String number = t.getPurchaseOrderPrefix() + n;
+            if (!purchaseOrderRepository.existsByOrderNumber(number)) return number;
         }
     }
 

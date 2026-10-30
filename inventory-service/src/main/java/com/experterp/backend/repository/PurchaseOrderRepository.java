@@ -9,8 +9,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Long> {
 
-    // Optional filters: status and text (q = lower-case LIKE pattern, '' = any) on the supplier or the PO number (PO-12)
+    boolean existsByOrderNumber(String orderNumber);
+
+    // Optional filters: status and text (q = lower-case LIKE pattern, '' = any) on the supplier, PO number or supplier reference
     @Query("SELECT po FROM PurchaseOrder po WHERE (:status IS NULL OR po.status = :status) " +
-           "AND (:q = '' OR LOWER(po.supplierName) LIKE :q OR CONCAT('%po-', CAST(po.id AS string), '%') LIKE :q)")
+           "AND (:q = '' OR LOWER(po.supplierName) LIKE :q OR LOWER(po.orderNumber) LIKE :q " +
+           "OR LOWER(COALESCE(po.supplierReference, '')) LIKE :q)")
     Page<PurchaseOrder> search(@Param("status") PurchaseOrder.Status status, @Param("q") String q, Pageable pageable);
 }

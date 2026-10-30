@@ -95,7 +95,7 @@ class ListSearchTest {
 
         assertThat(purchaseOrderService.findAll(0, 20, null, "jsp").getContent())
                 .extracting(PurchaseOrderResponse::getId).containsExactly(jsp.getId());
-        assertThat(purchaseOrderService.findAll(0, 20, null, "PO-" + jsp.getId()).getContent())
+        assertThat(purchaseOrderService.findAll(0, 20, null, jsp.getOrderNumber()).getContent())
                 .extracting(PurchaseOrderResponse::getId).contains(jsp.getId());
         assertThat(purchaseOrderService.findAll(0, 20, PurchaseOrder.Status.RECEIVED, null).getTotalElements()).isZero();
     }

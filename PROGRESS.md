@@ -322,6 +322,26 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
+## Phase E — Purchasing (spec §3) 🔄
+
+> Plan, Cin7 findings and decisions: `docs/phase-e-purchasing.md`. Also done before it: the Cin7-style redesign (app frame, list toolbar, record pages for sale orders / invoices / POs / customers).
+
+### E1 The purchase order like Cin7 ✅
+- [x] Cin7 checked first: PO-19069 (Orn Clothing, partially received), PO-19064 (Portwest, billed £407.40 vs ordered £393.00 because of £14.40 shipping on the bill), reorder screen
+- [x] `V16`: PO linked to the **supplier record** (name kept), **PO number series** per organisation (`PO-`, settable next number; existing orders keep PO-{id}), supplier reference, terms (from the supplier), **required by**, **ordered** date
+- [x] Stages DRAFT → **ORDERED** (Cin7's *Authorise*, no approval step) → RECEIVED; drafts can be edited (`PUT`), ordered ones cancelled
+- [x] Lines: **supplier SKU** and **cost** from the product's own supplier (Cin7 supplier price, else cost price; another supplier gets neither), discount %, **purchase VAT** by precedence: line override (manager+, audited, shared with sales in `TaxService.choose`) > product purchase tax rule > supplier tax rule > organisation default `20% (VAT on Expenses)`
+- [x] **Additional costs** (freight, duty…) with their own VAT — an expense, not stock cost (decision 4); Cin7's totals grid (order lines / additional costs / total)
+- [x] `POST /purchase-orders/preview` for the form; dashboard "awaiting delivery" and "on order" count draft + ordered POs; search also on PO number and supplier reference
+- [x] Frontend: new PO form (supplier, deliver to, required by, terms, supplier reference, lines with supplier SKU / cost / disc / VAT, additional costs, live totals; *Create & mark ordered* / *Save as draft*), PO page (Mark as ordered, Edit, Receive, Cancel; lines, costs, totals grid), Settings → Organisation: PO prefix / next number / default purchase tax rule
+- [x] Real data: Orn Clothing + WWJC-3200-BK-L fills supplier SKU 3200.BK.L, £9.21, 20 % VAT on Expenses, 30 Day EOM — 5 units = £46.05 as on Cin7's PO-19069
+- [x] Tests: `PurchaseOrderTest` (3) (116 backend tests); E2E PO-002 (73 cases)
+
+### Next
+- [ ] E2 goods receiving (part / short / over, on order) · E3 supplier bills and three-way match · E4 reorder → POs in bulk · E5 FIFO
+
+---
+
 ## Phase 7 — Shopify integration 🔄
 
 > Goal: Shopify orders flow into the ERP; fulfilments, cancellations, returns and stock flow back.
