@@ -32,6 +32,11 @@ public class SaleOrderResponse {
     private LocalDateTime orderedAt;
     private LocalDate quoteValidUntil;
     private boolean quoteExpired;
+    // VAT included: not on an invoice yet, and on invoices that are not cancelled (detail only)
+    private BigDecimal toInvoiceTotal;
+    private BigDecimal invoicedTotal;
+    private BigDecimal creditedTotal;
+    private List<InvoiceEntry> invoices;
     private Long customerId;
     private String customerName;
     private Long warehouseId;
@@ -78,6 +83,22 @@ public class SaleOrderResponse {
         // (first confirmed, first served) and what is short
         private BigDecimal allocatedQuantity;
         private BigDecimal backorderedQuantity;
+        private BigDecimal invoicedQuantity;
+        private BigDecimal toInvoiceQuantity;
+    }
+
+    @Data
+    public static class InvoiceEntry {
+        private Long id;
+        private String invoiceNumber;
+        private com.experterp.backend.entity.Invoice.InvoiceStatus status;
+        private LocalDate issueDate;
+        private LocalDate dueDate;
+        private BigDecimal total;
+        private BigDecimal amountPaid;
+        // Made for this shipment (invoiced on shipment)
+        private Long fulfilmentId;
+        private com.experterp.backend.entity.Invoice.Kind kind;
     }
 
     @Data
@@ -93,6 +114,7 @@ public class SaleOrderResponse {
         private BigDecimal netAmount;
         private BigDecimal taxAmount;
         private BigDecimal totalAmount;
+        private boolean invoiced;
     }
 
     @Data

@@ -35,4 +35,32 @@ public class InvoiceItem {
 
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal totalPrice;
+
+    // What it bills on a sale order (a product line or an additional charge)
+    @Column
+    private Long saleOrderLineId;
+
+    @Column
+    private Long saleOrderChargeId;
+
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal discountPercent = BigDecimal.ZERO;
+
+    // VAT copied from the order line; totalPrice is the net amount
+    @Column(length = 100)
+    private String taxName;
+
+    @Column(nullable = false, precision = 6, scale = 3)
+    private BigDecimal taxRate = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal taxAmount = BigDecimal.ZERO;
+
+    // Invoice items: quantity already on credit notes
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal creditedQuantity = BigDecimal.ZERO;
+
+    // Credit note items: the invoice item they credit
+    @Column
+    private Long creditedItemId;
 }

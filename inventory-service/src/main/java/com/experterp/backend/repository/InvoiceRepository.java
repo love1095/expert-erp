@@ -8,4 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Page<Invoice> findByType(Invoice.InvoiceType type, Pageable pageable);
+
+    boolean existsByInvoiceNumber(String invoiceNumber);
+
+    java.util.List<Invoice> findBySaleOrderIdOrderByCreatedAtAscIdAsc(Long saleOrderId);
 }

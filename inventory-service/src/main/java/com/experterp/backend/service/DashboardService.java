@@ -57,7 +57,7 @@ public class DashboardService {
             "  FROM invoices i " +
             "  LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM payments WHERE tenant_id = :t GROUP BY invoice_id) pay " +
             "         ON pay.invoice_id = i.id " +
-            " WHERE i.tenant_id = :t AND i.type = :type AND i.status = 'ISSUED' " +
+            " WHERE i.tenant_id = :t AND i.type = :type AND i.kind = 'INVOICE' AND i.status = 'ISSUED' " +
             "   AND i.total_amount - COALESCE(pay.paid, 0) > 0 ";
 
     // Same rounding as SaleAmounts: net per line after discount, VAT per line, half-up to the penny
@@ -179,7 +179,7 @@ public class DashboardService {
                         rs.getBigDecimal("tax"), rs.getBigDecimal("net").add(rs.getBigDecimal("tax"))));
 
         // ---- work waiting now ----
-        long salesDraftInvoices = count("SELECT COUNT(*) FROM invoices WHERE tenant_id = :t AND type = 'SALES' AND status = 'DRAFT'", p);
+        long salesDraftInvoices = count("SELECT COUNT(*) FROM invoices WHERE tenant_id = :t AND type = 'SALES' AND kind = 'INVOICE' AND status = 'DRAFT'", p);
         long purchaseDraftInvoices = count("SELECT COUNT(*) FROM invoices WHERE tenant_id = :t AND type = 'PURCHASE' AND status = 'DRAFT'", p);
         var sp = new MapSqlParameterSource(p.getValues()).addValue("type", "SALES");
         var pp = new MapSqlParameterSource(p.getValues()).addValue("type", "PURCHASE");
@@ -197,8 +197,15 @@ public class DashboardService {
                 count("SELECT COUNT(*) " + UNPAID_INVOICES, pp),
                 count("SELECT COUNT(*) " + UNPAID_INVOICES + "AND i.due_date < :today", pp));
 
+        // Owed by customers, less the credit they still have on credit notes
         BigDecimal receivables = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(i.total_amount - COALESCE(pay.paid, 0)), 0) " + UNPAID_INVOICES, sp, BigDecimal.class);
+                "SELECT COALESCE(SUM(i.total_amount - COALESCE(pay.paid, 0)), 0) " + UNPAID_INVOICES, sp, BigDecimal.class)
+                .subtract(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(cn.total_amount - COALESCE(own.paid, 0) - COALESCE(used.paid, 0)), 0) " +
+                "  FROM invoices cn " +
+                "  LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM payments WHERE tenant_id = :t GROUP BY invoice_id) own ON own.invoice_id = cn.id " +
+                "  LEFT JOIN (SELECT credit_note_id, SUM(amount) AS paid FROM payments WHERE tenant_id = :t AND credit_note_id IS NOT NULL GROUP BY credit_note_id) used ON used.credit_note_id = cn.id " +
+                " WHERE cn.tenant_id = :t AND cn.type = 'SALES' AND cn.kind = 'CREDIT_NOTE' AND cn.status = 'ISSUED'", sp, BigDecimal.class));
 
         List<RecentOrder> recent = jdbc.query(
                 "SELECT so.id, so.order_number, so.customer_name, so.status, so.fulfilment_status, so.created_at, " +

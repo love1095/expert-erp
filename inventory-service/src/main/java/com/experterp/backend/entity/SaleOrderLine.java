@@ -62,6 +62,15 @@ public class SaleOrderLine {
     @Column(nullable = false)
     private boolean taxOverridden;
 
+    // On invoices that are not cancelled
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal invoicedQuantity = BigDecimal.ZERO;
+
+    /** Quantity sold (not cancelled) and not on an invoice yet. */
+    public BigDecimal getToInvoiceQuantity() {
+        return quantity.subtract(cancelledQuantity).subtract(invoicedQuantity).max(BigDecimal.ZERO);
+    }
+
     /** Quantity still to be shipped. */
     public BigDecimal getRemainingQuantity() {
         return quantity.subtract(fulfilledQuantity).subtract(cancelledQuantity);

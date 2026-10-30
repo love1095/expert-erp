@@ -3,13 +3,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn, retryShopifyFulfilment,
-  convertQuote, rejectQuote, getCustomers } from "@/lib/api";
+  convertQuote, rejectQuote, getCustomers, invoiceSaleOrder } from "@/lib/api";
 import { Customer, SaleOrder, SaleOrderLine, Warehouse } from "@/types";
 import SaleOrderForm from "./sale-order-form";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 
-type Mode = "view" | "ship" | "return" | "edit";
+type Mode = "view" | "ship" | "return" | "edit" | "invoice";
 
 // One key per submission attempt: a retried click/network retry is applied only once by the backend
 const newKey = () =>
@@ -56,8 +56,20 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
   const retryMutation   = useMutation({ mutationFn: retryShopifyFulfilment, onSuccess: onDone, onError: onFail });
   const convertMutation = useMutation({ mutationFn: convertQuote, onSuccess: onDone, onError: onFail });
   const rejectMutation  = useMutation({ mutationFn: rejectQuote, onSuccess: onDone, onError: onFail });
+  // An invoice doesn't change the order itself: reload it to show the new invoice and amounts
+  const invoiceMutation = useMutation({
+    mutationFn: invoiceSaleOrder,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sale-order", orderId] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      setMode("view");
+      setError("");
+    },
+    onError: onFail,
+  });
+  const [includeCharges, setIncludeCharges] = useState(true);
   const busy = confirmMutation.isPending || cancelMutation.isPending || shipMutation.isPending || returnMutation.isPending
-    || retryMutation.isPending || convertMutation.isPending || rejectMutation.isPending;
+    || retryMutation.isPending || convertMutation.isPending || rejectMutation.isPending || invoiceMutation.isPending;
   // Only needed for editing
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers, enabled: mode === "edit" });
 
@@ -81,14 +93,19 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
   const waitingForStock = order.status === "CONFIRMED" && !canShip && order.lines.some(l => l.remainingQuantity > 0);
   const canCancel  = order.status === "DRAFT" || order.status === "CONFIRMED";
   const canReturn  = (order.status === "CONFIRMED" || order.status === "COMPLETED") && returnable;
+  const canInvoice = (order.status === "CONFIRMED" || order.status === "COMPLETED") && (order.toInvoiceTotal ?? 0) > 0;
 
   const maxFor = (l: SaleOrderLine) =>
-    mode === "ship" ? allocatedOf(l) : l.fulfilledQuantity - l.returnedQuantity;
+    mode === "ship" ? allocatedOf(l) : mode === "invoice" ? l.toInvoiceQuantity : l.fulfilledQuantity - l.returnedQuantity;
 
   const startMode = (m: Mode) => {
     const prefill: Record<number, string> = {};
-    // Shipping defaults to everything allocated; returns start empty
-    order.lines.forEach(l => { prefill[l.id] = m === "ship" && allocatedOf(l) > 0 ? String(allocatedOf(l)) : ""; });
+    // Shipping defaults to everything allocated, invoicing to everything not invoiced yet; returns start empty
+    order.lines.forEach(l => {
+      const q = m === "ship" ? allocatedOf(l) : m === "invoice" ? l.toInvoiceQuantity : 0;
+      prefill[l.id] = q > 0 ? String(q) : "";
+    });
+    setIncludeCharges(true);
     setAmounts(prefill);
     setRestock(Object.fromEntries(order.lines.map(l => [l.id, true])));
     setNotes("");
@@ -107,11 +124,18 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const chosen = selectedLines();
-    if (chosen.length === 0) { setError("Enter a quantity for at least one line"); return; }
+    const chargesOnly = mode === "invoice" && includeCharges && order.charges.some(c => !c.invoiced);
+    if (chosen.length === 0 && !chargesOnly) { setError("Enter a quantity for at least one line"); return; }
     const over = chosen.find(x => x.quantity > maxFor(x.line));
     if (over) { setError(`${over.line.productSku}: at most ${qty(maxFor(over.line))}`); return; }
 
-    if (mode === "ship") {
+    if (mode === "invoice") {
+      const issue = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "issue";
+      invoiceMutation.mutate({ id: order.id, data: {
+        issue, includeCharges, notes: notes || undefined,
+        lines: chosen.map(x => ({ saleOrderLineId: x.line.id, quantity: x.quantity })),
+      }});
+    } else if (mode === "ship") {
       shipMutation.mutate({ id: order.id, data: {
         idempotencyKey: submitKey,
         notes: notes || undefined,
@@ -201,6 +225,12 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
               Ship items
             </button>
           )}
+          {canInvoice && (
+            <button disabled={busy} onClick={() => startMode("invoice")}
+              className="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-indigo-700 disabled:opacity-50">
+              Create invoice
+            </button>
+          )}
           {canReturn && (
             <button disabled={busy} onClick={() => startMode("return")}
               className="bg-teal-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-teal-700 disabled:opacity-50">
@@ -237,6 +267,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                 <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
               ))}
               {mode === "ship" && <th className="text-left px-3 py-2 text-xs font-semibold text-emerald-700 uppercase">Ship now</th>}
+              {mode === "invoice" && <th className="text-left px-3 py-2 text-xs font-semibold text-indigo-700 uppercase">Invoice now</th>}
               {mode === "return" && (
                 <>
                   <th className="text-left px-3 py-2 text-xs font-semibold text-teal-700 uppercase">Return qty</th>
@@ -273,7 +304,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                   {mode !== "view" && (
                     <td className="px-3 py-2">
                       <input type="number" min="0" max={max} step="any" disabled={max <= 0}
-                        aria-label={`${mode === "ship" ? "Ship" : "Return"} quantity for ${l.productSku}`}
+                        aria-label={`${mode === "ship" ? "Ship" : mode === "invoice" ? "Invoice" : "Return"} quantity for ${l.productSku}`}
                         value={amounts[l.id] ?? ""} placeholder={max > 0 ? `max ${qty(max)}` : "—"}
                         onChange={e => setAmounts({ ...amounts, [l.id]: e.target.value })}
                         className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm disabled:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
@@ -322,7 +353,9 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
         {mode !== "view" && (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-48">
-              <label htmlFor="so-panel-notes" className="block text-xs font-medium text-gray-600 mb-1">{mode === "ship" ? "Shipment notes" : "Reason"}</label>
+              <label htmlFor="so-panel-notes" className="block text-xs font-medium text-gray-600 mb-1">
+                {mode === "ship" ? "Shipment notes" : mode === "invoice" ? "Invoice notes" : "Reason"}
+              </label>
               <input id="so-panel-notes" autoComplete="off" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
                 className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
             </div>
@@ -349,10 +382,29 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                 </select>
               </div>
             )}
-            <button type="submit" disabled={busy}
-              className={`text-white px-4 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 ${mode === "ship" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-teal-600 hover:bg-teal-700"}`}>
-              {busy ? "Saving..." : mode === "ship" ? "Ship & deduct stock" : "Record return"}
-            </button>
+            {mode === "invoice" ? (
+              <>
+                {order.charges.some(c => !c.invoiced) && (
+                  <label className="flex items-center gap-1.5 text-sm text-gray-700 self-center">
+                    <input type="checkbox" checked={includeCharges} onChange={e => setIncludeCharges(e.target.checked)} />
+                    Include charges ({order.charges.filter(c => !c.invoiced).map(c => c.description).join(", ")})
+                  </label>
+                )}
+                <button type="submit" value="issue" disabled={busy}
+                  className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                  {busy ? "Saving..." : "Create & issue"}
+                </button>
+                <button type="submit" value="draft" disabled={busy}
+                  className="border border-indigo-300 text-indigo-700 px-4 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-50 disabled:opacity-50">
+                  Create draft invoice
+                </button>
+              </>
+            ) : (
+              <button type="submit" disabled={busy}
+                className={`text-white px-4 py-1.5 rounded-md text-sm font-medium disabled:opacity-50 ${mode === "ship" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-teal-600 hover:bg-teal-700"}`}>
+                {busy ? "Saving..." : mode === "ship" ? "Ship & deduct stock" : "Record return"}
+              </button>
+            )}
             <button type="button" onClick={() => { setMode("view"); setError(""); }}
               className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1.5">Close</button>
           </div>
@@ -368,6 +420,28 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
           </p>
         )}
       </form>
+
+      {(order.invoices?.length || ((order.status === "CONFIRMED" || order.status === "COMPLETED") && (order.toInvoiceTotal ?? 0) > 0)) ? (
+        <div data-testid={`so-invoices-${orderId}`}>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Invoices · to invoice {formatGBP(order.toInvoiceTotal ?? 0)} · invoiced {formatGBP(order.invoicedTotal ?? 0)}
+            {(order.creditedTotal ?? 0) > 0 && ` · credited ${formatGBP(order.creditedTotal!)}`}
+          </h3>
+          <ul className="space-y-1 text-sm">
+            {order.invoices?.map(inv => (
+              <li key={inv.id} className="flex flex-wrap gap-x-3 items-center">
+                <span className="font-mono text-xs text-indigo-700">{inv.invoiceNumber}</span>
+                {inv.kind === "CREDIT_NOTE" && <span className="text-[10px] font-semibold text-rose-600">Credit note</span>}
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${inv.status === "CANCELLED" ? "bg-gray-100 text-gray-400" : inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" : inv.status === "ISSUED" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700"}`}>{inv.status}</span>
+                <span className="tabular-nums text-gray-700">{formatGBP(inv.total)}</span>
+                <span className="text-xs text-gray-400">
+                  {inv.dueDate && `due ${inv.dueDate}`}{inv.amountPaid > 0 && ` · paid ${formatGBP(inv.amountPaid)}`}{inv.fulfilmentId && ` · for shipment #${inv.fulfilmentId}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {/* History */}
       {((order.fulfilments?.length ?? 0) > 0 || (order.returns?.length ?? 0) > 0) && (

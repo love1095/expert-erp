@@ -99,6 +99,10 @@ export const getSaleOrder     = (id: number) => api.get(`/sale-orders/${id}`).th
 export const createSaleOrder  = (data: unknown) => api.post("/sale-orders", data).then(r => r.data);
 // Quotes and draft orders only
 export const updateSaleOrder  = ({ id, data }: { id: number; data: unknown }) => api.put(`/sale-orders/${id}`, data).then(r => r.data);
+// Credit note & restock for a sales invoice
+export const createCreditNote = ({ id, data }: { id: number; data: unknown }) => api.post(`/invoices/${id}/credit-notes`, data).then(r => r.data);
+// Invoice (part of) an order; no lines = everything not invoiced yet
+export const invoiceSaleOrder = ({ id, data }: { id: number; data: unknown }) => api.post(`/sale-orders/${id}/invoices`, data).then(r => r.data);
 export const convertQuote     = (id: number) => api.post(`/sale-orders/${id}/convert`).then(r => r.data);
 export const rejectQuote      = (id: number) => api.post(`/sale-orders/${id}/reject`).then(r => r.data);
 export const confirmSaleOrder = (id: number) => api.post(`/sale-orders/${id}/confirm`).then(r => r.data);

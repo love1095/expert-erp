@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { Invoice, InvoiceStatus, InvoiceType, PaymentMethod, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
 import Pagination from "@/components/Pagination";
+import CreditNoteForm from "./credit-note-form";
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
@@ -52,6 +53,8 @@ export default function InvoicesPage() {
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("CASH");
   const [payError, setPayError]   = useState("");
+  const [crediting, setCrediting] = useState(false);
+  const isCreditNote = selected?.kind === "CREDIT_NOTE";
 
   // ── queries ────────────────────────────────────────────────────────────────
 
@@ -343,9 +346,12 @@ export default function InvoicesPage() {
                   )}
                   {invoiceList.map(inv => (
                     <tr key={inv.id}
-                      onClick={() => setSelected(inv)}
+                      onClick={() => { setSelected(inv); setCrediting(false); }}
                       className={`hover:bg-gray-50 cursor-pointer ${selected?.id === inv.id ? "bg-indigo-50" : ""}`}>
-                      <td className="px-4 py-3 font-mono text-xs text-indigo-600 font-semibold">{inv.invoiceNumber}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-indigo-600 font-semibold">
+                        {inv.invoiceNumber}
+                        {inv.kind === "CREDIT_NOTE" && <span className="block font-sans text-[10px] font-semibold text-rose-600">Credit note</span>}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
                           inv.type === "SALES" ? "bg-sky-100 text-sky-700" : "bg-purple-100 text-purple-700"
@@ -371,7 +377,7 @@ export default function InvoicesPage() {
                           <button onClick={e => { e.stopPropagation(); issueMut.mutate(inv.id); }}
                             className="text-xs text-blue-600 hover:text-blue-800 font-medium">Issue</button>
                         )}
-                        {(inv.status === "DRAFT" || inv.status === "ISSUED") && (
+                        {(inv.status === "DRAFT" || inv.status === "ISSUED") && inv.kind !== "CREDIT_NOTE" && (
                           <button onClick={e => { e.stopPropagation(); cancelMut.mutate(inv.id); }}
                             className="text-xs text-gray-400 hover:text-red-500 font-medium">Cancel</button>
                         )}
@@ -393,6 +399,9 @@ export default function InvoicesPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-mono text-sm font-bold text-indigo-600">{selected.invoiceNumber}</p>
+                {isCreditNote && (
+                  <p className="text-xs font-semibold text-rose-600">Credit note for {selected.creditedInvoiceNumber}</p>
+                )}
                 <p className="text-xs text-gray-500 mt-0.5">{selected.partyName}</p>
               </div>
               <button onClick={() => setSelected(null)} className="text-gray-300 hover:text-gray-500 text-lg leading-none">×</button>
@@ -400,6 +409,14 @@ export default function InvoicesPage() {
 
             {/* amounts */}
             <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Before tax</span>
+                <span className="tabular-nums">{Number(selected.subtotal).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">VAT</span>
+                <span className="tabular-nums">{Number(selected.taxTotal).toFixed(2)}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Total</span>
                 <span className="font-semibold">{selected.currency} {selected.totalAmount.toFixed(2)}</span>
@@ -422,10 +439,12 @@ export default function InvoicesPage() {
               <div className="space-y-1">
                 {selected.items.map(item => (
                   <div key={item.id} className="flex justify-between text-xs">
-                    <span className="text-gray-600 truncate max-w-[160px]">
-                      {item.productName ?? item.description ?? "—"}
+                    <span className="text-gray-600 truncate max-w-[160px]" title={item.taxName ?? undefined}>
+                      {Number(item.quantity).toLocaleString()} × {item.productSku ?? item.description ?? "—"}
                     </span>
-                    <span className="text-gray-700 tabular-nums">{item.totalPrice.toFixed(2)}</span>
+                    <span className="text-gray-700 tabular-nums">
+                      {item.totalPrice.toFixed(2)}{Number(item.taxAmount) > 0 && <span className="text-gray-400"> +{Number(item.taxAmount).toFixed(2)} VAT</span>}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -434,11 +453,14 @@ export default function InvoicesPage() {
             {/* payments history */}
             {selected.payments.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payments</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{isCreditNote ? "Refunds" : "Payments"}</p>
                 <div className="space-y-1">
                   {selected.payments.map(p => (
                     <div key={p.id} className="flex justify-between text-xs">
-                      <span className="text-gray-500">{p.method} · {new Date(p.paidAt).toLocaleDateString()}</span>
+                      <span className="text-gray-500">
+                        {p.method === "CREDIT_NOTE" ? `Credit note ${p.reference ?? ""}` : p.method} · {new Date(p.paidAt).toLocaleDateString()}
+                        {p.reference && p.method !== "CREDIT_NOTE" && ` · ${p.reference}`}
+                      </span>
                       <span className="text-emerald-600 font-semibold">{p.amount.toFixed(2)}</span>
                     </div>
                   ))}
@@ -446,10 +468,28 @@ export default function InvoicesPage() {
               </div>
             )}
 
-            {/* record payment */}
-            {selected.status === "ISSUED" && (
+            {/* credit note & restock */}
+            {crediting && (
+              <CreditNoteForm invoice={selected} onCancel={() => setCrediting(false)}
+                onDone={cn => {
+                  setCrediting(false);
+                  setSelected(cn);
+                  qc.invalidateQueries({ queryKey: ["invoices"] });
+                  qc.invalidateQueries({ queryKey: ["sale-order"] });
+                  qc.invalidateQueries({ queryKey: ["stock-overview"] });
+                }} />
+            )}
+            {!crediting && !isCreditNote && selected.type === "SALES" && (selected.status === "ISSUED" || selected.status === "PAID") && (
+              <button onClick={() => setCrediting(true)}
+                className="w-full border border-rose-300 text-rose-700 py-1.5 rounded-lg text-xs font-medium hover:bg-rose-50">
+                Credit note & restock
+              </button>
+            )}
+
+            {/* record payment (a refund, on a credit note) */}
+            {selected.status === "ISSUED" && !crediting && (
               <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Record Payment</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{isCreditNote ? "Record refund" : "Record Payment"}</p>
                 {payError && <p className="text-xs text-red-500 mb-2">{payError}</p>}
                 <div className="space-y-2">
                   <input type="number" step="0.01" min="0.01" value={payAmount}
@@ -463,7 +503,7 @@ export default function InvoicesPage() {
                     disabled={!payAmount || payMut.isPending}
                     onClick={() => payMut.mutate({ id: selected.id, amount: payAmount, method: payMethod })}
                     className="w-full bg-emerald-600 text-white py-1.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
-                    {payMut.isPending ? "Saving…" : "Record Payment"}
+                    {payMut.isPending ? "Saving…" : isCreditNote ? "Record refund" : "Record Payment"}
                   </button>
                 </div>
               </div>
@@ -478,7 +518,7 @@ export default function InvoicesPage() {
                   Issue Invoice
                 </button>
               )}
-              {(selected.status === "DRAFT" || selected.status === "ISSUED") && (
+              {(selected.status === "DRAFT" || selected.status === "ISSUED") && !isCreditNote && (
                 <button onClick={() => cancelMut.mutate(selected.id)}
                   disabled={cancelMut.isPending}
                   className="flex-1 border border-gray-300 text-gray-600 py-1.5 rounded-lg text-xs font-medium hover:border-red-400 hover:text-red-600 disabled:opacity-50">

@@ -36,5 +36,14 @@ public class Payment {
     @Column(nullable = false)
     private LocalDateTime paidAt = LocalDateTime.now();
 
-    public enum PaymentMethod { CASH, BANK, STRIPE }
+    // An invoice paid with a credit note: the credit note it came from
+    @Column
+    private Long creditNoteId;
+
+    // e.g. the bank transaction reference
+    @Column(length = 100)
+    private String reference;
+
+    // CREDIT_NOTE = paid with a credit note; a payment recorded on a credit note is a refund
+    public enum PaymentMethod { CASH, BANK, STRIPE, CREDIT_NOTE }
 }

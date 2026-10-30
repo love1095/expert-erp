@@ -49,7 +49,7 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* a quote converts into a draft or confirmed order with the same lines and prices, and expired quotes can't be converted without being renewed.
 
-### D4 — Invoices and credit notes from the order
+### D4 — Invoices and credit notes from the order ✅
 - Create an **invoice from the order** (all or part of the lines, VAT carried over), numbered per organisation; the order shows *invoiced / to invoice* like Cin7.
 - **Credit note & restock** from an invoice: return reasons, restock or write off (reuses the returns), refund or credit to account.
 - Payments as today, on invoices and credit notes.

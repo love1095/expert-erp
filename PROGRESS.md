@@ -298,8 +298,27 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Frontend: "Create quote" next to "Create sale order", valid-until date; panel shows valid until / Expired, Convert to order, Reject quote, Edit (the same form, prefilled); list filter by stage (quotes, drafts, confirmed, completed, cancelled, rejected) and an Expired badge; dashboard **Quotes** count; quote validity in Settings
 - [x] Tests: `QuoteTest` (4) — no reservation / not a sale until converted, revise keeps the number, expired and renewed, rejected, draft edits, Shopify drafts not editable, list filter (100 backend tests); E2E SO-012, SO-013 (67 cases)
 
+### D4a Invoices from orders ✅
+- [x] Cin7 checked first: an invoice is made from the order (SO-66003's INV-118553 = the 11 units of fulfilment #1, £507.00 of £622.62, "115.62 to invoice"), carries the order's VAT, a due date from the terms and payments — and Cin7 is synced with **Xero** ("View in Xero")
+- [x] `POST /sale-orders/{id}/invoices` (`V14`): invoice the given quantities of a confirmed / completed order, or everything not invoiced yet; the order's charges not invoiced yet go on it too; prices, discounts and **VAT copied from the order lines**; draft or issued straight away
+- [x] Invoices store net / VAT / total, customer, the order line or charge each item bills; GBP
+- [x] **Due date from the terms**, as in Cin7: "30 Day EOM" = 30 days after the end of the invoice month, "60 Day" = 60 days after the invoice date, "Cash" = the invoice date (`PaymentTerms`; the terms used by Expert Safety's customers: 30 Day EOM ×744, Cash ×87, 60 Day EOM ×50, 60 Day ×4)
+- [x] Orders track **invoiced quantity** per line and invoiced charges; asking for more than is left is refused; **cancelling an invoice puts its quantities and charges back** to "to invoice"; the order shows **to invoice / invoiced** (VAT included) and its invoices
+- [x] **Invoice on shipment** (Settings → Organisation, off by default): every shipment creates and issues an invoice for what it shipped and is not invoiced yet, linked to the shipment
+- [x] **Invoice numbers** from a per-organisation sequence with a settable prefix and next number (to continue Cin7's INV- series at cutover); numbers in use skipped; replaces the old INV-0001 counter
+- [x] Frontend: order panel **Create invoice** (quantity per line pre-filled with what is left, include charges, *Create & issue* / *Create draft invoice*) and an Invoices section; Invoices page shows before tax / VAT / total and VAT per item; invoice settings
+- [x] Tests: `InvoiceFromOrderTest` (3) — part invoices, VAT, due date, over-invoicing refused, cancel gives quantities back, only confirmed orders, invoicing on shipment with numbering; `PaymentTermsTest` (104 backend tests); E2E INV-001, INV-002 (69 cases)
+
+### D4b Credit notes & restock, refunds ✅
+- [x] As in Cin7 (CR-00231): `POST /invoices/{id}/credit-notes` (`V15`) credits part of an issued / paid sales invoice — quantities per item and/or extra amounts such as a **shipping refund** — with a reason
+- [x] **Restock** per line, back into the order's warehouse (or a chosen one); only goods that were shipped can be restocked; never more than invoiced and not credited yet
+- [x] **Settled** by paying off what is still due on the invoice (default), a **refund** (cash / bank / card, with its reference) or **kept as customer credit**, which lowers what the customer owes until refunded
+- [x] Credit notes have their own number series (`CR-`, settable next number) and cannot be cancelled; an invoice with credit notes cannot be cancelled either
+- [x] Frontend: Invoices panel **Credit note & restock** form (quantities, restock, shipping refund, settlement)
+- [x] Tests: `CreditNoteTest` (5) (109 backend tests); E2E INV-003 (70 cases)
+
 ### Next
-- [ ] D4 invoices (by hand and automatic on shipment) and credit notes · D5 PDFs
+- [ ] D5 PDFs
 
 ---
 
@@ -423,6 +442,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/webhooks/shopify` | Shopify webhooks (public; HMAC-signed) |
 | POST | `/sale-orders/{id}/fulfilments/{fid}/shopify-sync` | Send a shipment of a Shopify order to Shopify again |
 | GET  | `/dashboard` | Dashboard figures for `from`–`to`, or the last `days` days (default 30) |
+| POST | `/sale-orders/{id}/invoices` | Invoice (part of) an order: quantities per line, or everything not invoiced yet |
 | PUT  | `/sale-orders/{id}` | Change a quote or draft order (not Shopify ones) |
 | POST | `/sale-orders/{id}/convert` · `/reject` | Quote → draft order · quote rejected |
 | POST | `/sale-orders/preview` | The order as it would be created (defaults, VAT, totals); nothing saved |

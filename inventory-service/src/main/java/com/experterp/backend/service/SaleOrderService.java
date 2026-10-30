@@ -61,6 +61,7 @@ public class SaleOrderService {
     private final TaxService taxService;
     private final OrganisationSettingsService settingsService;
     private final AllocationService allocationService;
+    private final InvoiceService invoiceService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
     private static final Set<String> TAX_OVERRIDE_ROLES = Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SUPER_ADMIN");
@@ -295,6 +296,13 @@ public class SaleOrderService {
                 "fulfilmentId", f.getId(),
                 "lines", describe(toShip),
                 "fulfilmentStatus", so.getFulfilmentStatus()));
+
+        // Organisation setting: each shipment is invoiced (what it shipped and is not invoiced yet, plus open charges)
+        if (settingsService.autoInvoiceOnShipment()) {
+            Map<Long, BigDecimal> shipped = new HashMap<>();
+            toShip.forEach(s -> shipped.merge(s.line().getId(), s.qty().min(s.line().getToInvoiceQuantity()), BigDecimal::add));
+            invoiceService.invoiceFor(so, shipped, true, true, f.getId(), "Invoiced on shipment #" + f.getId());
+        }
         if (f.getExternalSyncStatus() != null) {
             eventPublisher.publishEvent(new FulfilmentCreatedEvent(TenantContext.get(), so.getId(), f.getId()));
         }
@@ -606,6 +614,21 @@ public class SaleOrderService {
                     .map(fl -> entryLine(fl.getSaleOrderLine(), fl.getQuantity(), null)).toList());
             return e;
         }).toList());
+        r.setInvoices(invoiceService.forOrder(so.getId()).stream().map(inv -> {
+            SaleOrderResponse.InvoiceEntry e = new SaleOrderResponse.InvoiceEntry();
+            e.setId(inv.getId());
+            e.setInvoiceNumber(inv.getInvoiceNumber());
+            e.setStatus(inv.getStatus());
+            e.setIssueDate(inv.getIssueDate());
+            e.setDueDate(inv.getDueDate());
+            e.setTotal(inv.getTotalAmount());
+            e.setAmountPaid(inv.getAmountPaid());
+            e.setFulfilmentId(inv.getFulfilmentId());
+            e.setKind(inv.getKind());
+            return e;
+        }).toList());
+        r.setInvoicedTotal(total(r.getInvoices(), Invoice.Kind.INVOICE));
+        r.setCreditedTotal(total(r.getInvoices(), Invoice.Kind.CREDIT_NOTE));
         r.setReturns(returnRepository.findBySaleOrderIdOrderByCreatedAtAsc(so.getId()).stream().map(ret -> {
             SaleOrderResponse.ReturnEntry e = new SaleOrderResponse.ReturnEntry();
             e.setId(ret.getId());
@@ -619,6 +642,11 @@ public class SaleOrderService {
             return e;
         }).toList());
         return r;
+    }
+
+    private static BigDecimal total(List<SaleOrderResponse.InvoiceEntry> invoices, Invoice.Kind kind) {
+        return invoices.stream().filter(e -> e.getKind() == kind && e.getStatus() != Invoice.InvoiceStatus.CANCELLED)
+                .map(SaleOrderResponse.InvoiceEntry::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private SaleOrderResponse.EntryLine entryLine(SaleOrderLine line, BigDecimal qty, Boolean restock) {
@@ -665,6 +693,8 @@ public class SaleOrderService {
         r.setCancelledAt(so.getCancelledAt());
 
         BigDecimal[] totals = {BigDecimal.ZERO, BigDecimal.ZERO};
+        // Gross (VAT included) not on an invoice yet
+        BigDecimal[] toInvoice = {BigDecimal.ZERO};
         r.setLines(so.getLines().stream().map(l -> {
             SaleOrderResponse.Line lr = new SaleOrderResponse.Line();
             lr.setId(l.getId());
@@ -689,6 +719,10 @@ public class SaleOrderService {
             lr.setTaxAmount(tax);
             lr.setTotalAmount(net.add(tax));
             lr.setMarginPercent(SaleAmounts.marginPercent(net, qty, l.getProduct().getCostPrice()));
+            lr.setInvoicedQuantity(l.getInvoicedQuantity());
+            lr.setToInvoiceQuantity(l.getToInvoiceQuantity());
+            BigDecimal openNet = SaleAmounts.net(l.getToInvoiceQuantity(), l.getUnitPrice(), l.getDiscountPercent());
+            toInvoice[0] = toInvoice[0].add(openNet).add(SaleAmounts.tax(openNet, l.getTaxRate()));
             AllocationService.LineAllocation a = l.getId() == null ? null : allocations.get(l.getId());
             if (a != null) {
                 lr.setAllocatedQuantity(a.allocated());
@@ -714,6 +748,8 @@ public class SaleOrderService {
             cr.setNetAmount(net);
             cr.setTaxAmount(tax);
             cr.setTotalAmount(net.add(tax));
+            cr.setInvoiced(c.isInvoiced());
+            if (!c.isInvoiced()) toInvoice[0] = toInvoice[0].add(net).add(tax);
             totals[0] = totals[0].add(net);
             totals[1] = totals[1].add(tax);
             return cr;
@@ -721,6 +757,7 @@ public class SaleOrderService {
         r.setSubtotal(totals[0]);
         r.setTaxTotal(totals[1]);
         r.setTotal(totals[0].add(totals[1]));
+        r.setToInvoiceTotal(toInvoice[0]);
         return r;
     }
 }

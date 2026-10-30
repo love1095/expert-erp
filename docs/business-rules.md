@@ -69,7 +69,7 @@ Each rule says what was decided, then how it is built. Country: **UK**, currency
 
 ## 6. Accounting — designed for any package
 
-**Decided:** the package is not chosen yet; design so that **Xero, QuickBooks Online and Sage** can all be connected, and a file export works before any of them.
+**Decided:** the package is not chosen yet; design so that **Xero, QuickBooks Online and Sage** can all be connected, and a file export works before any of them. (Seen 2026-10-30: the live Cin7 account is synced with **Xero** — invoices show "View in Xero" — so Xero is the likely first adapter.)
 
 **Built as**
 - The ERP keeps its own sales and purchase ledgers (invoices, credit notes, bills, supplier credits, payments, COGS / stock journals) and is never the general ledger.

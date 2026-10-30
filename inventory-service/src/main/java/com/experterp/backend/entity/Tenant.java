@@ -50,4 +50,21 @@ public class Tenant {
     // Default validity of a new quote, in days
     @Column(nullable = false)
     private int quoteValidDays = 30;
+
+    @Column(nullable = false, length = 10)
+    private String invoicePrefix = "INV-";
+
+    // The number the next invoice gets (continues Cin7's series after cutover)
+    @Column(nullable = false)
+    private long nextInvoiceNumber = 1;
+
+    // Every shipment creates and issues an invoice for what it shipped
+    @Column(nullable = false)
+    private boolean autoInvoiceOnShipment;
+
+    @Column(nullable = false, length = 10)
+    private String creditNotePrefix = "CR-";
+
+    @Column(nullable = false)
+    private long nextCreditNoteNumber = 1;
 }

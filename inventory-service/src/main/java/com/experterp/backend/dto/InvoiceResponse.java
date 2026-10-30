@@ -21,7 +21,18 @@ public class InvoiceResponse {
     private Invoice.InvoiceStatus status;
     private LocalDate issueDate;
     private LocalDate dueDate;
+    // To pay, VAT included = subtotal + taxTotal
     private BigDecimal totalAmount;
+    private BigDecimal subtotal;
+    private BigDecimal taxTotal;
+    private Long customerId;
+    // Made for this shipment (invoiced on shipment)
+    private Long fulfilmentId;
+    private Invoice.Kind kind;
+    // Credit notes: the invoice credited, and how much of the credit paid off invoices (amountPaid includes it)
+    private Long creditedInvoiceId;
+    private String creditedInvoiceNumber;
+    private BigDecimal creditApplied;
     private BigDecimal amountPaid;
     private String currency;
     private String notes;
@@ -38,7 +49,16 @@ public class InvoiceResponse {
         private String description;
         private BigDecimal quantity;
         private BigDecimal unitPrice;
+        // Net amount; VAT copied from the order line
         private BigDecimal totalPrice;
+        private BigDecimal discountPercent;
+        private String taxName;
+        private BigDecimal taxRate;
+        private BigDecimal taxAmount;
+        private Long saleOrderLineId;
+        private Long saleOrderChargeId;
+        // Invoice items: quantity already on credit notes
+        private BigDecimal creditedQuantity;
     }
 
     @Data
@@ -47,5 +67,8 @@ public class InvoiceResponse {
         private BigDecimal amount;
         private Payment.PaymentMethod method;
         private LocalDateTime paidAt;
+        private String reference;
+        // Paid with this credit note
+        private Long creditNoteId;
     }
 }

@@ -1,9 +1,11 @@
 package com.experterp.backend.controller;
 
+import com.experterp.backend.dto.CreditNoteRequest;
 import com.experterp.backend.dto.InvoiceRequest;
 import com.experterp.backend.dto.InvoiceResponse;
 import com.experterp.backend.dto.PaymentRequest;
 import com.experterp.backend.entity.Invoice;
+import com.experterp.backend.service.CreditNoteService;
 import com.experterp.backend.service.InvoiceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
+    private final CreditNoteService creditNoteService;
 
     @GetMapping
     public Page<InvoiceResponse> findAll(
@@ -46,6 +49,12 @@ public class InvoiceController {
     @PostMapping("/{id}/cancel")
     public InvoiceResponse cancel(@PathVariable Long id) {
         return invoiceService.cancel(id);
+    }
+
+    // Credit note & restock for a sales invoice; settled by a refund, paying off the invoice, or kept as credit
+    @PostMapping("/{id}/credit-notes")
+    public ResponseEntity<InvoiceResponse> creditNote(@PathVariable Long id, @Valid @RequestBody CreditNoteRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(creditNoteService.create(id, req));
     }
 
     @PostMapping("/{id}/pay")

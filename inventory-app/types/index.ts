@@ -289,6 +289,20 @@ export interface SaleOrderLine extends OrderLine {
   // Reserving orders only: what the stock on hand covers (first confirmed, first served) and what is short
   allocatedQuantity?: number;
   backorderedQuantity?: number;
+  invoicedQuantity: number;
+  toInvoiceQuantity: number;
+}
+
+export interface SaleOrderInvoice {
+  id: number;
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  issueDate?: string;
+  dueDate?: string;
+  total: number;
+  amountPaid: number;
+  fulfilmentId?: number;
+  kind: "INVOICE" | "CREDIT_NOTE";
 }
 
 // Carriage, delivery... (no product, no stock)
@@ -304,6 +318,7 @@ export interface SaleOrderCharge {
   netAmount: number;
   taxAmount: number;
   totalAmount: number;
+  invoiced: boolean;
 }
 
 export interface TaxRate { id: number; name: string; rate: number; usage: "SALE" | "PURCHASE"; active: boolean }
@@ -315,6 +330,12 @@ export interface OrganisationSettings {
   defaultSaleTaxRule: string;
   // Default validity of a new quote, in days
   quoteValidDays: number;
+  invoicePrefix: string;
+  nextInvoiceNumber: number;
+  // Every shipment creates and issues an invoice for what it shipped
+  autoInvoiceOnShipment: boolean;
+  creditNotePrefix: string;
+  nextCreditNoteNumber: number;
 }
 
 export interface SaleOrderEntryLine {
@@ -370,6 +391,11 @@ export interface SaleOrder {
   orderedAt?: string;
   quoteValidUntil?: string;
   quoteExpired: boolean;
+  // VAT included; detail responses only
+  toInvoiceTotal?: number;
+  invoicedTotal?: number;
+  creditedTotal?: number;
+  invoices?: SaleOrderInvoice[];
   source: "MANUAL" | "SHOPIFY";
   // Shopify order number, e.g. #1001
   externalReference?: string;
@@ -411,7 +437,8 @@ export interface SaleReturnRequest {
 
 export type InvoiceType   = "SALES" | "PURCHASE";
 export type InvoiceStatus = "DRAFT" | "ISSUED" | "PAID" | "CANCELLED";
-export type PaymentMethod = "CASH" | "BANK" | "STRIPE";
+// CREDIT_NOTE = an invoice paid with a credit note; a payment on a credit note is a refund
+export type PaymentMethod = "CASH" | "BANK" | "STRIPE" | "CREDIT_NOTE";
 
 export interface InvoiceItem {
   id: number;
@@ -421,7 +448,15 @@ export interface InvoiceItem {
   description?: string;
   quantity: number;
   unitPrice: number;
+  // Net; VAT copied from the order line
   totalPrice: number;
+  discountPercent: number;
+  taxName?: string;
+  taxRate: number;
+  taxAmount: number;
+  saleOrderLineId?: number;
+  // Invoice items: quantity already on credit notes
+  creditedQuantity: number;
 }
 
 export interface InvoicePayment {
@@ -429,6 +464,8 @@ export interface InvoicePayment {
   amount: number;
   method: PaymentMethod;
   paidAt: string;
+  reference?: string;
+  creditNoteId?: number;
 }
 
 export interface Invoice {
@@ -441,7 +478,18 @@ export interface Invoice {
   status: InvoiceStatus;
   issueDate?: string;
   dueDate?: string;
+  // To pay, VAT included = subtotal + taxTotal
   totalAmount: number;
+  subtotal: number;
+  taxTotal: number;
+  customerId?: number;
+  // Made for this shipment (invoiced on shipment)
+  fulfilmentId?: number;
+  kind: "INVOICE" | "CREDIT_NOTE";
+  // Credit notes: the invoice credited, and how much of the credit paid off invoices (in amountPaid too)
+  creditedInvoiceId?: number;
+  creditedInvoiceNumber?: string;
+  creditApplied?: number;
   amountPaid: number;
   currency: string;
   notes?: string;

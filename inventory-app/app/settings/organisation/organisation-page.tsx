@@ -69,6 +69,33 @@ export default function OrganisationPage() {
           <input id="org-quote-days" type="number" min="1" max="365" value={form.quoteValidDays} disabled={!isAdmin}
             onChange={e => setForm({ ...form, quoteValidDays: Number(e.target.value) })} className={INPUT} />
         </div>
+        <div>
+          <label htmlFor="org-invoice-prefix" className={LABEL}>Invoice prefix</label>
+          <input id="org-invoice-prefix" value={form.invoicePrefix} disabled={!isAdmin} maxLength={10}
+            onChange={e => setForm({ ...form, invoicePrefix: e.target.value })} className={INPUT} />
+        </div>
+        <div>
+          <label htmlFor="org-next-invoice" className={LABEL}>Next invoice number</label>
+          <input id="org-next-invoice" type="number" min="1" value={form.nextInvoiceNumber} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, nextInvoiceNumber: Number(e.target.value) })} className={INPUT} />
+          <p className="text-[11px] text-gray-400 mt-1">Next invoice: <b>{form.invoicePrefix}{form.nextInvoiceNumber}</b> (Cin7&apos;s series carries on the same way).</p>
+        </div>
+        <div>
+          <label htmlFor="org-cn-prefix" className={LABEL}>Credit note prefix</label>
+          <input id="org-cn-prefix" value={form.creditNotePrefix} disabled={!isAdmin} maxLength={10}
+            onChange={e => setForm({ ...form, creditNotePrefix: e.target.value })} className={INPUT} />
+        </div>
+        <div>
+          <label htmlFor="org-next-cn" className={LABEL}>Next credit note number</label>
+          <input id="org-next-cn" type="number" min="1" value={form.nextCreditNoteNumber} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, nextCreditNoteNumber: Number(e.target.value) })} className={INPUT} />
+          <p className="text-[11px] text-gray-400 mt-1">Next credit note: <b>{form.creditNotePrefix}{String(form.nextCreditNoteNumber).padStart(5, "0")}</b></p>
+        </div>
+        <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={form.autoInvoiceOnShipment} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, autoInvoiceOnShipment: e.target.checked })} />
+          Invoice every shipment automatically (what it shipped and is not invoiced yet, issued straight away)
+        </label>
         <div className="col-span-2 flex items-center gap-3">
           {isAdmin ? (
             <button type="submit" disabled={save.isPending}

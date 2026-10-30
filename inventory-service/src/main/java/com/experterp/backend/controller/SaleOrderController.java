@@ -1,9 +1,12 @@
 package com.experterp.backend.controller;
 
 import com.experterp.backend.dto.FulfilmentRequest;
+import com.experterp.backend.dto.InvoiceResponse;
+import com.experterp.backend.dto.OrderInvoiceRequest;
 import com.experterp.backend.dto.SaleOrderRequest;
 import com.experterp.backend.dto.SaleOrderResponse;
 import com.experterp.backend.dto.SaleReturnRequest;
+import com.experterp.backend.service.InvoiceService;
 import com.experterp.backend.service.SaleOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class SaleOrderController {
 
     private final SaleOrderService saleOrderService;
+    private final InvoiceService invoiceService;
 
     @GetMapping
     public Page<SaleOrderResponse> findAll(
@@ -33,6 +37,12 @@ public class SaleOrderController {
     @PutMapping("/{id}")
     public SaleOrderResponse update(@PathVariable Long id, @Valid @RequestBody SaleOrderRequest req) {
         return saleOrderService.update(id, req);
+    }
+
+    // Invoice for (part of) the order: the given quantities, or everything not invoiced yet
+    @PostMapping("/{id}/invoices")
+    public ResponseEntity<InvoiceResponse> invoice(@PathVariable Long id, @Valid @RequestBody(required = false) OrderInvoiceRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(invoiceService.invoiceOrder(id, req != null ? req : new OrderInvoiceRequest()));
     }
 
     @PostMapping("/{id}/convert")

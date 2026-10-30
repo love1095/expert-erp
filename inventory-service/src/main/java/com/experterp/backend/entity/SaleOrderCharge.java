@@ -43,4 +43,8 @@ public class SaleOrderCharge {
 
     @Column(nullable = false)
     private boolean taxOverridden;
+
+    // On an invoice that is not cancelled (a charge is invoiced once, in full)
+    @Column(nullable = false)
+    private boolean invoiced;
 }

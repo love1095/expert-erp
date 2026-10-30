@@ -51,8 +51,30 @@ public class Invoice {
     @Column
     private LocalDate dueDate;
 
+    // Amount to pay, VAT included = subtotal (net) + taxTotal
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal subtotal = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal taxTotal = BigDecimal.ZERO;
+
+    @Column
+    private Long customerId;
+
+    // The shipment it was made for, when invoiced on shipment
+    @Column
+    private Long fulfilmentId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 15)
+    private Kind kind = Kind.INVOICE;
+
+    // Credit notes: the invoice they credit
+    @Column
+    private Long creditedInvoiceId;
 
     @Column(nullable = false)
     private String currency = "USD";
@@ -64,11 +86,14 @@ public class Invoice {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id")
     private List<InvoiceItem> items = new ArrayList<>();
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id")
     private List<Payment> payments = new ArrayList<>();
 
     public enum InvoiceType   { SALES, PURCHASE }
+    public enum Kind          { INVOICE, CREDIT_NOTE }
     public enum InvoiceStatus { DRAFT, ISSUED, PAID, CANCELLED }
 }

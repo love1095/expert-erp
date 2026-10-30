@@ -1,6 +1,7 @@
 package com.experterp.backend.service;
 
 import com.experterp.backend.dto.InvoiceRequest;
+import com.experterp.backend.dto.OrderInvoiceRequest;
 import com.experterp.backend.dto.InvoiceResponse;
 import com.experterp.backend.dto.PaymentRequest;
 import com.experterp.backend.entity.*;
@@ -17,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,11 +26,13 @@ import java.util.stream.Collectors;
 public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
-    private final InvoiceSequenceRepository sequenceRepository;
+    private final SaleOrderRepository saleOrderRepository;
+    private final OrganisationSettingsService settingsService;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
     private final AuditService auditService;
 
+    @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(int page, int size, Invoice.InvoiceType type) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         if (type != null) {
@@ -38,6 +41,7 @@ public class InvoiceService {
         return invoiceRepository.findAll(pageable).map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public InvoiceResponse findById(Long id) {
         return toResponse(getInvoice(id));
     }
@@ -51,9 +55,9 @@ public class InvoiceService {
         invoice.setPurchaseOrderId(req.getPurchaseOrderId());
         invoice.setIssueDate(req.getIssueDate());
         invoice.setDueDate(req.getDueDate());
-        invoice.setCurrency(req.getCurrency() != null ? req.getCurrency() : "USD");
+        invoice.setCurrency(req.getCurrency() != null ? req.getCurrency() : "GBP");
         invoice.setNotes(req.getNotes());
-        invoice.setInvoiceNumber(nextInvoiceNumber());
+        invoice.setInvoiceNumber(settingsService.nextInvoiceNumber());
 
         BigDecimal total = BigDecimal.ZERO;
         for (InvoiceRequest.ItemRequest ir : req.getItems()) {
@@ -72,6 +76,8 @@ public class InvoiceService {
             total = total.add(lineTotal);
             invoice.getItems().add(item);
         }
+        // Entered by hand: no VAT recorded
+        invoice.setSubtotal(total);
         invoice.setTotalAmount(total);
 
         Invoice saved = invoiceRepository.save(invoice);
@@ -93,11 +99,146 @@ public class InvoiceService {
         return toResponse(saved);
     }
 
+    /**
+     * Invoice made from a sale order: the given quantities (or everything not invoiced yet) of its lines, plus its
+     * charges not invoiced yet. Prices, discounts and VAT are those of the order; due date from the order's terms.
+     */
+    @Transactional
+    public InvoiceResponse invoiceOrder(Long orderId, OrderInvoiceRequest req) {
+        SaleOrder so = saleOrderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sale order not found: " + orderId));
+        Map<Long, BigDecimal> quantities = null;
+        if (req.getLines() != null && !req.getLines().isEmpty()) {
+            quantities = new HashMap<>();
+            for (OrderInvoiceRequest.Line l : req.getLines()) {
+                if (quantities.put(l.getSaleOrderLineId(), l.getQuantity()) != null) {
+                    throw new IllegalArgumentException("Line " + l.getSaleOrderLineId() + " appears more than once");
+                }
+            }
+        }
+        Invoice inv = invoiceFor(so, quantities, req.isIncludeCharges(), req.isIssue(), null, req.getNotes());
+        if (inv == null) throw new IllegalStateException("Nothing left to invoice on " + so.getOrderNumber());
+        return toResponse(inv);
+    }
+
+    /**
+     * Shared by invoices made by hand and on shipment. {@code quantities}: per order line id, null = everything not
+     * invoiced yet; asking for more than that is refused. Returns null when there is nothing to invoice.
+     * The order must be locked by the caller's transaction.
+     */
+    @Transactional
+    public Invoice invoiceFor(SaleOrder so, Map<Long, BigDecimal> quantities, boolean includeCharges, boolean issue,
+                              Long fulfilmentId, String notes) {
+        if (so.getStatus() != SaleOrder.Status.CONFIRMED && so.getStatus() != SaleOrder.Status.COMPLETED) {
+            throw new IllegalStateException("Only confirmed or completed orders can be invoiced (" + so.getOrderNumber() + " is " + so.getStatus() + ")");
+        }
+        Invoice inv = new Invoice();
+        inv.setType(Invoice.InvoiceType.SALES);
+        inv.setPartyName(so.getCustomerName());
+        inv.setCustomerId(so.getCustomer() != null ? so.getCustomer().getId() : null);
+        inv.setSaleOrderId(so.getId());
+        inv.setFulfilmentId(fulfilmentId);
+        inv.setCurrency("GBP");
+        inv.setNotes(notes);
+
+        Set<Long> known = new HashSet<>();
+        BigDecimal net = BigDecimal.ZERO, tax = BigDecimal.ZERO;
+        for (SaleOrderLine line : so.getLines()) {
+            known.add(line.getId());
+            BigDecimal qty = quantities == null ? line.getToInvoiceQuantity() : quantities.getOrDefault(line.getId(), BigDecimal.ZERO);
+            if (qty.signum() <= 0) continue;
+            if (qty.compareTo(line.getToInvoiceQuantity()) > 0) {
+                throw new IllegalStateException(String.format("Cannot invoice %s of %s: only %s not invoiced yet",
+                        qty.stripTrailingZeros().toPlainString(), line.getProduct().getSku(),
+                        line.getToInvoiceQuantity().stripTrailingZeros().toPlainString()));
+            }
+            InvoiceItem item = item(inv, qty, line.getUnitPrice(), line.getDiscountPercent(), line.getTaxName(), line.getTaxRate());
+            item.setProduct(line.getProduct());
+            item.setDescription(line.getProduct().getSku() + ": " + line.getProduct().getName());
+            item.setSaleOrderLineId(line.getId());
+            line.setInvoicedQuantity(line.getInvoicedQuantity().add(qty));
+            net = net.add(item.getTotalPrice());
+            tax = tax.add(item.getTaxAmount());
+        }
+        if (quantities != null) {
+            quantities.keySet().stream().filter(id -> !known.contains(id)).findFirst().ifPresent(id -> {
+                throw new ResourceNotFoundException("Line " + id + " does not belong to " + so.getOrderNumber());
+            });
+        }
+        if (includeCharges) {
+            for (SaleOrderCharge c : so.getCharges()) {
+                if (c.isInvoiced()) continue;
+                InvoiceItem item = item(inv, c.getQuantity(), c.getUnitPrice(), c.getDiscountPercent(), c.getTaxName(), c.getTaxRate());
+                item.setDescription(c.getDescription());
+                item.setSaleOrderChargeId(c.getId());
+                c.setInvoiced(true);
+                net = net.add(item.getTotalPrice());
+                tax = tax.add(item.getTaxAmount());
+            }
+        }
+        if (inv.getItems().isEmpty()) return null;
+
+        inv.setSubtotal(net);
+        inv.setTaxTotal(tax);
+        inv.setTotalAmount(net.add(tax));
+        inv.setInvoiceNumber(settingsService.nextInvoiceNumber());
+        LocalDate today = LocalDate.now();
+        inv.setIssueDate(today);
+        inv.setDueDate(PaymentTerms.dueDate(so.getPaymentTerm(), today));
+        if (issue) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
+        Invoice saved = invoiceRepository.save(inv);
+        Map<String, Object> audit = new HashMap<>(Map.of("invoiceNumber", saved.getInvoiceNumber(), "order", so.getOrderNumber(),
+                "total", saved.getTotalAmount(), "status", saved.getStatus()));
+        if (fulfilmentId != null) audit.put("fulfilmentId", fulfilmentId);
+        auditService.log("INVOICE", saved.getId(), "CREATE", audit);
+        return saved;
+    }
+
+    private static InvoiceItem item(Invoice inv, BigDecimal qty, BigDecimal unitPrice, BigDecimal discount, String taxName, BigDecimal taxRate) {
+        InvoiceItem item = new InvoiceItem();
+        item.setInvoice(inv);
+        item.setQuantity(qty);
+        item.setUnitPrice(unitPrice == null ? BigDecimal.ZERO : unitPrice);
+        item.setDiscountPercent(discount);
+        item.setTaxName(taxName);
+        item.setTaxRate(taxRate);
+        BigDecimal net = SaleAmounts.net(qty, unitPrice, discount);
+        item.setTotalPrice(net);
+        item.setTaxAmount(SaleAmounts.tax(net, taxRate));
+        inv.getItems().add(item);
+        return item;
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvoiceResponse> forOrder(Long saleOrderId) {
+        return invoiceRepository.findBySaleOrderIdOrderByCreatedAtAscIdAsc(saleOrderId).stream().map(this::toResponse).toList();
+    }
+
+    /** Cancelling an invoice made from an order puts its quantities and charges back to "to invoice". */
     @Transactional
     public InvoiceResponse cancel(Long id) {
         Invoice inv = getInvoice(id);
+        if (inv.getKind() == Invoice.Kind.CREDIT_NOTE) {
+            throw new IllegalStateException("A credit note cannot be cancelled; invoice the amount again instead");
+        }
         if (inv.getStatus() == Invoice.InvoiceStatus.PAID) {
             throw new IllegalStateException("Cannot cancel a paid invoice");
+        }
+        if (inv.getStatus() == Invoice.InvoiceStatus.CANCELLED) {
+            throw new IllegalStateException("The invoice is already cancelled");
+        }
+        if (inv.getItems().stream().anyMatch(i -> i.getCreditedQuantity().signum() > 0)) {
+            throw new IllegalStateException(inv.getInvoiceNumber() + " has credit notes and cannot be cancelled");
+        }
+        if (inv.getSaleOrderId() != null && inv.getItems().stream()
+                .anyMatch(i -> i.getSaleOrderLineId() != null || i.getSaleOrderChargeId() != null)) {
+            SaleOrder so = saleOrderRepository.findByIdForUpdate(inv.getSaleOrderId()).orElseThrow();
+            for (InvoiceItem item : inv.getItems()) {
+                so.getLines().stream().filter(l -> l.getId().equals(item.getSaleOrderLineId())).findFirst()
+                        .ifPresent(l -> l.setInvoicedQuantity(l.getInvoicedQuantity().subtract(item.getQuantity()).max(BigDecimal.ZERO)));
+                so.getCharges().stream().filter(c -> c.getId().equals(item.getSaleOrderChargeId())).findFirst()
+                        .ifPresent(c -> c.setInvoiced(false));
+            }
         }
         inv.setStatus(Invoice.InvoiceStatus.CANCELLED);
         Invoice saved = invoiceRepository.save(inv);
@@ -128,6 +269,8 @@ public class InvoiceService {
         BigDecimal totalPaid = inv.getPayments().stream()
                 .map(Payment::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // A payment on a credit note is a refund; with what was used on invoices it settles the credit note
+        if (inv.getKind() == Invoice.Kind.CREDIT_NOTE) totalPaid = totalPaid.add(paymentRepository.sumAppliedFromCreditNote(inv.getId()));
 
         if (totalPaid.compareTo(inv.getTotalAmount()) >= 0) {
             inv.setStatus(Invoice.InvoiceStatus.PAID);
@@ -137,20 +280,6 @@ public class InvoiceService {
         auditService.log("INVOICE", id, "PAYMENT",
                 Map.of("amount", req.getAmount(), "method", req.getMethod(), "totalPaid", totalPaid));
         return toResponse(inv);
-    }
-
-    private String nextInvoiceNumber() {
-        Long tenantId = TenantContext.get();
-        InvoiceSequence seq = sequenceRepository.findByIdForUpdate(tenantId)
-                .orElseGet(() -> {
-                    InvoiceSequence s = new InvoiceSequence();
-                    s.setTenantId(tenantId);
-                    s.setCurrentNumber(0L);
-                    return sequenceRepository.save(s);
-                });
-        seq.setCurrentNumber(seq.getCurrentNumber() + 1);
-        sequenceRepository.save(seq);
-        return String.format("INV-%04d", seq.getCurrentNumber());
     }
 
     private Invoice getInvoice(Long id) {
@@ -170,6 +299,15 @@ public class InvoiceService {
         r.setIssueDate(inv.getIssueDate());
         r.setDueDate(inv.getDueDate());
         r.setTotalAmount(inv.getTotalAmount());
+        r.setSubtotal(inv.getSubtotal());
+        r.setTaxTotal(inv.getTaxTotal());
+        r.setCustomerId(inv.getCustomerId());
+        r.setFulfilmentId(inv.getFulfilmentId());
+        r.setKind(inv.getKind());
+        if (inv.getCreditedInvoiceId() != null) {
+            r.setCreditedInvoiceId(inv.getCreditedInvoiceId());
+            invoiceRepository.findById(inv.getCreditedInvoiceId()).ifPresent(c -> r.setCreditedInvoiceNumber(c.getInvoiceNumber()));
+        }
         r.setCurrency(inv.getCurrency());
         r.setNotes(inv.getNotes());
         r.setCreatedAt(inv.getCreatedAt());
@@ -186,6 +324,13 @@ public class InvoiceService {
             ir.setQuantity(item.getQuantity());
             ir.setUnitPrice(item.getUnitPrice());
             ir.setTotalPrice(item.getTotalPrice());
+            ir.setDiscountPercent(item.getDiscountPercent());
+            ir.setTaxName(item.getTaxName());
+            ir.setTaxRate(item.getTaxRate());
+            ir.setTaxAmount(item.getTaxAmount());
+            ir.setSaleOrderLineId(item.getSaleOrderLineId());
+            ir.setSaleOrderChargeId(item.getSaleOrderChargeId());
+            ir.setCreditedQuantity(item.getCreditedQuantity());
             return ir;
         }).collect(Collectors.toList()));
 
@@ -195,12 +340,20 @@ public class InvoiceService {
             pr.setAmount(p.getAmount());
             pr.setMethod(p.getMethod());
             pr.setPaidAt(p.getPaidAt());
+            pr.setReference(p.getReference());
+            pr.setCreditNoteId(p.getCreditNoteId());
             return pr;
         }).collect(Collectors.toList()));
 
         BigDecimal paid = inv.getPayments().stream()
                 .map(Payment::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Credit notes: refunds plus what was used to pay invoices
+        if (inv.getKind() == Invoice.Kind.CREDIT_NOTE && inv.getId() != null) {
+            BigDecimal applied = paymentRepository.sumAppliedFromCreditNote(inv.getId());
+            r.setCreditApplied(applied);
+            paid = paid.add(applied);
+        }
         r.setAmountPaid(paid);
 
         return r;
