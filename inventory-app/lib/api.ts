@@ -31,6 +31,10 @@ export const getProduct     = (id: number) => api.get(`/products/${id}`).then(r 
 export const createProduct  = (data: unknown) => api.post("/products", data).then(r => r.data);
 export const updateProduct  = (id: number, data: unknown) => api.put(`/products/${id}`, data).then(r => r.data);
 export const deleteProduct  = (id: number) => api.delete(`/products/${id}`);
+// Stock per warehouse and on open purchase orders (the product page's Stock section)
+export const getProductStock = (id: number) => api.get(`/products/${id}/stock`).then(r => r.data);
+// Cin7's More actions → Delete deprecated products (only those without history)
+export const deleteDeprecatedProducts = () => api.post("/products/delete-deprecated").then(r => r.data);
 
 // Categories
 export const getCategories  = () => api.get("/categories").then(r => r.data);
@@ -137,7 +141,7 @@ export const addUser       = (data: unknown) => api.post("/auth/register", data)
 export const getCurrentUser = () => api.get("/auth/me").then(r => r.data);
 
 // Audit log
-export const getAuditLog = (params?: { entityType?: string; action?: string; username?: string; page?: number; size?: number }) =>
+export const getAuditLog = (params?: { entityType?: string; entityId?: number; action?: string; username?: string; page?: number; size?: number }) =>
   api.get("/audit-log", { params: { size: 50, ...params } }).then(r => r.data);
 
 // Invoices

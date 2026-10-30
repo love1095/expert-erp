@@ -16,11 +16,13 @@ public class AuditLogController {
     @GetMapping
     public Page<AuditLog> list(
             @RequestParam(required = false) String entityType,
+            // One record's history, e.g. a product's activity log
+            @RequestParam(required = false) Long entityId,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String username,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return auditLogRepository.search(entityType, action, username,
+        return auditLogRepository.search(entityType, entityId, action, username,
                 PageRequest.of(page, size));
     }
 }

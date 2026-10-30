@@ -71,6 +71,16 @@ export interface Product {
   updatedAt?: string;
 }
 
+// A product's stock per warehouse and what is on open purchase orders
+export interface ProductStock {
+  warehouses: { warehouseId: number; warehouseName: string; onHand: number; reserved: number; available: number }[];
+  onOrder: { purchaseOrderId: number; orderNumber: string; supplierName: string; status: string; outstanding: number; requiredBy?: string }[];
+  onHand: number;
+  reserved: number;
+  available: number;
+  onOrderTotal: number;
+}
+
 // Minimal product for dropdowns (GET /products/options)
 export interface ProductOption {
   id: number;

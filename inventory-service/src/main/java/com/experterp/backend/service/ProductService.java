@@ -36,6 +36,8 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
     private final SubscriptionService subscriptionService;
+    private final AuditService auditService;
+    private final com.experterp.backend.repository.PurchaseOrderRepository purchaseOrderRepository;
 
     /**
      * One page of products, newest first. Long texts (description, Cin7 details) are left out of lists:
@@ -97,6 +99,7 @@ public class ProductService {
         Product p = new Product();
         applyRequest(p, req);
         p = productRepository.save(p);
+        auditService.log("PRODUCT", p.getId(), "CREATE", Map.of("sku", p.getSku(), "name", p.getName()));
         return toResponse(p, BigDecimal.ZERO);
     }
 
@@ -108,17 +111,90 @@ public class ProductService {
                 throw new DuplicateResourceException("SKU already in use: " + req.getSku());
             }
         });
+        Map<String, Object> before = snapshot(p);
         applyRequest(p, req);
         p.setUpdatedAt(LocalDateTime.now());
         p = productRepository.save(p);
+        // Activity log: only what changed
+        Map<String, Object> after = snapshot(p);
+        Map<String, Object> changed = new java.util.LinkedHashMap<>();
+        after.forEach((k, v) -> { if (!java.util.Objects.equals(v, before.get(k))) changed.put(k, before.get(k) + " → " + v); });
+        if (!changed.isEmpty()) auditService.log("PRODUCT", p.getId(), "UPDATE", changed);
         ProductResponse single = toResponse(p, stockMovementRepository.calculateTotalStock(p.getId()));
         withReserved(single, allocationService.reservedByProduct(List.of(p.getId())).getOrDefault(p.getId(), BigDecimal.ZERO));
         return single;
     }
 
+    /** Only a product without history (stock movements, orders, invoices) can be deleted; otherwise deprecate it. */
+    @Transactional
     public void delete(Long id) {
+        Product p = getProduct(id);
+        if (productRepository.hasHistory(id)) {
+            throw new IllegalStateException(p.getSku() + " has stock movements or orders: mark it deprecated instead of deleting it");
+        }
+        productRepository.delete(p);
+        auditService.log("PRODUCT", id, "DELETE", Map.of("sku", p.getSku()));
+    }
+
+    public record DeleteDeprecatedResult(int deleted, long kept) {}
+
+    /** Cin7's "Delete deprecated products": those without history go; the rest are kept (they have history). */
+    @Transactional
+    public DeleteDeprecatedResult deleteDeprecated() {
+        List<Long> ids = productRepository.deprecatedWithoutHistory(TenantContext.get());
+        productRepository.deleteAllByIdInBatch(ids);
+        long kept = productRepository.countDeprecated();
+        auditService.log("PRODUCT", null, "DELETE_DEPRECATED", Map.of("deleted", ids.size(), "kept", kept));
+        return new DeleteDeprecatedResult(ids.size(), kept);
+    }
+
+    /** The product's stock per warehouse and on open purchase orders (its page's Stock section). */
+    @Transactional(readOnly = true)
+    public com.experterp.backend.dto.ProductStockResponse stock(Long id) {
         getProduct(id);
-        productRepository.deleteById(id);
+        Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(List.of(id));
+        List<com.experterp.backend.dto.ProductStockResponse.Warehouse> warehouses = stockMovementRepository.stockPerWarehouse(id).stream()
+                .map(r -> {
+                    Long wid = ((Number) r[0]).longValue();
+                    BigDecimal onHand = new BigDecimal(r[2].toString());
+                    BigDecimal res = reserved.getOrDefault(AllocationService.key(id, wid), BigDecimal.ZERO);
+                    return new com.experterp.backend.dto.ProductStockResponse.Warehouse(wid, (String) r[1], onHand, res, onHand.subtract(res));
+                }).toList();
+        List<com.experterp.backend.dto.ProductStockResponse.OpenOrder> onOrder = purchaseOrderRepository.openOrdersForProduct(id).stream()
+                .flatMap(po -> po.getLines().stream().filter(l -> l.getProduct().getId().equals(id)))
+                .filter(l -> l.getOutstandingQuantity().signum() > 0)
+                .map(l -> new com.experterp.backend.dto.ProductStockResponse.OpenOrder(l.getPurchaseOrder().getId(),
+                        l.getPurchaseOrder().getOrderNumber(), l.getPurchaseOrder().getSupplierName(),
+                        l.getPurchaseOrder().getStatus().name(), l.getOutstandingQuantity(), l.getPurchaseOrder().getRequiredBy()))
+                .toList();
+        BigDecimal onHand = warehouses.stream().map(w -> w.onHand()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal res = warehouses.stream().map(w -> w.reserved()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal onOrderTotal = onOrder.stream().map(o -> o.outstanding()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new com.experterp.backend.dto.ProductStockResponse(warehouses, onOrder, onHand, res, onHand.subtract(res), onOrderTotal);
+    }
+
+    // Fields shown in the activity log when they change
+    private static Map<String, Object> snapshot(Product p) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("sku", p.getSku());
+        m.put("name", p.getName());
+        m.put("status", p.getStatus());
+        m.put("category", p.getCategory() != null ? p.getCategory().getName() : null);
+        m.put("brand", p.getBrand());
+        m.put("unit", p.getUnit());
+        m.put("costPrice", plain(p.getCostPrice()));
+        m.put("sellPrice", plain(p.getSellPrice()));
+        m.put("tradePrice", plain(p.getTradePrice()));
+        m.put("minStock", plain(p.getMinStock()));
+        m.put("reorderQuantity", plain(p.getReorderQuantity()));
+        m.put("defaultSupplier", p.getDefaultSupplier() != null ? p.getDefaultSupplier().getName() : null);
+        m.put("supplierProductCode", p.getSupplierProductCode());
+        m.put("barcode", p.getBarcode());
+        return m;
+    }
+
+    private static String plain(BigDecimal v) {
+        return v == null ? null : v.stripTrailingZeros().toPlainString();
     }
 
     public Product getProduct(Long id) {

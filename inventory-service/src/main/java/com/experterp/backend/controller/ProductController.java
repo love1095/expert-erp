@@ -80,6 +80,19 @@ public class ProductController {
         return productService.update(id, req);
     }
 
+    // Stock per warehouse and on open purchase orders
+    @GetMapping("/{id}/stock")
+    public com.experterp.backend.dto.ProductStockResponse stock(@PathVariable Long id) {
+        return productService.stock(id);
+    }
+
+    // Cin7's More actions → Delete deprecated products (those without history)
+    @PostMapping("/delete-deprecated")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    public ProductService.DeleteDeprecatedResult deleteDeprecated() {
+        return productService.deleteDeprecated();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         productService.delete(id);

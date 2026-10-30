@@ -10,7 +10,7 @@ test('PRD-001 create a product', { tag: ['@P0', '@products'] }, async ({ page })
   await page.getByLabel('Unit').fill('pcs');
   await page.getByRole('button', { name: 'Save Product' }).click();
 
-  await expect(page.getByRole('cell', { name: sku })).toBeVisible();
+  await expect(page.getByRole('cell', { name: sku, exact: true })).toBeVisible();
 });
 
 test('PRD-002 duplicate SKU is rejected', { tag: ['@P1', '@products'] }, async ({ page, api }) => {
@@ -31,7 +31,10 @@ test('PRD-003 a product is edited: cost and selling price are saved and listed',
 
   await page.goto('/products');
   const row = page.getByRole('row').filter({ hasText: product.sku });
-  await row.getByRole('button', { name: 'Edit' }).click();
+  // Like Cin7: tick the product, then More actions → Edit
+  await row.getByLabel(`Select ${product.sku}`).check();
+  await page.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
   await expect(page.getByRole('heading', { name: `Edit ${product.sku}` })).toBeVisible();
   await expect(page.getByLabel('Cost price (£)')).toHaveValue('4');
   await page.getByLabel('Name').fill('Renamed helmet');
@@ -96,3 +99,34 @@ test('PRD-007 a file that is not an inventory list is refused with a reason', { 
   await page.getByLabel('CSV file').setInputFiles({ name: 'wrong.csv', mimeType: 'text/csv', buffer: Buffer.from('Name,Price\nX,1\n') });
   await expect(page.getByTestId('products-import-error')).toContainText("needs 'ProductCode' and 'Name' columns");
 });
+
+test('PRD-008 a product opens on its own page: stock per warehouse, what is on order, and its changes in the activity log', { tag: ['@P1', '@products'] },
+  async ({ page, api, warehouses }) => {
+    const product = await api.createProduct({ costPrice: 2, sellPrice: 5 });
+    await api.addStock(product, warehouses.main, 7);
+    await api.createPurchaseOrder(warehouses.main, [{ product, quantity: 10 }]);
+
+    await page.goto('/products');
+    await page.getByLabel('Search products').fill(product.sku);
+    await page.getByTestId(`product-row-${product.id}`).click();
+    await expect(page.getByTestId(`product-page-${product.id}`)).toContainText(product.sku);
+    await expect(page.getByTestId('product-section')).toContainText('FIFO');
+
+    await page.getByRole('button', { name: 'Stock', exact: true }).click();
+    await expect(page.getByTestId('product-stock')).toContainText(warehouses.main.name);
+    await expect(page.getByTestId('product-stock')).toContainText('7');
+    await expect(page.getByTestId('product-section')).toContainText('On order: 10');
+
+    // Edit from the page, then back to it with the change in the activity log
+    await page.getByRole('link', { name: 'Edit' }).click();
+    await page.getByLabel('Selling price (£)').fill('6');
+    await page.getByRole('button', { name: 'Save Product' }).click();
+    await expect(page.getByTestId(`product-page-${product.id}`)).toBeVisible();
+    await page.getByRole('button', { name: 'Activity log' }).click();
+    await expect(page.getByTestId('product-activity')).toContainText('sellPrice: 5 → 6');
+
+    // A product with stock can't be deleted
+    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete product' }).click();
+    await expect(page.getByTestId('product-error')).toContainText('mark it deprecated');
+  });

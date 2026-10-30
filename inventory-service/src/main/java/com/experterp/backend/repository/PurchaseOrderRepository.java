@@ -11,6 +11,12 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
 
     boolean existsByOrderNumber(String orderNumber);
 
+    // Draft / ordered POs with a line for the product (on order)
+    @Query("SELECT DISTINCT po FROM PurchaseOrder po JOIN po.lines l WHERE l.product.id = :productId " +
+           "AND po.status IN (com.experterp.backend.entity.PurchaseOrder.Status.DRAFT, com.experterp.backend.entity.PurchaseOrder.Status.ORDERED) " +
+           "ORDER BY po.id")
+    java.util.List<PurchaseOrder> openOrdersForProduct(@Param("productId") Long productId);
+
     // Serialises receiving / closing on the same order
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT po FROM PurchaseOrder po WHERE po.id = :id")

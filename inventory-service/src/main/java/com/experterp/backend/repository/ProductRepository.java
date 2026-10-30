@@ -22,6 +22,24 @@ import java.util.Set;
 public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findBySku(String sku);
     boolean existsBySku(String sku);
+
+    // Stock movements or order / invoice lines: deleting would lose that history
+    @Query(value = "SELECT EXISTS (SELECT 1 FROM stock_movements WHERE product_id = :id) " +
+                   "OR EXISTS (SELECT 1 FROM sale_order_lines WHERE product_id = :id) " +
+                   "OR EXISTS (SELECT 1 FROM purchase_order_lines WHERE product_id = :id) " +
+                   "OR EXISTS (SELECT 1 FROM invoice_items WHERE product_id = :id)", nativeQuery = true)
+    boolean hasHistory(@Param("id") Long id);
+
+    // Deprecated products with no history: safe to delete
+    @Query(value = "SELECT p.id FROM products p WHERE p.tenant_id = :tenantId AND p.status = 'DEPRECATED' " +
+                   "AND NOT EXISTS (SELECT 1 FROM stock_movements m WHERE m.product_id = p.id) " +
+                   "AND NOT EXISTS (SELECT 1 FROM sale_order_lines l WHERE l.product_id = p.id) " +
+                   "AND NOT EXISTS (SELECT 1 FROM purchase_order_lines l WHERE l.product_id = p.id) " +
+                   "AND NOT EXISTS (SELECT 1 FROM invoice_items i WHERE i.product_id = p.id)", nativeQuery = true)
+    List<Long> deprecatedWithoutHistory(@Param("tenantId") Long tenantId);
+
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.status = com.experterp.backend.entity.Product.Status.DEPRECATED")
+    long countDeprecated();
     Page<Product> findByCategory_Id(Long categoryId, Pageable pageable);
 
     // Filters are optional (null = any); q is a lower-case LIKE pattern on SKU or name (trigram-indexed, V10)

@@ -3,7 +3,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getProductsPage, getProduct, createProduct, updateProduct, deleteProduct, getCategories, importProducts, exportProducts,
+  deleteDeprecatedProducts,
 } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import MoreActions from "@/components/MoreActions";
+import { TickBox, useSelection } from "@/components/BulkActions";
 import { Product, Category, Page, ProductImportResult } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useEffect, useRef, useState } from "react";
@@ -75,6 +80,7 @@ export default function ProductsPage() {
   });
 
   const products = data?.content ?? [];
+  const selection = useSelection(products);
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements;
 
@@ -93,7 +99,13 @@ export default function ProductsPage() {
 
   const saveMutation = useMutation({
     mutationFn: (data: unknown) => (editing == null ? createProduct(data) : updateProduct(editing.id, data)),
-    onSuccess: () => { refresh(); closeForm(); },
+    onSuccess: (saved: Product) => {
+      refresh();
+      qc.invalidateQueries({ queryKey: ["product", saved?.id] });
+      closeForm();
+      // Edited from the product's page: back to it
+      if (returnTo != null) router.push(`/products/${returnTo}`);
+    },
     onError: (e: any) => {
       const fields = e.response?.data?.fields;
       setError(fields ? Object.values(fields).join(", ") : e.response?.data?.error || "Failed to save product");
@@ -118,10 +130,37 @@ export default function ProductsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteProduct,
-    onSuccess: refresh,
-    onError: (e: any) => alert(e.response?.data?.error || "Failed to delete product"),
+  const [returnTo, setReturnTo] = useState<number | null>(null);
+  // What a More action did, shown above the list
+  const [actionResult, setActionResult] = useState<{ ok: boolean; lines: string[] } | null>(null);
+  const router = useRouter();
+
+  // Arriving from a product page's Edit (/products?edit=ID): open the form for it, and go back there once saved
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("edit"));
+    if (id) { setReturnTo(id); startEdit({ id } as Product).catch(() => {}); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Delete the ticked products one by one; a product with history is refused and reported
+  const deleteTicked = async (rows: Product[]) => {
+    const lines: string[] = [];
+    let done = 0;
+    for (const p of rows) {
+      try { await deleteProduct(p.id); done++; }
+      catch (e: any) { lines.push(`${p.sku}: ${e.response?.data?.error || "not deleted"}`); }
+    }
+    setActionResult({ ok: lines.length === 0, lines: [`${done} deleted${lines.length ? `, ${lines.length} not deleted` : ""}`, ...lines] });
+    selection.clear();
+    refresh();
+  };
+  const deleteDeprecated = useMutation({
+    mutationFn: deleteDeprecatedProducts,
+    onSuccess: (r: { deleted: number; kept: number }) => {
+      setActionResult({ ok: true, lines: [`${r.deleted} deprecated product${r.deleted !== 1 ? "s" : ""} deleted`
+        + (r.kept > 0 ? `; ${r.kept} kept because they have stock movements or orders` : "")] });
+      refresh();
+    },
+    onError: (e: any) => setActionResult({ ok: false, lines: [e.response?.data?.error || "Could not delete deprecated products"] }),
   });
 
   const importMutation = useMutation({
@@ -165,6 +204,16 @@ export default function ProductsPage() {
   return (
     <div>
       <PageHeader title="Products" count={data?.totalElements} noun="products">
+          {/* Cin7: More actions acts on the ticked products, plus Delete deprecated products */}
+          <MoreActions actions={[
+            { label: "Edit", onClick: () => startEdit(selection.selected[0]),
+              disabledReason: selection.selected.length === 1 ? undefined : "Tick one product" },
+            { label: `Delete${selection.selected.length ? ` (${selection.selected.length})` : ""}`, danger: true,
+              disabledReason: selection.selected.length ? undefined : "Tick the products to delete",
+              onClick: () => { if (confirm(`Delete ${selection.selected.length} product(s)? Products with stock movements or orders are kept.`)) deleteTicked(selection.selected); } },
+            { label: "Delete deprecated products", danger: true, divider: true,
+              onClick: () => { if (confirm("Delete every deprecated product that has no stock movements or orders?")) deleteDeprecated.mutate(); } },
+          ]} />
           <button onClick={() => { setShowImport(!showImport); setImportError(""); }} className={BUTTON_SECONDARY}>
             Import
           </button>
@@ -304,21 +353,39 @@ export default function ProductsPage() {
         </select>
         </>} />
 
+      {actionResult && (
+        <div role="status" data-testid="products-action-result"
+          className={`mb-3 flex items-start justify-between gap-4 text-sm px-3 py-2 rounded-lg ${actionResult.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
+          <ul>{actionResult.lines.map(l => <li key={l}>{l}</li>)}</ul>
+          <button type="button" onClick={() => setActionResult(null)} aria-label="Close" className="opacity-60 hover:opacity-100">×</button>
+        </div>
+      )}
+      {selection.selected.length > 0 && (
+        <p className="mb-2 text-xs text-gray-600">
+          {selection.selected.length} ticked · use <b>More actions</b> ·{" "}
+          <button type="button" onClick={selection.clear} className="underline">clear</button>
+        </p>
+      )}
+
       {isLoading ? (
         <p className="text-gray-400 text-sm">Loading...</p>
       ) : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">
-              <ListHead cols={["SKU", "Name", "Brand", "Category", "Unit", "Status", "Cost price", "Selling price", "Stock", ""]}
-                right={["Cost price", "Selling price", "Stock"]} />
+              <ListHead cols={["SKU", "Name", "Brand", "Category", "Unit", "Status", "Cost price", "Selling price", "Stock"]}
+                right={["Cost price", "Selling price", "Stock"]}
+                lead={<th className="w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all products on this page" /></th>} />
               <tbody className="divide-y divide-gray-100">
                 {products.length === 0 && (
                   <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No products{q ? ` matching "${q}"` : ""}</td></tr>
                 )}
                 {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="font-mono text-xs text-gray-500">{p.sku}</td>
+                  <tr key={p.id} data-testid={`product-row-${p.id}`} onClick={() => router.push(`/products/${p.id}`)} className="hover:bg-gray-50 cursor-pointer">
+                    <td className="w-8"><TickBox checked={selection.isTicked(p.id)} onChange={() => selection.toggle(p.id)} label={`Select ${p.sku}`} /></td>
+                    <td className="font-mono text-xs">
+                      <Link href={`/products/${p.id}`} onClick={e => e.stopPropagation()} className="text-gray-700 hover:underline">{p.sku}</Link>
+                    </td>
                     <td className="font-medium">
                       <Clip text={p.variantOptions?.length ? `${p.name} (${p.variantOptions.map(o => o.value).join(" · ")})` : p.name} width="16rem" />
                     </td>
@@ -349,17 +416,6 @@ export default function ProductsPage() {
                           {Number(p.availableStock).toLocaleString()} available
                         </span>
                       )}
-                    </td>
-                    <td className="text-right space-x-3">
-                      <button onClick={() => startEdit(p)} className="text-xs text-brand-600 hover:text-brand-800">
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => { if (confirm(`Delete "${p.name}"?`)) deleteMutation.mutate(p.id); }}
-                        className="text-xs text-red-500 hover:text-red-700"
-                      >
-                        Delete
-                      </button>
                     </td>
                   </tr>
                 ))}

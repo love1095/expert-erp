@@ -11,11 +11,13 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     @Query("SELECT a FROM AuditLog a WHERE " +
            "(:entityType IS NULL OR a.entityType = :entityType) AND " +
+           "(:entityId IS NULL OR a.entityId = :entityId) AND " +
            "(:action IS NULL OR a.action = :action) AND " +
            "(:username IS NULL OR a.username = :username) " +
            "ORDER BY a.createdAt DESC")
     Page<AuditLog> search(
             @Param("entityType") String entityType,
+            @Param("entityId") Long entityId,
             @Param("action") String action,
             @Param("username") String username,
             Pageable pageable);

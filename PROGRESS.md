@@ -380,6 +380,13 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Accounting** (one row per supplier bill, Cin7's purchase ledger view): supplier's invoice number, PO, status, from, date, due date, **overdue by**, total, paid, **due**; filters all / awaiting payment / **overdue** / paid / draft / cancelled (`GET /invoices?type=PURCHASE&overdue=true`); "doesn't match the PO" shown on mismatched bills
 - [x] Tests: `SupplierBillTest` +1 (overdue filter, bills on the PO list; 128 backend tests); E2E PO-002 checks the icons and the Accounting tab (74 cases)
 
+### Product page and More actions, like Cin7 ✅
+- [x] **Product page** `/products/{id}`: sections on the left as in Cin7 — **General** (incl. costing method FIFO, tax rules, tags, family / variant, description, notes, dimensions), **Prices** (cost, shop, trade, tiers 3–4 with margin), **Stock** (per warehouse: on hand, reserved, available; **on order** with the open POs), **Suppliers**, **Reorder levels** (with "on the reorder list"), **Movements**, **Activity log**; Edit (back to the page once saved), More actions → Delete
+- [x] Products list: tick boxes; clicking a row / SKU opens the product; **More actions** (Cin7): Edit (one ticked), Delete (ticked), **Delete deprecated products**; the per-row Edit / Delete buttons are gone
+- [x] Backend: `GET /products/{id}/stock`; product create / update / delete are **audited** (only the fields that changed) and `GET /audit-logs?entityId=` filters one record; deleting a product with stock movements, orders or invoices is refused ("mark it deprecated"); `POST /products/delete-deprecated` deletes only deprecated products without history and says how many were kept
+- [x] Tests: `ProductPageTest` (3) (134 backend tests); E2E PRD-003 via More actions, PRD-008 product page (78 cases)
+- [ ] Later (Cin7 has them, not needed yet): **Combined view** (one row per product family — 1,399 families locally, but Cin7's are mostly single-variant), alternative products, custom prices, images, extra units, channels, Merge products
+
 ### Next
 - [ ] E5 FIFO cost layers (incl. bill price → stock cost)
 
