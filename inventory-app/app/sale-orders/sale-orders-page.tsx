@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSaleOrders, getWarehouses, getCustomers } from "@/lib/api";
+import { getSaleOrders, getWarehouses, getCustomers, confirmSaleOrder, undoSaleOrder, cancelSaleOrder } from "@/lib/api";
 import { SaleOrder, Warehouse, Customer, Page } from "@/types";
 import { useEffect, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
@@ -15,6 +15,20 @@ import SaleStages, { OrderDocuments } from "./sale-stages";
 import SaleOrderForm from "./sale-order-form";
 import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
 import { useAuth } from "@/contexts/AuthContext";
+import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_PRINT, NOT_YET_EMAIL } from "@/components/BulkActions";
+
+// Cin7's actions on ticked sales
+const SALE_ACTIONS: BulkAction<SaleOrder>[] = [
+  { label: "Undo", confirm: UNDO_WARNING, each: o => undoSaleOrder(o.id) },
+  { label: "Fill and authorise", each: o => confirmSaleOrder(o.id) },
+  { label: "Print", unavailable: NOT_YET_PRINT },
+  { label: "Email", unavailable: NOT_YET_EMAIL },
+  { label: "Export", all: rows => downloadCsv(`sales-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Order #", "Status", "Customer", "Reference", "Documents", "Sales rep", "Total inc VAT", "Created"],
+      rows.map(o => [o.orderNumber, o.status, o.customerName, o.customerReference, (o.invoices ?? []).map(i => i.invoiceNumber).join(" "),
+        o.salesRep, o.total, o.createdAt?.slice(0, 10)])) },
+  { label: "Void", danger: true, confirm: "Void the selected sales? Quantities not shipped yet are cancelled.", each: o => cancelSaleOrder(o.id) },
+];
 
 export default function SaleOrdersPage() {
   const { user } = useAuth();
@@ -46,6 +60,7 @@ export default function SaleOrdersPage() {
 
   const [showForm, setShowForm] = useState(false);
   const router = useRouter();
+  const selection = useSelection(orders);
 
   const onCreated = (so: SaleOrder) => {
     qc.invalidateQueries({ queryKey: ["sale-orders"] });
@@ -95,22 +110,27 @@ export default function SaleOrdersPage() {
         </select>
         </>} />
 
+      <BulkActionBar selected={selection.selected} name={o => o.orderNumber} actions={SALE_ACTIONS}
+        onClear={selection.clear} onDone={() => qc.invalidateQueries({ queryKey: ["sale-orders"] })} />
+
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  <th className="pl-4 py-3 w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all on this page" testId="so-select-all" /></th>
                   {["Progress", "#", "Customer", "Reference", "Documents", "Sales rep", "Total (£, inc VAT)", "Status", "Created", ""].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
+                {orders.length === 0 && <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
                 {orders.map(o => (
                   <tr key={o.id} data-testid={`so-row-${o.id}`} onClick={() => router.push(`/sale-orders/${o.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer">
+                    className={`cursor-pointer ${selection.isTicked(o.id) ? "bg-brand-50" : "hover:bg-gray-50"}`}>
+                    <td className="pl-4 py-3"><TickBox checked={selection.isTicked(o.id)} onChange={() => selection.toggle(o.id)} label={`Select ${o.orderNumber}`} testId={`so-select-${o.id}`} /></td>
                     <td className="px-4 py-3"><SaleStages order={o} /></td>
                     <td className="px-4 py-3 font-mono text-xs">
                       <Link href={`/sale-orders/${o.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-800 hover:underline">{o.orderNumber}</Link>

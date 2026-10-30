@@ -1,10 +1,12 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, getWarehouses } from "@/lib/api";
+import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, getWarehouses, orderPurchaseOrder, undoPurchaseOrder } from "@/lib/api";
 import { PurchaseOrder, Warehouse, Page } from "@/types";
 import { PO_STATUS_COLOR as STATUS_COLOR, RECEIVING_LABEL, BILLING_LABEL } from "./purchase-order-view";
 import PurchaseOrderForm from "./purchase-order-form";
+import PurchaseStages from "./purchase-stages";
+import BillsList from "./bills-list";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +14,20 @@ import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
+import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_PRINT, NOT_YET_EMAIL } from "@/components/BulkActions";
+
+// Cin7's actions on ticked purchases
+const PURCHASE_ACTIONS: BulkAction<PurchaseOrder>[] = [
+  { label: "Undo", confirm: UNDO_WARNING, each: o => undoPurchaseOrder(o.id) },
+  { label: "Fill and authorise", each: o => orderPurchaseOrder(o.id) },
+  { label: "Print", unavailable: NOT_YET_PRINT },
+  { label: "Email", unavailable: NOT_YET_EMAIL },
+  { label: "Export", all: rows => downloadCsv(`purchases-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["PO #", "Status", "Supplier", "Supplier reference", "Bills", "Required by", "Total inc VAT", "Created"],
+      rows.map(o => [o.orderNumber, o.status, o.supplierName, o.supplierReference, (o.bills ?? []).map(b => b.invoiceNumber).join(" "),
+        o.requiredBy, o.total, o.createdAt?.slice(0, 10)])) },
+  { label: "Void", danger: true, confirm: "Void the selected purchase orders?", each: o => cancelPurchaseOrder(o.id) },
+];
 
 export default function PurchaseOrdersPage() {
   const qc = useQueryClient();
@@ -19,6 +35,8 @@ export default function PurchaseOrdersPage() {
   const [size, setSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  // Cin7's two views of purchases: General (one row per order) and Accounting (one row per supplier bill)
+  const [tab, setTab] = useState<"general" | "accounting">("general");
   const router = useRouter();
   // Opened with ?q=… (e.g. "other orders from this supplier")
   useEffect(() => {
@@ -37,6 +55,7 @@ export default function PurchaseOrdersPage() {
   const totalElements = data?.totalElements;
 
   const [showForm, setShowForm] = useState(false);
+  const selection = useSelection(orders);
 
   const receiveMutation = useMutation({
     mutationFn: receivePurchaseOrder,
@@ -56,13 +75,23 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="Purchase Orders" subtitle="Orders to suppliers, newest first">
-        <button onClick={() => setShowForm(!showForm)}
+      <PageHeader title="Purchase Orders" subtitle={tab === "general" ? "Orders to suppliers, newest first" : "Supplier bills: what is owed and when"}>
+        <button onClick={() => { setShowForm(!showForm); setTab("general"); }}
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
           {showForm ? "Cancel" : "+ New PO"}
         </button>
       </PageHeader>
 
+      <div role="tablist" aria-label="Purchases view" className="flex gap-6 border-b border-gray-200 mb-4">
+        {([["general", "General"], ["accounting", "Accounting"]] as const).map(([key, label]) => (
+          <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+            className={`-mb-px pb-2 text-sm font-medium border-b-2 ${tab === key ? "border-brand-600 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "accounting" ? <BillsList /> : <>
       <ListToolbar
         search={search} onSearch={q => { setSearch(q); setPage(0); }}
         placeholder="PO #, supplier or their reference"
@@ -83,28 +112,40 @@ export default function PurchaseOrdersPage() {
           onSaved={po => { qc.invalidateQueries({ queryKey: ["purchase-orders"] }); setShowForm(false); router.push(`/purchase-orders/${po.id}`); }} />
       )}
 
+      <BulkActionBar selected={selection.selected} name={o => o.orderNumber} actions={PURCHASE_ACTIONS}
+        onClear={selection.clear} onDone={() => qc.invalidateQueries({ queryKey: ["purchase-orders"] })} />
+
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {["#", "Supplier", "Warehouse", "Lines", "Required by", "Total (£, inc VAT)", "Status", "Created", ""].map(h => (
+                  <th className="pl-4 py-3 w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all on this page" testId="po-select-all" /></th>
+                  {["Progress", "#", "Supplier", "Documents", "Required by", "Total (£, inc VAT)", "Status", "Created", ""].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No purchase orders match" : "No purchase orders yet"}</td></tr>}
+                {orders.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No purchase orders match" : "No purchase orders yet"}</td></tr>}
                 {orders.map(o => (
                   <tr key={o.id} data-testid={`po-row-${o.id}`} onClick={() => router.push(`/purchase-orders/${o.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer">
+                    className={`cursor-pointer ${selection.isTicked(o.id) ? "bg-brand-50" : "hover:bg-gray-50"}`}>
+                    <td className="pl-4 py-3"><TickBox checked={selection.isTicked(o.id)} onChange={() => selection.toggle(o.id)} label={`Select ${o.orderNumber}`} testId={`po-select-${o.id}`} /></td>
+                    <td className="px-4 py-3"><PurchaseStages po={o} /></td>
                     <td className="px-4 py-3 font-mono text-xs">
                       <Link href={`/purchase-orders/${o.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-800 hover:underline">{o.orderNumber}</Link>
                     </td>
-                    <td className="px-4 py-3 font-medium">{o.supplierName}</td>
-                    <td className="px-4 py-3 text-gray-600">{o.warehouseName}</td>
-                    <td className="px-4 py-3 text-gray-500">{o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {o.supplierName}
+                      <span className="block text-[11px] font-normal text-gray-400">{o.warehouseName} · {o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</span>
+                    </td>
+                    <td className="px-4 py-3 max-w-48 text-xs font-mono">
+                      {(o.bills?.length ?? 0) === 0 ? <span className="text-gray-300">—</span> : o.bills!.map((b, i) => (
+                        <span key={b.id}>{i > 0 && ", "}<span className={b.status === "CANCELLED" ? "line-through text-gray-400" : "text-gray-800"}>{b.invoiceNumber}</span></span>
+                      ))}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{o.requiredBy ?? "—"}</td>
                     <td className="px-4 py-3 tabular-nums text-gray-700">{formatGBP(o.total)}</td>
                     <td className="px-4 py-3">
@@ -138,6 +179,7 @@ export default function PurchaseOrdersPage() {
             size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
+      </>}
     </div>
   );
 }

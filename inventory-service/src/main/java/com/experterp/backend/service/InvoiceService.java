@@ -42,8 +42,25 @@ public class InvoiceService {
 
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(int page, int size, Invoice.InvoiceType type, Invoice.InvoiceStatus status, String q) {
+        return findAll(page, size, type, status, false, q);
+    }
+
+    /** {@code overdue}: only issued invoices past their due date (status is then ignored). */
+    @Transactional(readOnly = true)
+    public Page<InvoiceResponse> findAll(int page, int size, Invoice.InvoiceType type, Invoice.InvoiceStatus status, boolean overdue, String q) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
-        return invoiceRepository.search(type, status, Search.pattern(q), pageable).map(this::toResponse);
+        Page<Invoice> found = overdue
+                ? invoiceRepository.searchOverdue(type, LocalDate.now(), Search.pattern(q), pageable)
+                : invoiceRepository.search(type, status, Search.pattern(q), pageable);
+        return found.map(this::toResponse);
+    }
+
+    // Bills of several purchase orders, by order, in one query
+    @Transactional(readOnly = true)
+    public Map<Long, List<InvoiceResponse>> forPurchaseOrders(Collection<Long> purchaseOrderIds) {
+        if (purchaseOrderIds.isEmpty()) return Map.of();
+        return invoiceRepository.findByPurchaseOrderIdInOrderByCreatedAtAscIdAsc(purchaseOrderIds).stream()
+                .collect(Collectors.groupingBy(Invoice::getPurchaseOrderId, Collectors.mapping(this::toResponse, Collectors.toList())));
     }
 
     @Transactional(readOnly = true)

@@ -233,6 +233,29 @@ public class SaleOrderService {
     }
 
     /**
+     * Cin7's Undo: a confirmed order goes back to draft and its stock is no longer reserved. Not once anything
+     * has been shipped or invoiced (return or credit it instead).
+     */
+    @Transactional
+    public SaleOrderResponse undo(Long id) {
+        SaleOrder so = lockSO(id);
+        if (so.getStatus() != Status.CONFIRMED) {
+            throw new IllegalStateException("Only confirmed orders can be undone (" + so.getOrderNumber() + " is " + so.getStatus() + ")");
+        }
+        if (so.hasFulfilledAnything()) {
+            throw new IllegalStateException(so.getOrderNumber() + " has shipments: it cannot go back to draft");
+        }
+        if (so.getLines().stream().anyMatch(l -> l.getInvoicedQuantity().signum() > 0)
+                || so.getCharges().stream().anyMatch(SaleOrderCharge::isInvoiced)) {
+            throw new IllegalStateException(so.getOrderNumber() + " has invoices: cancel them first");
+        }
+        so.setStatus(Status.DRAFT);
+        so.setConfirmedAt(null);
+        auditService.log("SALE_ORDER", id, "UNDO", Map.of("status", Status.DRAFT));
+        return toDetailResponse(so);
+    }
+
+    /**
      * Ships the requested quantities (or everything allocated) and creates one SALE_OUT movement per line.
      * Like Cin7, a line can only ship what is allocated to it — stock promised to orders confirmed earlier is
      * not taken (first confirmed, first served). The products are locked first, so shipments of other orders

@@ -92,6 +92,7 @@ export const getPurchaseOrder     = (id: number) => api.get(`/purchase-orders/${
 export const createPurchaseOrder  = (data: unknown) => api.post("/purchase-orders", data).then(r => r.data);
 export const receivePurchaseOrder = (id: number) => api.post(`/purchase-orders/${id}/receive`).then(r => r.data);
 export const cancelPurchaseOrder  = (id: number) => api.post(`/purchase-orders/${id}/cancel`).then(r => r.data);
+export const undoPurchaseOrder    = (id: number) => api.post(`/purchase-orders/${id}/undo`).then(r => r.data);
 export const previewPurchaseOrder = (data: unknown) => api.post("/purchase-orders/preview", data).then(r => r.data);
 export const updatePurchaseOrder  = ({ id, data }: { id: number; data: unknown }) => api.put(`/purchase-orders/${id}`, data).then(r => r.data);
 // Placed with the supplier (Cin7's Authorise)
@@ -121,6 +122,8 @@ export const confirmSaleOrder = (id: number) => api.post(`/sale-orders/${id}/con
 export const fulfillSaleOrder = ({ id, data }: { id: number; data?: FulfilmentRequest }) =>
   api.post(`/sale-orders/${id}/fulfill`, data).then(r => r.data);
 export const cancelSaleOrder  = (id: number) => api.post(`/sale-orders/${id}/cancel`).then(r => r.data);
+// Back to draft (Cin7's Undo)
+export const undoSaleOrder    = (id: number) => api.post(`/sale-orders/${id}/undo`).then(r => r.data);
 // Send a shipment of a Shopify order to Shopify again
 export const retryShopifyFulfilment = ({ id, fulfilmentId }: { id: number; fulfilmentId: number }) =>
   api.post(`/sale-orders/${id}/fulfilments/${fulfilmentId}/shopify-sync`).then(r => r.data);
@@ -138,7 +141,7 @@ export const getAuditLog = (params?: { entityType?: string; action?: string; use
   api.get("/audit-log", { params: { size: 50, ...params } }).then(r => r.data);
 
 // Invoices
-export const getInvoices = (params?: { type?: string; status?: string; q?: string; page?: number; size?: number }) =>
+export const getInvoices = (params?: { type?: string; status?: string; overdue?: boolean; q?: string; page?: number; size?: number }) =>
   api.get("/invoices", { params: { size: 20, ...params } }).then(r => r.data);
 export const getInvoice     = (id: number) => api.get(`/invoices/${id}`).then(r => r.data);
 export const createInvoice  = (data: unknown) => api.post("/invoices", data).then(r => r.data);

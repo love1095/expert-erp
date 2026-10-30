@@ -51,7 +51,14 @@ public class PurchaseOrderService {
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> findAll(int page, int size, PurchaseOrder.Status status, String q) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
-        return poRepository.search(status, Search.pattern(q), pageable).map(this::toResponse);
+        Page<PurchaseOrder> orders = poRepository.search(status, Search.pattern(q), pageable);
+        // Paid icon and Documents column: the page's bills in one query
+        Map<Long, List<InvoiceResponse>> bills = invoiceService.forPurchaseOrders(orders.getContent().stream().map(PurchaseOrder::getId).toList());
+        return orders.map(po -> {
+            PurchaseOrderResponse r = toResponse(po);
+            setBills(r, bills.getOrDefault(po.getId(), List.of()));
+            return r;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -59,9 +66,8 @@ public class PurchaseOrderService {
         return toDetailResponse(getPO(id));
     }
 
-    private PurchaseOrderResponse toDetailResponse(PurchaseOrder po) {
-        PurchaseOrderResponse r = toResponse(po);
-        List<InvoiceResponse> bills = invoiceService.forPurchaseOrder(po.getId());
+    // The order's bills, and paid / partly paid / unpaid across those not cancelled
+    private static void setBills(PurchaseOrderResponse r, List<InvoiceResponse> bills) {
         r.setBills(bills.stream().map(b -> {
             PurchaseOrderResponse.Bill e = new PurchaseOrderResponse.Bill();
             e.setId(b.getId());
@@ -80,6 +86,11 @@ public class PurchaseOrderService {
             boolean anyPaid = live.stream().anyMatch(b -> b.getAmountPaid() != null && b.getAmountPaid().signum() > 0);
             r.setPaymentStatus(allPaid ? "PAID" : anyPaid ? "PARTIALLY_PAID" : "UNPAID");
         }
+    }
+
+    private PurchaseOrderResponse toDetailResponse(PurchaseOrder po) {
+        PurchaseOrderResponse r = toResponse(po);
+        setBills(r, invoiceService.forPurchaseOrder(po.getId()));
         r.setReceipts(receiptRepository.findByPurchaseOrderIdOrderByCreatedAtAscIdAsc(po.getId()).stream().map(rc -> {
             PurchaseOrderResponse.Receipt e = new PurchaseOrderResponse.Receipt();
             e.setId(rc.getId());
@@ -193,6 +204,26 @@ public class PurchaseOrderService {
         po.setOrderedAt(LocalDateTime.now());
         PurchaseOrderResponse saved = toResponse(poRepository.save(po));
         auditService.log("PURCHASE_ORDER", id, "ORDER", Map.of("status", "ORDERED"));
+        return saved;
+    }
+
+    /** Cin7's Undo: an ordered PO goes back to draft, until stock is received or the supplier has billed it. */
+    @Transactional
+    public PurchaseOrderResponse undo(Long id) {
+        PurchaseOrder po = getPO(id);
+        if (po.getStatus() != PurchaseOrder.Status.ORDERED) {
+            throw new IllegalStateException("Only ordered purchase orders can be undone (" + po.getOrderNumber() + " is " + po.getStatus() + ")");
+        }
+        if (po.getLines().stream().anyMatch(l -> l.getReceivedQuantity().signum() > 0)) {
+            throw new IllegalStateException("Stock has been received on " + po.getOrderNumber() + ": it cannot go back to draft");
+        }
+        if (po.getLines().stream().anyMatch(l -> l.getBilledQuantity().signum() > 0)) {
+            throw new IllegalStateException(po.getOrderNumber() + " has supplier bills: cancel them first");
+        }
+        po.setStatus(PurchaseOrder.Status.DRAFT);
+        po.setOrderedAt(null);
+        PurchaseOrderResponse saved = toResponse(poRepository.save(po));
+        auditService.log("PURCHASE_ORDER", id, "UNDO", Map.of("status", "DRAFT"));
         return saved;
     }
 

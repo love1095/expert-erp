@@ -81,7 +81,20 @@ test('PO-002 a PO takes the supplier\'s terms and purchase VAT, is placed with t
     await expect(bills).toContainText('£80.71');
     // 6 billed against 5 ordered is flagged by the three-way match
     await expect(bills).toContainText("1 line don't match the PO");
-    await bills.getByRole('link', { name: billNo }).click();
+    // General tab: ordered, received and billed done, not paid yet; Accounting tab: the bill, owed in full
+    const poId = Number((await page.locator('[data-testid^="po-page-"]').getAttribute('data-testid'))!.replace('po-page-', ''));
+    await page.goto('/purchase-orders');
+    const stages = page.getByTestId(`po-stages-${poId}`);
+    for (const [stage, state] of [['order', 'done'], ['receive', 'done'], ['invoice', 'done'], ['paid', 'todo']]) {
+      await expect(stages.locator(`[data-stage="${stage}"]`)).toHaveAttribute('data-state', state);
+    }
+    await expect(page.getByTestId(`po-row-${poId}`)).toContainText(billNo);
+    await page.getByRole('tab', { name: 'Accounting' }).click();
+    await page.getByTestId('bills-list').getByLabel('Search').fill(billNo);
+    const billRow = page.locator('[data-testid^="bill-row-"]', { hasText: billNo });
+    await expect(billRow).toContainText('Awaiting payment');
+    await expect(billRow).toContainText('£80.71');
+    await billRow.click();
     await expect(page.getByText('Billed 6, ordered 5')).toBeVisible();
     await expect(page.getByText('Charge (expense)')).toBeVisible();
   });

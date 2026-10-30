@@ -77,6 +77,12 @@ public class SaleOrderController {
         return saleOrderService.confirm(id);
     }
 
+    // Back to draft (Cin7's Undo), until something is shipped or invoiced
+    @PostMapping("/{id}/undo")
+    public SaleOrderResponse undo(@PathVariable Long id) {
+        return saleOrderService.undo(id);
+    }
+
     // No body = ship everything remaining
     @PostMapping("/{id}/fulfill")
     public SaleOrderResponse fulfill(@PathVariable Long id,

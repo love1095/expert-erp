@@ -34,6 +34,7 @@ class QuoteTest {
     @Autowired SaleOrderService saleOrderService;
     @Autowired ProductService productService;
     @Autowired DashboardService dashboardService;
+    @Autowired InvoiceService invoiceService;
     @Autowired StockMovementService movementService;
     @Autowired ProductRepository productRepository;
     @Autowired WarehouseRepository warehouseRepository;
@@ -139,6 +140,32 @@ class QuoteTest {
         saleOrderRepository.save(shopify);
         assertThatThrownBy(() -> saleOrderService.update(draft.getId(), request(false, 2, "10.00")))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("Shopify");
+    }
+
+    @Test
+    void undoTakesAConfirmedOrderBackToDraftUntilItIsShippedOrInvoiced() {
+        SaleOrderResponse order = saleOrderService.create(request(false, 4, "10.00"));
+        assertThatThrownBy(() -> saleOrderService.undo(order.getId()))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Only confirmed orders");
+
+        saleOrderService.confirm(order.getId());
+        assertThat(productService.findById(helmet.getId()).getReservedStock()).isEqualByComparingTo("4");
+        SaleOrderResponse undone = saleOrderService.undo(order.getId());
+        assertThat(undone.getStatus()).isEqualTo(Status.DRAFT);
+        assertThat(productService.findById(helmet.getId()).getReservedStock()).isEqualByComparingTo("0");
+        // A draft again: it can be changed and authorised again
+        assertThat(saleOrderService.update(order.getId(), request(false, 2, "10.00")).getTotal()).isEqualByComparingTo("24.00");
+
+        saleOrderService.confirm(order.getId());
+        invoiceService.invoiceOrder(order.getId(), new com.experterp.backend.dto.OrderInvoiceRequest());
+        assertThatThrownBy(() -> saleOrderService.undo(order.getId()))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("has invoices");
+
+        SaleOrderResponse shipped = saleOrderService.create(request(false, 1, "10.00"));
+        saleOrderService.confirm(shipped.getId());
+        saleOrderService.fulfill(shipped.getId(), null);
+        assertThatThrownBy(() -> saleOrderService.undo(shipped.getId()))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private SaleOrderRequest request(boolean quote, int qty, String price) {

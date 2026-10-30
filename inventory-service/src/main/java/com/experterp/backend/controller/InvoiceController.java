@@ -29,8 +29,10 @@ public class InvoiceController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Invoice.InvoiceType type,
             @RequestParam(required = false) Invoice.InvoiceStatus status,
+            // Only issued invoices past their due date
+            @RequestParam(defaultValue = "false") boolean overdue,
             @RequestParam(required = false) String q) {
-        return invoiceService.findAll(page, size, type, status, q);
+        return invoiceService.findAll(page, size, type, status, overdue, q);
     }
 
     @GetMapping("/{id}")

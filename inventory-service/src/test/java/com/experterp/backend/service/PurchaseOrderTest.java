@@ -146,6 +146,20 @@ class PurchaseOrderTest {
         assertThat(purchaseOrderService.cancel(purchaseOrderService.markOrdered(second.getId()).getId()).getStatus()).isEqualTo(Status.CANCELLED);
     }
 
+    @Test
+    void undoTakesAnOrderedPoBackToDraftUntilStockIsReceived() {
+        PurchaseOrderResponse po = purchaseOrderService.markOrdered(purchaseOrderService.create(request(line(bodywarmer, 5))).getId());
+        PurchaseOrderResponse undone = purchaseOrderService.undo(po.getId());
+        assertThat(undone.getStatus()).isEqualTo(Status.DRAFT);
+        assertThat(undone.getOrderedAt()).isNull();
+        assertThatThrownBy(() -> purchaseOrderService.undo(po.getId()))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Only ordered");
+
+        purchaseOrderService.markOrdered(po.getId());
+        purchaseOrderService.receive(po.getId());
+        assertThatThrownBy(() -> purchaseOrderService.undo(po.getId())).isInstanceOf(IllegalStateException.class);
+    }
+
     private Product product(String sku, String name, String supplierCode, String supplierPrice, String costPrice) {
         Product p = new Product();
         p.setSku(sku);

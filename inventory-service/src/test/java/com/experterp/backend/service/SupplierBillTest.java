@@ -140,6 +140,25 @@ class SupplierBillTest {
     }
 
     @Test
+    void theAccountingListShowsOverdueBillsAndThePoListCarriesItsBills() {
+        PurchaseOrderResponse po = ordered(line(small, 3));
+        purchaseOrderService.receive(po.getId());
+        BillRequest late = bill("LATE-1");
+        late.setIssueDate(LocalDate.now().minusDays(40));
+        late.setDueDate(LocalDate.now().minusDays(10));
+        InvoiceResponse bill = invoiceService.billPurchaseOrder(po.getId(), late);
+
+        assertThat(invoiceService.findAll(0, 20, Invoice.InvoiceType.PURCHASE, null, true, null).getContent())
+                .extracting(InvoiceResponse::getId).containsExactly(bill.getId());
+        assertThat(invoiceService.findAll(0, 20, Invoice.InvoiceType.SALES, null, true, null).getTotalElements()).isZero();
+        assertThat(bill.getPurchaseOrderNumber()).isEqualTo(po.getOrderNumber());
+
+        PurchaseOrderResponse listed = purchaseOrderService.findAll(0, 20, null, null).getContent().get(0);
+        assertThat(listed.getBills()).extracting(PurchaseOrderResponse.Bill::getInvoiceNumber).containsExactly("LATE-1");
+        assertThat(listed.getPaymentStatus()).isEqualTo("UNPAID");
+    }
+
+    @Test
     void aDraftOrderCannotBeBilled() {
         PurchaseOrderRequest req = request(line(small, 1));
         req.setOrdered(false);

@@ -317,6 +317,12 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Frontend: Invoices panel **Credit note & restock** form (quantities, restock, shipping refund, settlement)
 - [x] Tests: `CreditNoteTest` (5) (109 backend tests); E2E INV-003 (70 cases)
 
+### List actions like Cin7 ✅
+- [x] Sale order and purchase order lists: tick rows (or all on the page), then **Undo** (Cin7's warning "This will change the task status back to draft…"; a confirmed order / ordered PO goes back to draft, refused once shipped / received or invoiced / billed), **Fill and authorise** (draft → confirmed / ordered), **Export** (CSV of the ticked rows), **Void** (cancel); Print and Email shown greyed out until D5 PDFs and e-mail
+- [x] Each row is done on its own: the result says how many were done and why the others were not
+- [x] Progress icons: a step that will not happen is **Not available** (no quote step on an order made directly; steps after a cancel / rejection), not "not yet"
+- [x] `POST /sale-orders/{id}/undo`, `POST /purchase-orders/{id}/undo`; tests: `QuoteTest`, `PurchaseOrderTest` (130 backend tests); E2E SO-014, PO-003 (76 cases)
+
 ### Next
 - [ ] D5 PDFs
 
@@ -362,6 +368,11 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Tick products (kept across pages and suppliers), change quantities, choose the warehouse → **one draft PO per default supplier** (`POST /reorder/purchase-orders`), each line with the supplier's code, price and VAT as on any new PO; products without a supplier are refused by name; links to the new POs
 - [x] `GET /reorder` (supplier filter, search, paging) and `GET /reorder/suppliers` reuse the dashboard's reorder query (one rule, one count: 429 on the real data)
 - [x] Tests: `ReorderTest` (3) — per-supplier list and suggestions, two suppliers → two draft POs now on order, no-supplier refused (127 backend tests); E2E RO-001 (74 cases)
+
+### Purchase list: General and Accounting tabs, like Cin7 ✅
+- [x] **General** (one row per PO): progress icons *ordered → received → billed → paid* (same strip as the sales list, shared `StageIcons`), **Documents** column with the supplier bill numbers; the list loads the page's bills in one query
+- [x] **Accounting** (one row per supplier bill, Cin7's purchase ledger view): supplier's invoice number, PO, status, from, date, due date, **overdue by**, total, paid, **due**; filters all / awaiting payment / **overdue** / paid / draft / cancelled (`GET /invoices?type=PURCHASE&overdue=true`); "doesn't match the PO" shown on mismatched bills
+- [x] Tests: `SupplierBillTest` +1 (overdue filter, bills on the PO list; 128 backend tests); E2E PO-002 checks the icons and the Accounting tab (74 cases)
 
 ### Next
 - [ ] E5 FIFO cost layers (incl. bill price → stock cost)

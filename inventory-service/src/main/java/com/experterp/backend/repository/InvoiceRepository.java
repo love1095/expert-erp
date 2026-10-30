@@ -17,11 +17,20 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     Page<Invoice> search(@Param("type") Invoice.InvoiceType type, @Param("status") Invoice.InvoiceStatus status,
                          @Param("q") String q, Pageable pageable);
 
+    // Issued and past their due date (awaiting payment, late)
+    @Query("SELECT i FROM Invoice i WHERE (:type IS NULL OR i.type = :type) AND i.status = com.experterp.backend.entity.Invoice.InvoiceStatus.ISSUED " +
+           "AND i.dueDate < :today " +
+           "AND (:q = '' OR LOWER(COALESCE(i.invoiceNumber, '')) LIKE :q OR LOWER(COALESCE(i.partyName, '')) LIKE :q)")
+    Page<Invoice> searchOverdue(@Param("type") Invoice.InvoiceType type, @Param("today") java.time.LocalDate today,
+                                @Param("q") String q, Pageable pageable);
+
     boolean existsByInvoiceNumber(String invoiceNumber);
 
     java.util.List<Invoice> findBySaleOrderIdOrderByCreatedAtAscIdAsc(Long saleOrderId);
 
     java.util.List<Invoice> findByPurchaseOrderIdOrderByCreatedAtAscIdAsc(Long purchaseOrderId);
+
+    java.util.List<Invoice> findByPurchaseOrderIdInOrderByCreatedAtAscIdAsc(java.util.Collection<Long> purchaseOrderIds);
 
     // A supplier's invoice number is entered once (cancelled bills aside)
     boolean existsByTypeAndSupplierIdAndInvoiceNumberIgnoreCaseAndStatusNot(Invoice.InvoiceType type, Long supplierId,

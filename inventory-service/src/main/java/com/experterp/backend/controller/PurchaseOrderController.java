@@ -55,6 +55,12 @@ public class PurchaseOrderController {
         return purchaseOrderService.markOrdered(id);
     }
 
+    // Back to draft (Cin7's Undo), until stock is received or billed
+    @PostMapping("/{id}/undo")
+    public PurchaseOrderResponse undo(@PathVariable Long id) {
+        return purchaseOrderService.undo(id);
+    }
+
     // Everything still outstanding
     @PostMapping("/{id}/receive")
     public PurchaseOrderResponse receive(@PathVariable Long id) {
