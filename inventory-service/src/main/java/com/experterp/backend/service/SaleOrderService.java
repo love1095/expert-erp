@@ -4,6 +4,7 @@ import com.experterp.backend.dto.FulfilmentRequest;
 import com.experterp.backend.dto.SaleOrderRequest;
 import com.experterp.backend.dto.SaleOrderResponse;
 import com.experterp.backend.dto.SaleReturnRequest;
+import com.experterp.backend.dto.InvoiceResponse;
 import com.experterp.backend.entity.*;
 import com.experterp.backend.entity.SaleOrder.Status;
 import com.experterp.backend.entity.StockMovement.MovementType;
@@ -76,9 +77,15 @@ public class SaleOrderService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
         Page<SaleOrder> orders = soRepository.search(customerId, status, Search.pattern(q), pageable);
         // One allocation query for the whole page
-        Map<Long, AllocationService.LineAllocation> allocations =
-                allocationService.forOrders(orders.getContent().stream().map(SaleOrder::getId).toList());
-        return orders.map(so -> toResponse(so, allocations));
+        List<Long> ids = orders.getContent().stream().map(SaleOrder::getId).toList();
+        Map<Long, AllocationService.LineAllocation> allocations = allocationService.forOrders(ids);
+        // Documents column: the page's invoices and credit notes in one query
+        Map<Long, List<InvoiceResponse>> invoicesByOrder = invoiceService.forOrders(ids);
+        return orders.map(so -> {
+            SaleOrderResponse r = toResponse(so, allocations);
+            setInvoices(r, invoicesByOrder.getOrDefault(so.getId(), List.of()).stream().map(this::invoiceEntry).toList());
+            return r;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -619,21 +626,7 @@ public class SaleOrderService {
                     .map(fl -> entryLine(fl.getSaleOrderLine(), fl.getQuantity(), null)).toList());
             return e;
         }).toList());
-        r.setInvoices(invoiceService.forOrder(so.getId()).stream().map(inv -> {
-            SaleOrderResponse.InvoiceEntry e = new SaleOrderResponse.InvoiceEntry();
-            e.setId(inv.getId());
-            e.setInvoiceNumber(inv.getInvoiceNumber());
-            e.setStatus(inv.getStatus());
-            e.setIssueDate(inv.getIssueDate());
-            e.setDueDate(inv.getDueDate());
-            e.setTotal(inv.getTotalAmount());
-            e.setAmountPaid(inv.getAmountPaid());
-            e.setFulfilmentId(inv.getFulfilmentId());
-            e.setKind(inv.getKind());
-            return e;
-        }).toList());
-        r.setInvoicedTotal(total(r.getInvoices(), Invoice.Kind.INVOICE));
-        r.setCreditedTotal(total(r.getInvoices(), Invoice.Kind.CREDIT_NOTE));
+        setInvoices(r, invoiceService.forOrder(so.getId()).stream().map(this::invoiceEntry).toList());
         r.setReturns(returnRepository.findBySaleOrderIdOrderByCreatedAtAsc(so.getId()).stream().map(ret -> {
             SaleOrderResponse.ReturnEntry e = new SaleOrderResponse.ReturnEntry();
             e.setId(ret.getId());
@@ -647,6 +640,26 @@ public class SaleOrderService {
             return e;
         }).toList());
         return r;
+    }
+
+    private SaleOrderResponse.InvoiceEntry invoiceEntry(InvoiceResponse inv) {
+        SaleOrderResponse.InvoiceEntry e = new SaleOrderResponse.InvoiceEntry();
+        e.setId(inv.getId());
+        e.setInvoiceNumber(inv.getInvoiceNumber());
+        e.setStatus(inv.getStatus());
+        e.setIssueDate(inv.getIssueDate());
+        e.setDueDate(inv.getDueDate());
+        e.setTotal(inv.getTotalAmount());
+        e.setAmountPaid(inv.getAmountPaid());
+        e.setFulfilmentId(inv.getFulfilmentId());
+        e.setKind(inv.getKind());
+        return e;
+    }
+
+    private static void setInvoices(SaleOrderResponse r, List<SaleOrderResponse.InvoiceEntry> invoices) {
+        r.setInvoices(invoices);
+        r.setInvoicedTotal(total(invoices, Invoice.Kind.INVOICE));
+        r.setCreditedTotal(total(invoices, Invoice.Kind.CREDIT_NOTE));
     }
 
     private static BigDecimal total(List<SaleOrderResponse.InvoiceEntry> invoices, Invoice.Kind kind) {

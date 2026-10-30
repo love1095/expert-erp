@@ -92,8 +92,10 @@ test.describe('Customers', () => {
 
       await page.goto('/customers');
       const row = page.getByTestId(`customer-row-${customer.id}`);
-      await row.getByRole('button', { name: '1' }).click();
+      // The order count opens the customer's page with their orders
+      await row.getByRole('link', { name: '1', exact: true }).click();
       await expect(page.getByTestId(`customer-orders-${customer.id}`)).toContainText(order.orderNumber);
+      await page.goto('/customers');
 
       const dialogs: string[] = [];
       page.on('dialog', d => { if (d.type() === 'alert') dialogs.push(d.message()); });

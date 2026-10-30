@@ -20,4 +20,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     boolean existsByInvoiceNumber(String invoiceNumber);
 
     java.util.List<Invoice> findBySaleOrderIdOrderByCreatedAtAscIdAsc(Long saleOrderId);
+
+    // Invoices and credit notes of a page of orders (the sales list's Documents column)
+    java.util.List<Invoice> findBySaleOrderIdInOrderByCreatedAtAscIdAsc(java.util.Collection<Long> saleOrderIds);
 }

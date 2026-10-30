@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCustomersPage, createCustomer, updateCustomer, deleteCustomer, importCustomers, getSaleOrders } from "@/lib/api";
-import { Customer, CustomerContact, CustomerImportResult, Page, SaleOrder } from "@/types";
-import { Fragment, useRef, useState } from "react";
-import { ClientDate } from "@/components/ClientDate";
+import { getCustomersPage, getCustomer, createCustomer, updateCustomer, deleteCustomer, importCustomers } from "@/lib/api";
+import { Customer, CustomerContact, CustomerImportResult, Page } from "@/types";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar } from "@/components/ListToolbar";
@@ -34,7 +35,7 @@ export default function CustomersPage() {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [contacts, setContacts] = useState<CustomerContact[]>([]);
   const [error, setError] = useState("");
-  const [openId, setOpenId] = useState<number | null>(null);
+  const router = useRouter();
   const [importResult, setImportResult] = useState<CustomerImportResult | null>(null);
   const [importError, setImportError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -95,6 +96,11 @@ export default function CustomersPage() {
     setShowForm(true);
     window.scrollTo({ top: 0 });
   };
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("edit"));
+    if (id) getCustomer(id).then(startEdit).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,10 +246,10 @@ export default function CustomersPage() {
                 {customers.map(c => {
                   const main = c.contacts[0];
                   return (
-                    <Fragment key={c.id}>
-                      <tr data-testid={`customer-row-${c.id}`} className={`hover:bg-gray-50 ${openId === c.id ? "bg-gray-50" : ""}`}>
+                      <tr key={c.id} data-testid={`customer-row-${c.id}`} onClick={() => router.push(`/customers/${c.id}`)}
+                        className="hover:bg-gray-50 cursor-pointer">
                         <td className="px-4 py-3">
-                          <div className="font-medium">{c.name}</div>
+                          <Link href={`/customers/${c.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-900 hover:underline">{c.name}</Link>
                           {c.source === "SHOPIFY" && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Shopify</span>}
                         </td>
                         <td className="px-4 py-3">
@@ -255,7 +261,7 @@ export default function CustomersPage() {
                           {main ? (
                             <>
                               <div className="text-gray-700">{main.name || "—"}{c.contacts.length > 1 && <span className="text-gray-400"> +{c.contacts.length - 1}</span>}</div>
-                              {main.email && <a href={`mailto:${main.email}`} className="text-brand-600 hover:underline">{main.email}</a>}
+                              {main.email && <a href={`mailto:${main.email}`} onClick={e => e.stopPropagation()} className="text-brand-700 hover:underline">{main.email}</a>}
                               {(main.phone || main.mobilePhone) && <div className="text-gray-500">{main.phone || main.mobilePhone}</div>}
                             </>
                           ) : <span className="text-gray-400">—</span>}
@@ -268,25 +274,17 @@ export default function CustomersPage() {
                         <td className="px-4 py-3 text-xs text-gray-600">{c.salesRepresentative || "—"}</td>
                         <td className="px-4 py-3 tabular-nums">
                           {c.orderCount > 0 ? (
-                            <button onClick={() => setOpenId(openId === c.id ? null : c.id)} className="text-brand-600 hover:text-brand-800 font-medium">
+                            <Link href={`/customers/${c.id}`} onClick={e => e.stopPropagation()} className="text-brand-700 hover:underline font-medium">
                               {c.orderCount}
-                            </button>
+                            </Link>
                           ) : <span className="text-gray-400">0</span>}
                         </td>
-                        <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap">
+                        <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <button onClick={() => startEdit(c)} className="text-xs text-gray-500 hover:text-gray-800">Edit</button>
                           <button onClick={() => { if (confirm(`Delete customer "${c.name}"?`)) deleteMutation.mutate(c.id); }}
                             className="text-xs text-red-400 hover:text-red-600">Delete</button>
                         </td>
                       </tr>
-                      {openId === c.id && (
-                        <tr>
-                          <td colSpan={8} className="p-0">
-                            <CustomerOrders customerId={c.id} />
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
                   );
                 })}
               </tbody>
@@ -308,34 +306,6 @@ function Field({ id, label, value, onChange, placeholder, type }: {
       <label htmlFor={id} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       <input id={id} type={type} min={type === "number" ? 0 : undefined} step={type === "number" ? "any" : undefined}
         value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={INPUT} />
-    </div>
-  );
-}
-
-function CustomerOrders({ customerId }: { customerId: number }) {
-  const { data, isLoading } = useQuery<Page<SaleOrder>>({
-    queryKey: ["sale-orders", "customer", customerId],
-    queryFn: () => getSaleOrders({ customerId, size: 10 }),
-  });
-  const orders = data?.content ?? [];
-
-  return (
-    <div data-testid={`customer-orders-${customerId}`} className="bg-gray-50 px-8 py-4 border-t border-gray-100">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-        Recent sale orders{data && data.totalElements > orders.length ? ` (latest ${orders.length} of ${data.totalElements})` : ""}
-      </p>
-      {isLoading ? <p className="text-gray-400 text-xs">Loading...</p> : (
-        <ul className="space-y-1 text-sm">
-          {orders.map(o => (
-            <li key={o.id} className="flex gap-4">
-              <span className="font-mono text-xs text-gray-400 w-20">{o.orderNumber}</span>
-              <span className="text-xs font-semibold text-gray-600 w-24">{o.status}</span>
-              <span className="text-gray-600">{o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</span>
-              <span className="text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

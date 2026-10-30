@@ -55,6 +55,7 @@ export const deleteSupplier = (id: number) => api.delete(`/suppliers/${id}`).the
 export const getCustomers     = () => api.get("/customers", { params: { size: 9999 } }).then(r => r.data.content);
 export const getCustomersPage = (params?: { search?: string; page?: number; size?: number }) =>
   api.get("/customers", { params: { size: 20, ...params } }).then(r => r.data);
+export const getCustomer    = (id: number) => api.get(`/customers/${id}`).then(r => r.data);
 export const createCustomer = (data: unknown) => api.post("/customers", data).then(r => r.data);
 export const updateCustomer = ({ id, data }: { id: number; data: unknown }) => api.put(`/customers/${id}`, data).then(r => r.data);
 export const deleteCustomer = (id: number) => api.delete(`/customers/${id}`);

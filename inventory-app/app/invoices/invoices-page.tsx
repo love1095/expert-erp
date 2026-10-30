@@ -3,25 +3,18 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getInvoices, createInvoice, issueInvoice, cancelInvoice, payInvoice,
+  getInvoices, createInvoice, issueInvoice, cancelInvoice,
   getProducts, getSaleOrders, getPurchaseOrders,
 } from "@/lib/api";
-import { Invoice, InvoiceStatus, InvoiceType, PaymentMethod, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
+import { useRouter } from "next/navigation";
+import { Invoice, InvoiceType, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
-import CreditNoteForm from "./credit-note-form";
+import { INVOICE_STATUS_COLOR as STATUS_COLOR } from "./invoice-view";
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
-const STATUS_COLOR: Record<InvoiceStatus, string> = {
-  DRAFT:     "bg-amber-100 text-amber-700",
-  ISSUED:    "bg-blue-100 text-blue-700",
-  PAID:      "bg-emerald-100 text-emerald-700",
-  CANCELLED: "bg-gray-100 text-gray-500",
-};
-
 const CURRENCIES = ["USD", "EUR", "GBP", "VND"];
-const METHODS: PaymentMethod[] = ["CASH", "BANK", "STRIPE"];
 
 // ─── empty item helper ───────────────────────────────────────────────────────
 
@@ -57,13 +50,7 @@ export default function InvoicesPage() {
   const [items, setItems]             = useState([emptyItem()]);
   const [formError, setFormError]     = useState("");
 
-  // detail / payment panel
-  const [selected, setSelected]   = useState<Invoice | null>(null);
-  const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("CASH");
-  const [payError, setPayError]   = useState("");
-  const [crediting, setCrediting] = useState(false);
-  const isCreditNote = selected?.kind === "CREDIT_NOTE";
+  const router = useRouter();
 
   // ── queries ────────────────────────────────────────────────────────────────
 
@@ -100,26 +87,14 @@ export default function InvoicesPage() {
 
   const issueMut = useMutation({
     mutationFn: (id: number) => issueInvoice(id),
-    onSuccess:  (updated: Invoice) => { qc.invalidateQueries({ queryKey: ["invoices"] }); setSelected(updated); },
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ["invoices"] }),
     onError:    (e: any) => alert(e.response?.data?.error || "Failed to issue invoice"),
   });
 
   const cancelMut = useMutation({
     mutationFn: (id: number) => cancelInvoice(id),
-    onSuccess:  (updated: Invoice) => { qc.invalidateQueries({ queryKey: ["invoices"] }); setSelected(updated); },
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ["invoices"] }),
     onError:    (e: any) => alert(e.response?.data?.error || "Failed to cancel invoice"),
-  });
-
-  const payMut = useMutation({
-    mutationFn: ({ id, amount, method }: { id: number; amount: string; method: PaymentMethod }) =>
-      payInvoice(id, { amount: parseFloat(amount), method }),
-    onSuccess:  (updated: Invoice) => {
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      setSelected(updated);
-      setPayAmount("");
-      setPayError("");
-    },
-    onError: (e: any) => setPayError(e.response?.data?.error || "Payment failed"),
   });
 
   // ── helpers ────────────────────────────────────────────────────────────────
@@ -337,10 +312,8 @@ export default function InvoicesPage() {
           </select>
         </>} />
 
-      {/* two-column layout when detail panel is open */}
-      <div className={`flex gap-4 ${selected ? "items-start" : ""}`}>
-        {/* invoice table */}
-        <div className={`flex-1 min-w-0 ${selected ? "max-w-[calc(100%-320px)]" : ""}`}>
+      <div>
+        <div>
           {isLoading ? (
             <p className="text-gray-400 text-sm">Loading…</p>
           ) : (
@@ -355,15 +328,16 @@ export default function InvoicesPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {invoiceList.length === 0 && (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No invoices yet</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">{search || statusFilter || typeFilter ? "No invoices match" : "No invoices yet"}</td></tr>
                   )}
                   {invoiceList.map(inv => (
                     <tr key={inv.id}
-                      onClick={() => { setSelected(inv); setCrediting(false); }}
-                      className={`hover:bg-gray-50 cursor-pointer ${selected?.id === inv.id ? "bg-brand-50" : ""}`}>
-                      <td className="px-4 py-3 font-mono text-xs text-brand-600 font-semibold">
+                      data-testid={`invoice-row-${inv.id}`}
+                      onClick={() => router.push(`/invoices/${inv.id}`)}
+                      className="hover:bg-gray-50 cursor-pointer">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-900 font-semibold">
                         {inv.invoiceNumber}
-                        {inv.kind === "CREDIT_NOTE" && <span className="block font-sans text-[10px] font-semibold text-brand-600">Credit note</span>}
+                        {inv.kind === "CREDIT_NOTE" && <span className="block font-sans text-[10px] font-semibold text-gray-500">Credit note</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
@@ -375,7 +349,7 @@ export default function InvoicesPage() {
                         {inv.currency} {inv.totalAmount.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 tabular-nums text-gray-500 text-xs">
-                        {inv.amountPaid > 0 ? inv.amountPaid.toFixed(2) : "—"}
+                        {inv.amountPaid > 0 ? Number(inv.amountPaid).toFixed(2) : "—"}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[inv.status]}`}>
@@ -394,6 +368,7 @@ export default function InvoicesPage() {
                           <button onClick={e => { e.stopPropagation(); cancelMut.mutate(inv.id); }}
                             className="text-xs text-gray-400 hover:text-red-500 font-medium">Cancel</button>
                         )}
+                        <span className="text-xs text-brand-700 font-medium">Open ›</span>
                       </td>
                     </tr>
                   ))}
@@ -407,141 +382,6 @@ export default function InvoicesPage() {
           )}
         </div>
 
-        {/* detail panel */}
-        {selected && (
-          <div className="w-80 shrink-0 bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-mono text-sm font-bold text-brand-600">{selected.invoiceNumber}</p>
-                {isCreditNote && (
-                  <p className="text-xs font-semibold text-brand-600">Credit note for {selected.creditedInvoiceNumber}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-0.5">{selected.partyName}</p>
-              </div>
-              <button onClick={() => setSelected(null)} className="text-gray-300 hover:text-gray-500 text-lg leading-none">×</button>
-            </div>
-
-            {/* amounts */}
-            <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Before tax</span>
-                <span className="tabular-nums">{Number(selected.subtotal).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">VAT</span>
-                <span className="tabular-nums">{Number(selected.taxTotal).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Total</span>
-                <span className="font-semibold">{selected.currency} {selected.totalAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Paid</span>
-                <span className="text-emerald-600 font-semibold">{selected.amountPaid.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
-                <span className="text-gray-500">Balance</span>
-                <span className={`font-bold ${(selected.totalAmount - selected.amountPaid) > 0 ? "text-red-600" : "text-emerald-600"}`}>
-                  {(selected.totalAmount - selected.amountPaid).toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            {/* items */}
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Items</p>
-              <div className="space-y-1">
-                {selected.items.map(item => (
-                  <div key={item.id} className="flex justify-between text-xs">
-                    <span className="text-gray-600 truncate max-w-[160px]" title={item.taxName ?? undefined}>
-                      {Number(item.quantity).toLocaleString()} × {item.productSku ?? item.description ?? "—"}
-                    </span>
-                    <span className="text-gray-700 tabular-nums">
-                      {item.totalPrice.toFixed(2)}{Number(item.taxAmount) > 0 && <span className="text-gray-400"> +{Number(item.taxAmount).toFixed(2)} VAT</span>}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* payments history */}
-            {selected.payments.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{isCreditNote ? "Refunds" : "Payments"}</p>
-                <div className="space-y-1">
-                  {selected.payments.map(p => (
-                    <div key={p.id} className="flex justify-between text-xs">
-                      <span className="text-gray-500">
-                        {p.method === "CREDIT_NOTE" ? `Credit note ${p.reference ?? ""}` : p.method} · {new Date(p.paidAt).toLocaleDateString()}
-                        {p.reference && p.method !== "CREDIT_NOTE" && ` · ${p.reference}`}
-                      </span>
-                      <span className="text-emerald-600 font-semibold">{p.amount.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* credit note & restock */}
-            {crediting && (
-              <CreditNoteForm invoice={selected} onCancel={() => setCrediting(false)}
-                onDone={cn => {
-                  setCrediting(false);
-                  setSelected(cn);
-                  qc.invalidateQueries({ queryKey: ["invoices"] });
-                  qc.invalidateQueries({ queryKey: ["sale-order"] });
-                  qc.invalidateQueries({ queryKey: ["stock-overview"] });
-                }} />
-            )}
-            {!crediting && !isCreditNote && selected.type === "SALES" && (selected.status === "ISSUED" || selected.status === "PAID") && (
-              <button onClick={() => setCrediting(true)}
-                className="w-full border border-brand-300 text-brand-700 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-50">
-                Credit note & restock
-              </button>
-            )}
-
-            {/* record payment (a refund, on a credit note) */}
-            {selected.status === "ISSUED" && !crediting && (
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{isCreditNote ? "Record refund" : "Record Payment"}</p>
-                {payError && <p className="text-xs text-red-500 mb-2">{payError}</p>}
-                <div className="space-y-2">
-                  <input type="number" step="0.01" min="0.01" value={payAmount}
-                    onChange={e => setPayAmount(e.target.value)} placeholder="Amount"
-                    className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm" />
-                  <select value={payMethod} onChange={e => setPayMethod(e.target.value as PaymentMethod)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
-                    {METHODS.map(m => <option key={m}>{m}</option>)}
-                  </select>
-                  <button
-                    disabled={!payAmount || payMut.isPending}
-                    onClick={() => payMut.mutate({ id: selected.id, amount: payAmount, method: payMethod })}
-                    className="w-full bg-brand-600 text-white py-1.5 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
-                    {payMut.isPending ? "Saving…" : isCreditNote ? "Record refund" : "Record Payment"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* action buttons in panel */}
-            <div className="flex gap-2 border-t border-gray-100 pt-3">
-              {selected.status === "DRAFT" && (
-                <button onClick={() => issueMut.mutate(selected.id)}
-                  disabled={issueMut.isPending}
-                  className="flex-1 bg-brand-600 text-white py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
-                  Issue Invoice
-                </button>
-              )}
-              {(selected.status === "DRAFT" || selected.status === "ISSUED") && !isCreditNote && (
-                <button onClick={() => cancelMut.mutate(selected.id)}
-                  disabled={cancelMut.isPending}
-                  className="flex-1 border border-gray-300 text-gray-600 py-1.5 rounded-lg text-xs font-medium hover:border-red-400 hover:text-red-600 disabled:opacity-50">
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

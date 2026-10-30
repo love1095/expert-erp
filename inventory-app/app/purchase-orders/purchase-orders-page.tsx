@@ -2,18 +2,15 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPurchaseOrders, createPurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder, getProducts, getWarehouses, getCategories, getSuppliers } from "@/lib/api";
-import { PurchaseOrder, Product, Warehouse, PurchaseOrderStatus, Category, Supplier, Page } from "@/types";
-import { useState } from "react";
+import { PurchaseOrder, Product, Warehouse, Category, Supplier, Page } from "@/types";
+import { PO_STATUS_COLOR as STATUS_COLOR, poTotal } from "./purchase-order-view";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
-
-const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
-  DRAFT:     "bg-amber-100 text-amber-700",
-  RECEIVED:  "bg-emerald-100 text-emerald-700",
-  CANCELLED: "bg-gray-100 text-gray-500",
-};
 
 export default function PurchaseOrdersPage() {
   const qc = useQueryClient();
@@ -21,6 +18,12 @@ export default function PurchaseOrdersPage() {
   const [size, setSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  const router = useRouter();
+  // Opened with ?q=… (e.g. "other orders from this supplier")
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearch(q);
+  }, []);
 
   const { data, isLoading, isFetching, refetch } = useQuery<Page<PurchaseOrder>>({
     queryKey: ["purchase-orders", page, size, statusFilter, search],
@@ -186,27 +189,31 @@ export default function PurchaseOrdersPage() {
               <tbody className="divide-y divide-gray-100">
                 {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No purchase orders match" : "No purchase orders yet"}</td></tr>}
                 {orders.map(o => (
-                  <tr key={o.id} data-testid={`po-row-${o.id}`} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-400">PO-{o.id}</td>
+                  <tr key={o.id} data-testid={`po-row-${o.id}`} onClick={() => router.push(`/purchase-orders/${o.id}`)}
+                    className="hover:bg-gray-50 cursor-pointer">
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <Link href={`/purchase-orders/${o.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-800 hover:underline">PO-{o.id}</Link>
+                    </td>
                     <td className="px-4 py-3 font-medium">{o.supplierName}</td>
                     <td className="px-4 py-3 text-gray-600">{o.warehouseName}</td>
                     <td className="px-4 py-3 text-gray-500">{o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</td>
                     <td className="px-4 py-3 tabular-nums text-gray-700">
-                      {formatGBP(o.lines.reduce((sum, l) => sum + (l.quantity ?? 0) * (l.unitCost ?? 0), 0))}
+                      {formatGBP(poTotal(o))}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
-                    <td className="px-4 py-3 text-right space-x-2">
+                    <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       {o.status === "DRAFT" && (
                         <>
                           <button onClick={() => { if (confirm("Mark as received? This will add stock.")) receiveMutation.mutate(o.id); }}
-                            className="text-xs text-emerald-600 hover:text-emerald-800 font-medium">Receive</button>
+                            className="text-xs text-gray-800 hover:underline font-medium">Receive</button>
                           <button onClick={() => { if (confirm("Cancel this PO?")) cancelMutation.mutate(o.id); }}
                             className="text-xs text-red-500 hover:text-red-700">Cancel</button>
                         </>
                       )}
+                      <Link href={`/purchase-orders/${o.id}`} className="text-xs text-brand-700 font-medium hover:underline">Open ›</Link>
                     </td>
                   </tr>
                 ))}

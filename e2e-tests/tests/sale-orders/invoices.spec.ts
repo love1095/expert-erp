@@ -27,9 +27,19 @@ test.describe('Invoices from orders', () => {
       await expect(invoices).toContainText('invoiced £12.00');
 
       // The invoice carries the VAT
+      // The sales list shows the invoice in its Documents column, and "invoiced" as part done
+      const invoiceNumber = (await (await api.http.get(`/api/sale-orders/${order.id}`)).json()).invoices[0].invoiceNumber;
+      await page.goto('/sale-orders');
+      await expect(page.getByTestId(`so-row-${order.id}`)).toContainText(invoiceNumber);
+      const stages = page.getByTestId(`so-stages-${order.id}`);
+      await expect(stages.locator('[data-stage="order"]')).toHaveAttribute('data-state', 'done');
+      await expect(stages.locator('[data-stage="invoice"]')).toHaveAttribute('data-state', 'part');
+      await expect(stages.locator('[data-stage="paid"]')).toHaveAttribute('data-state', 'todo');
+
       await page.goto('/invoices');
       await page.getByRole('row').filter({ hasText: /INV-/ }).first().click();
-      await expect(page.getByText('VAT', { exact: true })).toBeVisible();
+      // The invoice page shows the VAT in its totals
+      await expect(page.locator('[data-testid^="invoice-totals-"]')).toContainText('VAT');
     });
 
   test('INV-002 with the setting on, each shipment is invoiced and issued', { tag: ['@P1', '@invoices', '@sale-orders'] },

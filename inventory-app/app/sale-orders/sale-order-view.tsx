@@ -7,8 +7,10 @@ import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, crea
   convertQuote, rejectQuote, getCustomers, invoiceSaleOrder } from "@/lib/api";
 import { Customer, FulfilmentStatus, SaleOrder, SaleOrderLine, SaleOrderStatus, Warehouse } from "@/types";
 import SaleOrderForm from "./sale-order-form";
+import SaleStages from "./sale-stages";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
+import { BTN_PRIMARY, BTN_SECONDARY, TrailCard, Field } from "@/components/DetailParts";
 
 type Mode = "view" | "ship" | "return" | "edit" | "invoice";
 
@@ -39,31 +41,6 @@ const INVOICE_COLOR: Record<string, string> = {
   CANCELLED: "bg-gray-100 text-gray-400", PAID: "bg-emerald-100 text-emerald-700",
   ISSUED: "bg-sky-100 text-sky-700", DRAFT: "bg-amber-100 text-amber-700",
 };
-
-const BTN_PRIMARY = "bg-brand-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50";
-const BTN_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
-
-// A card of the left-hand document trail (Cin7: Fulfillments, Invoices, Payments, C&R)
-function TrailCard({ title, badge, children, testId }: { title: string; badge?: React.ReactNode; children: React.ReactNode; testId?: string }) {
-  return (
-    <section data-testid={testId} className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
-        {badge}
-      </div>
-      <div className="text-sm space-y-2">{children}</div>
-    </section>
-  );
-}
-
-function Field({ label, value, warn }: { label: string; value?: React.ReactNode; warn?: boolean }) {
-  return (
-    <div>
-      <dt className="text-xs text-gray-400">{label}</dt>
-      <dd className={`text-sm ${warn ? "text-red-600 font-semibold" : "text-gray-800"}`}>{value || "—"}</dd>
-    </div>
-  );
-}
 
 export default function SaleOrderView({ orderId, warehouses }: { orderId: number; warehouses: Warehouse[] }) {
   const qc = useQueryClient();
@@ -222,6 +199,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
             <span className="font-normal text-gray-500"> for {order.customerName}</span>
           </h1>
           <div data-testid={`so-status-${orderId}`} className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <SaleStages order={order} />
             <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[order.status]}`}>{order.status}</span>
             {(order.status === "CONFIRMED" || order.status === "COMPLETED") && (
               <span className={`text-xs font-medium ${FULFILMENT_LABEL[order.fulfilmentStatus].color}`}>

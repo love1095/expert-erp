@@ -216,6 +216,15 @@ public class InvoiceService {
         return invoiceRepository.findBySaleOrderIdOrderByCreatedAtAscIdAsc(saleOrderId).stream().map(this::toResponse).toList();
     }
 
+    // Invoices and credit notes of several orders, by order, in one query
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, List<InvoiceResponse>> forOrders(java.util.Collection<Long> saleOrderIds) {
+        if (saleOrderIds.isEmpty()) return java.util.Map.of();
+        return invoiceRepository.findBySaleOrderIdInOrderByCreatedAtAscIdAsc(saleOrderIds).stream()
+                .collect(java.util.stream.Collectors.groupingBy(Invoice::getSaleOrderId,
+                        java.util.stream.Collectors.mapping(this::toResponse, java.util.stream.Collectors.toList())));
+    }
+
     /** Cancelling an invoice made from an order puts its quantities and charges back to "to invoice". */
     @Transactional
     public InvoiceResponse cancel(Long id) {

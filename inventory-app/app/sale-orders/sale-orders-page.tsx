@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSaleOrders, getWarehouses, getCustomers } from "@/lib/api";
 import { SaleOrder, Warehouse, Customer, Page } from "@/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
@@ -11,6 +11,7 @@ import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { STATUS_COLOR, FULFILMENT_LABEL } from "./sale-order-view";
+import SaleStages, { OrderDocuments } from "./sale-stages";
 import SaleOrderForm from "./sale-order-form";
 import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,10 +26,16 @@ export default function SaleOrdersPage() {
   const [size, setSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  // Opened from a customer page with ?customer=ID
+  const [customerId, setCustomerId] = useState<number | undefined>();
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("customer"));
+    if (id) setCustomerId(id);
+  }, []);
 
   const { data, isLoading, isFetching, refetch } = useQuery<Page<SaleOrder>>({
-    queryKey: ["sale-orders", page, size, statusFilter, search],
-    queryFn: () => getSaleOrders({ page, size, status: statusFilter || undefined, q: search || undefined }),
+    queryKey: ["sale-orders", page, size, statusFilter, search, customerId],
+    queryFn: () => getSaleOrders({ page, size, customerId, status: statusFilter || undefined, q: search || undefined }),
   });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers });
@@ -69,6 +76,12 @@ export default function SaleOrdersPage() {
         placeholder="Order #, customer, reference, Shopify #"
         onRefresh={() => refetch()} refreshing={isFetching}
         filters={<>
+        {customerId && (
+          <button type="button" onClick={() => { setCustomerId(undefined); setPage(0); router.replace("/sale-orders"); }}
+            className="text-xs font-medium px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">
+            One customer: {customers.find(c => c.id === customerId)?.name ?? `#${customerId}`} ×
+          </button>
+        )}
         <label htmlFor="sale-orders-status-filter" className="sr-only">Show</label>
         <select id="sale-orders-status-filter" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
           className={FILTER_SELECT}>
@@ -88,16 +101,17 @@ export default function SaleOrdersPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {["#", "Customer", "Reference", "Sales rep", "Total (£, inc VAT)", "Status", "Created", ""].map(h => (
+                  {["Progress", "#", "Customer", "Reference", "Documents", "Sales rep", "Total (£, inc VAT)", "Status", "Created", ""].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
+                {orders.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
                 {orders.map(o => (
                   <tr key={o.id} data-testid={`so-row-${o.id}`} onClick={() => router.push(`/sale-orders/${o.id}`)}
                     className="hover:bg-gray-50 cursor-pointer">
+                    <td className="px-4 py-3"><SaleStages order={o} /></td>
                     <td className="px-4 py-3 font-mono text-xs">
                       <Link href={`/sale-orders/${o.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-800 hover:underline">{o.orderNumber}</Link>
                       {o.source === "SHOPIFY" && (
@@ -111,6 +125,7 @@ export default function SaleOrdersPage() {
                       <span className="block text-[11px] font-normal text-gray-400">{o.warehouseName} · {o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{o.customerReference ?? "—"}</td>
+                    <td className="px-4 py-3 max-w-56"><OrderDocuments order={o} /></td>
                     <td className="px-4 py-3 text-gray-600">{o.salesRep ?? "—"}</td>
                     <td className="px-4 py-3 tabular-nums text-gray-700">{formatGBP(o.total)}</td>
                     <td className="px-4 py-3">
