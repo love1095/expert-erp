@@ -138,6 +138,12 @@ export const importStock = ({ file, warehouseId, apply }: { file: File; warehous
   }).then(r => r.data);
 };
 
+// Sale order as it would be created (rep, VAT, totals) — nothing saved
+export const previewSaleOrder = (data: unknown) => api.post("/sale-orders/preview", data).then(r => r.data);
+export const getTaxRates = (usage: "SALE" | "PURCHASE" = "SALE") => api.get("/tax-rates", { params: { usage } }).then(r => r.data);
+export const getOrganisationSettings    = () => api.get("/settings/organisation").then(r => r.data);
+export const updateOrganisationSettings = (data: unknown) => api.put("/settings/organisation", data).then(r => r.data);
+
 // Dashboard
 export const getDashboard = (period: { from: string; to: string }) => api.get("/dashboard", { params: period }).then(r => r.data);
 export const getDashboardReorder = (params: { search?: string; page?: number; size?: number }) =>

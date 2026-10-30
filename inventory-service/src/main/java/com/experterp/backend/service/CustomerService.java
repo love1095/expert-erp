@@ -19,6 +19,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -100,6 +101,12 @@ public class CustomerService {
             auditService.log("CUSTOMER", c.getId(), "CREATE", Map.of("name", name, "via", "sale order"));
             return c;
         });
+    }
+
+    /** An existing customer with this name (any case), without creating one. */
+    public Optional<Customer> findByName(String name) {
+        if (name == null || name.isBlank()) return Optional.empty();
+        return customerRepository.findFirstByNameIgnoreCaseOrderByIdAsc(name.trim());
     }
 
     /** Copies every field of the request onto the customer; contacts are replaced as a whole. */

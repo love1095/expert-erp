@@ -59,6 +59,14 @@ public class DashboardService {
             " WHERE i.tenant_id = :t AND i.type = :type AND i.status = 'ISSUED' " +
             "   AND i.total_amount - COALESCE(pay.paid, 0) > 0 ";
 
+    // Same rounding as SaleAmounts: net per line after discount, VAT per line, half-up to the penny
+    private static final String LINE_NET =
+            "ROUND((l.quantity - l.cancelled_quantity) * COALESCE(l.unit_price, 0) * (100 - l.discount_percent) / 100, 2)";
+    private static final String CHARGE_NET = "ROUND(c.quantity * c.unit_price * (100 - c.discount_percent) / 100, 2)";
+    // Orders of the period that count as sales; needs :t, :from, :until
+    private static final String PERIOD_ORDERS =
+            "so.tenant_id = :t AND so.status <> 'CANCELLED' AND so.created_at >= :from AND so.created_at < :until";
+
     private final NamedParameterJdbcTemplate jdbc;
 
     @Transactional(readOnly = true)
@@ -100,15 +108,22 @@ public class DashboardService {
         Map<LocalDate, BigDecimal> salesValue = new HashMap<>();
         jdbc.query(
                 "SELECT CAST(so.created_at AS date) AS d, COUNT(DISTINCT so.id) AS orders, " +
-                "       COALESCE(SUM((l.quantity - l.cancelled_quantity) * COALESCE(l.unit_price, 0)), 0) AS value " +
+                "       COALESCE(SUM(" + LINE_NET + "), 0) AS value " +
                 "  FROM sale_orders so JOIN sale_order_lines l ON l.sale_order_id = so.id " +
-                " WHERE so.tenant_id = :t AND so.status <> 'CANCELLED' AND so.created_at >= :from AND so.created_at < :until " +
+                " WHERE " + PERIOD_ORDERS +
                 " GROUP BY CAST(so.created_at AS date)", p,
                 rs -> {
                     LocalDate d = rs.getDate("d").toLocalDate();
                     orderCounts.put(d, rs.getLong("orders"));
                     salesValue.put(d, rs.getBigDecimal("value"));
                 });
+        // Additional charges (carriage...) are revenue too
+        jdbc.query(
+                "SELECT CAST(so.created_at AS date) AS d, SUM(" + CHARGE_NET + ") AS value " +
+                "  FROM sale_orders so JOIN sale_order_charges c ON c.sale_order_id = so.id " +
+                " WHERE " + PERIOD_ORDERS +
+                " GROUP BY CAST(so.created_at AS date)", p,
+                rs -> { salesValue.merge(rs.getDate("d").toLocalDate(), rs.getBigDecimal("value"), BigDecimal::add); });
 
         Map<LocalDate, BigDecimal[]> units = new HashMap<>();
         BigDecimal[] shipped = {BigDecimal.ZERO};
@@ -140,12 +155,26 @@ public class DashboardService {
         // ---- best and worst sellers by value, among products ordered in the period ----
         String sellers =
                 "SELECT p.id, p.sku, p.name, SUM(l.quantity - l.cancelled_quantity) AS qty, " +
-                "       SUM((l.quantity - l.cancelled_quantity) * COALESCE(l.unit_price, 0)) AS value " +
+                "       SUM(" + LINE_NET + ") AS value " +
                 "  FROM sale_orders so JOIN sale_order_lines l ON l.sale_order_id = so.id JOIN products p ON p.id = l.product_id " +
-                " WHERE so.tenant_id = :t AND so.status <> 'CANCELLED' AND so.created_at >= :from AND so.created_at < :until " +
+                " WHERE " + PERIOD_ORDERS +
                 " GROUP BY p.id, p.sku, p.name HAVING SUM(l.quantity - l.cancelled_quantity) > 0 ";
         List<Seller> top = jdbc.query(sellers + "ORDER BY value DESC, qty DESC, p.sku LIMIT 10", p, this::seller);
         List<Seller> worst = jdbc.query(sellers + "ORDER BY value ASC, qty ASC, p.sku LIMIT 10", p, this::seller);
+
+        // ---- sales by rep (lines + charges, ex-VAT and VAT) ----
+        List<RepSales> byRep = jdbc.query(
+                "SELECT rep, COUNT(DISTINCT id) AS orders, SUM(net) AS net, SUM(tax) AS tax FROM (" +
+                "  SELECT so.id, COALESCE(NULLIF(TRIM(so.sales_rep), ''), 'No rep') AS rep, " + LINE_NET + " AS net, " +
+                "         ROUND(" + LINE_NET + " * l.tax_rate / 100, 2) AS tax " +
+                "    FROM sale_orders so JOIN sale_order_lines l ON l.sale_order_id = so.id WHERE " + PERIOD_ORDERS +
+                "  UNION ALL " +
+                "  SELECT so.id, COALESCE(NULLIF(TRIM(so.sales_rep), ''), 'No rep'), " + CHARGE_NET + ", " +
+                "         ROUND(" + CHARGE_NET + " * c.tax_rate / 100, 2) " +
+                "    FROM sale_orders so JOIN sale_order_charges c ON c.sale_order_id = so.id WHERE " + PERIOD_ORDERS +
+                ") x GROUP BY rep ORDER BY SUM(net) DESC, rep", p,
+                (rs, i) -> new RepSales(rs.getString("rep"), rs.getLong("orders"), rs.getBigDecimal("net"),
+                        rs.getBigDecimal("tax"), rs.getBigDecimal("net").add(rs.getBigDecimal("tax"))));
 
         // ---- work waiting now ----
         long salesDraftInvoices = count("SELECT COUNT(*) FROM invoices WHERE tenant_id = :t AND type = 'SALES' AND status = 'DRAFT'", p);
@@ -168,13 +197,16 @@ public class DashboardService {
                 "SELECT COALESCE(SUM(i.total_amount - COALESCE(pay.paid, 0)), 0) " + UNPAID_INVOICES, sp, BigDecimal.class);
 
         List<RecentOrder> recent = jdbc.query(
-                "SELECT so.id, so.customer_name, so.status, so.fulfilment_status, so.created_at, " +
-                "       COALESCE(SUM(l.quantity * COALESCE(l.unit_price, 0)), 0) AS total " +
-                "  FROM sale_orders so LEFT JOIN sale_order_lines l ON l.sale_order_id = so.id " +
-                " WHERE so.tenant_id = :t " +
-                " GROUP BY so.id ORDER BY so.created_at DESC, so.id DESC LIMIT 5", p,
-                (rs, i) -> new RecentOrder(rs.getLong("id"), rs.getString("customer_name"), rs.getString("status"),
-                        rs.getString("fulfilment_status"), rs.getBigDecimal("total"), rs.getTimestamp("created_at").toLocalDateTime()));
+                "SELECT so.id, so.order_number, so.customer_name, so.status, so.fulfilment_status, so.created_at, " +
+                "       COALESCE((SELECT SUM(" + LINE_NET + " + ROUND(" + LINE_NET + " * l.tax_rate / 100, 2)) " +
+                "                   FROM sale_order_lines l WHERE l.sale_order_id = so.id), 0) + " +
+                "       COALESCE((SELECT SUM(" + CHARGE_NET + " + ROUND(" + CHARGE_NET + " * c.tax_rate / 100, 2)) " +
+                "                   FROM sale_order_charges c WHERE c.sale_order_id = so.id), 0) AS total " +
+                "  FROM sale_orders so WHERE so.tenant_id = :t " +
+                " ORDER BY so.created_at DESC, so.id DESC LIMIT 5", p,
+                (rs, i) -> new RecentOrder(rs.getLong("id"), rs.getString("order_number"), rs.getString("customer_name"),
+                        rs.getString("status"), rs.getString("fulfilment_status"), rs.getBigDecimal("total"),
+                        rs.getTimestamp("created_at").toLocalDateTime()));
 
         Kpis kpis = new Kpis(
                 count("SELECT COUNT(*) FROM products WHERE tenant_id = :t", p),
@@ -189,7 +221,7 @@ public class DashboardService {
                 shipped[0],
                 receivables);
 
-        return new DashboardResponse(from, to, (int) length, kpis, byStatus, sales, purchases, daily, top, worst, recent);
+        return new DashboardResponse(from, to, (int) length, kpis, byStatus, sales, purchases, daily, top, worst, byRep, recent);
     }
 
     /** The reorder list, lowest stock + on order first; {@code search} matches SKU, name or supplier. */

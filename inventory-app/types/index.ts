@@ -268,6 +268,41 @@ export interface SaleOrderLine extends OrderLine {
   cancelledQuantity: number;
   returnedQuantity: number;
   remainingQuantity: number;
+  discountPercent: number;
+  // Copied onto the line when the order was made; empty = no VAT recorded (older and Shopify orders)
+  taxName?: string;
+  taxRate: number;
+  taxOverridden: boolean;
+  // For the quantity not cancelled
+  netAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  // Over the product's cost price; absent without a cost
+  marginPercent?: number;
+}
+
+// Carriage, delivery... (no product, no stock)
+export interface SaleOrderCharge {
+  id?: number;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discountPercent: number;
+  taxName?: string;
+  taxRate: number;
+  taxOverridden: boolean;
+  netAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
+export interface TaxRate { id: number; name: string; rate: number; usage: "SALE" | "PURCHASE"; active: boolean }
+
+export interface OrganisationSettings {
+  saleOrderPrefix: string;
+  nextSaleOrderNumber: number;
+  webSalesRep: string;
+  defaultSaleTaxRule: string;
 }
 
 export interface SaleOrderEntryLine {
@@ -303,6 +338,20 @@ export interface SaleOrderReturn {
 
 export interface SaleOrder {
   id: number;
+  // e.g. SO-66006 (absent on a preview)
+  orderNumber: string;
+  // The customer's own reference (their PO number)
+  customerReference?: string;
+  salesRep?: string;
+  paymentTerm?: string;
+  shipBy?: string;
+  carrier?: string;
+  shippingNotes?: string;
+  charges: SaleOrderCharge[];
+  // Lines + charges, cancelled quantities left out
+  subtotal: number;
+  taxTotal: number;
+  total: number;
   source: "MANUAL" | "SHOPIFY";
   // Shopify order number, e.g. #1001
   externalReference?: string;
@@ -452,7 +501,8 @@ export interface Dashboard {
   daily: { date: string; orders: number; salesValue: number; unitsIn: number; unitsOut: number }[];
   topSellers: DashboardSeller[];
   worstSellers: DashboardSeller[];
-  recentOrders: { id: number; customerName: string; status: SaleOrderStatus; fulfilmentStatus: FulfilmentStatus; total: number; createdAt: string }[];
+  salesByRep: { salesRep: string; orders: number; net: number; tax: number; total: number }[];
+  recentOrders: { id: number; orderNumber: string; customerName: string; status: SaleOrderStatus; fulfilmentStatus: FulfilmentStatus; total: number; createdAt: string }[];
 }
 
 export interface ReorderLine {

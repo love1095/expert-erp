@@ -121,7 +121,7 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Tile testId="kpi-sales" label={`Sales, ${periodLabel}`} value={formatGBP(k.salesValueInPeriod)} hint={`${k.ordersInPeriod} order${k.ordersInPeriod !== 1 ? "s" : ""}`} href="/sale-orders" />
+        <Tile testId="kpi-sales" label={`Revenue ex VAT, ${periodLabel}`} value={formatGBP(k.salesValueInPeriod)} hint={`${k.ordersInPeriod} order${k.ordersInPeriod !== 1 ? "s" : ""}`} href="/sale-orders" />
         <Tile testId="kpi-to-ship" label="Orders to ship" value={String(k.ordersToShip)} hint={`${k.draftOrders} draft${k.draftOrders !== 1 ? "s" : ""} to confirm`} href="/sale-orders" />
         <Tile testId="kpi-stock-value" label="Stock value (at cost)" value={formatGBP(k.stockValue)} hint={`${k.products} products · ${k.warehouses} warehouses`} href="/stock-overview" />
         <Tile testId="kpi-reorder" label="Products to reorder" value={String(k.productsToReorder)} hint="Stock + on order at or below minimum" warn={k.productsToReorder > 0} />
@@ -161,7 +161,7 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Panel title="Sales value per day (£, excl. cancelled)"
+        <Panel title="Revenue per day (£ ex VAT, excl. cancelled)"
           action={<button onClick={() => setShowTable(!showTable)} className="text-xs text-indigo-600 hover:text-indigo-800">{showTable ? "Hide table" : "Show as table"}</button>}>
           <DailyBars label="Sales value per day" format={formatGBP}
             data={data.daily.map(d => ({ date: d.date, value: d.salesValue }))} />
@@ -191,6 +191,25 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
         </Panel>
       )}
 
+      <Panel title={`Sales by rep, ${periodLabel}`}>
+        {data.salesByRep.length === 0 ? <p className="text-sm text-gray-400">No orders in this period</p> : (
+          <table className="w-full text-sm" data-testid="sales-by-rep">
+            <thead className="text-xs text-gray-500 text-left">
+              <tr><th className="pb-1.5">Sales rep</th><th className="text-right">Orders</th><th className="text-right">Sales ex VAT</th><th className="text-right">VAT</th><th className="text-right">Total</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 tabular-nums">
+              {data.salesByRep.map(r => (
+                <tr key={r.salesRep}>
+                  <td className="py-1.5 text-gray-800">{r.salesRep}</td><td className="text-right">{r.orders}</td>
+                  <td className="text-right">{formatGBP(r.net)}</td><td className="text-right text-gray-500">{formatGBP(r.tax)}</td>
+                  <td className="text-right font-semibold">{formatGBP(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Panel title={`${worst ? "Worst" : "Top"} sellers, ${periodLabel}`}
           action={
@@ -219,7 +238,7 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
               {data.recentOrders.map(o => (
                 <li key={o.id} className="py-2 flex items-center justify-between gap-3 text-sm">
                   <div className="min-w-0">
-                    <div className="truncate text-gray-800"><span className="font-mono text-xs text-gray-400 mr-1.5">SO-{o.id}</span>{o.customerName}</div>
+                    <div className="truncate text-gray-800"><span className="font-mono text-xs text-gray-400 mr-1.5">{o.orderNumber}</span>{o.customerName}</div>
                     <div className="text-xs text-gray-400"><ClientDate iso={o.createdAt} /></div>
                   </div>
                   <div className="text-right shrink-0">

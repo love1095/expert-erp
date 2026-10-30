@@ -29,4 +29,21 @@ public class Tenant {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // ---- organisation settings ----
+
+    @Column(nullable = false, length = 10)
+    private String saleOrderPrefix = "SO-";
+
+    // The number the next sale order gets (continues Cin7's series after cutover)
+    @Column(nullable = false)
+    private long nextSaleOrderNumber = 1;
+
+    // Sales rep given to Shopify orders
+    @Column(nullable = false, length = 100)
+    private String webSalesRep = "Web Sales";
+
+    // Sale tax rule used when neither the product nor the customer has one
+    @Column(nullable = false, length = 100)
+    private String defaultSaleTaxRule = "20% (VAT on Income)";
 }

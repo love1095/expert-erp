@@ -19,7 +19,7 @@ export class SaleOrdersPage {
     await this.page.goto('/sale-orders');
     await this.row(orderId).getByRole('button', { name: 'Manage' }).click();
     const panel = this.panel(orderId);
-    await expect(panel.getByRole('table')).toBeVisible();
+    await expect(panel.getByRole('table').first()).toBeVisible();
     return panel;
   }
 

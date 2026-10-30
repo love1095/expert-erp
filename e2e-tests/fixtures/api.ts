@@ -42,6 +42,11 @@ export interface Customer {
 
 export interface SaleOrder {
   id: number;
+  orderNumber: string;
+  salesRep?: string;
+  subtotal: number;
+  taxTotal: number;
+  total: number;
   customerId: number;
   customerName: string;
   status: 'DRAFT' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';

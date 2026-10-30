@@ -21,6 +21,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +57,11 @@ public class SaleOrderService {
     private final StockMovementService movementService;
     private final AuditService auditService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TaxService taxService;
+    private final OrganisationSettingsService settingsService;
+
+    // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
+    private static final Set<String> TAX_OVERRIDE_ROLES = Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SUPER_ADMIN");
 
     @Transactional(readOnly = true)
     public Page<SaleOrderResponse> findAll(Long customerId, int page, int size) {
@@ -75,26 +84,38 @@ public class SaleOrderService {
 
         Customer customer = customerService.resolveForOrder(req.getCustomerId(), req.getCustomerName());
 
-        SaleOrder so = new SaleOrder();
-        so.setCustomer(customer);
-        so.setCustomerName(customer.getName());
-        so.setWarehouse(warehouse);
-        so.setNotes(req.getNotes());
-
-        for (SaleOrderRequest.Line l : req.getLines()) {
-            Product product = productService.getProduct(l.getProductId());
-            SaleOrderLine line = new SaleOrderLine();
-            line.setSaleOrder(so);
-            line.setProduct(product);
-            line.setQuantity(l.getQuantity());
-            line.setUnitPrice(l.getUnitPrice());
-            so.getLines().add(line);
-        }
+        List<Map<String, Object>> taxOverrides = new ArrayList<>();
+        SaleOrder so = build(req, warehouse, customer, taxOverrides);
+        so.setOrderNumber(settingsService.nextSaleOrderNumber());
 
         SaleOrderResponse saved = toResponse(soRepository.save(so));
-        auditService.log("SALE_ORDER", saved.getId(), "CREATE",
-                Map.of("customer", so.getCustomerName(), "customerId", customer.getId(), "lines", so.getLines().size()));
+        Map<String, Object> audit = new HashMap<>(Map.of("orderNumber", so.getOrderNumber(), "customer", so.getCustomerName(),
+                "customerId", customer.getId(), "lines", so.getLines().size(), "total", saved.getTotal()));
+        if (!so.getCharges().isEmpty()) audit.put("charges", so.getCharges().size());
+        if (!taxOverrides.isEmpty()) audit.put("taxOverrides", taxOverrides);
+        auditService.log("SALE_ORDER", saved.getId(), "CREATE", audit);
         return saved;
+    }
+
+    /**
+     * The order as it would be created — rep, terms, discounts, VAT per line, totals — without saving anything,
+     * so the form can show the figures while it is filled in. Lines without a product or quantity are left out;
+     * a customer given only by a new name is not created.
+     */
+    @Transactional
+    public SaleOrderResponse preview(SaleOrderRequest req) {
+        Warehouse warehouse = req.getWarehouseId() == null ? null : warehouseRepository.findById(req.getWarehouseId()).orElse(null);
+        Customer customer = req.getCustomerId() != null ? customerService.getCustomer(req.getCustomerId())
+                : customerService.findByName(req.getCustomerName()).orElse(null);
+        SaleOrderRequest complete = new SaleOrderRequest();
+        org.springframework.beans.BeanUtils.copyProperties(req, complete);
+        complete.setLines(req.getLines() == null ? List.of() : req.getLines().stream()
+                .filter(l -> l.getProductId() != null && l.getQuantity() != null && l.getQuantity().signum() > 0).toList());
+        complete.setCharges(req.getCharges() == null ? List.of() : req.getCharges().stream()
+                .filter(c -> c.getDescription() != null && !c.getDescription().isBlank() && c.getUnitPrice() != null).toList());
+        SaleOrder so = build(complete, warehouse, customer, new ArrayList<>());
+        if (customer == null) so.setCustomerName(req.getCustomerName());
+        return toResponse(so);
     }
 
     @Transactional
@@ -296,6 +317,90 @@ public class SaleOrderService {
 
     // ---- private ----
 
+    private record TaxChoice(TaxRate rate, boolean overridden) {}
+
+    /** The order from the request, not saved: header defaults from the customer, discount and VAT on every line. */
+    private SaleOrder build(SaleOrderRequest req, Warehouse warehouse, Customer customer, List<Map<String, Object>> taxOverrides) {
+        SaleOrder so = new SaleOrder();
+        so.setCustomer(customer);
+        so.setCustomerName(customer != null ? customer.getName() : null);
+        so.setWarehouse(warehouse);
+        so.setNotes(req.getNotes());
+        so.setCustomerReference(blankToNull(req.getCustomerReference()));
+        so.setSalesRep(orElse(req.getSalesRep(), customer != null ? customer.getSalesRepresentative() : null));
+        so.setPaymentTerm(orElse(req.getPaymentTerm(), customer != null ? customer.getPaymentTerm() : null));
+        so.setShipBy(req.getShipBy());
+        so.setCarrier(orElse(req.getCarrier(), customer != null ? customer.getCarrier() : null));
+        so.setShippingNotes(blankToNull(req.getShippingNotes()));
+        BigDecimal customerDiscount = customer != null && customer.getDiscount() != null ? customer.getDiscount() : BigDecimal.ZERO;
+
+        for (SaleOrderRequest.Line l : req.getLines()) {
+            Product product = productService.getProduct(l.getProductId());
+            SaleOrderLine line = new SaleOrderLine();
+            line.setSaleOrder(so);
+            line.setProduct(product);
+            line.setQuantity(l.getQuantity());
+            line.setUnitPrice(l.getUnitPrice());
+            line.setDiscountPercent(l.getDiscountPercent() != null ? l.getDiscountPercent() : customerDiscount);
+            TaxChoice tax = chooseTax(l.getTaxRule(), l.getTaxReason(), taxService.resolveSale(product, customer),
+                    product.getSku(), taxOverrides);
+            line.setTaxName(tax.rate().getName());
+            line.setTaxRate(tax.rate().getRate());
+            line.setTaxOverridden(tax.overridden());
+            so.getLines().add(line);
+        }
+
+        if (req.getCharges() != null) {
+            for (SaleOrderRequest.Charge c : req.getCharges()) {
+                SaleOrderCharge charge = new SaleOrderCharge();
+                charge.setSaleOrder(so);
+                charge.setDescription(c.getDescription().trim());
+                charge.setQuantity(c.getQuantity() != null ? c.getQuantity() : BigDecimal.ONE);
+                charge.setUnitPrice(c.getUnitPrice());
+                charge.setDiscountPercent(c.getDiscountPercent() != null ? c.getDiscountPercent() : BigDecimal.ZERO);
+                TaxChoice tax = chooseTax(c.getTaxRule(), c.getTaxReason(), taxService.resolveSale(null, customer),
+                        charge.getDescription(), taxOverrides);
+                charge.setTaxName(tax.rate().getName());
+                charge.setTaxRate(tax.rate().getRate());
+                charge.setTaxOverridden(tax.overridden());
+                so.getCharges().add(charge);
+            }
+        }
+        return so;
+    }
+
+    /**
+     * The rule's rate, unless the request names another one: only a manager or admin may do that, and less VAT
+     * than the rule needs a reason. Every change is collected for the audit log.
+     */
+    private TaxChoice chooseTax(String requested, String reason, TaxRate rule, String what, List<Map<String, Object>> overrides) {
+        if (requested == null || requested.isBlank() || requested.trim().equalsIgnoreCase(rule.getName())) {
+            return new TaxChoice(rule, false);
+        }
+        TaxRate chosen = taxService.saleRate(requested);
+        if (!mayOverrideTax()) {
+            throw new AccessDeniedException("Only a manager or admin can change the VAT on " + what);
+        }
+        if (chosen.getRate().compareTo(rule.getRate()) < 0 && (reason == null || reason.isBlank())) {
+            throw new IllegalArgumentException("Give a reason for less VAT than " + rule.getName() + " on " + what);
+        }
+        overrides.add(Map.of("line", what, "from", rule.getName(), "to", chosen.getName(),
+                "reason", reason == null ? "" : reason.trim()));
+        return new TaxChoice(chosen, true);
+    }
+
+    private static boolean mayOverrideTax() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        // Jobs and integrations run without a user
+        if (auth == null || "anonymousUser".equals(auth.getPrincipal())) return true;
+        return auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(TAX_OVERRIDE_ROLES::contains);
+    }
+
+    private static String orElse(String value, String fallback) {
+        String v = blankToNull(value);
+        return v != null ? v : blankToNull(fallback);
+    }
+
     // Entities use Lombok @Data (hashCode walks the order<->line graph), so never use them as map keys
     private record LineQty(SaleOrderLine line, BigDecimal qty) {}
 
@@ -414,13 +519,20 @@ public class SaleOrderService {
     private SaleOrderResponse toResponse(SaleOrder so) {
         SaleOrderResponse r = new SaleOrderResponse();
         r.setId(so.getId());
-        r.setCustomerId(so.getCustomer().getId());
+        r.setOrderNumber(so.getOrderNumber());
+        r.setCustomerId(so.getCustomer() != null ? so.getCustomer().getId() : null);
         r.setCustomerName(so.getCustomerName());
-        r.setWarehouseId(so.getWarehouse().getId());
-        r.setWarehouseName(so.getWarehouse().getName());
+        r.setWarehouseId(so.getWarehouse() != null ? so.getWarehouse().getId() : null);
+        r.setWarehouseName(so.getWarehouse() != null ? so.getWarehouse().getName() : null);
         r.setStatus(so.getStatus());
         r.setFulfilmentStatus(so.getFulfilmentStatus());
         r.setNotes(so.getNotes());
+        r.setCustomerReference(so.getCustomerReference());
+        r.setSalesRep(so.getSalesRep());
+        r.setPaymentTerm(so.getPaymentTerm());
+        r.setShipBy(so.getShipBy());
+        r.setCarrier(so.getCarrier());
+        r.setShippingNotes(so.getShippingNotes());
         r.setSource(so.getSource());
         r.setExternalReference(so.getExternalReference());
         r.setNeedsReview(so.isNeedsReview());
@@ -429,6 +541,8 @@ public class SaleOrderService {
         r.setConfirmedAt(so.getConfirmedAt());
         r.setFulfilledAt(so.getFulfilledAt());
         r.setCancelledAt(so.getCancelledAt());
+
+        BigDecimal[] totals = {BigDecimal.ZERO, BigDecimal.ZERO};
         r.setLines(so.getLines().stream().map(l -> {
             SaleOrderResponse.Line lr = new SaleOrderResponse.Line();
             lr.setId(l.getId());
@@ -441,8 +555,44 @@ public class SaleOrderService {
             lr.setCancelledQuantity(l.getCancelledQuantity());
             lr.setReturnedQuantity(l.getReturnedQuantity());
             lr.setRemainingQuantity(l.getRemainingQuantity());
+            lr.setDiscountPercent(l.getDiscountPercent());
+            lr.setTaxName(l.getTaxName());
+            lr.setTaxRate(l.getTaxRate());
+            lr.setTaxOverridden(l.isTaxOverridden());
+            // Cancelled quantities are not sold
+            BigDecimal qty = l.getQuantity().subtract(l.getCancelledQuantity());
+            BigDecimal net = SaleAmounts.net(qty, l.getUnitPrice(), l.getDiscountPercent());
+            BigDecimal tax = SaleAmounts.tax(net, l.getTaxRate());
+            lr.setNetAmount(net);
+            lr.setTaxAmount(tax);
+            lr.setTotalAmount(net.add(tax));
+            lr.setMarginPercent(SaleAmounts.marginPercent(net, qty, l.getProduct().getCostPrice()));
+            totals[0] = totals[0].add(net);
+            totals[1] = totals[1].add(tax);
             return lr;
         }).collect(Collectors.toList()));
+        r.setCharges(so.getCharges().stream().map(c -> {
+            SaleOrderResponse.Charge cr = new SaleOrderResponse.Charge();
+            cr.setId(c.getId());
+            cr.setDescription(c.getDescription());
+            cr.setQuantity(c.getQuantity());
+            cr.setUnitPrice(c.getUnitPrice());
+            cr.setDiscountPercent(c.getDiscountPercent());
+            cr.setTaxName(c.getTaxName());
+            cr.setTaxRate(c.getTaxRate());
+            cr.setTaxOverridden(c.isTaxOverridden());
+            BigDecimal net = SaleAmounts.net(c.getQuantity(), c.getUnitPrice(), c.getDiscountPercent());
+            BigDecimal tax = SaleAmounts.tax(net, c.getTaxRate());
+            cr.setNetAmount(net);
+            cr.setTaxAmount(tax);
+            cr.setTotalAmount(net.add(tax));
+            totals[0] = totals[0].add(net);
+            totals[1] = totals[1].add(tax);
+            return cr;
+        }).collect(Collectors.toList()));
+        r.setSubtotal(totals[0]);
+        r.setTaxTotal(totals[1]);
+        r.setTotal(totals[0].add(totals[1]));
         return r;
     }
 }

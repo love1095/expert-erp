@@ -7,12 +7,25 @@ import com.experterp.backend.entity.SaleOrder.Status;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 public class SaleOrderResponse {
     private Long id;
+    private String orderNumber;
+    private String customerReference;
+    private String salesRep;
+    private String paymentTerm;
+    private LocalDate shipBy;
+    private String carrier;
+    private String shippingNotes;
+    // Σ lines and charges, cancelled quantities left out
+    private BigDecimal subtotal;
+    private BigDecimal taxTotal;
+    private BigDecimal total;
+    private List<Charge> charges;
     private Long customerId;
     private String customerName;
     private Long warehouseId;
@@ -45,6 +58,31 @@ public class SaleOrderResponse {
         private BigDecimal cancelledQuantity;
         private BigDecimal returnedQuantity;
         private BigDecimal remainingQuantity;
+        private BigDecimal discountPercent;
+        private String taxName;
+        private BigDecimal taxRate;
+        private boolean taxOverridden;
+        // For the quantity not cancelled
+        private BigDecimal netAmount;
+        private BigDecimal taxAmount;
+        private BigDecimal totalAmount;
+        // Over the product's cost price (FIFO cost once costing exists); null without a cost
+        private BigDecimal marginPercent;
+    }
+
+    @Data
+    public static class Charge {
+        private Long id;
+        private String description;
+        private BigDecimal quantity;
+        private BigDecimal unitPrice;
+        private BigDecimal discountPercent;
+        private String taxName;
+        private BigDecimal taxRate;
+        private boolean taxOverridden;
+        private BigDecimal netAmount;
+        private BigDecimal taxAmount;
+        private BigDecimal totalAmount;
     }
 
     @Data

@@ -8,6 +8,7 @@ import com.experterp.backend.repository.SaleOrderRepository;
 import com.experterp.backend.repository.ShopifyConnectionRepository;
 import com.experterp.backend.repository.WarehouseRepository;
 import com.experterp.backend.service.AuditService;
+import com.experterp.backend.service.OrganisationSettingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -43,6 +44,7 @@ public class ShopifyOrderImporter {
     private final CustomerRepository customerRepository;
     private final ShopifyConnectionRepository connectionRepository;
     private final AuditService auditService;
+    private final OrganisationSettingsService settingsService;
 
     // Currency the ERP's prices are in
     @Value("${app.currency:GBP}")
@@ -70,11 +72,15 @@ public class ShopifyOrderImporter {
             so = new SaleOrder();
             so.setSource(SaleOrder.Source.SHOPIFY);
             so.setExternalId(o.id());
+            so.setOrderNumber(settingsService.nextSaleOrderNumber());
+            // Web orders are credited to the organisation's web sales rep (docs/business-rules.md §4)
+            so.setSalesRep(settingsService.webSalesRep());
             if (o.createdAt() != null) {
                 so.setCreatedAt(o.createdAt().atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime());
             }
         }
         so.setExternalReference(o.name());
+        so.setCustomerReference(o.name());
         so.setWarehouse(warehouse(conn));
         Customer customer = customer(o);
         so.setCustomer(customer);
@@ -106,6 +112,7 @@ public class ShopifyOrderImporter {
             line.setQuantity(l.quantity());
             line.setUnitPrice(l.unitPrice());
             line.setExternalLineId(l.id());
+            // No VAT recorded until it is settled whether Shopify prices include VAT (phase F)
             so.getLines().add(line);
         }
         if (so.getLines().isEmpty() && issues.isEmpty()) issues.add("the order has no items");

@@ -41,6 +41,7 @@ const nav = [
     { href: "/audit-log", label: "Audit Log" },
   ]},
   { label: "SETTINGS",   items: [
+    { href: "/settings/organisation", label: "Organisation" },
     { href: "/settings/subscription", label: "Subscription" },
     { href: "/settings/integrations", label: "Integrations" },
   ]},

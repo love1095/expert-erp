@@ -260,6 +260,28 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
+## Phase D — Sales (spec §2) 🔄
+
+> Goal: one sales flow like Cin7 — quote → order → ship → invoice → payment, with VAT, reps, reservations and backorders. Plan and Cin7 findings: [`docs/phase-d-sales.md`](docs/phase-d-sales.md).
+
+### D1 Order header, VAT and totals ✅
+- [x] `V12`: per-organisation **tax rates** seeded for the UK with Cin7's names (`20% (VAT on Income)`, `Zero Rated Income`, `No VAT`, 5 %, exempt; purchase side incl. reverse charge); organisations made later get them on first use
+- [x] Each line gets **discount %** (the customer's by default) and its **VAT**: product's sale tax rule → customer's tax rule → organisation default; the rule's name and rate are **copied onto the line**, so later rate changes never alter an order. A different rate on a line needs **MANAGER or above** (403 otherwise) and a **reason** when it is less VAT; changes are in the audit log
+- [x] **Additional charges** (carriage…): no product, no stock, own VAT (`sale_order_charges`)
+- [x] Order header: **customer reference** (their PO number), **sales rep**, **terms**, **carrier** (copied from the customer, editable), ship by, shipping notes; Shopify orders get the organisation's web sales rep (*Web Sales*) and their Shopify number as reference; their lines carry no VAT until phase F settles Shopify VAT
+- [x] **Order numbers** from a per-organisation sequence (`SO-` + next number), settable in **Settings → Organisation** to continue Cin7's series at cutover; numbers in use are skipped; existing orders keep `SO-<id>`
+- [x] Totals before tax / VAT / total per order; net, VAT and **margin %** per line (over the product's cost price until FIFO costing)
+- [x] `POST /sale-orders/preview`: the order as it would be created, nothing saved — the form shows defaults, VAT per line and totals as it is filled in
+- [x] Dashboard: **revenue ex-VAT** (after discounts, charges included) and **sales by rep** (orders, ex-VAT, VAT, total)
+- [x] Frontend: new order form (reference, rep, terms, ship by, carrier, notes; discount and VAT per line — VAT locked for STAFF; charges; live totals); list shows number, reference, rep, total inc VAT; order panel shows the header, price / discount / VAT / net / margin per line, charges and totals; Settings → Organisation (numbering, Shopify rep, default VAT, VAT rates)
+- [x] Checked on real data: AE Yates Ltd + HVJC-F01-Y-M at £25.65 gives rep Dwaine Silverblade, 30 Day EOM, Expert Van, 20 % VAT and **36.10 % margin — the same as Cin7's SO-66003**
+- [x] Tests: `SaleOrderVatTest` (6) — VAT rule order, discounts, charges, totals, rates changing later, override permissions and reasons, numbering, preview, dashboard revenue and reps (90 backend tests); E2E SO-008…SO-010 (64 cases)
+
+### Next
+- [ ] D2 reservation, available stock, backorders · D3 quotes · D4 invoices (by hand and automatic on shipment) and credit notes · D5 PDFs
+
+---
+
 ## Phase 7 — Shopify integration 🔄
 
 > Goal: Shopify orders flow into the ERP; fulfilments, cancellations, returns and stock flow back.
@@ -380,6 +402,9 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/webhooks/shopify` | Shopify webhooks (public; HMAC-signed) |
 | POST | `/sale-orders/{id}/fulfilments/{fid}/shopify-sync` | Send a shipment of a Shopify order to Shopify again |
 | GET  | `/dashboard` | Dashboard figures for `from`–`to`, or the last `days` days (default 30) |
+| POST | `/sale-orders/preview` | The order as it would be created (defaults, VAT, totals); nothing saved |
+| GET/PUT | `/settings/organisation` | Order numbering, Shopify sales rep, default sale tax rule (PUT: ADMIN) |
+| GET  | `/tax-rates` | The organisation's VAT rates (`usage` SALE / PURCHASE) |
 | GET  | `/dashboard/reorder` | Products whose stock + on order is at or below their minimum (`search`, `page`, `size`) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |

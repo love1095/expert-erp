@@ -204,7 +204,7 @@ export default function InvoicesPage() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
                 <option value="">— none —</option>
                 {salesOrders.content.map(so => (
-                  <option key={so.id} value={so.id}>SO-{so.id} · {so.customerName}</option>
+                  <option key={so.id} value={so.id}>{so.orderNumber} · {so.customerName}</option>
                 ))}
               </select>
             </div>

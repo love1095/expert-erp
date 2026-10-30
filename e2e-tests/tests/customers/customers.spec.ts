@@ -91,7 +91,7 @@ test.describe('Customers', () => {
       await page.goto('/customers');
       const row = page.getByTestId(`customer-row-${customer.id}`);
       await row.getByRole('button', { name: '1' }).click();
-      await expect(page.getByTestId(`customer-orders-${customer.id}`)).toContainText(`SO-${order.id}`);
+      await expect(page.getByTestId(`customer-orders-${customer.id}`)).toContainText(order.orderNumber);
 
       const dialogs: string[] = [];
       page.on('dialog', d => { if (d.type() === 'alert') dialogs.push(d.message()); });

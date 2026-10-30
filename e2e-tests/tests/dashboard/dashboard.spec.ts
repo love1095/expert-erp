@@ -37,7 +37,7 @@ test.describe('Dashboard', () => {
       await expect(page.getByTestId('sellers').locator('li').first()).toContainText(boots.sku);
       await expect(page.getByTestId('sales-status')).toContainText('Draft orders1');
       await expect(page.getByTestId('sales-status')).toContainText('To ship1');
-      await expect(page.getByTestId('recent-orders')).toContainText(`SO-${toShip.id}`);
+      await expect(page.getByTestId('recent-orders')).toContainText(toShip.orderNumber);
 
       // The table view lists today's figures
       await page.getByRole('button', { name: 'Show as table' }).click();

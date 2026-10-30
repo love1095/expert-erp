@@ -19,6 +19,7 @@ public record DashboardResponse(
         List<Day> daily,
         List<Seller> topSellers,
         List<Seller> worstSellers,
+        List<RepSales> salesByRep,
         List<RecentOrder> recentOrders) {
 
     public record Kpis(
@@ -34,6 +35,7 @@ public record DashboardResponse(
             long draftOrders,
             // Period figures: orders created in the period, excluding cancelled orders and cancelled quantities
             long ordersInPeriod,
+            // Revenue ex-VAT: lines after discount + additional charges
             BigDecimal salesValueInPeriod,
             BigDecimal unitsShippedInPeriod,
             // Issued sales invoices minus payments received
@@ -51,7 +53,11 @@ public record DashboardResponse(
     // Ordered in the period on orders that are not cancelled, cancelled quantities left out
     public record Seller(Long productId, String sku, String name, BigDecimal quantity, BigDecimal value) {}
 
-    public record RecentOrder(Long id, String customerName, String status, String fulfilmentStatus,
+    // Orders of the period per sales rep (orders without a rep under "No rep"); net = ex-VAT
+    public record RepSales(String salesRep, long orders, BigDecimal net, BigDecimal tax, BigDecimal total) {}
+
+    // total = VAT included
+    public record RecentOrder(Long id, String orderNumber, String customerName, String status, String fulfilmentStatus,
                               BigDecimal total, LocalDateTime createdAt) {}
 
     /** A product to reorder: stock + on order is at or below its minimum. */

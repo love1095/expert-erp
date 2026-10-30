@@ -49,6 +49,12 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
 
+    // A rule only some roles may break (e.g. changing the VAT on a line); keeps the reason in the answer
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return error(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
         return error(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());

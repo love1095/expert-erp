@@ -5,6 +5,7 @@ import { useState } from "react";
 import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn, retryShopifyFulfilment } from "@/lib/api";
 import { SaleOrder, SaleOrderLine, Warehouse } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
+import { formatGBP } from "@/lib/currency";
 
 type Mode = "view" | "ship" | "return";
 
@@ -123,6 +124,14 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
         </div>
       )}
 
+      <dl data-testid={`so-details-${orderId}`} className="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-1 text-xs">
+        {([["Order", order.orderNumber], ["Reference", order.customerReference], ["Sales rep", order.salesRep], ["Terms", order.paymentTerm],
+           ["Ship by", order.shipBy], ["Carrier", order.carrier]] as [string, string | undefined][]).map(([k, v]) => (
+          <div key={k}><dt className="text-gray-400">{k}</dt><dd className="text-gray-800">{v || "—"}</dd></div>
+        ))}
+        {order.shippingNotes && <div className="col-span-2 md:col-span-6"><dt className="text-gray-400">Shipping notes</dt><dd className="text-gray-800">{order.shippingNotes}</dd></div>}
+      </dl>
+
       {/* Actions */}
       {mode === "view" && (
         <div className="flex flex-wrap gap-2">
@@ -167,7 +176,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
         <table className="w-full text-sm bg-white border border-gray-200 rounded-lg overflow-hidden">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {["Product", "Ordered", "Shipped", "Cancelled", "Returned", "Remaining"].map(h => (
+              {["Product", "Ordered", "Shipped", "Cancelled", "Returned", "Remaining", "Price", "Disc", "VAT", "Net", "Margin"].map(h => (
                 <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
               ))}
               {mode === "ship" && <th className="text-left px-3 py-2 text-xs font-semibold text-emerald-700 uppercase">Ship now</th>}
@@ -193,6 +202,13 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                   <td className="px-3 py-2 tabular-nums text-gray-500">{qty(l.cancelledQuantity)}</td>
                   <td className="px-3 py-2 tabular-nums text-teal-700">{qty(l.returnedQuantity)}</td>
                   <td className="px-3 py-2 tabular-nums font-medium">{qty(l.remainingQuantity)}</td>
+                  <td className="px-3 py-2 tabular-nums">{l.unitPrice != null ? formatGBP(l.unitPrice) : "—"}</td>
+                  <td className="px-3 py-2 tabular-nums text-gray-500">{l.discountPercent ? `${l.discountPercent}%` : "—"}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600" title={l.taxOverridden ? "Changed by hand" : undefined}>
+                    {l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}
+                  </td>
+                  <td className="px-3 py-2 tabular-nums">{formatGBP(l.netAmount)}</td>
+                  <td className="px-3 py-2 tabular-nums text-gray-500">{l.marginPercent != null ? `${l.marginPercent}%` : "—"}</td>
                   {mode !== "view" && (
                     <td className="px-3 py-2">
                       <input type="number" min="0" max={max} step="any" disabled={max <= 0}
@@ -214,6 +230,33 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
             })}
           </tbody>
         </table>
+
+        {order.charges.length > 0 && (
+          <table data-testid={`so-charges-${orderId}`} className="w-full text-sm bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>{["Additional charge", "Qty", "Price", "Disc", "VAT", "Net"].map(h => (
+                <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>))}</tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {order.charges.map(c => (
+                <tr key={c.id}>
+                  <td className="px-3 py-2 text-gray-700">{c.description}</td>
+                  <td className="px-3 py-2 tabular-nums">{qty(c.quantity)}</td>
+                  <td className="px-3 py-2 tabular-nums">{formatGBP(c.unitPrice)}</td>
+                  <td className="px-3 py-2 tabular-nums text-gray-500">{c.discountPercent ? `${c.discountPercent}%` : "—"}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600">{c.taxName ?? "Not recorded"}{c.taxOverridden && " ✎"}</td>
+                  <td className="px-3 py-2 tabular-nums">{formatGBP(c.netAmount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <dl data-testid={`so-totals-${orderId}`} className="ml-auto w-fit text-sm grid grid-cols-2 gap-x-6 tabular-nums">
+          <dt className="text-gray-500">Before tax</dt><dd className="text-right">{formatGBP(order.subtotal)}</dd>
+          <dt className="text-gray-500">VAT</dt><dd className="text-right">{formatGBP(order.taxTotal)}</dd>
+          <dt className="font-semibold">Total</dt><dd className="text-right font-semibold">{formatGBP(order.total)}</dd>
+        </dl>
 
         {mode !== "view" && (
           <div className="flex flex-wrap items-end gap-3">

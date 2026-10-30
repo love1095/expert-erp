@@ -336,7 +336,7 @@ function CustomerOrders({ customerId }: { customerId: number }) {
         <ul className="space-y-1 text-sm">
           {orders.map(o => (
             <li key={o.id} className="flex gap-4">
-              <span className="font-mono text-xs text-gray-400 w-16">SO-{o.id}</span>
+              <span className="font-mono text-xs text-gray-400 w-20">{o.orderNumber}</span>
               <span className="text-xs font-semibold text-gray-600 w-24">{o.status}</span>
               <span className="text-gray-600">{o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</span>
               <span className="text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></span>

@@ -38,6 +38,12 @@ public class SaleOrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(saleOrderService.create(req));
     }
 
+    // The order as it would be created (rep, VAT, totals), nothing saved; for the order form
+    @PostMapping("/preview")
+    public SaleOrderResponse preview(@RequestBody SaleOrderRequest req) {
+        return saleOrderService.preview(req);
+    }
+
     @PostMapping("/{id}/confirm")
     public SaleOrderResponse confirm(@PathVariable Long id) {
         return saleOrderService.confirm(id);

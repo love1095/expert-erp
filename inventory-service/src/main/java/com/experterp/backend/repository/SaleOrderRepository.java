@@ -27,6 +27,8 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
 
     long countByCustomerId(Long customerId);
 
+    boolean existsByOrderNumber(String orderNumber);
+
     // [customerId, orderCount] for each of the given customers that has orders
     @Query("SELECT so.customer.id, COUNT(so) FROM SaleOrder so WHERE so.customer.id IN :ids GROUP BY so.customer.id")
     List<Object[]> countByCustomerIds(@Param("ids") Collection<Long> ids);

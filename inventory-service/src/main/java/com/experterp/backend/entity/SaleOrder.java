@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.TenantId;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,6 +69,34 @@ public class SaleOrder {
     @OneToMany(mappedBy = "saleOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
     private List<SaleOrderLine> lines = new ArrayList<>();
+
+    // Carriage, delivery... (no product, no stock)
+    @OneToMany(mappedBy = "saleOrder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id")
+    private List<SaleOrderCharge> charges = new ArrayList<>();
+
+    // e.g. SO-66006, from the organisation's sequence
+    @Column(nullable = false, length = 30)
+    private String orderNumber;
+
+    // The customer's own reference (their PO number)
+    @Column(length = 100)
+    private String customerReference;
+
+    @Column(length = 100)
+    private String salesRep;
+
+    @Column(length = 100)
+    private String paymentTerm;
+
+    @Column
+    private LocalDate shipBy;
+
+    @Column(length = 100)
+    private String carrier;
+
+    @Column(columnDefinition = "TEXT")
+    private String shippingNotes;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
