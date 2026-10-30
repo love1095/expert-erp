@@ -1,8 +1,8 @@
 import { expect, Locator, Page } from '@playwright/test';
 
 /**
- * UI steps for the sale order "Manage" panel. Tests call these instead of clicking directly,
- * so a change to the panel only needs updating here.
+ * UI steps for the sale order page (/sale-orders/{id}). Tests call these instead of clicking directly,
+ * so a change to the page only needs updating here.
  */
 export class SaleOrdersPage {
   constructor(private readonly page: Page) {}
@@ -17,7 +17,7 @@ export class SaleOrdersPage {
 
   async open(orderId: number): Promise<Locator> {
     await this.page.goto('/sale-orders');
-    await this.row(orderId).getByRole('button', { name: 'Manage' }).click();
+    await this.row(orderId).getByRole('link', { name: 'Open ›' }).click();
     const panel = this.panel(orderId);
     await expect(panel.getByRole('table').first()).toBeVisible();
     return panel;
@@ -54,7 +54,8 @@ export class SaleOrdersPage {
     await panel.getByRole('button', { name: 'Record return' }).last().click();
   }
 
+  /** Status, shipping state and flags shown under the order's title. */
   status(orderId: number): Locator {
-    return this.row(orderId).locator('td').nth(5);
+    return this.page.getByTestId(`so-status-${orderId}`);
   }
 }

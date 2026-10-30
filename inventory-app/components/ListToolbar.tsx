@@ -38,6 +38,8 @@ export function ListToolbar({ search, onSearch, placeholder = "Search…", searc
   actions?: React.ReactNode;
 }) {
   const [text, setText] = useState(search ?? "");
+  // A search set from outside (e.g. a link to /invoices?q=INV-1) shows in the box
+  useEffect(() => { setText(t => (t.trim() === (search ?? "") ? t : search ?? "")); }, [search]);
   useEffect(() => {
     if (!onSearch || text.trim() === (search ?? "")) return;
     const t = setTimeout(() => onSearch(text.trim()), 300);

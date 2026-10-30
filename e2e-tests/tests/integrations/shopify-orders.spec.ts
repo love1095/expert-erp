@@ -62,12 +62,13 @@ test.describe('Shopify order import', () => {
       await expect(rows).toContainText('Needs review');
 
       const id = Number((await rows.getAttribute('data-testid'))!.replace('so-row-', ''));
-      await rows.getByRole('button', { name: 'Manage' }).click();
+      await rows.getByRole('link', { name: 'Open ›' }).click();
       await expect(page.getByTestId(`so-review-${id}`)).toContainText('SKU NOT-IN-ERP is not in the ERP');
 
       await page.getByTestId(`so-panel-${id}`).getByRole('button', { name: 'Confirm as it is' }).click();
-      await expect(rows).toContainText('CONFIRMED');
-      await expect(rows).not.toContainText('Needs review');
+      const status = page.getByTestId(`so-status-${id}`);
+      await expect(status).toContainText('CONFIRMED');
+      await expect(status).not.toContainText('Needs review');
     });
 
   test('SHP-008 without any warehouse the order is refused (500, so Shopify retries) and the reason is shown', { tag: ['@P2', '@shopify', '@integrations', '@external'] },
@@ -99,7 +100,7 @@ test.describe('Shopify order import', () => {
       await page.goto('/sale-orders');
       const row = page.locator('[data-testid^="so-row-"]', { hasText: `Shopify #${orderNo}` });
       const id = Number((await row.getAttribute('data-testid'))!.replace('so-row-', ''));
-      await row.getByRole('button', { name: 'Manage' }).click();
+      await row.getByRole('link', { name: 'Open ›' }).click();
       const panel = page.getByTestId(`so-panel-${id}`);
       await panel.getByRole('button', { name: 'Ship items' }).click();
       await expect(panel.getByText('also sent to Shopify')).toBeVisible();
@@ -108,7 +109,7 @@ test.describe('Shopify order import', () => {
       await panel.getByRole('button', { name: 'Ship & deduct stock' }).click();
 
       // The ERP side is done: stock left, order completed, tracking recorded
-      await expect(row).toContainText('COMPLETED', { timeout: 30_000 });
+      await expect(page.getByTestId(`so-status-${id}`)).toContainText('COMPLETED', { timeout: 30_000 });
       expect(await api.stock(helmet, warehouses.main)).toBe(8);
       await expect(panel).toContainText('Royal Mail RM123456789GB');
 

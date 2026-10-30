@@ -60,11 +60,12 @@ test.describe('Quotes', () => {
 
       await page.goto('/sale-orders');
       await expect(page.getByTestId(`so-row-${expired.id}`)).toContainText('Expired');
-      await page.getByTestId(`so-row-${expired.id}`).getByRole('button', { name: 'Manage' }).click();
+      await page.getByTestId(`so-row-${expired.id}`).getByRole('link', { name: 'Open ›' }).click();
       await expect(page.getByTestId(`so-panel-${expired.id}`).getByRole('button', { name: 'Convert to order' })).toBeDisabled();
 
-      await page.getByTestId(`so-row-${other.id}`).getByRole('button', { name: 'Manage' }).click();
+      await page.goto('/sale-orders');
+      await page.getByTestId(`so-row-${other.id}`).getByRole('link', { name: 'Open ›' }).click();
       await page.getByTestId(`so-panel-${other.id}`).getByRole('button', { name: 'Reject quote' }).click();
-      await expect(page.getByTestId(`so-row-${other.id}`)).toContainText('REJECTED');
+      await expect(page.getByTestId(`so-status-${other.id}`)).toContainText('REJECTED');
     });
 });

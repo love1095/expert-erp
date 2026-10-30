@@ -101,7 +101,7 @@ test.describe('Sale order VAT and totals', () => {
       await page.goto('/sale-orders');
       await expect(page.getByTestId(`so-row-${second.id}`)).toContainText('Backordered');
       await expect(page.getByTestId(`so-row-${first.id}`)).not.toContainText('Backordered');
-      await page.getByTestId(`so-row-${second.id}`).getByRole('button', { name: 'Manage' }).click();
+      await page.getByTestId(`so-row-${second.id}`).getByRole('link', { name: 'Open ›' }).click();
       await expect(page.getByTestId(`so-backordered-${second.id}`)).toContainText(`2 × ${helmet.sku} short`);
 
       // 5 on hand, 7 reserved

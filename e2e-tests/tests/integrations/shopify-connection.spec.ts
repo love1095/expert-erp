@@ -65,7 +65,8 @@ test.describe('Shopify connection', () => {
 
       await page.getByRole('button', { name: 'Disconnect' }).click();
       await expect(page.getByRole('button', { name: 'Save & test connection' })).toBeVisible();
-      expect((await api.http.get('/api/integrations/shopify')).status()).toBe(204);
+      // The page may show the empty form before the server has finished: wait for it
+      await expect.poll(async () => (await api.http.get('/api/integrations/shopify')).status()).toBe(204);
     });
 
   test('SHP-003 only an ADMIN can see or change the Shopify connection', { tag: ['@P0', '@shopify', '@integrations', '@security'] },

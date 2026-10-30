@@ -2,31 +2,18 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSaleOrders, getWarehouses, getCustomers } from "@/lib/api";
-import { SaleOrder, Warehouse, SaleOrderStatus, FulfilmentStatus, Customer, Page } from "@/types";
-import { Fragment, useState } from "react";
+import { SaleOrder, Warehouse, Customer, Page } from "@/types";
+import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
-import SaleOrderPanel from "./sale-order-panel";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { STATUS_COLOR, FULFILMENT_LABEL } from "./sale-order-view";
 import SaleOrderForm from "./sale-order-form";
 import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
 import { useAuth } from "@/contexts/AuthContext";
-
-const STATUS_COLOR: Record<SaleOrderStatus, string> = {
-  QUOTE:     "bg-violet-100 text-violet-700",
-  REJECTED:  "bg-gray-100 text-gray-400",
-  DRAFT:     "bg-amber-100 text-amber-700",
-  CONFIRMED: "bg-sky-100 text-sky-700",
-  COMPLETED: "bg-emerald-100 text-emerald-700",
-  CANCELLED: "bg-gray-100 text-gray-500",
-};
-
-const FULFILMENT_LABEL: Record<FulfilmentStatus, { label: string; color: string }> = {
-  UNFULFILLED:         { label: "Not shipped", color: "text-gray-400" },
-  PARTIALLY_FULFILLED: { label: "Partly shipped", color: "text-amber-600" },
-  FULFILLED:           { label: "Shipped", color: "text-emerald-600" },
-};
 
 export default function SaleOrdersPage() {
   const { user } = useAuth();
@@ -51,14 +38,14 @@ export default function SaleOrdersPage() {
   const totalElements = data?.totalElements;
 
   const [showForm, setShowForm] = useState(false);
-  const [openId, setOpenId] = useState<number | null>(null);
+  const router = useRouter();
 
   const onCreated = (so: SaleOrder) => {
     qc.invalidateQueries({ queryKey: ["sale-orders"] });
     qc.invalidateQueries({ queryKey: ["customers"] });
     qc.invalidateQueries({ queryKey: ["customers-page"] });
     setShowForm(false);
-    setOpenId(so.id);
+    router.push(`/sale-orders/${so.id}`);
   };
 
   return (
@@ -109,10 +96,10 @@ export default function SaleOrdersPage() {
               <tbody className="divide-y divide-gray-100">
                 {orders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
                 {orders.map(o => (
-                  <Fragment key={o.id}>
-                  <tr data-testid={`so-row-${o.id}`} className={`hover:bg-gray-50 ${openId === o.id ? "bg-gray-50" : ""}`}>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-400">
-                      {o.orderNumber}
+                  <tr key={o.id} data-testid={`so-row-${o.id}`} onClick={() => router.push(`/sale-orders/${o.id}`)}
+                    className="hover:bg-gray-50 cursor-pointer">
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <Link href={`/sale-orders/${o.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-800 hover:underline">{o.orderNumber}</Link>
                       {o.source === "SHOPIFY" && (
                         <span className="block mt-1 font-sans text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 w-fit">
                           Shopify {o.externalReference}
@@ -143,20 +130,10 @@ export default function SaleOrdersPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => setOpenId(openId === o.id ? null : o.id)}
-                        className="text-xs text-brand-600 hover:text-brand-800 font-medium">
-                        {openId === o.id ? "Close" : "Manage"}
-                      </button>
+                      <Link href={`/sale-orders/${o.id}`} onClick={e => e.stopPropagation()}
+                        className="text-xs text-brand-700 hover:underline font-medium">Open ›</Link>
                     </td>
                   </tr>
-                  {openId === o.id && (
-                    <tr>
-                      <td colSpan={8} className="p-0">
-                        <SaleOrderPanel orderId={o.id} warehouses={warehouses} />
-                      </td>
-                    </tr>
-                  )}
-                  </Fragment>
                 ))}
               </tbody>
             </table>
