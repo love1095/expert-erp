@@ -73,10 +73,12 @@ public class PurchaseOrderService {
         }
 
         for (PurchaseOrderLine line : po.getLines()) {
+            // The PO line cost becomes the cost of the stock received (FIFO)
             movementService.createMovement(
                     line.getProduct(), po.getWarehouse(), line.getQuantity(),
                     MovementType.PURCHASE_IN, ReferenceType.PURCHASE_ORDER,
-                    "PO-" + po.getId(), "Received on PO #" + po.getId());
+                    "PO-" + po.getId(), "Received on PO #" + po.getId())
+                    .setUnitCost(line.getUnitCost());
         }
 
         po.setStatus(PurchaseOrder.Status.RECEIVED);

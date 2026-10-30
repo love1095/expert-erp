@@ -142,7 +142,12 @@ class DashboardServiceTest {
         helmet.setDefaultSupplier(jsp);
         helmet.setReorderQuantity(new BigDecimal("24"));
         productRepository.save(helmet);
-        Product gloves = product("GLOVES", "1.00", "10");   // 2 in stock + 8 on order = 10 → fine
+        Product gloves = product("GLOVES", "1.00", "10");   // 3 in stock + 8 on order = 11 → fine
+        Product masks = product("MASKS", "1.00", "10");     // 2 in stock + 8 on order = 10, at the minimum → reorder (Cin7)
+        Product caps = product("CAPS", "1.00", null);       // no minimum but a reorder quantity, none in stock → reorder
+        caps.setReorderQuantity(new BigDecimal("6"));
+        productRepository.save(caps);
+        Product vests = product("VESTS", "1.00", null);     // no minimum, no reorder quantity → never listed
         Product boots = product("BOOTS", "1.00", "5");      // nothing → reorder, suggests 5
         Product old = product("OLD", "1.00", "5");          // deprecated → never listed
         old.setStatus(Product.Status.DEPRECATED);
@@ -152,31 +157,35 @@ class DashboardServiceTest {
         productRepository.save(fitting);
 
         receive(helmet, wh, 3);
-        receive(gloves, wh, 2);
+        receive(gloves, wh, 3);
+        receive(masks, wh, 2);
         purchaseOrder(wh, helmet, 4);
         purchaseOrder(wh, gloves, 8);
+        purchaseOrder(wh, masks, 8);
         // A received order is stock, no longer on order; a cancelled one counts for nothing
         purchaseOrderService.receive(purchaseOrder(wh, boots, 1).getId());
         purchaseOrderService.cancel(purchaseOrder(wh, boots, 50).getId());
 
         Page<DashboardResponse.ReorderLine> page = dashboardService.reorder(null, 0, 10);
-        // Lowest stock + on order first: boots 1, helmet 7
-        assertThat(page.getContent()).extracting(DashboardResponse.ReorderLine::name).containsExactly("BOOTS", "HELMET");
-        DashboardResponse.ReorderLine h = page.getContent().get(1);
+        // Lowest stock + on order first: caps 0, boots 1, helmet 7, masks 10
+        assertThat(page.getContent()).extracting(DashboardResponse.ReorderLine::name).containsExactly("CAPS", "BOOTS", "HELMET", "MASKS");
+        assertThat(page.getContent().get(0).suggestedQuantity()).isEqualByComparingTo("6");
+        assertThat(page.getContent().get(3).suggestedQuantity()).isEqualByComparingTo("0");
+        DashboardResponse.ReorderLine h = page.getContent().get(2);
         assertThat(h.stock()).isEqualByComparingTo("3");
         assertThat(h.onOrder()).isEqualByComparingTo("4");
         assertThat(h.supplierName()).isEqualTo("JSP Limited");
         assertThat(h.suggestedQuantity()).isEqualByComparingTo("24");
-        assertThat(page.getContent().get(0).suggestedQuantity()).isEqualByComparingTo("4");
-        assertThat(dashboardService.get(30).kpis().productsToReorder()).isEqualTo(2);
+        assertThat(page.getContent().get(1).suggestedQuantity()).isEqualByComparingTo("4");
+        assertThat(dashboardService.get(30).kpis().productsToReorder()).isEqualTo(4);
 
         // Search matches SKU, name or supplier, and pages
         assertThat(dashboardService.reorder("jsp", 0, 10).getContent()).extracting(DashboardResponse.ReorderLine::name).containsExactly("HELMET");
         assertThat(dashboardService.reorder("boots", 0, 10).getTotalElements()).isEqualTo(1);
         assertThat(dashboardService.reorder("100%", 0, 10).getTotalElements()).isZero();
         Page<DashboardResponse.ReorderLine> second = dashboardService.reorder(null, 1, 1);
-        assertThat(second.getTotalElements()).isEqualTo(2);
-        assertThat(second.getContent()).extracting(DashboardResponse.ReorderLine::name).containsExactly("HELMET");
+        assertThat(second.getTotalElements()).isEqualTo(4);
+        assertThat(second.getContent()).extracting(DashboardResponse.ReorderLine::name).containsExactly("BOOTS");
     }
 
     @Test

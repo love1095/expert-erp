@@ -125,8 +125,8 @@ test.describe('Dashboard', () => {
       const gloves = await api.createProduct({ name: `Gloves ${uid()}`, minStock: 10 });
       const masks = await api.createProduct({ name: `Masks ${uid()}`, minStock: 10 });
       await api.addStock(gloves, warehouses.main, 2);
-      await api.addStock(masks, warehouses.main, 2);
-      // Masks: 2 in stock + 8 on order reaches the minimum → not to reorder
+      await api.addStock(masks, warehouses.main, 3);
+      // Masks: 3 in stock + 8 on order is above the minimum → not to reorder
       await api.createPurchaseOrder(warehouses.main, [{ product: masks, quantity: 8 }, { product: gloves, quantity: 3 }]);
 
       await page.goto('/');

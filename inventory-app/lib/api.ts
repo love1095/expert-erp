@@ -127,6 +127,17 @@ export const issueInvoice   = (id: number) => api.post(`/invoices/${id}/issue`).
 export const cancelInvoice  = (id: number) => api.post(`/invoices/${id}/cancel`).then(r => r.data);
 export const payInvoice     = (id: number, data: unknown) => api.post(`/invoices/${id}/pay`, data).then(r => r.data);
 
+// Cin7 stock file → stock in one warehouse set to the file's OnHand; apply=false only previews
+export const importStock = ({ file, warehouseId, apply }: { file: File; warehouseId: number; apply: boolean }) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post("/stock/import", body, {
+    params: { warehouseId, apply },
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 5 * 60 * 1000,
+  }).then(r => r.data);
+};
+
 // Dashboard
 export const getDashboard = (period: { from: string; to: string }) => api.get("/dashboard", { params: period }).then(r => r.data);
 export const getDashboardReorder = (params: { search?: string; page?: number; size?: number }) =>

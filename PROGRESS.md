@@ -215,7 +215,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 ### Backend
 - [x] `GET /dashboard?from=&to=` (both days included, at most 366 days); `?days=` still works. Every period query now has an upper bound too
 - [x] Status counts, whatever the period: **sales** — draft orders, to ship, draft invoices, awaiting payment, overdue invoices; **purchases** — awaiting delivery (draft POs), draft bills, bills to pay, overdue bills. Awaiting payment = issued with a balance left; overdue = also past its due date
-- [x] **Reorder list** `GET /dashboard/reorder?search=&page=&size=`: active stock products whose stock + quantity on draft (not yet received) POs is below their minimum, lowest first; supplier = the product's default supplier; suggested quantity = the product's reorder quantity, else what brings it back to its minimum. Search matches SKU, name or supplier. KPI "Products to reorder" replaces "Low stock products"
+- [x] **Reorder list** `GET /dashboard/reorder?search=&page=&size=`: Cin7's rule — active stock products with a minimum or a reorder quantity whose stock + quantity on draft (not yet received) POs is **at or below** the minimum, lowest first (Cin7 uses available = on hand − allocated; on hand until allocation exists); supplier = the product's default supplier; suggested quantity = the product's reorder quantity, else what brings it back to its minimum. Search matches SKU, name or supplier. KPI "Products to reorder" replaces "Low stock products"
 - [x] **Top and worst sellers** by value (10 each) among products ordered in the period, cancelled orders and quantities left out; replaces "top products shipped"
 - [x] Unpaid sales invoices now count only invoices with a balance left (an overpaid invoice no longer lowers the total)
 
@@ -230,6 +230,33 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ### Data
 - Checked on the real local data (13,974 Cin7 products): every dashboard call answers in under 0.06 s. The reorder list shows ~14k products until stock on hand is imported from Cin7
+
+---
+
+## Phase C — Cin7 stock on hand (opening balances) ✅
+
+> Goal: real stock in the ERP, the same as Cin7, so Shopify stops showing "Sold out" and the reorder list is right. Plan: [`docs/roadmap.md`](docs/roadmap.md), rules: [`docs/business-rules.md`](docs/business-rules.md).
+
+### Backend
+- [x] `POST /stock/import` (ADMIN / MANAGER): Cin7 **AvailabilityReport** CSV (Inventory → Availability → Export), one location per file, into a chosen warehouse. Each SKU's stock is set to the file's OnHand with an `ADJUSTMENT_IN` / `ADJUSTMENT_OUT` movement (reference `STOCK_IMPORT`, the file name), so history stays complete; the same file again changes nothing; products not in the file are left alone
+- [x] **Preview** (`apply=false`): the same checks and figures — rows, products that change, unknown SKUs, units and value before / after, largest changes — then rolled back
+- [x] `V11`: `stock_movements.unit_cost` — the cost of stock coming in, for FIFO later. Imports cost at Cin7's StockValue / OnHand (£0 included, so the opening value equals Cin7's); the product cost price only when a row has no value. Received purchase orders now record their line cost too
+- [x] One audit entry per import (`STOCK_IMPORT`); products locked while the differences are posted
+- [x] `DataSeeder` no longer invents demo stock or **random minimum stock** — it was filling every product without a minimum (14,729 of Cin7's products) with a random one on each start
+- [x] Reorder rule aligned with Cin7 (see Phase 6.1): at or below the minimum, products with only a reorder quantity included
+
+### Frontend
+- [x] Stock Overview → **Import stock**: warehouse, file, Preview (summary, changes with unit cost, warnings), then **Import N changes**
+
+### Data (local dev database, real Cin7 files — never committed)
+- [x] Removed the 1,193 seeded fake "Opening stock" movements (146,329 units); re-imported `InventoryList_2026-10-29.csv` → minimums equal Cin7's for every product
+- [x] Imported `AvailabilityReport_2026-10-30.csv` (location "Expert Warehouse") into **ExpertSafety Warehouse**: 2,121 products, **19,178 units, £99,818.37** (Cin7: 19,178 units, £99,818.31 — 6p from unit costs kept to 4 decimals); every SKU matched, quantities equal Cin7 for all 6,756 rows
+- [x] Leftovers of local test orders set to 0 the same way (CLEARANCE 40, EXBLUEROLL −1 and +100 in the second warehouse, NSX1859S −1)
+- [x] Reorder list: **429** vs Cin7's 446 — the same rule on the same stock gives exactly 429; the 17 others need Cin7's allocations and open POs (227 / 90 rows), which come with allocation (phase D) and moving open orders (phase J)
+
+### Tests
+- [x] Backend: `StockImportServiceTest` (4) — quantities and costs, preview, re-import, refused files, other tenant's same SKU, PO receipt cost; `DashboardServiceTest` reorder rule updated (84 backend tests total)
+- [x] E2E: STK-004 (61 cases total)
 
 ---
 
@@ -289,7 +316,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ### Next
 - [ ] 7.4 cancellations / returns · 7.5 reliability (retry failed events, reconciliation, background processing) · 7.6 stock sync
-- [ ] Stock on hand from Cin7 (opening balances) — until then every imported product has 0 stock and shows "Sold out"
+- [x] ~~Stock on hand from Cin7~~ ✅ — see Phase C (still to do: push stock to Shopify, 7.6)
 
 ---
 
@@ -353,7 +380,8 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/webhooks/shopify` | Shopify webhooks (public; HMAC-signed) |
 | POST | `/sale-orders/{id}/fulfilments/{fid}/shopify-sync` | Send a shipment of a Shopify order to Shopify again |
 | GET  | `/dashboard` | Dashboard figures for `from`–`to`, or the last `days` days (default 30) |
-| GET  | `/dashboard/reorder` | Products whose stock + on order is below their minimum (`search`, `page`, `size`) |
+| GET  | `/dashboard/reorder` | Products whose stock + on order is at or below their minimum (`search`, `page`, `size`) |
+| POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | List tenants (SUPER_ADMIN) |
 | PUT  | `/tenants/{id}/toggle` | Enable/disable tenant (SUPER_ADMIN) |

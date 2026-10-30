@@ -10,14 +10,14 @@ The spec's phase 1 ("Replace Cin7 Core") sets the order: build a module before t
 
 | # | Phase | Contents | Unlocks |
 |---|---|---|---|
-| A | Wrap up current work | Shopify price-change sync test; commit the product catalogue work, then dashboard 6.1 | Clean starting point |
-| B | Rules for the next modules | Stock allocation, costing (average or FIFO), VAT model; owner questions below | C–E built once, not redesigned |
-| C | Cin7 stock migration | Stock on hand as opening balances; suppliers if missing | Real stock, Shopify not "Sold out", accurate reorder list |
+| A ✅ | Wrap up current work | Commit the product catalogue work, then dashboard 6.1 (Shopify price-change test postponed) | Clean starting point |
+| B ✅ | Rules for the next modules | Decided: reserve on confirm, FIFO, VAT precedence, rep per order, ERP is product master, accounting for any package — see `business-rules.md` | C–E built once, not redesigned |
+| C ✅ | Cin7 stock migration | Stock on hand as opening balances; suppliers if missing | Real stock, Shopify not "Sold out", accurate reorder list |
 | D | Sales (spec §2) | Quotes, VAT 20 % / 0 %, sales rep on each order, allocation + available stock, backorders, invoice on shipment, credit notes, PDFs | Dashboard 6.2 |
 | E | Purchasing (spec §3) | Authorise, part / over / short receipts, supplier bills with three-way match, reorder suggestions → bulk POs, landed cost | Dashboard 6.3 |
 | F | Shopify 7.4–7.6 | Cancellations and refunds, retries and monitoring, stock push | The integration that "cannot fail" |
 | G | Customers and pricing (spec §5) | Price tiers, contract prices, credit hold, statements | |
-| H | Finance and accounting (spec §6) | Sales / purchase ledgers, aged debtors and creditors, VAT report, COGS, Xero or QuickBooks sync | Spec phase 1 complete |
+| H | Finance and accounting (spec §6) | Sales / purchase ledgers, aged debtors and creditors, VAT report, FIFO COGS, accounting export queue: CSV first, then Xero / QuickBooks / Sage adapters | Spec phase 1 complete |
 | I | Reports, permissions, search, templates (spec §8) | Core reports, cost prices hidden from non-owner roles, global search, document templates, 2FA | |
 | J | Cutover | Open orders and balances, reconciliation, backups, monitoring, rollback plan | Switch off Cin7 |
 
@@ -38,16 +38,13 @@ G–I can partly run alongside D–F. Warehouse depth (bins, pick lists, barcode
 6. Check it in the running app on the real (local) Cin7 data.
 7. Update `PROGRESS.md` once it is done; commit on `main` when asked.
 
+## Decisions
+
+Phase B decisions (allocation, FIFO costing, VAT, sales rep, product master, accounting design) are in [`business-rules.md`](business-rules.md).
+
+If Shopify work starts taking too long, pause it (phase F moves later) and carry on with the other modules.
+
 ## Open questions
-
-For the owner (from the spec's own list):
-- Accounting package: Xero, QuickBooks Online or Sage?
 - Couriers and courier accounts in use today?
-- Shopify or the ERP as master for product descriptions and images?
-
-For us, before the phase that needs them:
-- Allocation (D): reserve stock on confirm, or on authorise? Do Shopify orders reserve on import?
-- Costing (B): weighted average or FIFO? Landed cost spread by value or by quantity?
-- VAT (D): rate per product (Cin7 `saleTaxRule`) or per customer (`tax_rule`), and which wins?
-- Sales rep (D): copied from the customer's rep onto each order, editable per order? "Web Sales" for Shopify orders?
-- Financial year starts 1 December (seen in Cin7) — make it a tenant setting?
+- Do Shopify prices include VAT? — **parked**: handled together with the Shopify work (phase F); until then phase D treats Shopify order lines as they arrive today
+- Accounting package: not chosen — the design supports Xero, QuickBooks Online and Sage, with a CSV export first.

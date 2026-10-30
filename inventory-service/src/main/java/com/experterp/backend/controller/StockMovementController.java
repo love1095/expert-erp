@@ -1,5 +1,10 @@
 package com.experterp.backend.controller;
 
+import com.experterp.backend.service.StockImportService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+
 import com.experterp.backend.dto.StockLevelResponse;
 import com.experterp.backend.dto.StockMovementRequest;
 import com.experterp.backend.dto.StockMovementResponse;
@@ -21,6 +26,7 @@ import java.util.List;
 public class StockMovementController {
 
     private final StockMovementService stockMovementService;
+    private final StockImportService stockImportService;
 
     @PostMapping("/api/stock-movements")
     public ResponseEntity<StockMovementResponse> create(@Valid @RequestBody StockMovementRequest req) {
@@ -55,6 +61,19 @@ public class StockMovementController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long categoryId) {
         return stockMovementService.getStockOverviewPage(page, size, categoryId);
+    }
+
+    // Cin7 stock file (Inventory → Availability → Export): stock in one warehouse set to the file's OnHand.
+    // apply=false previews the changes without writing anything.
+    @PostMapping(value = "/api/stock/import", consumes = "multipart/form-data")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    public StockImportService.ImportResult importStock(@RequestParam("file") MultipartFile file,
+                                                       @RequestParam Long warehouseId,
+                                                       @RequestParam(defaultValue = "false") boolean apply) throws IOException {
+        if (file.isEmpty()) throw new IllegalArgumentException("The file is empty");
+        try (var in = file.getInputStream()) {
+            return stockImportService.importCsv(in, file.getOriginalFilename(), warehouseId, apply);
+        }
     }
 
     @GetMapping(value = "/api/stock-movements/export/csv")

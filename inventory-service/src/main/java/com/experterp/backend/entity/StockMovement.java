@@ -61,6 +61,10 @@ public class StockMovement {
     @Column
     private String notes;
 
+    // Cost of one unit on an inbound movement (FIFO layers are built from it); empty on outbound movements
+    @Column(name = "unit_cost", precision = 18, scale = 4)
+    private BigDecimal unitCost;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -84,6 +88,8 @@ public class StockMovement {
         SALE_RETURN,
         TRANSFER,
         ADJUSTMENT,
-        MANUAL
+        MANUAL,
+        // Brings stock to the quantities of an imported stock file (Cin7 opening balances)
+        STOCK_IMPORT
     }
 }

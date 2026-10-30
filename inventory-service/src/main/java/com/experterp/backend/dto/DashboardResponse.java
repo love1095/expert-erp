@@ -27,7 +27,7 @@ public record DashboardResponse(
             long customers,
             // Σ current stock × product cost price (products without a cost count as 0)
             BigDecimal stockValue,
-            // Products whose stock + quantity on order is below their minimum (the reorder list)
+            // Products whose stock + quantity on order is at or below their minimum (the reorder list, Cin7's rule)
             long productsToReorder,
             // CONFIRMED orders still waiting to ship (fully or partly)
             long ordersToShip,
@@ -54,7 +54,7 @@ public record DashboardResponse(
     public record RecentOrder(Long id, String customerName, String status, String fulfilmentStatus,
                               BigDecimal total, LocalDateTime createdAt) {}
 
-    /** A product to reorder: stock + on order is below its minimum. */
+    /** A product to reorder: stock + on order is at or below its minimum. */
     public record ReorderLine(Long productId, String sku, String name, String supplierName,
                               BigDecimal stock, BigDecimal onOrder, BigDecimal minStock,
                               // The product's reorder quantity, or else what brings it back to its minimum

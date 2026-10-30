@@ -412,6 +412,21 @@ export interface SubscriptionInfo {
 }
 
 // GET /dashboard — figures for the last `days` days, today included
+export interface StockImportResult {
+  applied: boolean;
+  warehouseName: string;
+  fileLocation?: string;
+  rows: number;
+  changed: number;
+  unchanged: number;
+  unknownSkus: number;
+  unitsBefore: number;
+  unitsAfter: number;
+  valueAfter: number;
+  changes: { sku: string; name: string; before: number; after: number; unitCost?: number }[];
+  warnings: string[];
+}
+
 export interface DashboardSeller { productId: number; sku: string; name: string; quantity: number; value: number }
 
 export interface Dashboard {

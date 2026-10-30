@@ -45,4 +45,43 @@ test.describe('Stock movements', () => {
     await expect.poll(() => api.stock(product, warehouses.second)).toBe(10);
     expect(await api.stock(product, warehouses.main)).toBe(20);
   });
+
+  test('STK-004 a Cin7 stock file sets stock on hand after a preview; importing it again changes nothing', { tag: ['@P1', '@stock'] },
+    async ({ page, api, warehouses }) => {
+      const helmet = await api.createProduct({ costPrice: 2 });
+      const gloves = await api.createProduct();
+      await api.addStock(gloves, warehouses.main, 8);
+      await api.addStock(helmet, warehouses.second, 50);   // another warehouse: not touched
+      const csv = 'SKU,ProductName,Location,StockValue,OnHand\n'
+        + `${helmet.sku},Helmet,Expert Warehouse,,12\n`
+        + `${gloves.sku},Gloves,Expert Warehouse,30,3\n`
+        + 'NOT-IN-ERP,Unknown,Expert Warehouse,10,5\n';
+      const file = { name: 'AvailabilityReport_test.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) };
+
+      await page.goto('/stock-overview');
+      await page.getByRole('button', { name: 'Import stock' }).click();
+      const panel = page.getByTestId('stock-import');
+      await panel.getByLabel('Warehouse').selectOption(String(warehouses.main.id));
+      await panel.getByLabel('CSV file').setInputFiles(file);
+      await panel.getByRole('button', { name: 'Preview' }).click();
+
+      const result = page.getByTestId('stock-import-result');
+      await expect(result).toContainText('Preview');
+      await expect(result).toContainText('2 products change');
+      await expect(result).toContainText('1 SKUs with stock not found');
+      // Helmet has no stock value in the file, so its cost price: 12 × £2 + gloves £30
+      await expect(result).toContainText('£54.00');
+      expect(await api.stock(helmet, warehouses.main)).toBe(0);
+
+      await result.getByRole('button', { name: 'Import 2 changes' }).click();
+      await expect(result).toContainText('✓ Imported');
+      await expect.poll(() => api.stock(helmet, warehouses.main)).toBe(12);
+      expect(await api.stock(gloves, warehouses.main)).toBe(3);
+      expect(await api.stock(helmet, warehouses.second)).toBe(50);
+
+      await panel.getByLabel('CSV file').setInputFiles(file);
+      await panel.getByRole('button', { name: 'Preview' }).click();
+      await expect(result).toContainText('0 products change');
+      await expect(result.getByRole('button', { name: /Import/ })).toHaveCount(0);
+    });
 });

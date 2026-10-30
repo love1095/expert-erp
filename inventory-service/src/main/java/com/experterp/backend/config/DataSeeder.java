@@ -17,7 +17,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Component
 @Order(1)
@@ -69,13 +68,10 @@ public class DataSeeder implements ApplicationRunner {
         backfill("sale_orders",     tid);
         backfill("audit_log",       tid);
 
-        // 3. Seed min_stock for products that have none
-        seedMinStock(tid);
+        // No demo stock or minimums: they would mix invented figures into real (imported) data.
+        // Stock comes from purchase orders, adjustments or a Cin7 stock import.
 
-        // 4. Seed initial stock movements if none exist
-        seedInitialStock(tid);
-
-        // 5. Create or update admin user
+        // 3. Create or update admin user
         if (!userRepository.existsByUsername("admin")) {
             User admin = new User();
             admin.setUsername("admin");
@@ -119,87 +115,6 @@ public class DataSeeder implements ApplicationRunner {
                 System.out.println("==> Seeded plan: " + displayName);
             }
         );
-    }
-
-    private void seedMinStock(Long tenantId) {
-        int rows = jdbcTemplate.update("""
-            UPDATE products SET min_stock =
-                CASE
-                    WHEN LOWER(unit) IN ('pcs','pc','piece','pieces','ea','each','unit','units','cái','chiếc')
-                        THEN FLOOR(RANDOM() * 46 + 5)
-                    WHEN LOWER(unit) IN ('kg','kilogram','kilograms','kilo')
-                        THEN FLOOR(RANDOM() * 91 + 10)
-                    WHEN LOWER(unit) IN ('g','gram','grams','gam')
-                        THEN FLOOR(RANDOM() * 901 + 100)
-                    WHEN LOWER(unit) IN ('box','boxes','carton','ctn','hộp','thùng')
-                        THEN FLOOR(RANDOM() * 19 + 2)
-                    WHEN LOWER(unit) IN ('l','liter','liters','litre','litres','lit')
-                        THEN FLOOR(RANDOM() * 41 + 10)
-                    WHEN LOWER(unit) IN ('m','meter','meters','metre','metres')
-                        THEN FLOOR(RANDOM() * 81 + 20)
-                    WHEN LOWER(unit) IN ('roll','rolls','cuộn')
-                        THEN FLOOR(RANDOM() * 26 + 5)
-                    WHEN LOWER(unit) IN ('pair','pairs','đôi')
-                        THEN FLOOR(RANDOM() * 16 + 5)
-                    WHEN LOWER(unit) IN ('set','sets','bộ')
-                        THEN FLOOR(RANDOM() * 13 + 3)
-                    ELSE FLOOR(RANDOM() * 46 + 5)
-                END
-            WHERE tenant_id = ? AND min_stock IS NULL
-            """, tenantId);
-        if (rows > 0) System.out.println("==> Seeded min_stock for " + rows + " products");
-    }
-
-    private void seedInitialStock(Long tenantId) {
-        Long existing = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM stock_movements WHERE tenant_id = ?", Long.class, tenantId);
-        if (existing != null && existing > 0) return;
-
-        List<Long> warehouseIds = jdbcTemplate.queryForList(
-                "SELECT id FROM warehouses WHERE tenant_id = ? ORDER BY id LIMIT 1", Long.class, tenantId);
-        if (warehouseIds.isEmpty()) {
-            System.out.println("==> No warehouse found, skipping initial stock seed");
-            return;
-        }
-        Long warehouseId = warehouseIds.get(0);
-
-        int rows = jdbcTemplate.update("""
-            INSERT INTO stock_movements (created_at, notes, quantity, reference, type, product_id, warehouse_id, reference_id, reference_type, tenant_id)
-            SELECT
-                NOW(),
-                'Opening stock',
-                CASE
-                    WHEN LOWER(p.unit) IN ('pcs','pc','piece','pieces','ea','each','unit','units','cái','chiếc')
-                        THEN GREATEST(COALESCE(p.min_stock,10), FLOOR(RANDOM() * 200 + 50))
-                    WHEN LOWER(p.unit) IN ('kg','kilogram','kilograms','kilo')
-                        THEN GREATEST(COALESCE(p.min_stock,20), FLOOR(RANDOM() * 500 + 100))
-                    WHEN LOWER(p.unit) IN ('g','gram','grams','gam')
-                        THEN GREATEST(COALESCE(p.min_stock,500), FLOOR(RANDOM() * 5000 + 1000))
-                    WHEN LOWER(p.unit) IN ('box','boxes','carton','ctn','hộp','thùng')
-                        THEN GREATEST(COALESCE(p.min_stock,5), FLOOR(RANDOM() * 80 + 20))
-                    WHEN LOWER(p.unit) IN ('l','liter','liters','litre','litres','lit')
-                        THEN GREATEST(COALESCE(p.min_stock,15), FLOOR(RANDOM() * 200 + 50))
-                    WHEN LOWER(p.unit) IN ('m','meter','meters','metre','metres')
-                        THEN GREATEST(COALESCE(p.min_stock,25), FLOOR(RANDOM() * 400 + 100))
-                    WHEN LOWER(p.unit) IN ('roll','rolls','cuộn')
-                        THEN GREATEST(COALESCE(p.min_stock,8), FLOOR(RANDOM() * 100 + 30))
-                    WHEN LOWER(p.unit) IN ('pair','pairs','đôi')
-                        THEN GREATEST(COALESCE(p.min_stock,8), FLOOR(RANDOM() * 80 + 20))
-                    WHEN LOWER(p.unit) IN ('set','sets','bộ')
-                        THEN GREATEST(COALESCE(p.min_stock,5), FLOOR(RANDOM() * 50 + 10))
-                    ELSE GREATEST(COALESCE(p.min_stock,10), FLOOR(RANDOM() * 200 + 50))
-                END,
-                'OPENING',
-                'PURCHASE_IN',
-                p.id,
-                ?,
-                'SEED',
-                'MANUAL',
-                ?
-            FROM products p
-            WHERE p.tenant_id = ?
-            """, warehouseId, tenantId, tenantId);
-        System.out.println("==> Seeded initial stock movements for " + rows + " products in warehouse " + warehouseId);
     }
 
     private void backfill(String table, Long tenantId) {

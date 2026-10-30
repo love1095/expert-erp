@@ -5,10 +5,12 @@ import { getStockOverviewPage, getCategories } from "@/lib/api";
 import { StockLevel, Category, Page } from "@/types";
 import { useState } from "react";
 import Pagination from "@/components/Pagination";
+import StockImport from "./stock-import";
 
 export default function StockOverviewPage() {
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
+  const [showImport, setShowImport] = useState(false);
 
   const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["categories"], queryFn: getCategories });
 
@@ -28,11 +30,19 @@ export default function StockOverviewPage() {
           <h1 className="text-2xl font-bold">Stock Overview</h1>
           <p className="text-gray-500 text-sm mt-0.5">Current stock computed from all movements (IN − OUT)</p>
         </div>
-        <button onClick={() => refetch()}
-          className="text-sm text-sky-600 border border-sky-200 bg-sky-50 px-4 py-2 rounded-lg hover:bg-sky-100 transition-colors">
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(!showImport)}
+            className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
+            Import stock
+          </button>
+          <button onClick={() => refetch()}
+            className="text-sm text-sky-600 border border-sky-200 bg-sky-50 px-4 py-2 rounded-lg hover:bg-sky-100 transition-colors">
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {showImport && <StockImport onImported={() => refetch()} />}
 
       <div className="mb-5">
         <select

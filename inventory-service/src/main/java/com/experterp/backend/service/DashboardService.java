@@ -35,8 +35,9 @@ public class DashboardService {
     private static final String UNITS_IN_TYPES = "'PURCHASE_IN','ADJUSTMENT_IN','SALE_RETURN_IN'";
     private static final String UNITS_OUT_TYPES = "'SALE_OUT','ADJUSTMENT_OUT'";
 
-    // Active stock products whose stock + quantity on (not yet received) purchase orders is below their minimum.
-    // Needs :t; the caller appends its own filter, ordering and paging.
+    // Cin7's reorder rule: active stock products with a minimum or a reorder quantity, whose stock + quantity on
+    // (not yet received) purchase orders is at or below the minimum (no minimum = 0). Cin7 uses available stock
+    // (on hand − allocated); until allocation exists, on hand. Needs :t; the caller adds filter, order and paging.
     private static final String REORDER_FROM =
             "  FROM products p " +
             "  LEFT JOIN (SELECT product_id, SUM(CASE WHEN type IN (" + StockMovementRepository.IN_TYPES + ") " +
@@ -46,8 +47,9 @@ public class DashboardService {
             "               FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id " +
             "              WHERE po.tenant_id = :t AND po.status = 'DRAFT' GROUP BY l.product_id) oo ON oo.product_id = p.id " +
             "  LEFT JOIN suppliers s ON s.id = p.default_supplier_id " +
-            " WHERE p.tenant_id = :t AND p.status = 'ACTIVE' AND p.product_type = 'STOCK' AND p.min_stock > 0 " +
-            "   AND COALESCE(st.qty, 0) + COALESCE(oo.qty, 0) < p.min_stock ";
+            " WHERE p.tenant_id = :t AND p.status = 'ACTIVE' AND p.product_type = 'STOCK' " +
+            "   AND (p.min_stock > 0 OR p.reorder_quantity > 0) " +
+            "   AND COALESCE(st.qty, 0) + COALESCE(oo.qty, 0) <= COALESCE(p.min_stock, 0) ";
 
     // Issued invoices with something left to pay; needs :t and :type
     private static final String UNPAID_INVOICES =
@@ -209,10 +211,10 @@ public class DashboardService {
                 (rs, i) -> {
                     BigDecimal stock = rs.getBigDecimal("stock");
                     BigDecimal onOrder = rs.getBigDecimal("on_order");
-                    BigDecimal min = rs.getBigDecimal("min_stock");
+                    BigDecimal min = Optional.ofNullable(rs.getBigDecimal("min_stock")).orElse(BigDecimal.ZERO);
                     BigDecimal reorderQty = rs.getBigDecimal("reorder_quantity");
                     BigDecimal suggested = reorderQty != null && reorderQty.signum() > 0
-                            ? reorderQty : min.subtract(stock).subtract(onOrder);
+                            ? reorderQty : min.subtract(stock).subtract(onOrder).max(BigDecimal.ZERO);
                     return new ReorderLine(rs.getLong("id"), rs.getString("sku"), rs.getString("name"),
                             rs.getString("supplier"), stock, onOrder, min, suggested);
                 });

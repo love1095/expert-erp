@@ -124,7 +124,7 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
         <Tile testId="kpi-sales" label={`Sales, ${periodLabel}`} value={formatGBP(k.salesValueInPeriod)} hint={`${k.ordersInPeriod} order${k.ordersInPeriod !== 1 ? "s" : ""}`} href="/sale-orders" />
         <Tile testId="kpi-to-ship" label="Orders to ship" value={String(k.ordersToShip)} hint={`${k.draftOrders} draft${k.draftOrders !== 1 ? "s" : ""} to confirm`} href="/sale-orders" />
         <Tile testId="kpi-stock-value" label="Stock value (at cost)" value={formatGBP(k.stockValue)} hint={`${k.products} products · ${k.warehouses} warehouses`} href="/stock-overview" />
-        <Tile testId="kpi-reorder" label="Products to reorder" value={String(k.productsToReorder)} hint="Stock + on order below minimum" warn={k.productsToReorder > 0} />
+        <Tile testId="kpi-reorder" label="Products to reorder" value={String(k.productsToReorder)} hint="Stock + on order at or below minimum" warn={k.productsToReorder > 0} />
         <Tile testId="kpi-shipped" label={`Units shipped, ${periodLabel}`} value={k.unitsShippedInPeriod.toLocaleString()} />
         <Tile testId="kpi-receivables" label="Unpaid sales invoices" value={formatGBP(k.receivablesOutstanding)} href="/invoices" />
         <Tile testId="kpi-customers" label="Active customers" value={k.customers.toLocaleString()} href="/customers" />
@@ -245,7 +245,7 @@ function Count({ label, value, href, warn }: { label: string; value: number; hre
   );
 }
 
-// Stock + on order below the minimum; its own query so searching and paging don't reload the dashboard
+// Stock + on order at or below the minimum (Cin7's rule); its own query so searching and paging don't reload the dashboard
 function ReorderPanel() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
