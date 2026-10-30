@@ -7,6 +7,7 @@ import { getShopifyConnection, saveShopifyConnection, testShopifyConnection, del
 import { ShopifyConnection } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import ShopifyOrders from "./shopify-orders";
+import ShopifyProducts from "./shopify-products";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400";
 
@@ -130,6 +131,7 @@ export default function ShopifyPage() {
           )}
 
           {conn && !editing && <ShopifyOrders conn={conn} />}
+          {conn && !editing && <ShopifyProducts conn={conn} />}
 
           {showForm && (
             <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }}
@@ -162,7 +164,7 @@ export default function ShopifyPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-400">
-                The secret is stored encrypted and never shown again. Scopes needed: read_orders, read_customers, read_products,
+                The secret is stored encrypted and never shown again. Scopes needed: read_orders, read_customers, write_products,
                 read_inventory, write_inventory, read_locations, read/write_merchant_managed_fulfillment_orders, read_returns.
               </p>
 

@@ -10,14 +10,21 @@ import com.experterp.backend.multitenancy.TenantContext;
 import com.experterp.backend.repository.CategoryRepository;
 import com.experterp.backend.repository.ProductRepository;
 import com.experterp.backend.repository.StockMovementRepository;
+import com.experterp.backend.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -26,20 +33,57 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
     private final CategoryRepository categoryRepository;
+    private final SupplierRepository supplierRepository;
     private final SubscriptionService subscriptionService;
 
-    public Page<ProductResponse> findAll(Long categoryId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Product> products = categoryId != null
-                ? productRepository.findByCategory_Id(categoryId, pageable)
-                : productRepository.findAll(pageable);
-        return products.map(this::toResponse);
+    /**
+     * One page of products, newest first. Long texts (description, Cin7 details) are left out of lists:
+     * with thousands of Cin7 products they would make the response huge. {@link #findById} has everything.
+     */
+    @Transactional(readOnly = true)
+    public Page<ProductResponse> findAll(Long categoryId, Product.Status status, String q, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")));
+        String pattern = q == null || q.isBlank() ? null : "%" + q.trim().toLowerCase(Locale.ROOT) + "%";
+        Page<Product> products = productRepository.search(categoryId, status, pattern, pageable);
+
+        // Stock for the whole page in one query
+        Map<Long, BigDecimal> stock = new HashMap<>();
+        List<Long> ids = products.getContent().stream().map(Product::getId).toList();
+        if (!ids.isEmpty()) {
+            for (Object[] row : stockMovementRepository.calculateTotalStocks(ids)) {
+                stock.put((Long) row[0], (BigDecimal) row[1]);
+            }
+        }
+        return products.map(p -> {
+            ProductResponse r = toResponse(p, stock.getOrDefault(p.getId(), BigDecimal.ZERO));
+            r.setDescription(null);
+            r.setDetails(null);
+            return r;
+        });
     }
 
+    /** For dropdowns: every product of a status (null = all), sorted by SKU, with its total stock. */
+    public record ProductOption(Long id, String sku, String name, String unit, Long categoryId, BigDecimal totalStock) {}
+
+    @Transactional(readOnly = true)
+    public List<ProductOption> options(Product.Status status) {
+        Map<Long, BigDecimal> stock = new HashMap<>();
+        for (Object[] row : stockMovementRepository.calculateAllTotalStocks()) {
+            stock.put((Long) row[0], (BigDecimal) row[1]);
+        }
+        return productRepository.findOptions(status).stream()
+                .map(r -> new ProductOption((Long) r[0], (String) r[1], (String) r[2], (String) r[3], (Long) r[4],
+                        stock.getOrDefault((Long) r[0], BigDecimal.ZERO)))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ProductResponse findById(Long id) {
-        return toResponse(getProduct(id));
+        Product p = getProduct(id);
+        return toResponse(p, stockMovementRepository.calculateTotalStock(p.getId()));
     }
 
+    @Transactional
     public ProductResponse create(ProductRequest req) {
         subscriptionService.checkProductLimit(TenantContext.get());
         if (productRepository.existsBySku(req.getSku())) {
@@ -47,9 +91,11 @@ public class ProductService {
         }
         Product p = new Product();
         applyRequest(p, req);
-        return toResponse(productRepository.save(p));
+        p = productRepository.save(p);
+        return toResponse(p, BigDecimal.ZERO);
     }
 
+    @Transactional
     public ProductResponse update(Long id, ProductRequest req) {
         Product p = getProduct(id);
         productRepository.findBySku(req.getSku()).ifPresent(existing -> {
@@ -58,7 +104,9 @@ public class ProductService {
             }
         });
         applyRequest(p, req);
-        return toResponse(productRepository.save(p));
+        p.setUpdatedAt(LocalDateTime.now());
+        p = productRepository.save(p);
+        return toResponse(p, stockMovementRepository.calculateTotalStock(p.getId()));
     }
 
     public void delete(Long id) {
@@ -72,12 +120,26 @@ public class ProductService {
     }
 
     private void applyRequest(Product p, ProductRequest req) {
-        p.setSku(req.getSku());
-        p.setName(req.getName());
+        p.setSku(req.getSku().trim());
+        p.setName(req.getName().trim());
         p.setDescription(req.getDescription());
-        p.setUnit(req.getUnit());
+        p.setShortDescription(req.getShortDescription());
+        p.setUnit(req.getUnit().trim());
+        p.setStatus(req.getStatus() == null ? Product.Status.ACTIVE : req.getStatus());
+        p.setType(req.getType() == null ? Product.Type.STOCK : req.getType());
+        p.setSellable(req.getSellable() == null || req.getSellable());
+        p.setBrand(req.getBrand());
+        p.setBarcode(req.getBarcode());
         p.setCostPrice(req.getCostPrice());
+        p.setSellPrice(req.getSellPrice());
+        p.setTradePrice(req.getTradePrice());
         p.setMinStock(req.getMinStock());
+        p.setReorderQuantity(req.getReorderQuantity());
+        p.setSupplierProductCode(req.getSupplierProductCode());
+        p.setFamilySku(blankToNull(req.getFamilySku()));
+        p.setFamilyName(req.getFamilyName());
+        p.setVariantOptions(req.getVariantOptions() == null || req.getVariantOptions().isEmpty() ? null : req.getVariantOptions());
+        if (req.getDetails() != null) p.setDetails(req.getDetails());
 
         if (req.getCategoryId() != null) {
             Category cat = categoryRepository.findById(req.getCategoryId())
@@ -86,23 +148,47 @@ public class ProductService {
         } else {
             p.setCategory(null);
         }
+        p.setDefaultSupplier(req.getDefaultSupplierId() == null ? null : supplierRepository.findById(req.getDefaultSupplierId())
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found: " + req.getDefaultSupplierId())));
     }
 
-    private ProductResponse toResponse(Product p) {
-        BigDecimal totalStock = stockMovementRepository.calculateTotalStock(p.getId());
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    private ProductResponse toResponse(Product p, BigDecimal totalStock) {
         ProductResponse r = new ProductResponse();
         r.setId(p.getId());
         r.setSku(p.getSku());
         r.setName(p.getName());
         r.setDescription(p.getDescription());
+        r.setShortDescription(p.getShortDescription());
         r.setUnit(p.getUnit());
+        r.setStatus(p.getStatus());
+        r.setType(p.getType());
+        r.setSellable(p.isSellable());
+        r.setBrand(p.getBrand());
+        r.setBarcode(p.getBarcode());
         r.setCostPrice(p.getCostPrice());
+        r.setSellPrice(p.getSellPrice());
+        r.setTradePrice(p.getTradePrice());
         r.setMinStock(p.getMinStock());
+        r.setReorderQuantity(p.getReorderQuantity());
+        r.setSupplierProductCode(p.getSupplierProductCode());
+        r.setFamilySku(p.getFamilySku());
+        r.setFamilyName(p.getFamilyName());
+        r.setVariantOptions(p.getVariantOptions());
+        r.setDetails(p.getDetails());
         r.setCreatedAt(p.getCreatedAt());
+        r.setUpdatedAt(p.getUpdatedAt());
         r.setTotalStock(totalStock);
         if (p.getCategory() != null) {
             r.setCategoryId(p.getCategory().getId());
             r.setCategoryName(p.getCategory().getName());
+        }
+        if (p.getDefaultSupplier() != null) {
+            r.setDefaultSupplierId(p.getDefaultSupplier().getId());
+            r.setDefaultSupplierName(p.getDefaultSupplier().getName());
         }
         r.setLowStock(p.getMinStock() != null && totalStock.compareTo(p.getMinStock()) <= 0);
         return r;

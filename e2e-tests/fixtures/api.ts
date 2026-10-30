@@ -72,7 +72,7 @@ export class ErpApi {
 
   // ---- products & stock ----
 
-  async createProduct(overrides: Partial<{ sku: string; name: string; unit: string; costPrice: number; minStock: number }> = {}): Promise<Product> {
+  async createProduct(overrides: Partial<{ sku: string; name: string; unit: string; costPrice: number; sellPrice: number; minStock: number }> = {}): Promise<Product> {
     const id = uid();
     return ok(await this.http.post('/api/products', {
       data: { sku: `E2E-${id}`, name: `E2E product ${id}`, unit: 'pcs', ...overrides },

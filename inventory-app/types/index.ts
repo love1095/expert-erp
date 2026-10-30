@@ -8,19 +8,85 @@ export interface Page<T> {
   last: boolean;
 }
 
+export interface VariantOption {
+  name: string;
+  value: string;
+}
+
+// Cin7 reference fields (JSON in the database)
+export interface ProductDetails {
+  tags?: string;
+  priceTier3?: number;
+  priceTier4?: number;
+  supplierProductName?: string;
+  supplierPrice?: number;
+  weight?: number;
+  weightUnit?: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  dimensionUnit?: string;
+  purchaseTaxRule?: string;
+  saleTaxRule?: string;
+  hsCode?: string;
+  countryOfOrigin?: string;
+  internalNote?: string;
+}
+
 export interface Product {
   id: number;
   sku: string;
   name: string;
+  // Lists leave out description and details; GET /products/{id} has them
   description?: string;
+  shortDescription?: string;
   unit: string;
   categoryId?: number;
   categoryName?: string;
+  status: "ACTIVE" | "DEPRECATED";
+  type: "STOCK" | "SERVICE";
+  sellable: boolean;
+  brand?: string;
+  barcode?: string;
   costPrice?: number;
+  // Shop price (Cin7 PriceTier1), sent to Shopify
+  sellPrice?: number;
+  // Cin7 PriceTier2
+  tradePrice?: number;
   minStock?: number;
+  reorderQuantity?: number;
+  defaultSupplierId?: number;
+  defaultSupplierName?: string;
+  supplierProductCode?: string;
+  familySku?: string;
+  familyName?: string;
+  variantOptions?: VariantOption[];
+  details?: ProductDetails;
   totalStock: number;
   lowStock: boolean;
   createdAt: string;
+  updatedAt?: string;
+}
+
+// Minimal product for dropdowns (GET /products/options)
+export interface ProductOption {
+  id: number;
+  sku: string;
+  name: string;
+  unit: string;
+  categoryId?: number;
+  totalStock: number;
+}
+
+export interface ProductImportResult {
+  rows: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  deprecated: number;
+  categoriesCreated: number;
+  suppliersCreated: number;
+  warnings: string[];
 }
 
 export interface AuthUser {
@@ -368,6 +434,7 @@ export interface Dashboard {
   recentOrders: { id: number; customerName: string; status: SaleOrderStatus; fulfilmentStatus: FulfilmentStatus; total: number; createdAt: string }[];
 }
 
+
 export interface ShopifyConnection {
   shopDomain: string;
   clientId: string;
@@ -390,6 +457,37 @@ export interface ShopifyConnection {
   webhooksRegisteredAt?: string;
   webhookTopics: string[];
   lastImportAt?: string;
+  lastProductSyncAt?: string;
+}
+
+export interface ShopifyProductSync {
+  state: "RUNNING" | "DONE" | "FAILED";
+  // Step of a run and its own progress
+  phase: "SENDING" | "REMOVING" | "STOCK";
+  phaseTotal: number;
+  phaseDone: number;
+  // Shopify products (a family is one)
+  total: number;
+  processed: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  // Deleted (ERP-made) or archived (hand-made)
+  removed: number;
+  failed: number;
+  // SKUs sent
+  variants: number;
+  // Deprecated, services, not sellable
+  notSent: number;
+  stockUpdated: number;
+  // Created at £0.00 because the ERP has no selling price
+  withoutPrice: number;
+  warehouseName?: string;
+  locationName?: string;
+  problems: string[];
+  error?: string;
+  startedAt: string;
+  finishedAt?: string;
 }
 
 export interface ShopifyImportResult {

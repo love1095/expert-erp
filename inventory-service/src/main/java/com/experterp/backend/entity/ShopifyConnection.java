@@ -75,6 +75,10 @@ public class ShopifyConnection {
 
     private LocalDateTime lastImportAt;
 
+    // ---- product sync ----
+
+    private LocalDateTime lastProductSyncAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

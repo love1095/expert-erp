@@ -3,7 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog } from "@/lib/api";
 import { AuditLog } from "@/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import ShopifyWebhooks from "./shopify-webhooks";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
 
@@ -17,7 +19,16 @@ const ACTION_COLOR: Record<string, string> = {
   CANCEL_REMAINING: "bg-gray-100 text-gray-500",
 };
 
+const TAB_CLASS = "px-4 py-2 text-sm font-medium border-b-2 -mb-px";
+
 export default function AuditLogPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const [tab, setTab] = useState<"changes" | "shopify">("changes");
+  // /audit-log?tab=shopify-webhooks opens the Shopify tab (linked from the Shopify page)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "shopify-webhooks") setTab("shopify");
+  }, []);
   const [entityType, setEntityType] = useState("");
   const [action, setAction]         = useState("");
   const [username, setUsername]     = useState("");
@@ -39,11 +50,26 @@ export default function AuditLogPage() {
         <p className="text-gray-500 text-sm mt-0.5">Full trail of every create, update and status change</p>
       </div>
 
+      {isAdmin && (
+        <div role="tablist" className="flex gap-1 border-b border-gray-200 mb-5">
+          <button role="tab" aria-selected={tab === "changes"} onClick={() => setTab("changes")}
+            className={`${TAB_CLASS} ${tab === "changes" ? "border-indigo-600 text-indigo-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+            Changes
+          </button>
+          <button role="tab" aria-selected={tab === "shopify"} onClick={() => setTab("shopify")}
+            className={`${TAB_CLASS} ${tab === "shopify" ? "border-indigo-600 text-indigo-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+            Shopify webhooks
+          </button>
+        </div>
+      )}
+
+      {tab === "shopify" && isAdmin ? <ShopifyWebhooks /> : <>
+
       <div className="flex gap-3 mb-5 flex-wrap">
         <select value={entityType} onChange={e => { setEntityType(e.target.value); setPage(0); }}
           className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-44">
           <option value="">All entities</option>
-          {["CUSTOMER", "PURCHASE_ORDER", "SALE_ORDER", "STOCK_MOVEMENT"].map(t => (
+          {["CUSTOMER", "PRODUCT", "PURCHASE_ORDER", "SALE_ORDER", "SHOPIFY", "STOCK_MOVEMENT"].map(t => (
             <option key={t} value={t}>{t.replace("_", " ")}</option>
           ))}
         </select>
@@ -102,6 +128,7 @@ export default function AuditLogPage() {
           <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
         </>
       )}
+      </>}
     </div>
   );
 }

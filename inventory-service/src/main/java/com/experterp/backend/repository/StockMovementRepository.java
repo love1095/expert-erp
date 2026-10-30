@@ -38,6 +38,17 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
            "FROM StockMovement m WHERE m.product.id = :productId")
     BigDecimal calculateTotalStock(@Param("productId") Long productId);
 
+    // Total stock for several products at once: rows of [productId, stock]; products without movements are absent
+    @Query("SELECT m.product.id, COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
+           "THEN m.quantity ELSE -m.quantity END), 0) " +
+           "FROM StockMovement m WHERE m.product.id IN :productIds GROUP BY m.product.id")
+    List<Object[]> calculateTotalStocks(@Param("productIds") java.util.Collection<Long> productIds);
+
+    // Total stock of every product of the tenant: rows of [productId, stock]
+    @Query("SELECT m.product.id, COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
+           "THEN m.quantity ELSE -m.quantity END), 0) FROM StockMovement m GROUP BY m.product.id")
+    List<Object[]> calculateAllTotalStocks();
+
     // Aggregated stock overview — one row per product+warehouse combo
     // Columns: p.id[0], p.sku[1], p.name[2], p.unit[3], p.min_stock[4],
     //          w.id[5], w.name[6], c.id[7], c.name[8], stock[9]

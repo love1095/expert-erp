@@ -290,7 +290,7 @@ class ShopifyConnectionServiceTest {
                 } else if (form.contains("grant_type=client_credentials") && form.contains("client_id=good-client")
                         && form.contains("client_secret=good-secret")) {
                     // Deliberately without read_returns, to check the missing-scope report
-                    reply(ex, 200, "{\"access_token\":\"" + TOKEN + "\",\"scope\":\"read_orders,read_customers,read_products,"
+                    reply(ex, 200, "{\"access_token\":\"" + TOKEN + "\",\"scope\":\"read_orders,read_customers,write_products,"
                             + "write_inventory,read_locations,write_merchant_managed_fulfillment_orders\",\"expires_in\":86399}");
                 } else {
                     reply(ex, 401, "{\"error\":\"invalid_client\"}");

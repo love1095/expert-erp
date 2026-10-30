@@ -18,3 +18,7 @@ node_modules/
 
 # OS
 .DS_Store
+
+# Tool working files and local test output
+.work-files/
+inventory-service/test-results/

@@ -7,12 +7,25 @@ const toPage = (data: any) =>
     ? { content: data, totalPages: 1, totalElements: data.length, size: data.length, number: 0, first: true, last: true }
     : data;
 
-// Products — array for dropdowns (fetches all)
-export const getProducts    = (params?: { categoryId?: number }) =>
-  api.get("/products", { params: { size: 9999, ...params } }).then(r => r.data.content);
-// Products — Page for the products list view
-export const getProductsPage = (params?: { categoryId?: number; page?: number; size?: number }) =>
+// Products — every active product, minimal fields, for dropdowns
+export const getProducts    = (params?: { status?: "ACTIVE" | "DEPRECATED" | "ALL" }) =>
+  api.get("/products/options", { params }).then(r => r.data);
+// Products — Page for the products list view; status omitted = all, q = part of SKU or name
+export const getProductsPage = (params?: { categoryId?: number; status?: string; q?: string; page?: number; size?: number }) =>
   api.get("/products", { params: { size: 20, ...params } }).then(r => r.data);
+// Cin7 Core InventoryList CSV; deprecateMissing marks active products not in the file as deprecated
+export const importProducts = ({ file, deprecateMissing }: { file: File; deprecateMissing: boolean }) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post("/products/import", body, {
+    params: { deprecateMissing },
+    headers: { "Content-Type": "multipart/form-data" },
+    // ~15,000 rows take a while
+    timeout: 10 * 60 * 1000,
+  }).then(r => r.data);
+};
+export const exportProducts = (params?: { status?: string }) =>
+  api.get("/products/export", { params, responseType: "blob" }).then(r => r.data);
 
 export const getProduct     = (id: number) => api.get(`/products/${id}`).then(r => r.data);
 export const createProduct  = (data: unknown) => api.post("/products", data).then(r => r.data);
@@ -127,6 +140,9 @@ export const saveShopifySettings     = (data: { defaultWarehouseId: number | nul
   api.put("/integrations/shopify/settings", data).then(r => r.data);
 export const registerShopifyWebhooks = () => api.post("/integrations/shopify/webhooks").then(r => r.data);
 export const importShopifyOrders     = (days: number) => api.post("/integrations/shopify/import", null, { params: { days } }).then(r => r.data);
+// Send all ERP products (details, price, stock) to Shopify; runs in the background — poll the GET (204 = never run)
+export const syncShopifyProducts     = () => api.post("/integrations/shopify/products/sync").then(r => r.data);
+export const getShopifyProductSync   = () => api.get("/integrations/shopify/products/sync").then(r => (r.status === 204 ? null : r.data));
 export const getShopifyEvents        = () => api.get("/integrations/shopify/events", { params: { size: 20 } }).then(r => r.data);
 
 // Subscription / Plans

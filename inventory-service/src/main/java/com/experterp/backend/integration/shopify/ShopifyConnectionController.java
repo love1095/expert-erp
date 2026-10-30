@@ -19,6 +19,7 @@ public class ShopifyConnectionController {
 
     private final ShopifyConnectionService service;
     private final ShopifyOrderSyncService syncService;
+    private final ShopifyProductSyncService productSyncService;
     private final ShopifyWebhookEventRepository eventRepository;
 
     public record EventView(Long id, String topic, String eventId, ShopifyWebhookEvent.Status status, String error,
@@ -56,6 +57,18 @@ public class ShopifyConnectionController {
     @PostMapping("/import")
     public ShopifyOrderSyncService.ImportResult importOrders(@RequestParam(defaultValue = "30") int days) {
         return syncService.importRecent(days);
+    }
+
+    // Sends every ERP product (details, price, stock) to Shopify in the background; poll GET for progress
+    @PostMapping("/products/sync")
+    public ShopifyProductSyncService.SyncView syncProducts() {
+        return productSyncService.start();
+    }
+
+    // 204 when no product sync has run since the backend started
+    @GetMapping("/products/sync")
+    public ResponseEntity<ShopifyProductSyncService.SyncView> productSyncStatus() {
+        return productSyncService.status().map(ResponseEntity::ok).orElse(ResponseEntity.noContent().build());
     }
 
     // Latest webhook deliveries, newest first

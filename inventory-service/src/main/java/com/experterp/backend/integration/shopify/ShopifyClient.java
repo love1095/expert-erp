@@ -26,6 +26,8 @@ public class ShopifyClient {
 
     public record AccessToken(String token, String scope, long expiresInSeconds) {}
 
+    private static final int MAX_THROTTLE_RETRIES = 6;
+
     private final ObjectMapper objectMapper;
     private final String apiVersion;
     // Blank = https://{shop}; tests point it at a local stub server
@@ -85,18 +87,42 @@ public class ShopifyClient {
                 .POST(HttpRequest.BodyPublishers.ofString(payload))
                 .build();
 
-        HttpResponse<String> res = send(shop, req);
-        if (res.statusCode() == 401) {
-            throw new ShopifyApiException("Shopify rejected the access token (HTTP 401). Test the connection again.");
+        for (int attempt = 1; ; attempt++) {
+            HttpResponse<String> res = send(shop, req);
+            if (res.statusCode() == 401) {
+                throw new ShopifyApiException("Shopify rejected the access token (HTTP 401). Test the connection again.");
+            }
+            boolean throttled = res.statusCode() == 429;
+            JsonNode body = null;
+            if (!throttled) {
+                if (res.statusCode() != 200) {
+                    throw new ShopifyApiException("Shopify API returned HTTP " + res.statusCode() + ": " + abbreviate(res.body()));
+                }
+                body = json(res.body());
+                throttled = body.has("errors") && body.get("errors").toString().contains("THROTTLED");
+            }
+            if (throttled) {
+                // Shopify's query budget refills every second; long runs (e.g. product sync) hit it
+                if (attempt >= MAX_THROTTLE_RETRIES) {
+                    throw new ShopifyApiException("Shopify kept asking to slow down (rate limit). Try again in a minute.");
+                }
+                pause(Duration.ofSeconds(attempt));
+                continue;
+            }
+            if (body.has("errors")) {
+                throw new ShopifyApiException("Shopify API error: " + abbreviate(body.get("errors").toString()));
+            }
+            return body.path("data");
         }
-        if (res.statusCode() != 200) {
-            throw new ShopifyApiException("Shopify API returned HTTP " + res.statusCode() + ": " + abbreviate(res.body()));
+    }
+
+    private static void pause(Duration d) {
+        try {
+            Thread.sleep(d.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ShopifyApiException("Interrupted while waiting for Shopify's rate limit");
         }
-        JsonNode body = json(res.body());
-        if (body.has("errors")) {
-            throw new ShopifyApiException("Shopify API error: " + abbreviate(body.get("errors").toString()));
-        }
-        return body.path("data");
     }
 
     private URI url(String shop, String path) {

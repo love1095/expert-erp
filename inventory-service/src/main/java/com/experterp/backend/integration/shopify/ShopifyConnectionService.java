@@ -23,9 +23,9 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class ShopifyConnectionService {
 
-    /** Scopes the later phases need (order import, fulfilment, returns, stock sync). */
+    /** Scopes the later phases need (order import, fulfilment, returns, product + stock sync). */
     public static final List<String> REQUIRED_SCOPES = List.of(
-            "read_orders", "read_customers", "read_products", "read_inventory", "write_inventory", "read_locations",
+            "read_orders", "read_customers", "write_products", "read_inventory", "write_inventory", "read_locations",
             "read_merchant_managed_fulfillment_orders", "write_merchant_managed_fulfillment_orders", "read_returns");
 
     private static final Pattern MYSHOPIFY = Pattern.compile("^[a-z0-9][a-z0-9-]{0,62}\\.myshopify\\.com$");
@@ -49,7 +49,9 @@ public class ShopifyConnectionService {
             LocalDateTime lastCheckedAt, LocalDateTime tokenExpiresAt, String apiVersion,
             // order import (7.2)
             Long defaultWarehouseId, String defaultWarehouseName, String fallbackWarehouseName, String publicUrl, String webhookUrl,
-            LocalDateTime webhooksRegisteredAt, List<String> webhookTopics, LocalDateTime lastImportAt) {}
+            LocalDateTime webhooksRegisteredAt, List<String> webhookTopics, LocalDateTime lastImportAt,
+            // product sync
+            LocalDateTime lastProductSyncAt) {}
 
     @Transactional(readOnly = true)
     public Optional<ConnectionView> get() {
@@ -169,7 +171,7 @@ public class ShopifyConnectionService {
                 c.getPublicUrl() == null ? null : c.getPublicUrl() + ShopifyOrderSyncService.WEBHOOK_PATH,
                 c.getWebhooksRegisteredAt(),
                 c.getWebhookTopics() == null ? List.of() : List.of(c.getWebhookTopics().split(",")),
-                c.getLastImportAt());
+                c.getLastImportAt(), c.getLastProductSyncAt());
     }
 
     /**

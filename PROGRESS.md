@@ -246,9 +246,24 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Tests: `ShopifyFulfilmentSyncTest` (4, fake Shopify with fulfillment orders), webhook test for shipping address; E2E SHP-009 (51 cases total)
 - [x] Fixed along the way: browser autofill put an email into the Carrier field (autofill off); the Shopify page now names the warehouse actually used when none is chosen (the oldest), not the alphabetically first
 
+### Product catalogue in Cin7 format ✅
+- [x] Products follow Cin7 Core's **InventoryList** CSV (`V10`): searched / filtered / synced fields are columns (status ACTIVE / DEPRECATED, type STOCK / SERVICE, brand, barcode, trade price, reorder quantity, default supplier, supplier product code, product family + up to 3 variant options); the rest of Cin7's data is one JSONB `details` column, so a new field needs no migration
+- [x] **Import** (Cin7 InventoryList CSV, ~15,000 rows) with a per-row error report, option to deprecate active products missing from the file; **Export** in the same format (re-importable)
+- [x] Products page: search on SKU / name (`pg_trgm` index), status filter (deprecated hidden by default), full edit form; dropdowns use a light `/products/options` list
+- [x] Real data: the user's Cin7 file (15,566 rows, 13,974 active = Cin7's count) imported into the local dev database only — never committed
+- [x] Tests: `ProductImportServiceTest` (7); E2E PRD-003…PRD-007
+
+### Product sync ERP → Shopify ✅ (price-change check still to do)
+- [x] **Sync products to Shopify** on the Shopify page (`V9`: `sell_price`, `shopify_product_links`): a product family = one Shopify product with variants (options by name), single products = one product; new products created as **DRAFT**; £0.00 when no price; deprecated products removed (ERP-made) or archived (made in Shopify)
+- [x] Runs in the background with progress in 3 steps (sending, removing, stock), 5 requests in parallel; unchanged products are skipped
+- [x] Real run on expertsafety-dev: 2,650 Shopify products / 13,959 SKUs created, 1,193 old drafts removed, 0 failed; storefront shows variants (e.g. Wonder Grip glove sizes)
+- [ ] To check: a price change updates only that product (edit GLGH-WG-310RP-08 → sync → expect 1 updated) — local price already set to £4.50
+- [x] UI moves: Shopify webhook deliveries → Audit Log tab **Shopify webhooks** (admins); **Import recent orders** → Sale Orders page
+- [x] Tests: `ShopifyProductSyncTest` (8, fake Shopify); E2E SHP-010, SHP-011, AUD-002 (59 cases, 77 backend tests at the time)
+
 ### Next
 - [ ] 7.4 cancellations / returns · 7.5 reliability (retry failed events, reconciliation, background processing) · 7.6 stock sync
-- [ ] Products: a check page for SKUs missing on either side, and/or publishing ERP products to Shopify (needs `write_products`) — to decide
+- [ ] Stock on hand from Cin7 (opening balances) — until then every imported product has 0 stock and shows "Sold out"
 
 ---
 
@@ -274,6 +289,10 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET  | `/auth/users` | List users in tenant (ADMIN) |
 | GET/POST | `/products` | List / create products |
 | GET/PUT/DELETE | `/products/{id}` | Get / update / delete product |
+| GET  | `/products/options` | Light product list for dropdowns (`status`) |
+| POST | `/products/import` | Import a Cin7 InventoryList CSV (`deprecateMissing`) |
+| GET  | `/products/export` | Export products as a Cin7 InventoryList CSV |
+| POST/GET | `/integrations/shopify/products/sync` | Start / follow the product sync to Shopify (ADMIN) |
 | GET/POST | `/warehouses` | List / create warehouses |
 | GET/PUT/DELETE | `/warehouses/{id}` | Get / update / delete warehouse |
 | GET/POST | `/categories` | List / create categories |

@@ -8,6 +8,8 @@ import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import SaleOrderPanel from "./sale-order-panel";
+import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STATUS_COLOR: Record<SaleOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -23,6 +25,10 @@ const FULFILMENT_LABEL: Record<FulfilmentStatus, { label: string; color: string 
 };
 
 export default function SaleOrdersPage() {
+  const { user } = useAuth();
+  // The Shopify import is admin-only (like the Shopify settings)
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const [showShopifyImport, setShowShopifyImport] = useState(false);
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
 
@@ -76,11 +82,16 @@ export default function SaleOrdersPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Sale Orders</h1>
-        <button onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
-          className="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700">
-          {showForm ? "Cancel" : "+ New SO"}
-        </button>
+        <div className="flex gap-2">
+          {isAdmin && <ShopifyImportButton onOpen={() => setShowShopifyImport(true)} />}
+          <button onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
+            className="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700">
+            {showForm ? "Cancel" : "+ New SO"}
+          </button>
+        </div>
       </div>
+
+      {isAdmin && showShopifyImport && <ShopifyImportPanel onClose={() => setShowShopifyImport(false)} />}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4">

@@ -54,7 +54,7 @@ public class CustomerImportService {
                 .build();
 
         try (CSVParser parser = CSVParser.parse(new StringReader(text), format)) {
-            Columns cols = new Columns(parser.getHeaderNames());
+            CsvColumns cols = new CsvColumns(parser.getHeaderNames());
             if (!cols.has("Name")) {
                 throw new IllegalArgumentException("Not a customer export: the file has no 'Name' column");
             }
@@ -213,30 +213,8 @@ public class CustomerImportService {
     }
 
     /** Header lookup that ignores case and surrounding spaces. */
-    private static final class Columns {
-        private final Map<String, Integer> index = new HashMap<>();
-
-        Columns(List<String> headers) {
-            for (int i = 0; i < headers.size(); i++) {
-                index.putIfAbsent(headers.get(i).trim().toLowerCase(Locale.ROOT), i);
-            }
-        }
-
-        boolean has(String column) {
-            return index.containsKey(column.toLowerCase(Locale.ROOT));
-        }
-
-        /** Trimmed value, or null when the column is missing or blank. */
-        String get(CSVRecord r, String column) {
-            Integer i = index.get(column.toLowerCase(Locale.ROOT));
-            if (i == null || i >= r.size()) return null;
-            String v = r.get(i).trim();
-            return v.isEmpty() ? null : v;
-        }
-    }
-
     /** Applies the customer-level columns of one row; a column missing from the file is skipped. */
-    private record Line(Columns cols, CSVRecord record, String customerName, List<String> warnings) {
+    private record Line(CsvColumns cols, CSVRecord record, String customerName, List<String> warnings) {
 
         void text(String column, Consumer<String> setter) {
             if (cols.has(column)) setter.accept(cols.get(record, column));

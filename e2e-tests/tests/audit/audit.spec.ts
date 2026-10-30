@@ -13,3 +13,10 @@ test('AUD-001 shipments appear in the audit log with the acting user', { tag: ['
   await expect(fulfilRow).toBeVisible();
   await expect(fulfilRow).toContainText(session.user.username);
 });
+
+test('AUD-002 the Shopify webhooks tab is for admins only', { tag: ['@P2', '@audit', '@shopify'] }, async ({ page }) => {
+  await page.goto('/audit-log');
+  await expect(page.getByRole('tab', { name: 'Changes' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Shopify webhooks' }).click();
+  await expect(page.getByTestId('shopify-events')).toContainText('Nothing received yet');
+});

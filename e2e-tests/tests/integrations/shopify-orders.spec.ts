@@ -36,8 +36,8 @@ test.describe('Shopify order import', () => {
       await expect(customer).toContainText('Ada Lovelace');
       await expect(customer).toContainText('Shopify');
 
-      // The delivery is listed on the Shopify page
-      await page.goto('/settings/integrations/shopify');
+      // The delivery is listed in the Audit Log, Shopify webhooks tab
+      await page.goto('/audit-log?tab=shopify-webhooks');
       await expect(page.getByTestId('shopify-events')).toContainText('orders/create');
       await expect(page.getByTestId('shopify-events')).toContainText('PROCESSED');
     });
@@ -80,6 +80,8 @@ test.describe('Shopify order import', () => {
       expect(res.status()).toBe(500);
 
       await page.goto('/settings/integrations/shopify');
+      await page.getByRole('link', { name: 'Audit Log → Shopify webhooks' }).click();
+      await expect(page.getByRole('tab', { name: 'Shopify webhooks' })).toHaveAttribute('aria-selected', 'true');
       await expect(page.getByTestId('shopify-events')).toContainText('FAILED');
       await expect(page.getByTestId('shopify-events')).toContainText('No warehouse exists');
     });
