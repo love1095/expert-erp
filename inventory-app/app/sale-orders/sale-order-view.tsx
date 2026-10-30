@@ -10,6 +10,8 @@ import SaleOrderForm from "./sale-order-form";
 import SaleStages from "./sale-stages";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
+import { Clip, ListHead } from "@/components/ListToolbar";
+import { downloadCsv } from "@/components/BulkActions";
 import { BTN_PRIMARY, BTN_SECONDARY, TrailCard, Field } from "@/components/DetailParts";
 
 type Mode = "view" | "ship" | "return" | "edit" | "invoice";
@@ -182,6 +184,16 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
 
   const goods = order.lines.reduce((t, l) => ({ net: t.net + Number(l.netAmount), tax: t.tax + Number(l.taxAmount ?? 0) }), { net: 0, tax: 0 });
   const extras = order.charges.reduce((t, c) => ({ net: t.net + Number(c.netAmount), tax: t.tax + Number(c.taxAmount ?? 0) }), { net: 0, tax: 0 });
+  const showCancelled = order.lines.some(l => Number(l.cancelledQuantity) > 0);
+  const showReturned = order.lines.some(l => Number(l.returnedQuantity) > 0);
+  // [heading, right-aligned]
+  const lineCols: [string, boolean][] = [["Product", false], ["Quantity", true], ["Shipped", true],
+    ...(showCancelled ? [["Cancelled", true] as [string, boolean]] : []), ...(showReturned ? [["Returned", true] as [string, boolean]] : []),
+    ["To ship", true], ["Allocated", true], ["Price", true], ["Disc.", true], ["Tax rule", false], ["Margin", true], ["Total", true]];
+  const exportLines = () => downloadCsv(`${order.orderNumber}-lines.csv`,
+    ["SKU", "Product", "Quantity", "Shipped", "Cancelled", "Returned", "Price", "Discount %", "Tax rule", "Margin %", "Total"],
+    order.lines.map(l => [l.productSku, l.productName, l.quantity, l.fulfilledQuantity, l.cancelledQuantity, l.returnedQuantity,
+      l.unitPrice, l.discountPercent, l.taxName, l.marginPercent, l.netAmount]));
   const invoices = (order.invoices ?? []).filter(i => i.kind !== "CREDIT_NOTE");
   const creditNotes = (order.invoices ?? []).filter(i => i.kind === "CREDIT_NOTE");
   const paidTotal = invoices.filter(i => i.status !== "CANCELLED").reduce((t, i) => t + Number(i.amountPaid), 0);
@@ -429,18 +441,20 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                 )}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                {/* Like Cin7: "SKU: name" on one line, numbers right-aligned, a total row and Export; cancelled / returned
+                    columns only when something was cancelled or returned */}
+                <table className="list-table">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      {["Product", "Ordered", "Shipped", "Cancelled", "Returned", "Remaining", "Allocated", "Price", "Disc", "VAT", "Net", "Margin"].map(h => (
-                        <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {lineCols.map(([h, right]) => (
+                        <th key={h} className={`${right ? "text-right" : "text-left"} text-xs font-semibold text-gray-500 uppercase tracking-wide`}>{h}</th>
                       ))}
-                      {mode === "ship" && <th className="text-left px-3 py-2 text-xs font-semibold text-gray-900 uppercase">Ship now</th>}
-                      {mode === "invoice" && <th className="text-left px-3 py-2 text-xs font-semibold text-gray-900 uppercase">Invoice now</th>}
+                      {mode === "ship" && <th className="text-left text-xs font-semibold text-gray-900 uppercase">Ship now</th>}
+                      {mode === "invoice" && <th className="text-left text-xs font-semibold text-gray-900 uppercase">Invoice now</th>}
                       {mode === "return" && (
                         <>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-gray-900 uppercase">Return qty</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-gray-900 uppercase">Back to stock</th>
+                          <th className="text-left text-xs font-semibold text-gray-900 uppercase">Return qty</th>
+                          <th className="text-left text-xs font-semibold text-gray-900 uppercase">Back to stock</th>
                         </>
                       )}
                     </tr>
@@ -450,28 +464,25 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                       const max = maxFor(l);
                       return (
                         <tr key={l.id}>
-                          <td className="px-3 py-2">
-                            <span className="font-mono text-xs text-gray-500">{l.productSku}</span>
-                            <span className="block text-gray-800">{l.productName}</span>
-                          </td>
-                          <td className="px-3 py-2 tabular-nums">{qty(l.quantity)}</td>
-                          <td className="px-3 py-2 tabular-nums text-emerald-700">{qty(l.fulfilledQuantity)}</td>
-                          <td className="px-3 py-2 tabular-nums text-gray-500">{qty(l.cancelledQuantity)}</td>
-                          <td className="px-3 py-2 tabular-nums text-gray-600">{qty(l.returnedQuantity)}</td>
-                          <td className="px-3 py-2 tabular-nums font-medium">{qty(l.remainingQuantity)}</td>
-                          <td className={`px-3 py-2 tabular-nums ${(l.backorderedQuantity ?? 0) > 0 ? "text-orange-700 font-semibold" : "text-gray-500"}`}
+                          <td className="text-gray-800"><Clip text={`${l.productSku}: ${l.productName}`} width="12rem" /></td>
+                          <td className="num">{qty(l.quantity)}</td>
+                          <td className="num text-emerald-700">{qty(l.fulfilledQuantity)}</td>
+                          {showCancelled && <td className="num text-gray-500">{qty(l.cancelledQuantity)}</td>}
+                          {showReturned && <td className="num text-gray-600">{qty(l.returnedQuantity)}</td>}
+                          <td className="num font-medium">{qty(l.remainingQuantity)}</td>
+                          <td className={`num ${(l.backorderedQuantity ?? 0) > 0 ? "text-orange-700 font-semibold" : "text-gray-500"}`}
                             title={(l.backorderedQuantity ?? 0) > 0 ? `${qty(l.backorderedQuantity!)} short` : undefined}>
                             {l.allocatedQuantity != null ? qty(l.allocatedQuantity) : "—"}
                           </td>
-                          <td className="px-3 py-2 tabular-nums">{l.unitPrice != null ? formatGBP(l.unitPrice) : "—"}</td>
-                          <td className="px-3 py-2 tabular-nums text-gray-500">{l.discountPercent ? `${l.discountPercent}%` : "—"}</td>
-                          <td className="px-3 py-2 text-xs text-gray-600" title={l.taxOverridden ? "Changed by hand" : undefined}>
-                            {l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}
+                          <td className="num">{l.unitPrice != null ? formatGBP(l.unitPrice) : "—"}</td>
+                          <td className="num text-gray-500">{l.discountPercent ? `${l.discountPercent}%` : "—"}</td>
+                          <td className="text-gray-600" title={l.taxOverridden ? "Changed by hand" : l.taxName}>
+                            <span className="block truncate max-w-24">{l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}</span>
                           </td>
-                          <td className="px-3 py-2 tabular-nums">{formatGBP(l.netAmount)}</td>
-                          <td className="px-3 py-2 tabular-nums text-gray-500">{l.marginPercent != null ? `${l.marginPercent}%` : "—"}</td>
+                          <td className="num text-gray-500">{l.marginPercent != null ? `${l.marginPercent}%` : "—"}</td>
+                          <td className="num">{formatGBP(l.netAmount)}</td>
                           {mode !== "view" && (
-                            <td className="px-3 py-2">
+                            <td>
                               <input type="number" min="0" max={max} step="any" disabled={max <= 0}
                                 aria-label={`${mode === "ship" ? "Ship" : mode === "invoice" ? "Invoice" : "Return"} quantity for ${l.productSku}`}
                                 value={amounts[l.id] ?? ""} placeholder={max > 0 ? `max ${qty(max)}` : "—"}
@@ -480,7 +491,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                             </td>
                           )}
                           {mode === "return" && (
-                            <td className="px-3 py-2">
+                            <td>
                               <input type="checkbox" disabled={max <= 0} checked={restock[l.id] ?? true}
                                 aria-label={`Back to stock for ${l.productSku}`}
                                 onChange={e => setRestock({ ...restock, [l.id]: e.target.checked })} />
@@ -490,7 +501,19 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                       );
                     })}
                   </tbody>
+                  <tfoot className="border-t border-gray-200 font-semibold text-gray-800">
+                    <tr>
+                      <td className="text-right">Total:</td>
+                      <td className="num">{qty(order.lines.reduce((t, l) => t + Number(l.quantity), 0))}</td>
+                      <td colSpan={lineCols.length - 3}></td>
+                      <td className="num">{formatGBP(goods.net)}</td>
+                      {mode !== "view" && <td colSpan={mode === "return" ? 2 : 1}></td>}
+                    </tr>
+                  </tfoot>
                 </table>
+              </div>
+              <div className="px-4 py-2 border-t border-gray-100">
+                <button type="button" onClick={exportLines} className="text-xs font-medium text-brand-700 hover:underline">Export</button>
               </div>
             </section>
 
@@ -567,20 +590,17 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
           {order.charges.length > 0 && (
             <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <h3 className="px-4 py-3 border-b border-gray-200 text-sm font-semibold text-gray-800">Additional charges and services</h3>
-              <table data-testid={`so-charges-${orderId}`} className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>{["Charge", "Qty", "Price", "Disc", "VAT", "Net"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>))}</tr>
-                </thead>
+              <table data-testid={`so-charges-${orderId}`} className="list-table">
+                <ListHead cols={["Additional charges / services", "Quantity", "Price", "Discount", "Tax rule", "Total"]} right={["Quantity", "Price", "Discount", "Total"]} />
                 <tbody className="divide-y divide-gray-100">
                   {order.charges.map(c => (
                     <tr key={c.id}>
-                      <td className="px-3 py-2 text-gray-800">{c.description}</td>
-                      <td className="px-3 py-2 tabular-nums">{qty(c.quantity)}</td>
-                      <td className="px-3 py-2 tabular-nums">{formatGBP(c.unitPrice)}</td>
-                      <td className="px-3 py-2 tabular-nums text-gray-500">{c.discountPercent ? `${c.discountPercent}%` : "—"}</td>
-                      <td className="px-3 py-2 text-xs text-gray-600">{c.taxName ?? "Not recorded"}{c.taxOverridden && " ✎"}</td>
-                      <td className="px-3 py-2 tabular-nums">{formatGBP(c.netAmount)}</td>
+                      <td className="text-gray-800"><Clip text={c.description} width="22rem" /></td>
+                      <td className="num">{qty(c.quantity)}</td>
+                      <td className="num">{formatGBP(c.unitPrice)}</td>
+                      <td className="num text-gray-500">{c.discountPercent ? `${c.discountPercent}%` : "—"}</td>
+                      <td className="text-gray-600">{c.taxName ?? "Not recorded"}{c.taxOverridden && " ✎"}</td>
+                      <td className="num">{formatGBP(c.netAmount)}</td>
                     </tr>
                   ))}
                 </tbody>

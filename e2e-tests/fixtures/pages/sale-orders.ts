@@ -17,7 +17,7 @@ export class SaleOrdersPage {
 
   async open(orderId: number): Promise<Locator> {
     await this.page.goto('/sale-orders');
-    await this.row(orderId).getByRole('link', { name: 'Open ›' }).click();
+    await this.row(orderId).getByRole('link', { name: /^SO-\d+$/ }).click();
     const panel = this.panel(orderId);
     await expect(panel.getByRole('table').first()).toBeVisible();
     return panel;

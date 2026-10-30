@@ -101,14 +101,15 @@ test.describe('Sale order VAT and totals', () => {
       await page.goto('/sale-orders');
       await expect(page.getByTestId(`so-row-${second.id}`)).toContainText('Backordered');
       await expect(page.getByTestId(`so-row-${first.id}`)).not.toContainText('Backordered');
-      await page.getByTestId(`so-row-${second.id}`).getByRole('link', { name: 'Open ›' }).click();
+      await page.getByTestId(`so-row-${second.id}`).getByRole('link', { name: /^SO-\d+$/ }).click();
       await expect(page.getByTestId(`so-backordered-${second.id}`)).toContainText(`2 × ${helmet.sku} short`);
 
       // 5 on hand, 7 reserved
       await page.goto('/stock-overview');
-      const row = page.getByRole('row').filter({ hasText: helmet.sku }).filter({ hasText: warehouses.main.name });
-      await expect(row.getByRole('cell').nth(7)).toHaveText('7');
-      await expect(row.getByRole('cell').nth(8)).toHaveText('-2');
+      const id = `${helmet.id}-${warehouses.main.id}`;
+      await page.getByPlaceholder('SKU or product name').fill(helmet.sku);
+      await expect(page.getByTestId(`stock-allocated-${id}`)).toHaveText('7');
+      await expect(page.getByTestId(`stock-available-${id}`)).toHaveText('-2');
 
       await page.goto('/');
       await expect(page.getByTestId('sales-status')).toContainText('Backordered1');
@@ -123,6 +124,7 @@ test.describe('Sale order VAT and totals', () => {
       await api.fulfilSaleOrder(first.id);
       await api.http.post(`/api/sale-orders/${second.id}/cancel`);
       await page.goto('/stock-overview');
-      await expect(row.getByRole('cell').nth(8)).toHaveText('2');
+      await page.getByPlaceholder('SKU or product name').fill(helmet.sku);
+      await expect(page.getByTestId(`stock-available-${id}`)).toHaveText('2');
     });
 });

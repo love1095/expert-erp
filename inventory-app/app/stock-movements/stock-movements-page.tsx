@@ -1,5 +1,6 @@
 "use client";
 
+import { Clip } from "@/components/ListToolbar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMovementsPage, createMovement, getProducts, getWarehouses, getCategories } from "@/lib/api";
 import { StockMovement, Product, Warehouse, Category, Page } from "@/types";
@@ -184,8 +185,8 @@ export default function StockMovementsPage() {
         <p className="text-gray-400 text-sm">Loading...</p>
       ) : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {["Type", "Product", "Warehouse", "Quantity", "Ref ID", "Date"].map((h) => (
@@ -207,7 +208,7 @@ export default function StockMovementsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium">{m.productName}</div>
+                      <Clip text={m.productName} width="22rem" className="font-medium" />
                       <div className="text-xs text-gray-400">{m.productSku}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{m.warehouseName}</td>

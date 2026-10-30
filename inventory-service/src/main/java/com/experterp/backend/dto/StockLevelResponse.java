@@ -20,4 +20,9 @@ public class StockLevelResponse {
     private BigDecimal reserved = BigDecimal.ZERO;
     private BigDecimal available;
     private boolean lowStock; // true when stock <= minStock (and minStock is set)
+    // Like Cin7's availability: on hand × the product's cost price; what ordered POs still bring in here, and the
+    // earliest required-by date among them
+    private BigDecimal stockValue;
+    private BigDecimal onOrder = BigDecimal.ZERO;
+    private java.time.LocalDate nextDelivery;
 }

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
-import { PageHeader, ListToolbar } from "@/components/ListToolbar";
+import { PageHeader, ListToolbar, ListHead } from "@/components/ListToolbar";
 
 const EMPTY_CONTACT: CustomerContact = {
   name: "", jobTitle: "", phone: "", mobilePhone: "", email: "",
@@ -230,15 +230,9 @@ export default function CustomersPage() {
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  {["Name", "Status", "Main contact", "Terms", "Credit limit", "Sales rep", "Orders", ""].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
+              <ListHead cols={["Name", "Status", "Main contact", "Terms", "Sales rep", "Credit limit", "Orders", ""]} right={["Credit limit", "Orders"]} />
               <tbody className="divide-y divide-gray-100">
                 {customers.length === 0 && (
                   <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No customers found</td></tr>
@@ -249,7 +243,7 @@ export default function CustomersPage() {
                       <tr key={c.id} data-testid={`customer-row-${c.id}`} onClick={() => router.push(`/customers/${c.id}`)}
                         className="hover:bg-gray-50 cursor-pointer">
                         <td className="px-4 py-3">
-                          <Link href={`/customers/${c.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-900 hover:underline">{c.name}</Link>
+                          <Link href={`/customers/${c.id}`} onClick={e => e.stopPropagation()} title={c.name} className="inline-block max-w-64 truncate align-middle font-medium text-gray-900 hover:underline">{c.name}</Link>
                           {c.source === "SHOPIFY" && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Shopify</span>}
                         </td>
                         <td className="px-4 py-3">
@@ -259,20 +253,19 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-4 py-3 text-xs">
                           {main ? (
-                            <>
-                              <div className="text-gray-700">{main.name || "—"}{c.contacts.length > 1 && <span className="text-gray-400"> +{c.contacts.length - 1}</span>}</div>
-                              {main.email && <a href={`mailto:${main.email}`} onClick={e => e.stopPropagation()} className="text-brand-700 hover:underline">{main.email}</a>}
-                              {(main.phone || main.mobilePhone) && <div className="text-gray-500">{main.phone || main.mobilePhone}</div>}
-                            </>
+                            <span className="flex items-center gap-2 max-w-[26rem]" title={[main.name, main.email, main.phone || main.mobilePhone].filter(Boolean).join(" · ")}>
+                              <span className="text-gray-700 truncate">{main.name || "—"}{c.contacts.length > 1 && <span className="text-gray-400"> +{c.contacts.length - 1}</span>}</span>
+                              {main.email && <a href={`mailto:${main.email}`} onClick={e => e.stopPropagation()} className="text-brand-700 hover:underline truncate">{main.email}</a>}
+                            </span>
                           ) : <span className="text-gray-400">—</span>}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-600">
-                          <div>{c.paymentTerm || "—"}</div>
-                          {c.priceTier && <div className="text-gray-400">{c.priceTier}</div>}
+                          {c.paymentTerm || "—"}{c.priceTier && <span className="text-gray-400"> · {c.priceTier}</span>}
                         </td>
-                        <td className="px-4 py-3 text-xs tabular-nums text-gray-600">{c.creditLimit != null ? formatGBP(c.creditLimit) : "—"}</td>
+                        
                         <td className="px-4 py-3 text-xs text-gray-600">{c.salesRepresentative || "—"}</td>
-                        <td className="px-4 py-3 tabular-nums">
+                        <td className="num text-gray-600">{c.creditLimit != null ? formatGBP(c.creditLimit) : "—"}</td>
+                        <td className="num">
                           {c.orderCount > 0 ? (
                             <Link href={`/customers/${c.id}`} onClick={e => e.stopPropagation()} className="text-brand-700 hover:underline font-medium">
                               {c.orderCount}

@@ -28,3 +28,10 @@
 @theme inline {
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Cin7-style lists (table.list-table): one line per row, tighter rows, numbers right-aligned.
+   Long text is cut by the Clip component (full text on hover). Not in a layer, so it wins over the cells' px-4 py-3. */
+.list-table { width: 100%; font-size: 0.8125rem; }
+.list-table th { white-space: nowrap; padding: 0.625rem 0.625rem; }
+.list-table td { white-space: nowrap; padding: 0.5rem 0.625rem; vertical-align: middle; }
+.list-table .num { text-align: right; font-variant-numeric: tabular-nums; }

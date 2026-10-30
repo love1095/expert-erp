@@ -8,7 +8,7 @@ import { Product, Category, Page, ProductImportResult } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useEffect, useRef, useState } from "react";
 import Pagination from "@/components/Pagination";
-import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
+import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const BUTTON_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
@@ -309,41 +309,38 @@ export default function ProductsPage() {
       ) : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  {["SKU", "Name", "Brand", "Category", "Unit", "Cost Price", "Selling Price", "Total Stock", "Status", ""].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
+            <table className="list-table">
+              <ListHead cols={["SKU", "Name", "Brand", "Category", "Unit", "Status", "Cost price", "Selling price", "Stock", ""]}
+                right={["Cost price", "Selling price", "Stock"]} />
               <tbody className="divide-y divide-gray-100">
                 {products.length === 0 && (
                   <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No products{q ? ` matching "${q}"` : ""}</td></tr>
                 )}
                 {products.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{p.sku}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{p.name}</div>
-                      {p.variantOptions?.length ? (
-                        <div className="text-xs text-gray-400">{p.variantOptions.map(o => o.value).join(" · ")}</div>
-                      ) : null}
+                    <td className="font-mono text-xs text-gray-500">{p.sku}</td>
+                    <td className="font-medium">
+                      <Clip text={p.variantOptions?.length ? `${p.name} (${p.variantOptions.map(o => o.value).join(" · ")})` : p.name} width="16rem" />
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{p.brand ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-4 py-3">
+                    <td className="text-gray-600"><Clip text={p.brand} width="7rem" /></td>
+                    <td>
                       {p.categoryName ? (
-                        <span className="inline-block bg-brand-50 text-brand-700 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+                        <span title={p.categoryName} className="inline-block max-w-32 truncate align-middle bg-brand-50 text-brand-700 text-xs px-2 py-0.5 rounded-full font-medium">
                           {p.categoryName}
                         </span>
                       ) : (
                         <span className="text-gray-300 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{p.unit}</td>
-                    <td className="px-4 py-3 text-gray-600 tabular-nums">{formatGBP(p.costPrice)}</td>
-                    <td className="px-4 py-3 text-gray-900 tabular-nums">{formatGBP(p.sellPrice)}</td>
-                    <td className="px-4 py-3">
+                    <td className="text-gray-500"><Clip text={p.unit} width="5.5rem" /></td>
+                    <td>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_BADGE[p.status]}`}>
+                        {p.status === "ACTIVE" ? "Active" : "Deprecated"}
+                      </span>
+                    </td>
+                    <td className="num text-gray-600">{formatGBP(p.costPrice)}</td>
+                    <td className="num text-gray-900">{formatGBP(p.sellPrice)}</td>
+                    <td className="num">
                       <span className={`font-semibold ${Number(p.totalStock) <= 0 ? "text-red-600" : "text-emerald-700"}`}>
                         {Number(p.totalStock).toLocaleString()}
                       </span>
@@ -353,12 +350,7 @@ export default function ProductsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_BADGE[p.status]}`}>
-                        {p.status === "ACTIVE" ? "Active" : "Deprecated"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap space-x-3">
+                    <td className="text-right space-x-3">
                       <button onClick={() => startEdit(p)} className="text-xs text-brand-600 hover:text-brand-800">
                         Edit
                       </button>

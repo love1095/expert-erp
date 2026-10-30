@@ -8,8 +8,8 @@ import { getInvoices } from "@/lib/api";
 import { Invoice, Page } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
-import { ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
-import { TH, TD } from "@/components/DetailParts";
+import { ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
+import { TD } from "@/components/DetailParts";
 
 const STATUS: Record<string, { label: string; dot: string }> = {
   DRAFT:     { label: "Draft", dot: "bg-gray-300" },
@@ -61,11 +61,8 @@ export default function BillsList() {
         </>} />
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>{["Document", "Order", "Status", "From", "Date", "Due date", "Overdue by", "Total", "Paid", "Due"].map(h =>
-              <th key={h} className={`${TH} ${["Total", "Paid", "Due"].includes(h) ? "text-right" : ""}`}>{h}</th>)}</tr>
-          </thead>
+        <table className="list-table">
+          <ListHead cols={["Document", "Order", "Status", "From", "Date", "Due date", "Overdue by", "Total", "Paid", "Due"]} right={["Total", "Paid", "Due"]} />
           <tbody className="divide-y divide-gray-100">
             {isLoading && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>}
             {!isLoading && bills.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No supplier bills</td></tr>}
@@ -88,7 +85,7 @@ export default function BillsList() {
                       <span className={`w-2 h-2 rounded-full ${STATUS[b.status].dot}`} />{STATUS[b.status].label}
                     </span>
                   </td>
-                  <td className={`${TD} text-gray-800`}>{b.partyName}</td>
+                  <td className={`${TD} text-gray-800`}><Clip text={b.partyName} width="16rem" /></td>
                   <td className={`${TD} text-xs text-gray-500`}>{b.issueDate ? new Date(b.issueDate).toLocaleDateString("en-GB") : "—"}</td>
                   <td className={`${TD} text-xs text-gray-500`}>{b.dueDate ? new Date(b.dueDate).toLocaleDateString("en-GB") : "—"}</td>
                   <td className={`${TD} text-xs ${late > 0 ? "text-red-600 font-semibold" : "text-gray-400"}`}>{late} day{late !== 1 ? "s" : ""}</td>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Clip } from "@/components/ListToolbar";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,7 +9,7 @@ import { getInvoice, issueInvoice, cancelInvoice, payInvoice } from "@/lib/api";
 import { Invoice, InvoiceStatus, PaymentMethod } from "@/types";
 import {
   BackLink, RecordHeader, RecordLayout, TrailCard, Card, DetailColumns, Field,
-  BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, TH, TD,
+  BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER,
 } from "@/components/DetailParts";
 import CreditNoteForm from "./credit-note-form";
 
@@ -165,30 +166,30 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
 
         <Card title="Items" flush>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{["Product", "Quantity", "Price", "Disc", "Tax rule", "Net", "VAT"].map(h => <th key={h} className={TH}>{h}</th>)}
-                  {!isCreditNote && inv.type === "SALES" && <th className={TH}>Credited</th>}
-                  {inv.type === "PURCHASE" && inv.purchaseOrderId && <th className={TH}>Match</th>}</tr>
+                <tr>{[["Product", false], ["Quantity", true], ["Price", true], ["Discount", true], ["Tax rule", false], ["Total", true], ["VAT", true],
+                  ...(!isCreditNote && inv.type === "SALES" ? [["Credited", true]] : []),
+                  ...(inv.type === "PURCHASE" && inv.purchaseOrderId ? [["Match", false]] : [])].map(([h, right]) => (
+                  <th key={String(h)} className={`${right ? "text-right" : "text-left"} text-xs font-semibold text-gray-500 uppercase tracking-wide`}>{h}</th>))}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {inv.items.map(item => (
                   <tr key={item.id}>
-                    <td className={TD}>
-                      {item.productSku && <span className="font-mono text-xs text-gray-500">{item.productSku}</span>}
-                      <span className="block text-gray-800">{item.productName ?? item.description ?? "—"}</span>
+                    <td className="text-gray-800">
+                      <Clip text={item.productSku ? `${item.productSku}: ${item.productName ?? item.description ?? ""}` : item.productName ?? item.description} width="22rem" />
                     </td>
-                    <td className={`${TD} tabular-nums`}>{Number(item.quantity).toLocaleString()}</td>
-                    <td className={`${TD} tabular-nums`}>{Number(item.unitPrice).toFixed(2)}</td>
-                    <td className={`${TD} tabular-nums text-gray-500`}>{item.discountPercent ? `${item.discountPercent}%` : "—"}</td>
-                    <td className={`${TD} text-xs text-gray-600`}>{item.taxName ?? "—"}</td>
-                    <td className={`${TD} tabular-nums`}>{Number(item.totalPrice).toFixed(2)}</td>
-                    <td className={`${TD} tabular-nums text-gray-600`}>{Number(item.taxAmount).toFixed(2)}</td>
+                    <td className="num">{Number(item.quantity).toLocaleString()}</td>
+                    <td className="num">{Number(item.unitPrice).toFixed(2)}</td>
+                    <td className="num text-gray-500">{item.discountPercent ? `${item.discountPercent}%` : "—"}</td>
+                    <td className="text-gray-600">{item.taxName ?? "—"}</td>
+                    <td className="num">{Number(item.totalPrice).toFixed(2)}</td>
+                    <td className="num text-gray-600">{Number(item.taxAmount).toFixed(2)}</td>
                     {!isCreditNote && inv.type === "SALES" && (
-                      <td className={`${TD} tabular-nums text-gray-500`}>{Number(item.creditedQuantity) > 0 ? Number(item.creditedQuantity).toLocaleString() : "—"}</td>
+                      <td className="num text-gray-500">{Number(item.creditedQuantity) > 0 ? Number(item.creditedQuantity).toLocaleString() : "—"}</td>
                     )}
                     {inv.type === "PURCHASE" && inv.purchaseOrderId && (
-                      <td className={`${TD} text-xs`}>
+                      <td className="text-xs">
                         {!item.purchaseOrderLineId ? <span className="text-gray-400">Charge (expense)</span>
                           : item.matchIssues && item.matchIssues.length > 0
                             ? item.matchIssues.map(m => <span key={m} className="block text-amber-700">⚠ {m}</span>)

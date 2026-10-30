@@ -35,7 +35,7 @@ test.describe('List search', () => {
 
       await page.goto('/stock-overview');
       await page.getByLabel('Search').fill(gloves.sku);
-      await expect(page.getByRole('cell', { name: gloves.sku, exact: true })).toBeVisible();
-      await expect(page.getByRole('cell', { name: boots.sku, exact: true })).toHaveCount(0);
+      await expect(page.getByTestId(`stock-row-${gloves.id}-${warehouses.main.id}`)).toBeVisible();
+      await expect(page.getByTestId(`stock-row-${boots.id}-${warehouses.main.id}`)).toHaveCount(0);
     });
 });

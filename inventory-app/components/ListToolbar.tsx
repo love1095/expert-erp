@@ -79,3 +79,23 @@ export function ListToolbar({ search, onSearch, placeholder = "Search…", searc
 
 // Shared look for the selects in a toolbar
 export const FILTER_SELECT = "border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400";
+
+// Column headings of a list-table; `right` = number columns (right-aligned like Cin7); `lead` = e.g. the select-all box
+export function ListHead({ cols, right = [], lead }: { cols: string[]; right?: string[]; lead?: React.ReactNode }) {
+  return (
+    <thead className="bg-gray-50 border-b border-gray-200">
+      <tr>
+        {lead}
+        {cols.map((h, i) => (
+          <th key={h || `col-${i}`} className={`${right.includes(h) ? "text-right" : "text-left"} text-xs font-semibold text-gray-500 uppercase tracking-wide`}>{h}</th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+// Long text in a list cell: one line, cut with "…", the full text on hover
+export function Clip({ text, width = "18rem", className = "" }: { text?: string | null; width?: string; className?: string }) {
+  if (!text) return <span className="text-gray-300">—</span>;
+  return <span title={text} style={{ maxWidth: width }} className={`block truncate ${className}`}>{text}</span>;
+}

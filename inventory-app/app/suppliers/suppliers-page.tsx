@@ -1,5 +1,6 @@
 "use client";
 
+import { Clip } from "@/components/ListToolbar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSuppliersPage, createSupplier, deleteSupplier } from "@/lib/api";
 import { Supplier, Page } from "@/types";
@@ -128,8 +129,8 @@ export default function SuppliersPage() {
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {["Name", "Status", "Currency", "Payment Term", "Contact", "Phone", "Email", ""].map(h => (
@@ -143,7 +144,7 @@ export default function SuppliersPage() {
                 )}
                 {suppliers.map(s => (
                   <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{s.name}</td>
+                    <td className="px-4 py-3 font-medium"><Clip text={s.name} width="18rem" /></td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${s.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
                         {s.status}

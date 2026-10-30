@@ -41,6 +41,7 @@ public class StockMovementService {
     private final ApplicationEventPublisher eventPublisher;
     private final AuditService auditService;
     private final AllocationService allocationService;
+    private final com.experterp.backend.repository.PurchaseOrderRepository purchaseOrderRepository;
 
     @Transactional
     public StockMovementResponse create(StockMovementRequest req) {
@@ -140,18 +141,38 @@ public class StockMovementService {
         return getStockOverviewPage(page, size, categoryId, null);
     }
 
-    @Transactional(readOnly = true)
     public Page<StockLevelResponse> getStockOverviewPage(int page, int size, Long categoryId, String q) {
+        return getStockOverviewPage(page, size, categoryId, q, false, false);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<StockLevelResponse> getStockOverviewPage(int page, int size, Long categoryId, String q,
+                                                         boolean activeOnly, boolean nonZero) {
         Long tenantId = com.experterp.backend.multitenancy.TenantContext.get();
         Pageable pageable = PageRequest.of(page, size);
-        Page<StockLevelResponse> levels = movementRepository
-                .getStockOverviewPaged(tenantId, categoryId, Search.pattern(q), pageable).map(this::mapRow);
-        // Reservations for the whole page in one query
-        Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(
-                levels.getContent().stream().map(StockLevelResponse::getProductId).distinct().toList());
+        Page<Object[]> rows = movementRepository.getStockOverviewPaged(tenantId, categoryId, Search.pattern(q), activeOnly, nonZero, pageable);
+        Page<StockLevelResponse> levels = rows.map(row -> {
+            StockLevelResponse l = mapRow(row);
+            if (row[10] != null) l.setStockValue(l.getStock().multiply(new BigDecimal(row[10].toString())).setScale(2, java.math.RoundingMode.HALF_UP));
+            return l;
+        });
+        List<Long> productIds = levels.getContent().stream().map(StockLevelResponse::getProductId).distinct().toList();
+        if (productIds.isEmpty()) return levels;
+        // Reservations and open purchase orders for the whole page, one query each
+        Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(productIds);
+        Map<String, Object[]> onOrder = new java.util.HashMap<>();
+        for (Object[] r : purchaseOrderRepository.onOrderByProductAndWarehouse(tenantId, productIds)) {
+            onOrder.put(AllocationService.key(toLong(r[0]), toLong(r[1])), r);
+        }
         levels.forEach(l -> {
-            l.setReserved(reserved.getOrDefault(AllocationService.key(l.getProductId(), l.getWarehouseId()), BigDecimal.ZERO));
+            String key = AllocationService.key(l.getProductId(), l.getWarehouseId());
+            l.setReserved(reserved.getOrDefault(key, BigDecimal.ZERO));
             l.setAvailable(l.getStock().subtract(l.getReserved()));
+            Object[] po = onOrder.get(key);
+            if (po != null) {
+                l.setOnOrder(new BigDecimal(po[2].toString()));
+                if (po[3] != null) l.setNextDelivery(po[3] instanceof java.sql.Date d ? d.toLocalDate() : java.time.LocalDate.parse(po[3].toString()));
+            }
         });
         return levels;
     }

@@ -21,4 +21,16 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
            "AND (:q = '' OR LOWER(po.supplierName) LIKE :q OR LOWER(po.orderNumber) LIKE :q " +
            "OR LOWER(COALESCE(po.supplierReference, '')) LIKE :q)")
     Page<PurchaseOrder> search(@Param("status") PurchaseOrder.Status status, @Param("q") String q, Pageable pageable);
+
+    // On order per product + warehouse (Cin7's "On order" / "Next delivery"): what ordered POs still have to bring in,
+    // and the earliest required-by date among them. Rows: product_id[0], warehouse_id[1], qty[2], next_delivery[3]
+    @Query(value =
+        "SELECT l.product_id, po.warehouse_id, SUM(l.quantity - l.received_quantity - l.closed_short_quantity), MIN(po.required_by) " +
+        "  FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id " +
+        " WHERE po.tenant_id = :tenantId AND po.status = 'ORDERED' AND l.product_id IN (:productIds) " +
+        "   AND l.quantity - l.received_quantity - l.closed_short_quantity > 0 " +
+        " GROUP BY l.product_id, po.warehouse_id",
+        nativeQuery = true)
+    java.util.List<Object[]> onOrderByProductAndWarehouse(@Param("tenantId") Long tenantId,
+                                                         @Param("productIds") java.util.Collection<Long> productIds);
 }

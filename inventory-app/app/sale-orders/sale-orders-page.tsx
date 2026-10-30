@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
-import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
+import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { STATUS_COLOR, FULFILMENT_LABEL } from "./sale-order-view";
@@ -115,18 +115,12 @@ export default function SaleOrdersPage() {
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="pl-4 py-3 w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all on this page" testId="so-select-all" /></th>
-                  {["Progress", "#", "Customer", "Reference", "Documents", "Sales rep", "Total (£, inc VAT)", "Status", "Created", ""].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
+              <ListHead cols={["Progress", "Order #", "Customer", "Reference", "Documents", "Sales rep", "Status", "Created", "Total"]} right={["Total"]}
+                lead={<th className="w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all on this page" testId="so-select-all" /></th>} />
               <tbody className="divide-y divide-gray-100">
-                {orders.length === 0 && <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
+                {orders.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No quotes or orders match" : "No sale orders yet"}</td></tr>}
                 {orders.map(o => (
                   <tr key={o.id} data-testid={`so-row-${o.id}`} onClick={() => router.push(`/sale-orders/${o.id}`)}
                     className={`cursor-pointer ${selection.isTicked(o.id) ? "bg-brand-50" : "hover:bg-gray-50"}`}>
@@ -140,15 +134,11 @@ export default function SaleOrdersPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-medium">
-                      {o.customerName}
-                      <span className="block text-[11px] font-normal text-gray-400">{o.warehouseName} · {o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{o.customerReference ?? "—"}</td>
-                    <td className="px-4 py-3 max-w-56"><OrderDocuments order={o} /></td>
-                    <td className="px-4 py-3 text-gray-600">{o.salesRep ?? "—"}</td>
-                    <td className="px-4 py-3 tabular-nums text-gray-700">{formatGBP(o.total)}</td>
-                    <td className="px-4 py-3">
+                    <td className="font-medium" title={`${o.warehouseName} · ${o.lines.length} item${o.lines.length !== 1 ? "s" : ""}`}><Clip text={o.customerName} width="16rem" /></td>
+                    <td className="text-gray-600"><Clip text={o.customerReference} width="9rem" /></td>
+                    <td><span className="block truncate max-w-56"><OrderDocuments order={o} /></span></td>
+                    <td className="text-gray-600"><Clip text={o.salesRep} width="9rem" /></td>
+                    <td>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
                       {o.quoteExpired && <span className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-red-50 text-red-700">Expired</span>}
                       {o.backordered && (
@@ -163,11 +153,8 @@ export default function SaleOrdersPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`/sale-orders/${o.id}`} onClick={e => e.stopPropagation()}
-                        className="text-xs text-brand-700 hover:underline font-medium">Open ›</Link>
-                    </td>
+                    <td className="text-gray-500"><ClientDate iso={o.createdAt} /></td>
+                    <td className="num text-gray-800">{formatGBP(o.total)}</td>
                   </tr>
                 ))}
               </tbody>

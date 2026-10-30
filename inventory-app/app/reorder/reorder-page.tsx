@@ -1,5 +1,6 @@
 "use client";
 
+import { Clip } from "@/components/ListToolbar";
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -118,7 +119,7 @@ export default function ReorderPage() {
             onRefresh={() => { refetch(); refetchSuppliers(); }} refreshing={isFetching} />
 
           <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className={TH}>
@@ -143,7 +144,7 @@ export default function ReorderPage() {
                       <td className={TD}>
                         <input type="checkbox" aria-label={`Choose ${l.sku}`} checked={!!c} onChange={e => toggle(l, e.target.checked)} />
                       </td>
-                      <td className={TD}><span className="font-mono text-xs text-gray-500">{l.sku}</span><span className="block text-gray-800">{l.name}</span></td>
+                      <td className={TD}><span className="font-mono text-xs text-gray-500">{l.sku}</span><Clip text={l.name} width="22rem" className="text-gray-800" /></td>
                       <td className={`${TD} text-gray-700`}>{l.supplierName ?? <span className="italic text-amber-700">No supplier</span>}</td>
                       <td className={`${TD} font-mono text-xs text-gray-600`}>{l.supplierSku ?? "—"}</td>
                       <td className={`${TD} tabular-nums ${Number(l.stock) <= 0 ? "text-red-600 font-semibold" : ""}`}>{qty(l.stock)}</td>

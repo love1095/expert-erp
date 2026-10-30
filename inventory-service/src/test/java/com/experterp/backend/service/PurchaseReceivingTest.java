@@ -1,6 +1,7 @@
 package com.experterp.backend.service;
 
 import com.experterp.backend.TestcontainersConfiguration;
+import com.experterp.backend.dto.StockLevelResponse;
 import com.experterp.backend.dto.PurchaseOrderRequest;
 import com.experterp.backend.dto.PurchaseOrderResponse;
 import com.experterp.backend.dto.PurchaseReceiptRequest;
@@ -129,6 +130,48 @@ class PurchaseReceivingTest {
         PurchaseOrderResponse again = purchaseOrderService.receive(po.getId(), req);
         assertThat(again.getReceipts()).hasSize(1);
         assertThat(stock(trouser)).isEqualByComparingTo("4");
+    }
+
+    @Test
+    void stockOverviewShowsOnOrderNextDeliveryAndStockValueLikeCin7sAvailability() {
+        trouser.setCostPrice(new BigDecimal("13.00"));
+        productRepository.save(trouser);
+        PurchaseOrderRequest req = new PurchaseOrderRequest();
+        req.setSupplierId(orn.getId());
+        req.setWarehouseId(warehouse.getId());
+        req.setOrdered(true);
+        req.setRequiredBy(LocalDate.of(2026, 11, 20));
+        req.setLines(List.of(line(trouser, 10, "13.00")));
+        PurchaseOrderResponse po = purchaseOrderService.create(req);
+        purchaseOrderService.receive(po.getId(), receipt(LocalDate.now(), qty(po, 0, 4)));
+        // A draft PO is not on order yet
+        purchaseOrderService.create(withDraft(line(trouser, 50, "13.00")));
+
+        // The hoodie came in and went out again: zero on hand
+        movementService.createMovement(hoodie, warehouse, new BigDecimal("2"), StockMovement.MovementType.ADJUSTMENT_IN, StockMovement.ReferenceType.MANUAL, "T", null);
+        movementService.createMovement(hoodie, warehouse, new BigDecimal("2"), StockMovement.MovementType.ADJUSTMENT_OUT, StockMovement.ReferenceType.MANUAL, "T", null);
+
+        var all = movementService.getStockOverviewPage(0, 20, null, null, false, false).getContent();
+        assertThat(all).hasSize(2);
+        var row = all.stream().filter(l -> l.getProductId().equals(trouser.getId())).findFirst().orElseThrow();
+        assertThat(row.getStock()).isEqualByComparingTo("4");
+        assertThat(row.getOnOrder()).isEqualByComparingTo("6");
+        assertThat(row.getNextDelivery()).isEqualTo(LocalDate.of(2026, 11, 20));
+        assertThat(row.getStockValue()).isEqualByComparingTo("52.00");
+
+        assertThat(movementService.getStockOverviewPage(0, 20, null, null, false, true).getContent())
+                .extracting(StockLevelResponse::getProductId).containsExactly(trouser.getId());
+        hoodie.setStatus(Product.Status.DEPRECATED);
+        productRepository.save(hoodie);
+        assertThat(movementService.getStockOverviewPage(0, 20, null, null, true, false).getTotalElements()).isEqualTo(1);
+    }
+
+    private PurchaseOrderRequest withDraft(PurchaseOrderRequest.Line... lines) {
+        PurchaseOrderRequest req = new PurchaseOrderRequest();
+        req.setSupplierId(orn.getId());
+        req.setWarehouseId(warehouse.getId());
+        req.setLines(List.of(lines));
+        return req;
     }
 
     private PurchaseOrderResponse ordered(PurchaseOrderRequest.Line... lines) {

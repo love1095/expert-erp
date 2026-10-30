@@ -1,5 +1,6 @@
 "use client";
 
+import { Clip } from "@/components/ListToolbar";
 import { useQuery } from "@tanstack/react-query";
 import { getMovementsPage, getProducts, getWarehouses, getCategories, exportMovementsCsv } from "@/lib/api";
 import { StockMovement, Product, Warehouse, Category, Page } from "@/types";
@@ -106,8 +107,8 @@ export default function StockHistoryPage() {
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {["Type", "Product", "Warehouse", "Qty", "Ref Type", "Ref ID", "Notes", "Date"].map((h) => (
@@ -127,14 +128,14 @@ export default function StockHistoryPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-xs">{m.productName}</div>
+                      <Clip text={m.productName} width="20rem" className="font-medium text-xs" />
                       <div className="text-gray-400 text-xs">{m.productSku}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-600 text-xs">{m.warehouseName}</td>
                     <td className="px-4 py-3 font-semibold">{Number(m.quantity).toLocaleString()}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs">{m.referenceType?.replace("_", " ") || "—"}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-500">{m.referenceId || "—"}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{m.notes || "—"}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs"><Clip text={m.notes} width="14rem" /></td>
                     <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={m.createdAt} showTime /></td>
                   </tr>
                 ))}

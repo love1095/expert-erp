@@ -11,7 +11,7 @@ test.describe('Invoices from orders', () => {
         [{ product: helmet, quantity: 3 }, { product: gloves, quantity: 2 }])).id);
 
       await page.goto('/sale-orders');
-      await page.getByTestId(`so-row-${order.id}`).getByRole('link', { name: 'Open ›' }).click();
+      await page.getByTestId(`so-row-${order.id}`).getByRole('link', { name: /^SO-\d+$/ }).click();
       const panel = page.getByTestId(`so-panel-${order.id}`);
       await expect(panel.getByTestId(`so-invoices-${order.id}`)).toContainText('to invoice £60.00');
 

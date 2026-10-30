@@ -60,8 +60,11 @@ public class StockMovementController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long categoryId,
-            @RequestParam(required = false) String q) {
-        return stockMovementService.getStockOverviewPage(page, size, categoryId, q);
+            @RequestParam(required = false) String q,
+            // Cin7's "Only active" and "Show only non-zero quantities"
+            @RequestParam(defaultValue = "false") boolean activeOnly,
+            @RequestParam(defaultValue = "false") boolean nonZero) {
+        return stockMovementService.getStockOverviewPage(page, size, categoryId, q, activeOnly, nonZero);
     }
 
     // Cin7 stock file (Inventory → Availability → Export): stock in one warehouse set to the file's OnHand.

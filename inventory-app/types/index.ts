@@ -241,6 +241,10 @@ export interface StockLevel {
   reserved: number;
   available: number;
   lowStock: boolean;
+  // Like Cin7's availability: on hand × cost price; what ordered POs still bring in; their earliest required-by date
+  stockValue?: number;
+  onOrder: number;
+  nextDelivery?: string;
 }
 
 // DRAFT (editable) → ORDERED (placed with the supplier, Cin7's Authorise) → RECEIVED; or CANCELLED

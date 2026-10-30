@@ -80,7 +80,7 @@ export const exportMovementsCsv = (params?: { productId?: number; warehouseId?: 
 
 // Stock levels
 export const getStockOverview = () => api.get("/stock/overview").then(r => r.data);
-export const getStockOverviewPage = (params?: { categoryId?: number; q?: string; page?: number; size?: number }) =>
+export const getStockOverviewPage = (params?: { categoryId?: number; q?: string; page?: number; size?: number; activeOnly?: boolean; nonZero?: boolean }) =>
   api.get("/stock/overview", { params: { size: 20, ...params } }).then(r => toPage(r.data));
 export const getStockLevel    = (productId: number, warehouseId: number) =>
   api.get("/stock", { params: { productId, warehouseId } }).then(r => r.data);

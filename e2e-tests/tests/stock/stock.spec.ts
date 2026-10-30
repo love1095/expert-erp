@@ -84,4 +84,29 @@ test.describe('Stock movements', () => {
       await expect(result).toContainText('0 products change');
       await expect(result.getByRole('button', { name: /Import/ })).toHaveCount(0);
     });
+
+  test('STK-005 stock overview shows stock value, on order and next delivery like Cin7, and hides zero quantities', { tag: ['@P1', '@stock'] },
+    async ({ page, api, warehouses }) => {
+      const helmet = await api.createProduct({ costPrice: 2.5 });
+      const visor = await api.createProduct();
+      await api.addStock(helmet, warehouses.main, 4);
+      await api.addStock(visor, warehouses.main, 1);
+      await api.http.post('/api/stock-movements', { data: { productId: visor.id, warehouseId: warehouses.main.id, quantity: 1, type: 'ADJUSTMENT_OUT', notes: 'e2e' } });
+      const po = await api.http.post('/api/purchase-orders', { data: {
+        supplierName: 'E2E Supplier', warehouseId: warehouses.main.id, ordered: true, requiredBy: '2026-12-01',
+        lines: [{ productId: helmet.id, quantity: 6, unitCost: 2.5 }] } });
+      expect(po.ok()).toBeTruthy();
+
+      await page.goto('/stock-overview');
+      const row = page.getByTestId(`stock-row-${helmet.id}-${warehouses.main.id}`);
+      await page.getByPlaceholder('SKU or product name').fill(helmet.sku);
+      await expect(row).toContainText('£10.00');
+      await expect(row).toContainText('6');
+      await expect(row).toContainText('01/12/2026');
+
+      await page.getByPlaceholder('SKU or product name').fill(visor.sku);
+      await expect(page.getByTestId(`stock-row-${visor.id}-${warehouses.main.id}`)).toBeVisible();
+      await page.getByLabel('Show only non-zero quantities').check();
+      await expect(page.getByTestId(`stock-row-${visor.id}-${warehouses.main.id}`)).toHaveCount(0);
+    });
 });

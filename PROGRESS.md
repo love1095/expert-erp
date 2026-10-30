@@ -323,6 +323,12 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Progress icons: a step that will not happen is **Not available** (no quote step on an order made directly; steps after a cancel / rejection), not "not yet"
 - [x] `POST /sale-orders/{id}/undo`, `POST /purchase-orders/{id}/undo`; tests: `QuoteTest`, `PurchaseOrderTest` (130 backend tests); E2E SO-014, PO-003 (76 cases)
 
+### UI like Cin7: compact lists, product lines, stock availability ✅
+- [x] **U1 compact lists** (every list page): one line per row, long text cut with "…" and shown in full on hover (`Clip`), numbers right-aligned, tighter rows (`.list-table`, `ListHead`); no more "Open ›" links on sales / purchases / invoices (the number is the link); customer contact and terms on one line
+- [x] **U2 product lines** on sale order, PO and invoice pages: "SKU: name" on one line, right-aligned numbers, a **Total** row (quantity and value) and **Export** (CSV), as in Cin7; cancelled / returned columns only when used
+- [x] **U3 stock availability** (Stock Overview, Cin7's Product availability): category, product, warehouse, min, **stock value** (on hand × cost price), on hand, **allocated**, available, **on order** (ordered POs not yet received) and **next delivery** (earliest required-by); filters **Only active** and **Show only non-zero quantities** (`GET /stock/overview?activeOnly=&nonZero=`)
+- [x] Tests: `PurchaseReceivingTest` +1 (131 backend tests); E2E STK-005, tests now use test ids instead of column positions (77 cases)
+
 ### Next
 - [ ] D5 PDFs
 

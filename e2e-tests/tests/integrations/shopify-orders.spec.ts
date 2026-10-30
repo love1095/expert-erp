@@ -62,7 +62,7 @@ test.describe('Shopify order import', () => {
       await expect(rows).toContainText('Needs review');
 
       const id = Number((await rows.getAttribute('data-testid'))!.replace('so-row-', ''));
-      await rows.getByRole('link', { name: 'Open ›' }).click();
+      await rows.getByRole('link', { name: /^SO-\d+$/ }).click();
       await expect(page.getByTestId(`so-review-${id}`)).toContainText('SKU NOT-IN-ERP is not in the ERP');
 
       await page.getByTestId(`so-panel-${id}`).getByRole('button', { name: 'Confirm as it is' }).click();
@@ -100,7 +100,7 @@ test.describe('Shopify order import', () => {
       await page.goto('/sale-orders');
       const row = page.locator('[data-testid^="so-row-"]', { hasText: `Shopify #${orderNo}` });
       const id = Number((await row.getAttribute('data-testid'))!.replace('so-row-', ''));
-      await row.getByRole('link', { name: 'Open ›' }).click();
+      await row.getByRole('link', { name: /^SO-\d+$/ }).click();
       const panel = page.getByTestId(`so-panel-${id}`);
       await panel.getByRole('button', { name: 'Ship items' }).click();
       await expect(panel.getByText('also sent to Shopify')).toBeVisible();

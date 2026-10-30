@@ -66,31 +66,37 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
         nativeQuery = true)
     List<Object[]> getStockOverviewRaw(@Param("tenantId") Long tenantId);
 
-    // Optional filters: category, and text (q = lower-case LIKE pattern, '' = any) on SKU or name
+    // Optional filters: category, text (q = lower-case LIKE pattern, '' = any) on SKU or name, active products only,
+    // and only rows whose stock is not zero (Cin7's "Only active" / "Show only non-zero quantities").
+    // Columns as getStockOverviewRaw, plus p.cost_price[10]
+    String OVERVIEW_FILTER =
+        "WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
+        "  AND (CAST(:categoryId AS bigint) IS NULL OR p.category_id = :categoryId) " +
+        "  AND (:q = '' OR LOWER(p.sku) LIKE :q OR LOWER(p.name) LIKE :q) " +
+        "  AND (:activeOnly = false OR p.status = 'ACTIVE') ";
+    String OVERVIEW_STOCK = "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") THEN m.quantity ELSE -m.quantity END), 0)";
+
     @Query(value =
-        "SELECT p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, " +
-        "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") " +
-        "    THEN m.quantity ELSE -m.quantity END), 0) AS stock " +
+        "SELECT p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, " + OVERVIEW_STOCK + " AS stock, p.cost_price " +
         "FROM stock_movements m " +
         "JOIN products p ON m.product_id = p.id " +
         "JOIN warehouses w ON m.warehouse_id = w.id " +
         "LEFT JOIN categories c ON p.category_id = c.id " +
-        "WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
-        "  AND (CAST(:categoryId AS bigint) IS NULL OR p.category_id = :categoryId) " +
-        "  AND (:q = '' OR LOWER(p.sku) LIKE :q OR LOWER(p.name) LIKE :q) " +
-        "GROUP BY p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name " +
+        OVERVIEW_FILTER +
+        "GROUP BY p.id, p.sku, p.name, p.unit, p.min_stock, w.id, w.name, c.id, c.name, p.cost_price " +
+        "HAVING (:nonZero = false OR " + OVERVIEW_STOCK + " <> 0) " +
         "ORDER BY p.name, w.name",
         countQuery =
         "SELECT COUNT(*) FROM (" +
         "  SELECT p.id FROM stock_movements m " +
         "  JOIN products p ON m.product_id = p.id " +
         "  JOIN warehouses w ON m.warehouse_id = w.id " +
-        "  WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
-        "    AND (CAST(:categoryId AS bigint) IS NULL OR p.category_id = :categoryId) " +
-        "    AND (:q = '' OR LOWER(p.sku) LIKE :q OR LOWER(p.name) LIKE :q) " +
+        OVERVIEW_FILTER +
         "  GROUP BY p.id, w.id" +
+        "  HAVING (:nonZero = false OR " + OVERVIEW_STOCK + " <> 0)" +
         ") sub",
         nativeQuery = true)
     Page<Object[]> getStockOverviewPaged(@Param("tenantId") Long tenantId, @Param("categoryId") Long categoryId,
-                                         @Param("q") String q, Pageable pageable);
+                                         @Param("q") String q, @Param("activeOnly") boolean activeOnly,
+                                         @Param("nonZero") boolean nonZero, Pageable pageable);
 }

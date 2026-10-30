@@ -9,7 +9,8 @@ import {
 import { useRouter } from "next/navigation";
 import { Invoice, InvoiceType, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
 import Pagination from "@/components/Pagination";
-import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
+import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
+import { formatGBP } from "@/lib/currency";
 import { INVOICE_STATUS_COLOR as STATUS_COLOR } from "./invoice-view";
 
 // ─── constants ──────────────────────────────────────────────────────────────
@@ -317,15 +318,9 @@ export default function InvoicesPage() {
           {isLoading ? (
             <p className="text-gray-400 text-sm">Loading…</p>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    {["Number", "Type", "Party", "Total", "Paid", "Status", "Due", ""].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
+            <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+              <table className="list-table">
+                <ListHead cols={["Number", "Type", "Party", "Status", "Due", "Total", "Paid", ""]} right={["Total", "Paid"]} />
                 <tbody className="divide-y divide-gray-100">
                   {invoiceList.length === 0 && (
                     <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">{search || statusFilter || typeFilter ? "No invoices match" : "No invoices yet"}</td></tr>
@@ -335,31 +330,27 @@ export default function InvoicesPage() {
                       data-testid={`invoice-row-${inv.id}`}
                       onClick={() => router.push(`/invoices/${inv.id}`)}
                       className="hover:bg-gray-50 cursor-pointer">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-900 font-semibold">
+                      <td className="font-mono text-xs text-gray-900 font-semibold">
                         {inv.invoiceNumber}
                         {inv.kind === "CREDIT_NOTE" && <span className="block font-sans text-[10px] font-semibold text-gray-500">Credit note</span>}
                       </td>
-                      <td className="px-4 py-3">
+                      <td>
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
                           inv.type === "SALES" ? "bg-sky-100 text-sky-700" : "bg-purple-100 text-purple-700"
                         }`}>{inv.type}</span>
                       </td>
-                      <td className="px-4 py-3 text-gray-700 max-w-[140px] truncate">{inv.partyName}</td>
-                      <td className="px-4 py-3 tabular-nums text-gray-700">
-                        {inv.currency} {inv.totalAmount.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums text-gray-500 text-xs">
-                        {inv.amountPaid > 0 ? Number(inv.amountPaid).toFixed(2) : "—"}
-                      </td>
-                      <td className="px-4 py-3">
+                      <td className="text-gray-700"><Clip text={inv.partyName} width="16rem" /></td>
+                      <td>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[inv.status]}`}>
                           {inv.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-400">
-                        {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "—"}
+                      <td className="text-gray-500">
+                        {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("en-GB") : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                      <td className="num text-gray-800">{formatGBP(inv.totalAmount)}</td>
+                      <td className="num text-gray-500">{inv.amountPaid > 0 ? formatGBP(inv.amountPaid) : "—"}</td>
+                      <td className="text-right space-x-2">
                         {inv.status === "DRAFT" && (
                           <button onClick={e => { e.stopPropagation(); issueMut.mutate(inv.id); }}
                             className="text-xs text-brand-700 hover:underline font-medium">Issue</button>
@@ -368,7 +359,6 @@ export default function InvoicesPage() {
                           <button onClick={e => { e.stopPropagation(); cancelMut.mutate(inv.id); }}
                             className="text-xs text-gray-400 hover:text-red-500 font-medium">Cancel</button>
                         )}
-                        <span className="text-xs text-brand-700 font-medium">Open ›</span>
                       </td>
                     </tr>
                   ))}

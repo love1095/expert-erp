@@ -7,9 +7,11 @@ import { getPurchaseOrder, receivePurchaseLines, cancelPurchaseOrder, orderPurch
 import { PurchaseOrder, PurchaseOrderStatus, Warehouse } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
+import { Clip, ListHead } from "@/components/ListToolbar";
+import { downloadCsv } from "@/components/BulkActions";
 import {
   BackLink, RecordHeader, RecordLayout, TrailCard, Card, DetailColumns, Field,
-  BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, TH, TD,
+  BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER,
 } from "@/components/DetailParts";
 import PurchaseOrderForm from "./purchase-order-form";
 import BillForm from "./bill-form";
@@ -44,6 +46,10 @@ const newKey = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 // One purchase order on its own page, like Cin7's purchase screen
+// Product lines: [heading, right-aligned]
+const PO_LINE_COLS: [string, boolean][] = [["Product", false], ["Supplier SKU", false], ["Unit", false], ["Quantity", true], ["Received", true],
+  ["To receive", true], ["Billed", true], ["Price", true], ["Disc.", true], ["Tax rule", false], ["Total", true]];
+
 export default function PurchaseOrderView({ orderId }: { orderId: number }) {
   const qc = useQueryClient();
   const { data: po, isLoading } = useQuery<PurchaseOrder>({ queryKey: ["purchase-order", orderId], queryFn: () => getPurchaseOrder(orderId) });
@@ -246,39 +252,38 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
         <Card title="Products" flush
           right={receiving ? <span className="text-xs font-semibold text-gray-900">Receiving: enter what arrived</span> : undefined}>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            {/* Like Cin7: "SKU: name" on one line, numbers right-aligned, a total row and Export */}
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{["Product", "Supplier SKU", "Unit", "Ordered", "Received", "Outstanding", "Billed", "Cost", "Disc", "VAT", "Net"].map(h => <th key={h} className={TH}>{h}</th>)}
-                  {receiving && <th className="text-left px-3 py-2 text-xs font-semibold text-gray-900 uppercase">Received now</th>}</tr>
+                <tr>{PO_LINE_COLS.map(([h, right]) => (
+                  <th key={h} className={`${right ? "text-right" : "text-left"} text-xs font-semibold text-gray-500 uppercase tracking-wide`}>{h}</th>))}
+                  {receiving && <th className="text-left text-xs font-semibold text-gray-900 uppercase">Received now</th>}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {po.lines.map(l => (
                   <tr key={l.id}>
-                    <td className={TD}>
-                      <span className="font-mono text-xs text-gray-500">{l.productSku}</span>
-                      <span className="block text-gray-800">{l.productName}</span>
-                    </td>
-                    <td className={`${TD} font-mono text-xs text-gray-600`}>{l.supplierSku ?? "—"}</td>
-                    <td className={`${TD} text-gray-600`}>{l.unit ?? "—"}</td>
-                    <td className={`${TD} tabular-nums`}>{qty(l.quantity)}</td>
-                    <td className={`${TD} tabular-nums ${Number(l.overQuantity) > 0 ? "text-orange-700 font-semibold" : "text-emerald-700"}`}
+                    <td className="text-gray-800"><Clip text={`${l.productSku}: ${l.productName}`} width="10rem" /></td>
+                    <td className="font-mono text-xs text-gray-600">{l.supplierSku ?? "—"}</td>
+                    <td className="text-gray-600"><Clip text={l.unit} width="5.5rem" /></td>
+                    <td className="num">{qty(l.quantity)}</td>
+                    <td className={`num ${Number(l.overQuantity) > 0 ? "text-orange-700 font-semibold" : "text-emerald-700"}`}
                       title={Number(l.overQuantity) > 0 ? `${qty(l.overQuantity)} more than ordered` : undefined}>
                       {qty(l.receivedQuantity)}{Number(l.overQuantity) > 0 && " ▲"}
                     </td>
-                    <td className={`${TD} tabular-nums font-medium`}>
+                    <td className="num font-medium">
                       {qty(l.outstandingQuantity)}
                       {Number(l.closedShortQuantity) > 0 && <span className="block text-[11px] font-normal text-gray-500">{qty(l.closedShortQuantity)} closed short</span>}
                     </td>
-                    <td className={`${TD} tabular-nums text-gray-600`}>{qty(l.billedQuantity)}</td>
-                    <td className={`${TD} tabular-nums`}>{l.unitCost != null ? formatGBP(l.unitCost) : "—"}</td>
-                    <td className={`${TD} tabular-nums text-gray-500`}>{Number(l.discountPercent) ? `${l.discountPercent}%` : "—"}</td>
-                    <td className={`${TD} text-xs text-gray-600`}>{l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}</td>
-                    <td className={`${TD} tabular-nums`}>{formatGBP(l.netAmount)}</td>
+                    <td className="num text-gray-600">{qty(l.billedQuantity)}</td>
+                    <td className="num">{l.unitCost != null ? formatGBP(l.unitCost) : "—"}</td>
+                    <td className="num text-gray-500">{Number(l.discountPercent) ? `${l.discountPercent}%` : "—"}</td>
+                    <td className="text-gray-600" title={l.taxName}><span className="block truncate max-w-20">{l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}</span></td>
+                    <td className="num">{formatGBP(l.netAmount)}</td>
                     {receiving && (() => {
                       const typed = Number(amounts[l.id] || 0);
                       const over = typed - Number(l.outstandingQuantity);
                       return (
-                        <td className={TD}>
+                        <td>
                           <input type="number" min="0" step="any" aria-label={`Received quantity for ${l.productSku}`}
                             value={amounts[l.id] ?? ""} placeholder="0" onChange={e => setAmounts({ ...amounts, [l.id]: e.target.value })}
                             className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
@@ -289,7 +294,24 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="border-t border-gray-200 font-semibold text-gray-800">
+                <tr>
+                  <td className="text-right">Total:</td>
+                  <td colSpan={2}></td>
+                  <td className="num">{qty(units)}</td>
+                  <td colSpan={PO_LINE_COLS.length - 5}></td>
+                  <td className="num">{formatGBP(po.lines.reduce((t, l) => t + Number(l.netAmount), 0))}</td>
+                  {receiving && <td></td>}
+                </tr>
+              </tfoot>
             </table>
+          </div>
+          <div className="px-4 py-2 border-t border-gray-100">
+            <button type="button" className="text-xs font-medium text-brand-700 hover:underline"
+              onClick={() => downloadCsv(`${po.orderNumber}-lines.csv`,
+                ["SKU", "Product", "Supplier SKU", "Unit", "Quantity", "Received", "Billed", "Price", "Discount %", "Tax rule", "Total"],
+                po.lines.map(l => [l.productSku, l.productName, l.supplierSku, l.unit, l.quantity, l.receivedQuantity, l.billedQuantity,
+                  l.unitCost, l.discountPercent, l.taxName, l.netAmount]))}>Export</button>
           </div>
         </Card>
         {receiving && (
@@ -324,19 +346,17 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
 
         {po.costs.length > 0 && (
           <Card title="Additional costs" flush right={<span className="text-xs text-gray-400">expense, not stock cost</span>}>
-            <table data-testid={`po-costs-${po.id}`} className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{["Description", "Reference", "Qty", "Price", "VAT", "Net"].map(h => <th key={h} className={TH}>{h}</th>)}</tr>
-              </thead>
+            <table data-testid={`po-costs-${po.id}`} className="list-table">
+              <ListHead cols={["Description", "Reference", "Quantity", "Price", "Tax rule", "Total"]} right={["Quantity", "Price", "Total"]} />
               <tbody className="divide-y divide-gray-100">
                 {po.costs.map(c => (
                   <tr key={c.id}>
-                    <td className={TD}>{c.description}</td>
-                    <td className={`${TD} text-gray-600`}>{c.reference ?? "—"}</td>
-                    <td className={`${TD} tabular-nums`}>{qty(c.quantity)}</td>
-                    <td className={`${TD} tabular-nums`}>{formatGBP(c.unitPrice)}</td>
-                    <td className={`${TD} text-xs text-gray-600`}>{c.taxName ?? "—"}</td>
-                    <td className={`${TD} tabular-nums`}>{formatGBP(c.netAmount)}</td>
+                    <td><Clip text={c.description} width="22rem" /></td>
+                    <td className="text-gray-600"><Clip text={c.reference} width="10rem" /></td>
+                    <td className="num">{qty(c.quantity)}</td>
+                    <td className="num">{formatGBP(c.unitPrice)}</td>
+                    <td className="text-gray-600">{c.taxName ?? "—"}</td>
+                    <td className="num">{formatGBP(c.netAmount)}</td>
                   </tr>
                 ))}
               </tbody>

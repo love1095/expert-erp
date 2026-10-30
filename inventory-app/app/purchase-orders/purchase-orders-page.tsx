@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
-import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
+import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_PRINT, NOT_YET_EMAIL } from "@/components/BulkActions";
 
 // Cin7's actions on ticked purchases
@@ -117,16 +117,10 @@ export default function PurchaseOrdersPage() {
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="pl-4 py-3 w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all on this page" testId="po-select-all" /></th>
-                  {["Progress", "#", "Supplier", "Documents", "Required by", "Total (£, inc VAT)", "Status", "Created", ""].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
+              <ListHead cols={["Progress", "Order #", "Supplier", "Documents", "Required by", "Status", "Created", "Total", ""]} right={["Total"]}
+                lead={<th className="w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all on this page" testId="po-select-all" /></th>} />
               <tbody className="divide-y divide-gray-100">
                 {orders.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">{search || statusFilter ? "No purchase orders match" : "No purchase orders yet"}</td></tr>}
                 {orders.map(o => (
@@ -137,17 +131,13 @@ export default function PurchaseOrdersPage() {
                     <td className="px-4 py-3 font-mono text-xs">
                       <Link href={`/purchase-orders/${o.id}`} onClick={e => e.stopPropagation()} className="font-medium text-gray-800 hover:underline">{o.orderNumber}</Link>
                     </td>
-                    <td className="px-4 py-3 font-medium">
-                      {o.supplierName}
-                      <span className="block text-[11px] font-normal text-gray-400">{o.warehouseName} · {o.lines.length} item{o.lines.length !== 1 ? "s" : ""}</span>
-                    </td>
-                    <td className="px-4 py-3 max-w-48 text-xs font-mono">
+                    <td className="font-medium" title={`${o.warehouseName} · ${o.lines.length} item${o.lines.length !== 1 ? "s" : ""}`}><Clip text={o.supplierName} width="16rem" /></td>
+                    <td className="text-xs font-mono"><span className="block truncate max-w-48">
                       {(o.bills?.length ?? 0) === 0 ? <span className="text-gray-300">—</span> : o.bills!.map((b, i) => (
                         <span key={b.id}>{i > 0 && ", "}<span className={b.status === "CANCELLED" ? "line-through text-gray-400" : "text-gray-800"}>{b.invoiceNumber}</span></span>
                       ))}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{o.requiredBy ?? "—"}</td>
-                    <td className="px-4 py-3 tabular-nums text-gray-700">{formatGBP(o.total)}</td>
+                    </span></td>
+                    <td className="text-gray-500">{o.requiredBy ? new Date(o.requiredBy).toLocaleDateString("en-GB") : "—"}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_COLOR[o.status]}`}>{o.status}</span>
                       {o.overDelivered && <span className="ml-1 text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-800">Over</span>}
@@ -158,8 +148,9 @@ export default function PurchaseOrdersPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
-                    <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                    <td className="text-gray-500"><ClientDate iso={o.createdAt} /></td>
+                    <td className="num text-gray-800">{formatGBP(o.total)}</td>
+                    <td className="text-right space-x-3" onClick={e => e.stopPropagation()}>
                       {(o.status === "DRAFT" || o.status === "ORDERED") && (
                         <>
                           <button onClick={() => { if (confirm("Receive everything still outstanding? This adds the stock.")) receiveMutation.mutate(o.id); }}
@@ -168,7 +159,6 @@ export default function PurchaseOrdersPage() {
                             className="text-xs text-red-500 hover:text-red-700">Cancel</button>
                         </>
                       )}
-                      <Link href={`/purchase-orders/${o.id}`} className="text-xs text-brand-700 font-medium hover:underline">Open ›</Link>
                     </td>
                   </tr>
                 ))}

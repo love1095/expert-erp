@@ -105,8 +105,8 @@ export default function UsersPage() {
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {["Username", "Email", "Role", "Status", "Created"].map(h => (

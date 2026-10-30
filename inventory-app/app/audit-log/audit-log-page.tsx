@@ -1,5 +1,6 @@
 "use client";
 
+import { Clip } from "@/components/ListToolbar";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog } from "@/lib/api";
 import { AuditLog } from "@/types";
@@ -89,8 +90,8 @@ export default function AuditLogPage() {
 
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+            <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {["Entity", "ID", "Action", "User", "Changes", "When"].map(h => (
@@ -117,7 +118,7 @@ export default function AuditLogPage() {
                         <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{e.actorType}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-400 max-w-xs truncate font-mono">{e.changes ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-gray-400 font-mono"><Clip text={e.changes} width="22rem" /></td>
                     <td className="px-4 py-3 text-xs text-gray-400"><ClientDate iso={e.createdAt} showTime /></td>
                   </tr>
                 ))}
