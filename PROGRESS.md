@@ -207,6 +207,32 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
+## Phase 6.1 — Dashboard to the functional spec (Cin7 parity, part 1) ✅
+
+> Goal: the dashboard widgets the owner's spec marks **Must** (§8) that need no schema change, modelled on the live Cin7 Core dashboard.
+> Next: 6.2 sales rep on orders + sales by rep, VAT on order lines (revenue ex-VAT), bills due/overdue; 6.3 part receipts on POs + supplier bills, revenue vs expense by month. Plan: [`docs/roadmap.md`](docs/roadmap.md).
+
+### Backend
+- [x] `GET /dashboard?from=&to=` (both days included, at most 366 days); `?days=` still works. Every period query now has an upper bound too
+- [x] Status counts, whatever the period: **sales** — draft orders, to ship, draft invoices, awaiting payment, overdue invoices; **purchases** — awaiting delivery (draft POs), draft bills, bills to pay, overdue bills. Awaiting payment = issued with a balance left; overdue = also past its due date
+- [x] **Reorder list** `GET /dashboard/reorder?search=&page=&size=`: active stock products whose stock + quantity on draft (not yet received) POs is below their minimum, lowest first; supplier = the product's default supplier; suggested quantity = the product's reorder quantity, else what brings it back to its minimum. Search matches SKU, name or supplier. KPI "Products to reorder" replaces "Low stock products"
+- [x] **Top and worst sellers** by value (10 each) among products ordered in the period, cancelled orders and quantities left out; replaces "top products shipped"
+- [x] Unpaid sales invoices now count only invoices with a balance left (an overpaid invoice no longer lowers the total)
+
+### Frontend
+- [x] Period picker with Cin7's presets: today, yesterday, last 7 / 30 / 90 days, this / last month, this / last quarter (calendar quarters), this / last financial year (starts 1 December, as in Cin7), custom range. "This …" periods cover the whole period, days to come included (as Cin7)
+- [x] "Sales — waiting now" and "Purchases — waiting now" panels linking to their lists; Top / Worst sellers switch; Reorder panel with search and paging (its own query)
+- [x] The figures stay on screen while another period loads, so the table view and the sellers switch keep their state
+
+### Tests
+- [x] Backend: `DashboardServiceTest` (5) — + reorder list (on order, received/cancelled POs, deprecated and service products, search, paging), status counts, date range bounds (80 backend tests total)
+- [x] E2E: DSH-001…DSH-005 (60 cases total)
+
+### Data
+- Checked on the real local data (13,974 Cin7 products): every dashboard call answers in under 0.06 s. The reorder list shows ~14k products until stock on hand is imported from Cin7
+
+---
+
 ## Phase 7 — Shopify integration 🔄
 
 > Goal: Shopify orders flow into the ERP; fulfilments, cancellations, returns and stock flow back.
@@ -326,7 +352,8 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET  | `/integrations/shopify/events` | Latest webhook deliveries |
 | POST | `/webhooks/shopify` | Shopify webhooks (public; HMAC-signed) |
 | POST | `/sale-orders/{id}/fulfilments/{fid}/shopify-sync` | Send a shipment of a Shopify order to Shopify again |
-| GET  | `/dashboard` | Dashboard figures for the last `days` days (default 30) |
+| GET  | `/dashboard` | Dashboard figures for `from`–`to`, or the last `days` days (default 30) |
+| GET  | `/dashboard/reorder` | Products whose stock + on order is below their minimum (`search`, `page`, `size`) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | List tenants (SUPER_ADMIN) |
 | PUT  | `/tenants/{id}/toggle` | Enable/disable tenant (SUPER_ADMIN) |
@@ -342,6 +369,6 @@ Agreed order (each phase is done when its feature works, its tests are written, 
 
 1. ~~**Persistent JWT / secret key**~~ ✅ done — see Cross-cutting
 2. ~~**Phase 8 — Customers**~~ ✅ done — see Phase 8 (Cin7 layout + CSV import)
-3. ~~**Phase 6 — Dashboard**~~ ✅ done — see Phase 6
+3. ~~**Phase 6 — Dashboard**~~ ✅ done — see Phase 6; brought to the functional spec in steps: ~~6.1 period, status counts, reorder, top/worst sellers~~ ✅ → 6.2 sales rep, VAT, bills due/overdue → 6.3 PO part receipts + supplier bills, revenue vs expense by month. Full plan: [`docs/roadmap.md`](docs/roadmap.md)
 4. **Phase 7 — Shopify integration** 🔄 (~~7.1 connection~~ ✅ → ~~7.2 order import~~ ✅ → ~~7.3 fulfilment~~ ✅ → 7.4 cancellations/returns → 7.5 reliability → 7.6 stock sync). Shopify access tokens get their own encryption key, handled like `APP_JWT_SECRET`
 5. Then: Stripe billing, notifications, custom fields (former Phase 4), advanced inventory, purchasing, reporting; production hardening throughout

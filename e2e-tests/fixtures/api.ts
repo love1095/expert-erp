@@ -50,12 +50,16 @@ export interface SaleOrder {
 }
 
 export interface Dashboard {
+  from: string;
+  to: string;
   days: number;
-  kpis: Record<'products' | 'warehouses' | 'customers' | 'stockValue' | 'lowStockProducts' | 'ordersToShip' | 'draftOrders'
+  kpis: Record<'products' | 'warehouses' | 'customers' | 'stockValue' | 'productsToReorder' | 'ordersToShip' | 'draftOrders'
     | 'ordersInPeriod' | 'salesValueInPeriod' | 'unitsShippedInPeriod' | 'receivablesOutstanding', number>;
+  sales: Record<'draftOrders' | 'toShip' | 'draftInvoices' | 'awaitingPayment' | 'overdueInvoices', number>;
+  purchases: Record<'awaitingDelivery' | 'draftInvoices' | 'awaitingPayment' | 'overdueInvoices', number>;
   daily: { date: string; orders: number; salesValue: number; unitsIn: number; unitsOut: number }[];
-  topProducts: { sku: string; unitsShipped: number }[];
-  lowStock: { sku: string; stock: number; minStock: number }[];
+  topSellers: { sku: string; quantity: number; value: number }[];
+  worstSellers: { sku: string; quantity: number; value: number }[];
 }
 
 export const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -157,6 +161,10 @@ export class ErpApi {
 
   async dashboard(days = 30): Promise<Dashboard> {
     return ok(await this.http.get('/api/dashboard', { params: { days } }), 'get dashboard');
+  }
+
+  async dashboardReorder(search?: string): Promise<{ totalElements: number; content: { sku: string }[] }> {
+    return ok(await this.http.get('/api/dashboard/reorder', { params: search ? { search } : {} }), 'get reorder list');
   }
 
   async upgradePlan(planTier: PlanTier): Promise<void> {

@@ -412,14 +412,18 @@ export interface SubscriptionInfo {
 }
 
 // GET /dashboard — figures for the last `days` days, today included
+export interface DashboardSeller { productId: number; sku: string; name: string; quantity: number; value: number }
+
 export interface Dashboard {
+  from: string;
+  to: string;
   days: number;
   kpis: {
     products: number;
     warehouses: number;
     customers: number;
     stockValue: number;
-    lowStockProducts: number;
+    productsToReorder: number;
     ordersToShip: number;
     draftOrders: number;
     ordersInPeriod: number;
@@ -428,12 +432,24 @@ export interface Dashboard {
     receivablesOutstanding: number;
   };
   ordersByStatus: Record<SaleOrderStatus, number>;
+  sales: { draftOrders: number; toShip: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
+  purchases: { awaitingDelivery: number; draftInvoices: number; awaitingPayment: number; overdueInvoices: number };
   daily: { date: string; orders: number; salesValue: number; unitsIn: number; unitsOut: number }[];
-  topProducts: { productId: number; sku: string; name: string; unitsShipped: number }[];
-  lowStock: { productId: number; sku: string; name: string; stock: number; minStock: number }[];
+  topSellers: DashboardSeller[];
+  worstSellers: DashboardSeller[];
   recentOrders: { id: number; customerName: string; status: SaleOrderStatus; fulfilmentStatus: FulfilmentStatus; total: number; createdAt: string }[];
 }
 
+export interface ReorderLine {
+  productId: number;
+  sku: string;
+  name: string;
+  supplierName?: string;
+  stock: number;
+  onOrder: number;
+  minStock: number;
+  suggestedQuantity: number;
+}
 
 export interface ShopifyConnection {
   shopDomain: string;

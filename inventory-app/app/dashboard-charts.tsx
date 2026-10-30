@@ -130,7 +130,10 @@ export function InOutBars({ data }: { data: { date: string; unitsIn: number; uni
 }
 
 /** Horizontal bars for a short ranked list (single series). */
-export function RankedBars({ items }: { items: { key: string | number; label: string; sub?: string; value: number }[] }) {
+export function RankedBars({ items, format = v => v.toLocaleString() }: {
+  items: { key: string | number; label: string; sub?: string; value: number }[];
+  format?: (v: number) => string;
+}) {
   const max = Math.max(1, ...items.map(i => i.value));
   return (
     <ul className="space-y-2.5">
@@ -138,7 +141,7 @@ export function RankedBars({ items }: { items: { key: string | number; label: st
         <li key={i.key}>
           <div className="flex justify-between text-xs mb-1">
             <span className="text-gray-700 truncate pr-2">{i.label}{i.sub && <span className="text-gray-400"> · {i.sub}</span>}</span>
-            <span className="tabular-nums font-semibold text-gray-700">{i.value.toLocaleString()}</span>
+            <span className="tabular-nums font-semibold text-gray-700">{format(i.value)}</span>
           </div>
           <div className="h-2 rounded-full bg-gray-100">
             <div className="h-2 rounded-full" style={{ width: `${(i.value / max) * 100}%`, background: SERIES_IN }} />

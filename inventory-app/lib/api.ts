@@ -128,7 +128,9 @@ export const cancelInvoice  = (id: number) => api.post(`/invoices/${id}/cancel`)
 export const payInvoice     = (id: number, data: unknown) => api.post(`/invoices/${id}/pay`, data).then(r => r.data);
 
 // Dashboard
-export const getDashboard = (days: number) => api.get("/dashboard", { params: { days } }).then(r => r.data);
+export const getDashboard = (period: { from: string; to: string }) => api.get("/dashboard", { params: period }).then(r => r.data);
+export const getDashboardReorder = (params: { search?: string; page?: number; size?: number }) =>
+  api.get("/dashboard/reorder", { params }).then(r => r.data);
 
 // Shopify connection (ADMIN) — GET returns 204 / empty when no store is connected
 export const getShopifyConnection    = () => api.get("/integrations/shopify").then(r => (r.status === 204 ? null : r.data));
