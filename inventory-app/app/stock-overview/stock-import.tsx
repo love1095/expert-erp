@@ -87,7 +87,7 @@ export default function StockImport({ onImported }: { onImported: () => void }) 
           )}
           {!result.applied && result.changed > 0 && (
             <button onClick={() => run.mutate(true)} disabled={run.isPending}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               Import {qty(result.changed)} changes
             </button>
           )}

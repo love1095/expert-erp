@@ -105,7 +105,7 @@ function PeriodPicker({ periodKey, period, onChange }: {
           <input type="date" aria-label="To" value={to} onChange={e => setTo(e.target.value)}
             className="border border-gray-300 rounded-lg px-2 py-1 text-sm" />
           <button type="submit" disabled={customInvalid}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white disabled:opacity-40">Apply</button>
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600 text-white disabled:opacity-40">Apply</button>
         </form>
       ) : (
         <span data-testid="period-dates" className="text-xs text-gray-400 tabular-nums">{ukDate(period.from)} – {ukDate(period.to)}</span>
@@ -166,7 +166,7 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Panel title="Revenue per day (£ ex VAT, excl. cancelled)"
-          action={<button onClick={() => setShowTable(!showTable)} className="text-xs text-indigo-600 hover:text-indigo-800">{showTable ? "Hide table" : "Show as table"}</button>}>
+          action={<button onClick={() => setShowTable(!showTable)} className="text-xs text-brand-600 hover:text-brand-800">{showTable ? "Hide table" : "Show as table"}</button>}>
           <DailyBars label="Sales value per day" format={formatGBP}
             data={data.daily.map(d => ({ date: d.date, value: d.salesValue }))} />
         </Panel>
@@ -220,7 +220,7 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
             <div role="group" aria-label="Sellers" className="inline-flex rounded-md border border-gray-200 p-0.5">
               {[false, true].map(w => (
                 <button key={String(w)} onClick={() => setWorst(w)} aria-pressed={worst === w}
-                  className={`px-2 py-0.5 text-xs rounded ${worst === w ? "bg-indigo-50 text-indigo-700" : "text-gray-500 hover:text-gray-800"}`}>
+                  className={`px-2 py-0.5 text-xs rounded ${worst === w ? "bg-brand-50 text-brand-700" : "text-gray-500 hover:text-gray-800"}`}>
                   {w ? "Worst" : "Top"}
                 </button>
               ))}
@@ -236,7 +236,7 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
 
         <ReorderPanel />
 
-        <Panel title="Recent sale orders" action={<Link href="/sale-orders" className="text-xs text-indigo-600 hover:text-indigo-800">All orders</Link>}>
+        <Panel title="Recent sale orders" action={<Link href="/sale-orders" className="text-xs text-brand-600 hover:text-brand-800">All orders</Link>}>
           {data.recentOrders.length === 0 ? <p className="text-sm text-gray-400">No sale orders yet</p> : (
             <ul className="divide-y divide-gray-100" data-testid="recent-orders">
               {data.recentOrders.map(o => (

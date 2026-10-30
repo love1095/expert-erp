@@ -34,7 +34,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-indigo-600">Expert ERP</h1>
+          <h1 className="text-2xl font-bold text-brand-600">Expert ERP</h1>
           <p className="text-gray-400 text-sm mt-1">Sign in to continue</p>
         </div>
 
@@ -51,7 +51,7 @@ export default function LoginPage() {
               required
               autoFocus
               placeholder="admin"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>
 
@@ -63,14 +63,14 @@ export default function LoginPage() {
               onChange={e => setPassword(e.target.value)}
               required
               placeholder="••••••••"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
@@ -80,7 +80,7 @@ export default function LoginPage() {
           <p className="text-xs text-gray-400">Default: admin / admin123</p>
           <p className="text-xs text-gray-400">
             New org?{" "}
-            <a href="/register" className="text-indigo-500 hover:underline">Create organization</a>
+            <a href="/register" className="text-brand-500 hover:underline">Create organization</a>
           </p>
         </div>
       </div>

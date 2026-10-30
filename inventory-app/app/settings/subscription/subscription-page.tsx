@@ -7,13 +7,13 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const TIER_COLOR: Record<string, string> = {
   FREE:       "bg-gray-100 text-gray-700",
-  PRO:        "bg-indigo-100 text-indigo-700",
+  PRO:        "bg-brand-100 text-brand-700",
   ENTERPRISE: "bg-amber-100 text-amber-700",
 };
 
 const TIER_BORDER: Record<string, string> = {
   FREE:       "border-gray-200",
-  PRO:        "border-indigo-400 ring-2 ring-indigo-200",
+  PRO:        "border-brand-400 ring-2 ring-brand-200",
   ENTERPRISE: "border-amber-400 ring-2 ring-amber-100",
 };
 
@@ -34,7 +34,7 @@ function UsageBar({ label, used, max }: { label: string; used: number; max: numb
       {!unlimited && (
         <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all ${over ? "bg-red-500" : near ? "bg-amber-400" : "bg-indigo-500"}`}
+            className={`h-full rounded-full transition-all ${over ? "bg-red-500" : near ? "bg-amber-400" : "bg-brand-500"}`}
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -72,14 +72,14 @@ function PlanCard({ plan, current, canUpgrade, onSelect }: {
       </ul>
 
       {current ? (
-        <span className="mt-auto inline-block text-center text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg">
+        <span className="mt-auto inline-block text-center text-xs font-semibold text-brand-600 bg-brand-50 px-3 py-1.5 rounded-lg">
           Current plan
         </span>
       ) : (
         <button
           onClick={onSelect}
           disabled={!canUpgrade}
-          className="mt-auto w-full text-sm font-semibold px-3 py-1.5 rounded-lg border border-indigo-400 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="mt-auto w-full text-sm font-semibold px-3 py-1.5 rounded-lg border border-brand-400 text-brand-700 hover:bg-brand-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Switch to {plan.displayName}
         </button>

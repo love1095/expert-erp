@@ -31,7 +31,7 @@ function IntegrationCard({ name, description, href, status, loading, testId }: {
       </div>
       <p className="text-sm text-gray-500 mt-1">{description}</p>
       {status.detail && <p className="text-xs text-gray-400 mt-3 truncate">{status.detail}</p>}
-      <p className="text-sm font-medium text-indigo-600 mt-3">{status === NOT_CONNECTED ? "Connect →" : "Manage →"}</p>
+      <p className="text-sm font-medium text-brand-600 mt-3">{status === NOT_CONNECTED ? "Connect →" : "Manage →"}</p>
     </Link>
   );
 }

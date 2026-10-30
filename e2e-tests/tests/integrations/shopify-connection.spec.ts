@@ -7,7 +7,11 @@ import { addUser, apiFor, uid } from '../../fixtures/api';
 test.describe('Shopify connection', () => {
   test('SHP-001 Shopify is reached from the Integrations page; a store address that is not *.myshopify.com is refused', { tag: ['@P1', '@shopify', '@integrations'] }, async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: 'Integrations' }).click();
+    const menu = page.getByRole('navigation', { name: 'Main' });
+    if (await menu.getByRole('button', { name: 'Settings' }).getAttribute('aria-expanded') !== 'true') {
+      await menu.getByRole('button', { name: 'Settings' }).click();
+    }
+    await menu.getByRole('link', { name: 'Integrations' }).click();
     const card = page.getByTestId('integration-shopify');
     await expect(card).toContainText('Not connected');
     await card.click();

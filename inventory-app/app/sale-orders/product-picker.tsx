@@ -39,14 +39,14 @@ export default function ProductPicker({ label, selected, onSelect }: {
     <div ref={box} className="relative">
       <input aria-label={label} value={text} required autoComplete="off" placeholder="Search SKU or name"
         onChange={e => { setText(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-400" />
+        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400" />
       {open && matches.length > 0 && (
         <ul role="listbox" aria-label={`${label} matches`}
           className="absolute z-20 mt-1 w-[36rem] max-w-[90vw] max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg text-sm">
           {matches.map(p => (
             <li key={p.id} role="option" aria-selected={selected?.id === p.id}>
               <button type="button" onClick={() => { onSelect(p); setText(`${p.sku} — ${p.name}`); setOpen(false); }}
-                className="w-full text-left px-3 py-1.5 hover:bg-rose-50 flex items-center gap-3">
+                className="w-full text-left px-3 py-1.5 hover:bg-brand-50 flex items-center gap-3">
                 <span className="font-mono text-xs text-gray-500 w-36 shrink-0 truncate">{p.sku}</span>
                 <span className="flex-1 truncate text-gray-800">{p.name}</span>
                 <span className={`text-xs tabular-nums shrink-0 ${Number(p.availableStock) > 0 ? "text-emerald-700" : "text-red-600"}`}>

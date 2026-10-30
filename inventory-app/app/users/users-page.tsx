@@ -10,7 +10,7 @@ import Pagination from "@/components/Pagination";
 
 const ROLE_COLOR: Record<string, string> = {
   SUPER_ADMIN: "bg-red-100 text-red-700",
-  ADMIN:       "bg-indigo-100 text-indigo-700",
+  ADMIN:       "bg-brand-100 text-brand-700",
   MANAGER:     "bg-teal-100 text-teal-700",
   STAFF:       "bg-gray-100 text-gray-500",
 };
@@ -57,7 +57,7 @@ export default function UsersPage() {
         </div>
         {isAdmin && (
           <button onClick={() => { setShowForm(!showForm); if (showForm) { setForm(EMPTY); setError(""); } }}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
             {showForm ? "Cancel" : "+ Invite User"}
           </button>
         )}
@@ -73,22 +73,22 @@ export default function UsersPage() {
             <div>
               <label htmlFor="users-username" className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
               <input id="users-username" value={form.username} onChange={e => set("username", e.target.value)} required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="users-email" className="block text-xs font-medium text-gray-600 mb-1">Email</label>
               <input id="users-email" type="email" value={form.email} onChange={e => set("email", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="users-password" className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
               <input id="users-password" type="password" value={form.password} onChange={e => set("password", e.target.value)} required minLength={6}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="users-role" className="block text-xs font-medium text-gray-600 mb-1">Role</label>
               <select id="users-role" value={form.role} onChange={e => set("role", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value="STAFF">Staff</option>
                 <option value="MANAGER">Manager</option>
                 <option value="ADMIN">Admin</option>
@@ -97,7 +97,7 @@ export default function UsersPage() {
           </div>
 
           <button type="submit" disabled={addMutation.isPending}
-            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {addMutation.isPending ? "Creating..." : "Create User"}
           </button>
         </form>
@@ -119,9 +119,9 @@ export default function UsersPage() {
                   <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No users found</td></tr>
                 )}
                 {users.map((u: any) => (
-                  <tr key={u.id} className={`hover:bg-gray-50 ${u.username === me?.username ? "bg-indigo-50/40" : ""}`}>
+                  <tr key={u.id} className={`hover:bg-gray-50 ${u.username === me?.username ? "bg-brand-50/40" : ""}`}>
                     <td className="px-4 py-3 font-medium">
-                      {u.username} {u.username === me?.username && <span className="text-xs text-indigo-400">(you)</span>}
+                      {u.username} {u.username === me?.username && <span className="text-xs text-brand-400">(you)</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{u.email || "—"}</td>
                     <td className="px-4 py-3">

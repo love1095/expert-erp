@@ -103,7 +103,7 @@ export default function CreditNoteForm({ invoice, onDone, onCancel }: {
       )}
       <div className="flex gap-2">
         <button type="submit" disabled={save.isPending}
-          className="flex-1 bg-rose-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-rose-700 disabled:opacity-50">
+          className="flex-1 bg-brand-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
           {save.isPending ? "Saving…" : "Create credit note"}
         </button>
         <button type="button" onClick={onCancel} className="text-xs text-gray-500 hover:text-gray-700 px-2">Cancel</button>

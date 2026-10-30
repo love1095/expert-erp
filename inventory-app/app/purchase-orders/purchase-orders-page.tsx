@@ -79,7 +79,7 @@ export default function PurchaseOrdersPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Purchase Orders</h1>
         <button onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
+          className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
           {showForm ? "Cancel" : "+ New PO"}
         </button>
       </div>
@@ -93,7 +93,7 @@ export default function PurchaseOrdersPage() {
             <div>
               <label htmlFor="purchase-orders-supplier" className="block text-xs font-medium text-gray-600 mb-1">Supplier *</label>
               <select id="purchase-orders-supplier" value={supplierName} onChange={e => setSupplierName(e.target.value)} required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value="">Select supplier</option>
                 {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
@@ -101,7 +101,7 @@ export default function PurchaseOrdersPage() {
             <div>
               <label htmlFor="purchase-orders-receive-to-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Receive to Warehouse *</label>
               <select id="purchase-orders-receive-to-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value="">Select warehouse</option>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
@@ -112,30 +112,30 @@ export default function PurchaseOrdersPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-gray-600">Lines *</label>
               <button type="button" onClick={() => setLines([...lines, { categoryId: "", productId: "", quantity: "", unitCost: "" }])}
-                className="text-xs text-indigo-600 hover:text-indigo-800">+ Add line</button>
+                className="text-xs text-brand-600 hover:text-brand-800">+ Add line</button>
             </div>
             {lines.map((l, i) => (
               <div key={i} className="grid grid-cols-6 gap-2 mb-2">
                 <div>
                   <select value={l.categoryId} onChange={e => { const nl = [...lines]; nl[i].categoryId = e.target.value; nl[i].productId = ""; setLines(nl); }}
-                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400">
                     <option value="">All categories</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">
                   <select value={l.productId} onChange={e => { const nl = [...lines]; nl[i].productId = e.target.value; setLines(nl); }} required
-                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400">
                     <option value="">Product</option>
                     {(l.categoryId ? products.filter(p => p.categoryId === Number(l.categoryId)) : products).map(p => <option key={p.id} value={p.id}>{p.sku}</option>)}
                   </select>
                 </div>
                 <input type="number" min="0.0001" step="any" value={l.quantity} placeholder="Qty" required
                   onChange={e => { const nl = [...lines]; nl[i].quantity = e.target.value; setLines(nl); }}
-                  className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                  className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400" />
                 <input type="number" min="0" step="any" value={l.unitCost} placeholder="£ unit cost"
                   onChange={e => { const nl = [...lines]; nl[i].unitCost = e.target.value; setLines(nl); }}
-                  className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                  className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400" />
                 <button type="button" onClick={() => setLines(lines.filter((_, j) => j !== i))}
                   className="text-red-400 hover:text-red-600 text-xs">Remove</button>
               </div>
@@ -145,11 +145,11 @@ export default function PurchaseOrdersPage() {
           <div>
             <label htmlFor="purchase-orders-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
             <input id="purchase-orders-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           </div>
 
           <button type="submit" disabled={createMutation.isPending}
-            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {createMutation.isPending ? "Saving..." : "Create Purchase Order"}
           </button>
         </form>

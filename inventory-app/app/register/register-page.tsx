@@ -42,7 +42,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-indigo-600">Expert ERP</h1>
+          <h1 className="text-2xl font-bold text-brand-600">Expert ERP</h1>
           <p className="text-gray-400 text-sm mt-1">Create a new organization</p>
         </div>
 
@@ -53,7 +53,7 @@ export default function RegisterPage() {
             <label htmlFor="register-organization-name" className="block text-xs font-medium text-gray-600 mb-1">Organization name *</label>
             <input id="register-organization-name" value={form.organizationName} onChange={e => set("organizationName", e.target.value)}
               required placeholder="Acme Safety Ltd"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -61,13 +61,13 @@ export default function RegisterPage() {
               <label htmlFor="register-username" className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
               <input id="register-username" value={form.username} onChange={e => set("username", e.target.value)}
                 required placeholder="admin"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label htmlFor="register-email" className="block text-xs font-medium text-gray-600 mb-1">Email</label>
               <input id="register-email" type="email" value={form.email} onChange={e => set("email", e.target.value)}
                 placeholder="you@company.com"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           </div>
 
@@ -75,25 +75,25 @@ export default function RegisterPage() {
             <label htmlFor="register-password" className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
             <input id="register-password" type="password" value={form.password} onChange={e => set("password", e.target.value)}
               required placeholder="••••••••" minLength={6}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           </div>
 
           <div>
             <label htmlFor="register-confirm-password" className="block text-xs font-medium text-gray-600 mb-1">Confirm password *</label>
             <input id="register-confirm-password" type="password" value={form.confirm} onChange={e => set("confirm", e.target.value)}
               required placeholder="••••••••"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           </div>
 
           <button type="submit" disabled={loading}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {loading ? "Creating..." : "Create organization"}
           </button>
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-4">
           Already have an account?{" "}
-          <a href="/login" className="text-indigo-500 hover:underline">Sign in</a>
+          <a href="/login" className="text-brand-500 hover:underline">Sign in</a>
         </p>
       </div>
     </div>

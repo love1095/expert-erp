@@ -42,6 +42,7 @@ test.describe('Authentication', () => {
 
 test('AUTH-005 sign out returns to login', { tag: ['@P1', '@auth'] }, async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Account menu' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
 
   await expect(page).toHaveURL(/\/login$/);

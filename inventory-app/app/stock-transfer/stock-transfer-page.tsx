@@ -69,7 +69,7 @@ export default function StockTransferPage() {
               setCategoryId(e.target.value ? Number(e.target.value) : undefined);
               setForm({ ...form, productId: "" });
             }}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           >
             <option value="">All categories</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -82,7 +82,7 @@ export default function StockTransferPage() {
             value={form.productId}
             onChange={(e) => setForm({ ...form, productId: e.target.value })}
             required
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           >
             <option value="">Select product</option>
             {filteredProducts.map((p) => (
@@ -98,7 +98,7 @@ export default function StockTransferPage() {
               value={form.fromWarehouseId}
               onChange={(e) => setForm({ ...form, fromWarehouseId: e.target.value })}
               required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               <option value="">Select</option>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -110,7 +110,7 @@ export default function StockTransferPage() {
               value={form.toWarehouseId}
               onChange={(e) => setForm({ ...form, toWarehouseId: e.target.value })}
               required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               <option value="">Select</option>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -126,7 +126,7 @@ export default function StockTransferPage() {
             onChange={(e) => setForm({ ...form, quantity: e.target.value })}
             required
             placeholder="e.g. 50"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -136,14 +136,14 @@ export default function StockTransferPage() {
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             placeholder="Optional reason"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+          className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
         >
           {mutation.isPending ? "Processing..." : "Transfer Stock"}
         </button>

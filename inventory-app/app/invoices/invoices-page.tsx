@@ -162,7 +162,7 @@ export default function InvoicesPage() {
           <p className="text-sm text-gray-400 mt-0.5">Manage sales and purchase invoices</p>
         </div>
         <button onClick={() => { setShowForm(s => !s); setFormError(""); }}
-          className="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700">
+          className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
           {showForm ? "Cancel" : "+ New Invoice"}
         </button>
       </div>
@@ -254,7 +254,7 @@ export default function InvoicesPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-gray-600">Line Items</label>
               <button type="button" onClick={addItem}
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                className="text-xs text-brand-600 hover:text-brand-800 font-medium">
                 + Add item
               </button>
             </div>
@@ -304,7 +304,7 @@ export default function InvoicesPage() {
           </div>
 
           <button type="submit" disabled={createMut.isPending}
-            className="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {createMut.isPending ? "Creating..." : "Create Invoice"}
           </button>
         </form>
@@ -316,8 +316,8 @@ export default function InvoicesPage() {
           <button key={t} onClick={() => { setTypeFilter(t); setPage(0); }}
             className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
               typeFilter === t
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-white text-gray-600 border-gray-300 hover:border-indigo-400"
+                ? "bg-brand-600 text-white border-brand-600"
+                : "bg-white text-gray-600 border-gray-300 hover:border-brand-400"
             }`}>
             {t === "" ? "All" : t === "SALES" ? "Sales" : "Purchase"}
           </button>
@@ -347,10 +347,10 @@ export default function InvoicesPage() {
                   {invoiceList.map(inv => (
                     <tr key={inv.id}
                       onClick={() => { setSelected(inv); setCrediting(false); }}
-                      className={`hover:bg-gray-50 cursor-pointer ${selected?.id === inv.id ? "bg-indigo-50" : ""}`}>
-                      <td className="px-4 py-3 font-mono text-xs text-indigo-600 font-semibold">
+                      className={`hover:bg-gray-50 cursor-pointer ${selected?.id === inv.id ? "bg-brand-50" : ""}`}>
+                      <td className="px-4 py-3 font-mono text-xs text-brand-600 font-semibold">
                         {inv.invoiceNumber}
-                        {inv.kind === "CREDIT_NOTE" && <span className="block font-sans text-[10px] font-semibold text-rose-600">Credit note</span>}
+                        {inv.kind === "CREDIT_NOTE" && <span className="block font-sans text-[10px] font-semibold text-brand-600">Credit note</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
@@ -398,9 +398,9 @@ export default function InvoicesPage() {
           <div className="w-80 shrink-0 bg-white border border-gray-200 rounded-xl p-5 space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-mono text-sm font-bold text-indigo-600">{selected.invoiceNumber}</p>
+                <p className="font-mono text-sm font-bold text-brand-600">{selected.invoiceNumber}</p>
                 {isCreditNote && (
-                  <p className="text-xs font-semibold text-rose-600">Credit note for {selected.creditedInvoiceNumber}</p>
+                  <p className="text-xs font-semibold text-brand-600">Credit note for {selected.creditedInvoiceNumber}</p>
                 )}
                 <p className="text-xs text-gray-500 mt-0.5">{selected.partyName}</p>
               </div>
@@ -481,7 +481,7 @@ export default function InvoicesPage() {
             )}
             {!crediting && !isCreditNote && selected.type === "SALES" && (selected.status === "ISSUED" || selected.status === "PAID") && (
               <button onClick={() => setCrediting(true)}
-                className="w-full border border-rose-300 text-rose-700 py-1.5 rounded-lg text-xs font-medium hover:bg-rose-50">
+                className="w-full border border-brand-300 text-brand-700 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-50">
                 Credit note & restock
               </button>
             )}

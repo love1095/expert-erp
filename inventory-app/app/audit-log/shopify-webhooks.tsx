@@ -25,9 +25,9 @@ export default function ShopifyWebhooks() {
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">
           The latest 20 deliveries from Shopify. Orders they created or changed are in the Changes tab (user &quot;shopify&quot;).
-          Settings: <Link href="/settings/integrations/shopify" className="text-indigo-600 hover:underline">Shopify integration</Link>.
+          Settings: <Link href="/settings/integrations/shopify" className="text-brand-600 hover:underline">Shopify integration</Link>.
         </p>
-        <button onClick={() => refetch()} className="text-xs text-indigo-600 hover:text-indigo-800 shrink-0 ml-4">
+        <button onClick={() => refetch()} className="text-xs text-brand-600 hover:text-brand-800 shrink-0 ml-4">
           {isFetching ? "Refreshing..." : "Refresh"}
         </button>
       </div>

@@ -17,7 +17,7 @@ const emptyCharge = (): ChargeForm => ({ description: "", quantity: "1", unitPri
 const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
 const text = (s: string) => (s.trim() === "" ? undefined : s.trim());
 
-const INPUT = "border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-400";
+const INPUT = "border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
 
 /**
@@ -188,7 +188,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-gray-600">Lines *</span>
-          <button type="button" onClick={() => setLines([...lines, emptyLine()])} className="text-xs text-rose-600 hover:text-rose-800">+ Add line</button>
+          <button type="button" onClick={() => setLines([...lines, emptyLine()])} className="text-xs text-brand-600 hover:text-brand-800">+ Add line</button>
         </div>
         <div className="grid grid-cols-12 gap-2 mb-1 text-[11px] text-gray-400">
           <span className="col-span-4">Product</span><span>Qty</span><span>£ price</span>
@@ -228,7 +228,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-gray-600">Additional charges</span>
-          <button type="button" onClick={() => setCharges([...charges, emptyCharge()])} className="text-xs text-rose-600 hover:text-rose-800">+ Add charge</button>
+          <button type="button" onClick={() => setCharges([...charges, emptyCharge()])} className="text-xs text-brand-600 hover:text-brand-800">+ Add charge</button>
         </div>
         {charges.length === 0 && <p className="text-xs text-gray-400">Carriage, delivery… none yet.</p>}
         {charges.map((c, i) => {
@@ -272,7 +272,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         {editing ? (
           <>
             <button type="submit" disabled={save.isPending}
-              className="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {save.isPending ? "Saving..." : "Save changes"}
             </button>
             {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>}
@@ -280,7 +280,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         ) : (
           <>
             <button type="submit" value="order" disabled={save.isPending}
-              className="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {save.isPending ? "Saving..." : "Create Sale Order"}
             </button>
             <button type="submit" value="quote" disabled={save.isPending}

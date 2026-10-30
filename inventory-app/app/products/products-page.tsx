@@ -9,7 +9,7 @@ import { formatGBP } from "@/lib/currency";
 import { useEffect, useRef, useState } from "react";
 import Pagination from "@/components/Pagination";
 
-const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400";
+const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const BUTTON_SECONDARY = "border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
 
 const EMPTY_FORM = {
@@ -180,7 +180,7 @@ export default function ProductsPage() {
           </button>
           <button
             onClick={() => (showForm ? closeForm() : setShowForm(true))}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
           >
             {showForm ? "Cancel" : "+ Add Product"}
           </button>
@@ -279,7 +279,7 @@ export default function ProductsPage() {
           </div>
           <div className="col-span-2 lg:col-span-3 flex justify-end">
             <button type="submit" disabled={saveMutation.isPending}
-              className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {saveMutation.isPending ? "Saving..." : "Save Product"}
             </button>
           </div>
@@ -289,10 +289,10 @@ export default function ProductsPage() {
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <label htmlFor="products-search" className="sr-only">Search products</label>
         <input id="products-search" type="search" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search SKU or name" className="border border-gray-300 rounded-md px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          placeholder="Search SKU or name" className="border border-gray-300 rounded-md px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-brand-400" />
         <label htmlFor="products-filter-status" className="sr-only">Status</label>
         <select id="products-filter-status" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
           <option value="ACTIVE">Active</option>
           <option value="DEPRECATED">Deprecated</option>
           <option value="ALL">All statuses</option>
@@ -304,7 +304,7 @@ export default function ProductsPage() {
             setSelectedCategoryId(e.target.value ? Number(e.target.value) : undefined);
             setPage(0);
           }}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-48"
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-48"
         >
           <option value="">All categories</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -340,7 +340,7 @@ export default function ProductsPage() {
                     <td className="px-4 py-3 text-gray-600">{p.brand ?? <span className="text-gray-300">—</span>}</td>
                     <td className="px-4 py-3">
                       {p.categoryName ? (
-                        <span className="inline-block bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+                        <span className="inline-block bg-brand-50 text-brand-700 text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
                           {p.categoryName}
                         </span>
                       ) : (
@@ -366,7 +366,7 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap space-x-3">
-                      <button onClick={() => startEdit(p)} className="text-xs text-indigo-600 hover:text-indigo-800">
+                      <button onClick={() => startEdit(p)} className="text-xs text-brand-600 hover:text-brand-800">
                         Edit
                       </button>
                       <button

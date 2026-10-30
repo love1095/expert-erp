@@ -65,7 +65,7 @@ export default function SaleOrdersPage() {
         <div className="flex gap-2">
           {isAdmin && <ShopifyImportButton onOpen={() => setShowShopifyImport(true)} />}
           <button onClick={() => setShowForm(!showForm)}
-            className="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700">
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
             {showForm ? "Cancel" : "+ New SO"}
           </button>
         </div>
@@ -140,7 +140,7 @@ export default function SaleOrdersPage() {
                     <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={o.createdAt} /></td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={() => setOpenId(openId === o.id ? null : o.id)}
-                        className="text-xs text-rose-600 hover:text-rose-800 font-medium">
+                        className="text-xs text-brand-600 hover:text-brand-800 font-medium">
                         {openId === o.id ? "Close" : "Manage"}
                       </button>
                     </td>

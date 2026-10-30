@@ -20,8 +20,8 @@ const EMPTY_FORM = {
 };
 type Form = typeof EMPTY_FORM;
 
-const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400";
-const SMALL_INPUT = "w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-400";
+const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
+const SMALL_INPUT = "w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400";
 
 export default function CustomersPage() {
   const qc = useQueryClient();
@@ -118,7 +118,7 @@ export default function CustomersPage() {
             {importMutation.isPending ? "Importing..." : "Import CSV"}
           </button>
           <button onClick={() => (showForm ? closeForm() : startCreate())}
-            className="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700">
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
             {showForm ? "Cancel" : "+ New Customer"}
           </button>
         </div>
@@ -194,7 +194,7 @@ export default function CustomersPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-gray-600">Contacts</span>
               <button type="button" onClick={() => setContacts([...contacts, { ...EMPTY_CONTACT, defaultContact: contacts.length === 0 }])}
-                className="text-xs text-rose-600 hover:text-rose-800">+ Add contact</button>
+                className="text-xs text-brand-600 hover:text-brand-800">+ Add contact</button>
             </div>
             {contacts.length === 0 && <p className="text-xs text-gray-400">No contacts</p>}
             {contacts.map((c, i) => (
@@ -215,7 +215,7 @@ export default function CustomersPage() {
           </div>
 
           <button type="submit" disabled={saving}
-            className="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+            className="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {saving ? "Saving..." : editingId != null ? "Save Customer" : "Create Customer"}
           </button>
         </form>
@@ -227,7 +227,7 @@ export default function CustomersPage() {
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0); }}
           placeholder="Search by name, contact, email or phone..."
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 w-80"
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-80"
         />
       </div>
 
@@ -264,7 +264,7 @@ export default function CustomersPage() {
                           {main ? (
                             <>
                               <div className="text-gray-700">{main.name || "—"}{c.contacts.length > 1 && <span className="text-gray-400"> +{c.contacts.length - 1}</span>}</div>
-                              {main.email && <a href={`mailto:${main.email}`} className="text-rose-600 hover:underline">{main.email}</a>}
+                              {main.email && <a href={`mailto:${main.email}`} className="text-brand-600 hover:underline">{main.email}</a>}
                               {(main.phone || main.mobilePhone) && <div className="text-gray-500">{main.phone || main.mobilePhone}</div>}
                             </>
                           ) : <span className="text-gray-400">—</span>}
@@ -277,7 +277,7 @@ export default function CustomersPage() {
                         <td className="px-4 py-3 text-xs text-gray-600">{c.salesRepresentative || "—"}</td>
                         <td className="px-4 py-3 tabular-nums">
                           {c.orderCount > 0 ? (
-                            <button onClick={() => setOpenId(openId === c.id ? null : c.id)} className="text-rose-600 hover:text-rose-800 font-medium">
+                            <button onClick={() => setOpenId(openId === c.id ? null : c.id)} className="text-brand-600 hover:text-brand-800 font-medium">
                               {c.orderCount}
                             </button>
                           ) : <span className="text-gray-400">0</span>}

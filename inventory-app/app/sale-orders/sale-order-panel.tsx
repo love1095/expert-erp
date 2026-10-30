@@ -227,7 +227,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
           )}
           {canInvoice && (
             <button disabled={busy} onClick={() => startMode("invoice")}
-              className="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-indigo-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
               Create invoice
             </button>
           )}
@@ -267,7 +267,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                 <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
               ))}
               {mode === "ship" && <th className="text-left px-3 py-2 text-xs font-semibold text-emerald-700 uppercase">Ship now</th>}
-              {mode === "invoice" && <th className="text-left px-3 py-2 text-xs font-semibold text-indigo-700 uppercase">Invoice now</th>}
+              {mode === "invoice" && <th className="text-left px-3 py-2 text-xs font-semibold text-brand-700 uppercase">Invoice now</th>}
               {mode === "return" && (
                 <>
                   <th className="text-left px-3 py-2 text-xs font-semibold text-teal-700 uppercase">Return qty</th>
@@ -357,19 +357,19 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                 {mode === "ship" ? "Shipment notes" : mode === "invoice" ? "Invoice notes" : "Reason"}
               </label>
               <input id="so-panel-notes" autoComplete="off" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             {mode === "ship" && (
               <>
                 <div>
                   <label htmlFor="so-panel-carrier" className="block text-xs font-medium text-gray-600 mb-1">Carrier</label>
                   <input id="so-panel-carrier" autoComplete="off" value={tracking.company} onChange={e => setTracking({ ...tracking, company: e.target.value })}
-                    placeholder="e.g. Royal Mail" className="w-36 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+                    placeholder="e.g. Royal Mail" className="w-36 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
                   <label htmlFor="so-panel-tracking" className="block text-xs font-medium text-gray-600 mb-1">Tracking number</label>
                   <input id="so-panel-tracking" autoComplete="off" value={tracking.number} onChange={e => setTracking({ ...tracking, number: e.target.value })}
-                    placeholder="Optional" className="w-44 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+                    placeholder="Optional" className="w-44 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
               </>
             )}
@@ -377,7 +377,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
               <div>
                 <label htmlFor="sale-orders-return-to-warehouse" className="block text-xs font-medium text-gray-600 mb-1">Return to warehouse</label>
                 <select id="sale-orders-return-to-warehouse" value={returnWarehouseId} onChange={e => setReturnWarehouseId(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
                   {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
@@ -391,11 +391,11 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                   </label>
                 )}
                 <button type="submit" value="issue" disabled={busy}
-                  className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                  className="bg-brand-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                   {busy ? "Saving..." : "Create & issue"}
                 </button>
                 <button type="submit" value="draft" disabled={busy}
-                  className="border border-indigo-300 text-indigo-700 px-4 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-50 disabled:opacity-50">
+                  className="border border-brand-300 text-brand-700 px-4 py-1.5 rounded-md text-sm font-medium hover:bg-brand-50 disabled:opacity-50">
                   Create draft invoice
                 </button>
               </>
@@ -430,8 +430,8 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
           <ul className="space-y-1 text-sm">
             {order.invoices?.map(inv => (
               <li key={inv.id} className="flex flex-wrap gap-x-3 items-center">
-                <span className="font-mono text-xs text-indigo-700">{inv.invoiceNumber}</span>
-                {inv.kind === "CREDIT_NOTE" && <span className="text-[10px] font-semibold text-rose-600">Credit note</span>}
+                <span className="font-mono text-xs text-brand-700">{inv.invoiceNumber}</span>
+                {inv.kind === "CREDIT_NOTE" && <span className="text-[10px] font-semibold text-brand-600">Credit note</span>}
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${inv.status === "CANCELLED" ? "bg-gray-100 text-gray-400" : inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" : inv.status === "ISSUED" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700"}`}>{inv.status}</span>
                 <span className="tabular-nums text-gray-700">{formatGBP(inv.total)}</span>
                 <span className="text-xs text-gray-400">
@@ -464,7 +464,7 @@ export default function SaleOrderPanel({ orderId, warehouses }: { orderId: numbe
                       <>
                         <span className="text-red-600">✕ Not sent to Shopify: {f.syncMessage}</span>
                         <button type="button" disabled={busy} onClick={() => retryMutation.mutate({ id: order.id, fulfilmentId: f.id })}
-                          className="ml-2 text-xs font-medium text-rose-600 hover:text-rose-800 disabled:opacity-50">
+                          className="ml-2 text-xs font-medium text-brand-600 hover:text-brand-800 disabled:opacity-50">
                           {retryMutation.isPending ? "Retrying..." : "Retry"}
                         </button>
                       </>

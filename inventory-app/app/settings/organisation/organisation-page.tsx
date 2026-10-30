@@ -6,7 +6,7 @@ import { getOrganisationSettings, getTaxRates, updateOrganisationSettings } from
 import { OrganisationSettings, TaxRate } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
-const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50";
+const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-50";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
 
 export default function OrganisationPage() {
@@ -99,7 +99,7 @@ export default function OrganisationPage() {
         <div className="col-span-2 flex items-center gap-3">
           {isAdmin ? (
             <button type="submit" disabled={save.isPending}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+              className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {save.isPending ? "Saving..." : "Save"}
             </button>
           ) : <p className="text-xs text-gray-400">Only an admin can change these settings.</p>}

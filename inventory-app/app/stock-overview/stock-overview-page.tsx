@@ -48,7 +48,7 @@ export default function StockOverviewPage() {
         <select
           value={categoryId ?? ""}
           onChange={e => { setCategoryId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-48"
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-48"
         >
           <option value="">All categories</option>
           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -78,7 +78,7 @@ export default function StockOverviewPage() {
                     <td className="px-4 py-3 font-medium">{l.productName}</td>
                     <td className="px-4 py-3">
                       {l.categoryName ? (
-                        <span className="inline-block bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                        <span className="inline-block bg-brand-50 text-brand-700 text-xs px-2 py-0.5 rounded-full font-medium">
                           {l.categoryName}
                         </span>
                       ) : <span className="text-gray-300 text-xs">—</span>}
