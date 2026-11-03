@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOrganisationSettings, getTaxRates, updateOrganisationSettings } from "@/lib/api";
 import { OrganisationSettings, TaxRate } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import CompanyDetailsCard from "./company-details";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-50";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
@@ -33,7 +34,7 @@ export default function OrganisationPage() {
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Organisation</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Order numbering, Shopify sales rep and VAT</p>
+        <p className="text-gray-500 text-sm mt-0.5">Order numbering, Shopify sales rep, VAT and the company details on documents</p>
       </div>
 
       <form onSubmit={e => { e.preventDefault(); setMessage(null); save.mutate({ ...form, nextSaleOrderNumber: Number(form.nextSaleOrderNumber) }); }}
@@ -126,6 +127,8 @@ export default function OrganisationPage() {
           {message && <span role="status" className={`text-sm ${message.ok ? "text-emerald-700" : "text-red-600"}`}>{message.ok ? "✓ " : "✕ "}{message.text}</span>}
         </div>
       </form>
+
+      <CompanyDetailsCard isAdmin={isAdmin} />
 
       <section className="bg-white border border-gray-200 rounded-xl p-6">
         <h2 className="font-semibold text-gray-800 mb-1">VAT rates</h2>

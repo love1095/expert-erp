@@ -38,6 +38,7 @@ public class ProductService {
     private final SubscriptionService subscriptionService;
     private final AuditService auditService;
     private final com.experterp.backend.repository.PurchaseOrderRepository purchaseOrderRepository;
+    private final com.experterp.backend.repository.CostLayerRepository costLayerRepository;
 
     /**
      * One page of products, newest first. Long texts (description, Cin7 details) are left out of lists:
@@ -170,7 +171,35 @@ public class ProductService {
         BigDecimal onHand = warehouses.stream().map(w -> w.onHand()).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal res = warehouses.stream().map(w -> w.reserved()).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal onOrderTotal = onOrder.stream().map(o -> o.outstanding()).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new com.experterp.backend.dto.ProductStockResponse(warehouses, onOrder, onHand, res, onHand.subtract(res), onOrderTotal);
+        // FIFO: the layers still holding stock, and what they are worth
+        List<com.experterp.backend.entity.CostLayer> open = costLayerRepository.findOpenByProduct(id);
+        Map<Long, com.experterp.backend.entity.StockMovement> sources = new java.util.HashMap<>();
+        stockMovementRepository.findAllById(open.stream().map(com.experterp.backend.entity.CostLayer::getMovementId).distinct().toList())
+                .forEach(m -> sources.put(m.getId(), m));
+        Map<Long, String> warehouseNames = new java.util.HashMap<>();
+        warehouses.forEach(w -> warehouseNames.put(w.warehouseId(), w.warehouseName()));
+        List<com.experterp.backend.dto.ProductStockResponse.CostLayer> layers = open.stream().map(l -> {
+            com.experterp.backend.entity.StockMovement m = sources.get(l.getMovementId());
+            BigDecimal value = l.getRemaining().multiply(l.getUnitCost()).setScale(2, java.math.RoundingMode.HALF_UP);
+            return new com.experterp.backend.dto.ProductStockResponse.CostLayer(l.getId(), l.getWarehouseId(),
+                    warehouseNames.get(l.getWarehouseId()), l.getReceivedAt(), m == null ? null : layerSource(m),
+                    l.getQuantity(), l.getRemaining(), l.getUnitCost().setScale(4, java.math.RoundingMode.HALF_UP),
+                    l.getOriginalUnitCost().setScale(4, java.math.RoundingMode.HALF_UP), value);
+        }).toList();
+        BigDecimal stockValue = layers.stream().map(com.experterp.backend.dto.ProductStockResponse.CostLayer::value)
+                .reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, java.math.RoundingMode.HALF_UP);
+        return new com.experterp.backend.dto.ProductStockResponse(warehouses, onOrder, onHand, res, onHand.subtract(res), onOrderTotal,
+                layers, stockValue);
+    }
+
+    private static String layerSource(com.experterp.backend.entity.StockMovement m) {
+        return switch (m.getType()) {
+            case PURCHASE_IN -> m.getReferenceId();
+            case TRANSFER_IN -> "Transfer " + m.getReferenceId();
+            case SALE_RETURN_IN -> "Return " + m.getReferenceId();
+            default -> m.getReferenceType() == com.experterp.backend.entity.StockMovement.ReferenceType.STOCK_IMPORT
+                    ? "Stock import" : "Adjustment" + (m.getReferenceId() != null ? " " + m.getReferenceId() : "");
+        };
     }
 
     // Fields shown in the activity log when they change

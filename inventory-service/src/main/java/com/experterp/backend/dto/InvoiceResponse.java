@@ -22,6 +22,8 @@ public class InvoiceResponse {
     private Long supplierId;
     // Bills: number of lines that don't match the PO or the receipts
     private int matchIssueCount;
+    // Bills: what the bill's prices changed on the stock received and the COGS already taken from it (FIFO), 0 = the PO's prices
+    private BigDecimal costAdjustment;
     private Invoice.InvoiceStatus status;
     private LocalDate issueDate;
     private LocalDate dueDate;
@@ -66,6 +68,8 @@ public class InvoiceResponse {
         private List<String> matchIssues;
         // Invoice items: quantity already on credit notes
         private BigDecimal creditedQuantity;
+        // Bill lines: units matched to stock received so far (the rest is priced when it arrives)
+        private BigDecimal costMatchedQuantity;
     }
 
     @Data

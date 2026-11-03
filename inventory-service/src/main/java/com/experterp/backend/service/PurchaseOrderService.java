@@ -362,8 +362,7 @@ public class PurchaseOrderService {
             // The PO line cost after discount becomes the cost of the stock received (FIFO)
             movementService.createMovement(line.getProduct(), warehouse, x.qty(),
                     MovementType.PURCHASE_IN, ReferenceType.PURCHASE_ORDER,
-                    po.getOrderNumber(), "Received on " + po.getOrderNumber())
-                    .setUnitCost(netUnitCost(line));
+                    po.getOrderNumber(), "Received on " + po.getOrderNumber(), line.getId(), netUnitCost(line));
         }
         receiptRepository.save(receipt);
 

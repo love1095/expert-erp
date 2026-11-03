@@ -14,7 +14,7 @@ export default function StockMovementsPage() {
   const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
   const [formCategoryId, setFormCategoryId] = useState<number | undefined>(undefined);
-  const [form, setForm] = useState({ productId: "", warehouseId: "", quantity: "", type: "ADJUSTMENT_IN", notes: "" });
+  const [form, setForm] = useState({ productId: "", warehouseId: "", quantity: "", type: "ADJUSTMENT_IN", unitCost: "", notes: "" });
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,7 +39,7 @@ export default function StockMovementsPage() {
       qc.invalidateQueries({ queryKey: ["stock-overview"] });
       setShowForm(false);
       setFormCategoryId(undefined);
-      setForm({ productId: "", warehouseId: "", quantity: "", type: "ADJUSTMENT_IN", notes: "" });
+      setForm({ productId: "", warehouseId: "", quantity: "", type: "ADJUSTMENT_IN", unitCost: "", notes: "" });
       setError("");
     },
     onError: (e: any) => setError(e.response?.data?.error || "Failed to record movement"),
@@ -52,6 +52,8 @@ export default function StockMovementsPage() {
       warehouseId: Number(form.warehouseId),
       quantity: Number(form.quantity),
       type: form.type,
+      // Stock in opens a FIFO cost layer at this cost (empty = the product's cost price)
+      unitCost: form.type === "ADJUSTMENT_IN" && form.unitCost !== "" ? Number(form.unitCost) : undefined,
       notes: form.notes,
     });
   };
@@ -142,6 +144,19 @@ export default function StockMovementsPage() {
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
+
+          {form.type === "ADJUSTMENT_IN" && (
+            <div>
+              <label htmlFor="stock-movements-unit-cost" className="block text-xs font-medium text-gray-600 mb-1">Unit cost (£)</label>
+              <input id="stock-movements-unit-cost"
+                type="number" min="0" step="any"
+                value={form.unitCost}
+                onChange={(e) => setForm({ ...form, unitCost: e.target.value })}
+                placeholder="Empty = the product's cost price"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+          )}
 
           <div>
             <label htmlFor="stock-movements-notes" className="block text-xs font-medium text-gray-600 mb-1">Notes</label>

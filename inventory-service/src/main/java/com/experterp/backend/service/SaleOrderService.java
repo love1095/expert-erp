@@ -59,6 +59,7 @@ public class SaleOrderService {
     private final OrganisationSettingsService settingsService;
     private final AllocationService allocationService;
     private final InvoiceService invoiceService;
+    private final CostingService costingService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
 
@@ -310,7 +311,7 @@ public class SaleOrderService {
             movementService.createMovement(
                     s.line().getProduct(), so.getWarehouse(), s.qty(),
                     MovementType.SALE_OUT, ReferenceType.SALE_ORDER,
-                    "SO-" + so.getId(), "Fulfilment #" + f.getId() + " on SO #" + so.getId());
+                    "SO-" + so.getId(), "Fulfilment #" + f.getId() + " on SO #" + so.getId(), s.line().getId(), null);
             s.line().setFulfilledQuantity(s.line().getFulfilledQuantity().add(s.qty()));
         });
 
@@ -434,7 +435,7 @@ public class SaleOrderService {
                 movementService.createMovement(
                         line.getProduct(), warehouse, rl.getQuantity(),
                         MovementType.SALE_RETURN_IN, ReferenceType.SALE_RETURN,
-                        "RET-" + r.getId(), "Return #" + r.getId() + " on SO #" + so.getId());
+                        "RET-" + r.getId(), "Return #" + r.getId() + " on SO #" + so.getId(), line.getId(), null);
             }
         }
 
@@ -635,7 +636,34 @@ public class SaleOrderService {
                     .map(rl -> entryLine(rl.getSaleOrderLine(), rl.getQuantity(), rl.isRestock())).toList());
             return e;
         }).toList());
+        setCostOfGoods(r, so);
         return r;
+    }
+
+    /**
+     * FIFO cost of goods per line (what its shipments took from the cost layers, less restocked returns) and the
+     * margin over it; the part not shipped yet is still costed at the product's cost price.
+     */
+    private void setCostOfGoods(SaleOrderResponse r, SaleOrder so) {
+        List<Long> lineIds = so.getLines().stream().map(SaleOrderLine::getId).filter(java.util.Objects::nonNull).toList();
+        Map<Long, BigDecimal> cogs = costingService.costOfGoodsBySaleOrderLine(lineIds);
+        if (cogs.isEmpty()) return;
+        Map<Long, SaleOrderLine> lines = linesById(so);
+        BigDecimal total = BigDecimal.ZERO;
+        for (SaleOrderResponse.Line lr : r.getLines()) {
+            BigDecimal shipped = cogs.get(lr.getId());
+            if (shipped == null) continue;
+            lr.setCostOfGoods(shipped);
+            total = total.add(shipped);
+            SaleOrderLine l = lines.get(lr.getId());
+            BigDecimal unshipped = l.getQuantity().subtract(l.getCancelledQuantity()).subtract(l.getFulfilledQuantity()).max(BigDecimal.ZERO);
+            BigDecimal costPrice = l.getProduct().getCostPrice();
+            if (unshipped.signum() > 0 && costPrice == null) { lr.setMarginPercent(null); continue; }
+            BigDecimal cost = shipped.add(unshipped.signum() > 0 ? unshipped.multiply(costPrice) : BigDecimal.ZERO);
+            lr.setMarginPercent(lr.getNetAmount().signum() == 0 ? null : lr.getNetAmount().subtract(cost)
+                    .multiply(BigDecimal.valueOf(100)).divide(lr.getNetAmount(), 2, java.math.RoundingMode.HALF_UP));
+        }
+        r.setCostOfGoods(total);
     }
 
     private SaleOrderResponse.InvoiceEntry invoiceEntry(InvoiceResponse inv) {

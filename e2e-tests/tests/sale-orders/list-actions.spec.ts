@@ -17,8 +17,8 @@ test.describe('List actions', () => {
       await page.getByTestId(`so-select-${b.id}`).check();
       const bar = page.getByTestId('bulk-actions');
       await expect(bar).toContainText('2 selected');
-      // Print and e-mail come later
-      await expect(bar.getByRole('button', { name: 'Print' })).toBeDisabled();
+      // Print works since D5 (DOC-001); e-mail comes later
+      await expect(bar.getByRole('button', { name: 'Print' })).toBeEnabled();
 
       await bar.getByRole('button', { name: 'Fill and authorise' }).click();
       await expect(page.getByTestId('bulk-result')).toContainText('Fill and authorise: 2 done');

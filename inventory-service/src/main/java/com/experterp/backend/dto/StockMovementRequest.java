@@ -27,4 +27,7 @@ public class StockMovementRequest {
     private ReferenceType referenceType;
     private String referenceId;
     private String notes;
+    // Stock in only: the cost of one unit (FIFO layer); empty = the product's cost price
+    @jakarta.validation.constraints.PositiveOrZero
+    private BigDecimal unitCost;
 }

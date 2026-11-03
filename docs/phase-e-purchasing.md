@@ -27,7 +27,7 @@ Seen on the purchase list (8,447 purchases, numbers up to **PO-19073**) and on *
 
 ## What the ERP has
 
-Purchase orders DRAFT → RECEIVED / CANCELLED; the supplier is a **free-text name** (not the supplier record); lines are quantity and unit cost only; **receiving is all-or-nothing**; no PO number series (shown as PO-{id}), no VAT, no additional costs, no required-by date. "Purchase" invoices exist but are typed by hand and not matched to the PO. Products already have a default supplier, supplier product code, cost price, minimum stock and reorder quantity (imported from Cin7: 15,616 / 20,588 products have a default supplier, 2,029 a minimum). The dashboard has a reorder list (available + on order ≤ minimum). Suppliers have terms, currency, tax number, one contact. **FIFO cost layers are decided but not built yet** (receipts don't create layers).
+Purchase orders DRAFT → RECEIVED / CANCELLED; the supplier is a **free-text name** (not the supplier record); lines are quantity and unit cost only; **receiving is all-or-nothing**; no PO number series (shown as PO-{id}), no VAT, no additional costs, no required-by date. "Purchase" invoices exist but are typed by hand and not matched to the PO. Products already have a default supplier, supplier product code, cost price, minimum stock and reorder quantity (imported from Cin7: 15,616 / 20,588 products have a default supplier, 2,029 a minimum). The dashboard has a reorder list (available + on order ≤ minimum). Suppliers have terms, currency, tax number, one contact. FIFO cost layers were decided but not built (receipts didn't create layers) — built in E5.
 
 ## Steps
 
@@ -65,7 +65,7 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* the reorder page lists the same products as the dashboard's reorder list, grouped by default supplier, and creating POs for two suppliers gives two draft POs with the suggested quantities.
 
-### E5 — FIFO cost layers and landed costs
+### E5 — FIFO cost layers ✅ (landed costs left out by decision 4)
 - Build the **FIFO cost layers** from the business rules: every stock-in creates a layer (receipt = PO cost), every stock-out consumes the oldest; COGS per shipment.
 - **Landed costs:** freight / duty / import charges from the PO or the bill spread over the received lines (by value or by quantity) and added to those layers.
 - A bill price different from the PO corrects the layer and the COGS already taken (cost adjustment, history never edited).

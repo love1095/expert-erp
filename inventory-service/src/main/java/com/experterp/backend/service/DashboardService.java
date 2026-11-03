@@ -92,12 +92,10 @@ public class DashboardService {
                 .addValue("today", Date.valueOf(today));
 
         // ---- stock value ----
+        // What is left in the FIFO cost layers
         BigDecimal stockValue = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(st.qty * p.cost_price), 0) " +
-                "  FROM products p JOIN (SELECT product_id, SUM(CASE WHEN type IN (" + StockMovementRepository.IN_TYPES + ") " +
-                "                                                THEN quantity ELSE -quantity END) AS qty " +
-                "                           FROM stock_movements WHERE tenant_id = :t GROUP BY product_id) st ON st.product_id = p.id " +
-                " WHERE p.tenant_id = :t AND p.cost_price IS NOT NULL AND st.qty > 0", p, BigDecimal.class);
+                "SELECT COALESCE(SUM(remaining * unit_cost), 0) FROM cost_layers WHERE tenant_id = :t AND remaining > 0",
+                p, BigDecimal.class).setScale(2, java.math.RoundingMode.HALF_UP);
 
         // ---- orders ----
         Map<String, Long> byStatus = new LinkedHashMap<>();

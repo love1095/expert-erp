@@ -34,6 +34,7 @@ public class InvoiceService {
     private final AuditService auditService;
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final TaxService taxService;
+    private final CostingService costingService;
 
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(int page, int size, Invoice.InvoiceType type) {
@@ -117,6 +118,8 @@ public class InvoiceService {
         inv.setStatus(Invoice.InvoiceStatus.ISSUED);
         if (inv.getIssueDate() == null) inv.setIssueDate(LocalDate.now());
         Invoice saved = invoiceRepository.save(inv);
+        // A supplier bill prices the stock received (FIFO layers) from now on
+        if (isBill(saved)) costingService.billIssued(saved);
         auditService.log("INVOICE", id, "ISSUE", Map.of("invoiceNumber", inv.getInvoiceNumber()));
         return toResponse(saved);
     }
@@ -293,6 +296,8 @@ public class InvoiceService {
         inv.setDueDate(req.getDueDate() != null ? req.getDueDate() : PaymentTerms.dueDate(po.getPaymentTerm(), issued));
         if (!req.isDraft()) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
         Invoice saved = invoiceRepository.save(inv);
+        // Bill prices other than the PO's correct the stock received and the COGS already taken from it (FIFO)
+        if (saved.getStatus() == Invoice.InvoiceStatus.ISSUED) costingService.billIssued(saved);
         InvoiceResponse r = toResponse(saved);
         auditService.log("INVOICE", saved.getId(), "CREATE", Map.of("bill", number, "order", po.getOrderNumber(),
                 "total", saved.getTotalAmount(), "status", saved.getStatus(), "matchIssues", r.getMatchIssueCount()));
@@ -391,8 +396,11 @@ public class InvoiceService {
                         .ifPresent(c -> c.setInvoiced(false));
             }
         }
+        boolean wasIssued = inv.getStatus() == Invoice.InvoiceStatus.ISSUED;
         inv.setStatus(Invoice.InvoiceStatus.CANCELLED);
         Invoice saved = invoiceRepository.save(inv);
+        // An issued bill's cost corrections are taken back (opposite adjustments; history is never edited)
+        if (wasIssued && isBill(saved)) costingService.billCancelled(saved);
         auditService.log("INVOICE", id, "CANCEL", Map.of("invoiceNumber", inv.getInvoiceNumber()));
         return toResponse(saved);
     }
@@ -438,6 +446,10 @@ public class InvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + id));
     }
 
+    private static boolean isBill(Invoice inv) {
+        return inv.getType() == Invoice.InvoiceType.PURCHASE && inv.getKind() == Invoice.Kind.INVOICE && inv.getPurchaseOrderId() != null;
+    }
+
     private InvoiceResponse toResponse(Invoice inv) {
         InvoiceResponse r = new InvoiceResponse();
         r.setId(inv.getId());
@@ -449,7 +461,10 @@ public class InvoiceService {
         r.setSupplierId(inv.getSupplierId());
         // Bills: the PO's lines for the three-way match
         PurchaseOrder po = inv.getPurchaseOrderId() == null ? null : purchaseOrderRepository.findById(inv.getPurchaseOrderId()).orElse(null);
-        if (po != null) r.setPurchaseOrderNumber(po.getOrderNumber());
+        if (po != null) {
+            r.setPurchaseOrderNumber(po.getOrderNumber());
+            if (inv.getKind() == Invoice.Kind.INVOICE) r.setCostAdjustment(costingService.billCostAdjustment(inv));
+        }
         r.setStatus(inv.getStatus());
         r.setIssueDate(inv.getIssueDate());
         r.setDueDate(inv.getDueDate());
@@ -491,6 +506,7 @@ public class InvoiceService {
                         .ifPresent(l -> ir.setMatchIssues(matchIssues(item, l)));
             }
             ir.setCreditedQuantity(item.getCreditedQuantity());
+            if (item.getPurchaseOrderLineId() != null) ir.setCostMatchedQuantity(item.getCostMatchedQuantity());
             return ir;
         }).collect(Collectors.toList()));
         r.setMatchIssueCount((int) r.getItems().stream().filter(i -> i.getMatchIssues() != null && !i.getMatchIssues().isEmpty()).count());

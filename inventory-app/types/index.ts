@@ -79,6 +79,24 @@ export interface ProductStock {
   reserved: number;
   available: number;
   onOrderTotal: number;
+  // FIFO: the cost layers still holding stock (oldest first per warehouse) and what they are worth
+  costLayers: CostLayer[];
+  stockValue: number;
+}
+
+// Stock that came in together at one unit cost (FIFO); unitCost differs from originalUnitCost after a supplier
+// bill at another price than the PO
+export interface CostLayer {
+  id: number;
+  warehouseId: number;
+  warehouseName?: string;
+  receivedAt: string;
+  source?: string;
+  quantity: number;
+  remaining: number;
+  unitCost: number;
+  originalUnitCost: number;
+  value: number;
 }
 
 // Minimal product for dropdowns (GET /products/options)
@@ -233,6 +251,8 @@ export interface StockMovement {
   referenceType?: ReferenceType;
   referenceId?: string;
   notes?: string;
+  // Stock in: the cost of one unit (its FIFO layer)
+  unitCost?: number;
   createdAt: string;
 }
 
@@ -251,7 +271,7 @@ export interface StockLevel {
   reserved: number;
   available: number;
   lowStock: boolean;
-  // Like Cin7's availability: on hand × cost price; what ordered POs still bring in; their earliest required-by date
+  // Like Cin7's availability: what is left in the FIFO cost layers; what ordered POs still bring in; their earliest required-by date
   stockValue?: number;
   onOrder: number;
   nextDelivery?: string;
@@ -372,8 +392,10 @@ export interface SaleOrderLine extends OrderLine {
   netAmount: number;
   taxAmount: number;
   totalAmount: number;
-  // Over the product's cost price; absent without a cost
+  // Over the FIFO cost of what has shipped (and the product's cost price for the rest); absent without a cost
   marginPercent?: number;
+  // FIFO cost of the units shipped, less those returned to stock; absent until something ships
+  costOfGoods?: number;
   // Reserving orders only: what the stock on hand covers (first confirmed, first served) and what is short
   allocatedQuantity?: number;
   backorderedQuantity?: number;
@@ -476,6 +498,8 @@ export interface SaleOrder {
   subtotal: number;
   taxTotal: number;
   total: number;
+  // Order page: FIFO cost of everything shipped; absent until something ships
+  costOfGoods?: number;
   // Confirmed (or imported from Shopify) and the stock on hand can't cover it all
   backordered: boolean;
   // When it became an order (absent for quotes); quotes: last day it can be converted
@@ -551,6 +575,8 @@ export interface InvoiceItem {
   // Bills: the purchase order line, and what differs from the PO and the receipts (three-way match)
   purchaseOrderLineId?: number;
   matchIssues?: string[];
+  // Bill lines: units matched to stock received so far (the rest is priced when it arrives)
+  costMatchedQuantity?: number;
 }
 
 export interface InvoicePayment {
@@ -573,6 +599,8 @@ export interface Invoice {
   supplierId?: number;
   // Bills: lines that don't match the PO or the receipts
   matchIssueCount: number;
+  // Bills: what the bill's prices changed on the stock received and the COGS already taken (FIFO); 0 = the PO's prices
+  costAdjustment?: number;
   status: InvoiceStatus;
   issueDate?: string;
   dueDate?: string;
@@ -765,4 +793,18 @@ export interface ShopifyWebhookEvent {
   error?: string;
   receivedAt: string;
   processedAt?: string;
+}
+
+// The company details printed on documents (D5); empty fields are left out of the page
+export interface CompanyDetails {
+  legalName?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  vatNumber?: string | null;
+  companyNumber?: string | null;
+  bankDetails?: string | null;
+  documentFooter?: string | null;
+  hasLogo: boolean;
 }

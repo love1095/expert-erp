@@ -199,3 +199,21 @@ export const getShopifyEvents        = () => api.get("/integrations/shopify/even
 export const getSubscription = () => api.get("/subscription").then(r => r.data);
 export const getPlans        = () => api.get("/plans").then(r => r.data);
 export const upgradePlan     = (planTier: string) => api.post("/subscription/upgrade", { planTier }).then(r => r.data);
+
+// ---- Documents as PDF (D5) ----
+// One document: /sale-orders/{id}/pdf, /invoices/{id}/pdf, /purchase-orders/{id}/pdf
+export const getPdf = (path: string) => api.get(path, { responseType: "blob" }).then(r => r.data as Blob);
+// Ticked rows of a list in one PDF
+export const getDocumentsPdf = (kind: "sale-orders" | "invoices" | "purchase-orders", ids: number[]) =>
+  api.get(`/documents/${kind}/pdf`, { params: { ids: ids.join(",") }, responseType: "blob" }).then(r => r.data as Blob);
+
+// Company details printed on documents
+export const getCompanyDetails = () => api.get("/settings/company").then(r => r.data);
+export const updateCompanyDetails = (body: unknown) => api.put("/settings/company", body).then(r => r.data);
+export const uploadCompanyLogo = (file: File) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post("/settings/company/logo", body, { headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
+};
+export const deleteCompanyLogo = () => api.delete("/settings/company/logo").then(r => r.data);
+export const getCompanyLogo = () => api.get("/settings/company/logo", { responseType: "blob" }).then(r => r.data as Blob);

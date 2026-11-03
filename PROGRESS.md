@@ -260,7 +260,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase D — Sales (spec §2) 🔄
+## Phase D — Sales (spec §2) ✅
 
 > Goal: one sales flow like Cin7 — quote → order → ship → invoice → payment, with VAT, reps, reservations and backorders. Plan and Cin7 findings: [`docs/phase-d-sales.md`](docs/phase-d-sales.md).
 
@@ -318,7 +318,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Tests: `CreditNoteTest` (5) (109 backend tests); E2E INV-003 (70 cases)
 
 ### List actions like Cin7 ✅
-- [x] Sale order and purchase order lists: tick rows (or all on the page), then **Undo** (Cin7's warning "This will change the task status back to draft…"; a confirmed order / ordered PO goes back to draft, refused once shipped / received or invoiced / billed), **Fill and authorise** (draft → confirmed / ordered), **Export** (CSV of the ticked rows), **Void** (cancel); Print and Email shown greyed out until D5 PDFs and e-mail
+- [x] Sale order and purchase order lists: tick rows (or all on the page), then **Undo** (Cin7's warning "This will change the task status back to draft…"; a confirmed order / ordered PO goes back to draft, refused once shipped / received or invoiced / billed), **Fill and authorise** (draft → confirmed / ordered), **Export** (CSV of the ticked rows), **Void** (cancel); **Print** since D5; Email greyed out until e-mail sending
 - [x] Each row is done on its own: the result says how many were done and why the others were not
 - [x] Progress icons: a step that will not happen is **Not available** (no quote step on an order made directly; steps after a cancel / rejection), not "not yet"
 - [x] `POST /sale-orders/{id}/undo`, `POST /purchase-orders/{id}/undo`; tests: `QuoteTest`, `PurchaseOrderTest` (130 backend tests); E2E SO-014, PO-003 (76 cases)
@@ -329,8 +329,13 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **U3 stock availability** (Stock Overview, Cin7's Product availability): category, product, warehouse, min, **stock value** (on hand × cost price), on hand, **allocated**, available, **on order** (ordered POs not yet received) and **next delivery** (earliest required-by); filters **Only active** and **Show only non-zero quantities** (`GET /stock/overview?activeOnly=&nonZero=`)
 - [x] Tests: `PurchaseReceivingTest` +1 (131 backend tests); E2E STK-005, tests now use test ids instead of column positions (77 cases)
 
-### Next
-- [ ] D5 PDFs
+### D5 Documents (PDF) ✅
+- [x] **PDFs** for **quote**, **sales order**, **invoice**, **credit note** and **purchase order** (`GET /sale-orders/{id}/pdf`, `/invoices/{id}/pdf`, `/purchase-orders/{id}/pdf`), built from the same responses as the screens so the figures match: company block with logo, customer / supplier with address, contact and VAT number, dates and references, lines (SKU, supplier code on POs, quantity, price, discount, VAT rate, net) and charges / additional costs, **VAT summary per rate**, totals (paid and balance due on part-paid invoices), notes; **how to pay** with the bank details on invoices still to pay; footer with company no., VAT no. and the footer text; *Page x of y*; DRAFT / CANCELLED / PAID / EXPIRED stamped; a supplier's bill is not printed (their document)
+- [x] One XHTML template (`templates/documents/document.html`) for all, rendered by OpenHTMLtoPDF with **Liberation Sans** embedded (Lato was tried and dropped: its "ti" ligature broke copy / search in the PDF text); headings repeat on every page
+- [x] **Company details** (Settings → Organisation, `GET/PUT /settings/company`, `V20`): name on documents, address, phone, e-mail, website, VAT number, company number, bank details, footer text, **logo** (PNG / JPEG ≤ 512 KB, checked by content; `POST/DELETE/GET /settings/company/logo`); admin only, audited
+- [x] **Print** on the sale order (*Print quote* on quotes), invoice and PO pages (opens the PDF in a new tab); list **Print** on ticked sales / purchases now works — one PDF with all of them in list order (`GET /documents/{kind}/pdf?ids=`)
+- [x] Tests: `DocumentTest` (6) — invoice with company, customer, VAT and how to pay (4 × £10 + £5 carriage = £54.00), credit note, quote and draft order, PO with supplier codes and deliver-to, two orders in one PDF, logo checks (148 backend tests); E2E DOC-001, SO-014 now expects Print enabled (80 cases)
+- [ ] Later: e-mailing documents (with the e-mail integration, spec §7); a delivery address on sale orders (Cin7 has billing / shipping addresses; Cin7's customer export has none, so documents print the customer's address); editable templates (phase I)
 
 ---
 
@@ -366,7 +371,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Payments on bills as on invoices; bills count in the dashboard's bills to pay / overdue
 - [x] Frontend: PO page *Enter bill* (supplier's number, dates, quantity and price per line with "PO price" / "more than received" hints, charges), Bills card in the trail, Billed column; bill page with a Match column and "✓ Matches the PO and receipts"; list shows the billing status
 - [x] Tests: `SupplierBillTest` (4) — Cin7's PO-19064 bill 006387333: 5 × 65.50 + £12 shipping = **£407.40**, due 30/11/2026 (30 Day EOM), no mismatch; price and quantity flags; cancel gives back; drafts not billable (124 backend tests); E2E PO-002 extended (73 cases)
-- [ ] Stock cost following the bill price (decision 3) needs the FIFO layers — done in E5 as a cost adjustment
+- [x] Stock cost following the bill price (decision 3) — done in E5 as a cost adjustment
 - [ ] Purchase invoices typed by hand on the Invoices page still take a number from the INV- series (bills from POs don't)
 
 ### E4 Reorder → purchase orders in bulk ✅
@@ -387,8 +392,16 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Tests: `ProductPageTest` (3) (134 backend tests); E2E PRD-003 via More actions, PRD-008 product page (78 cases)
 - [ ] Later (Cin7 has them, not needed yet): **Combined view** (one row per product family — 1,399 families locally, but Cin7's are mostly single-variant), alternative products, custom prices, images, extra units, channels, Merge products
 
-### Next
-- [ ] E5 FIFO cost layers (incl. bill price → stock cost)
+### E5 FIFO cost layers ✅
+- [x] `V19`: **cost layers** (product, warehouse, received at, quantity, left, unit cost now / when it came in), **consumptions** (what each stock-out took, at what cost) and **cost adjustments**; movements carry their order line (`source_line_id`, existing ones matched on order number + product)
+- [x] Every stock-in opens a layer: receipt = PO line cost after discount; adjustment / stock import = the cost given (new **Unit cost** field on *Record movement*), else the product's cost price; restocked return = what the line's shipments cost per unit. Every stock-out takes from the **oldest layers first**; a **transfer** moves the layers to the other warehouse at their cost and date
+- [x] **Bill price ≠ PO price** (decision 3): the issued bill's lines are matched to the PO line's received units (oldest first; units billed ahead of the goods are priced when they arrive) and the difference is spread by **cost adjustments** — the part still in stock changes the stock value, the part already shipped changes those shipments' COGS (passed on through transfers); cancelling the bill adds the opposite adjustments; drafts change nothing until issued. Bill charges stay an expense (decision 4: no landed cost)
+- [x] **COGS** per sale order line and order (shipments + later corrections − restocked returns); line **margin %** now over the FIFO cost of what shipped (cost price for the rest)
+- [x] **Stock value** from the layers: stock overview (per product / warehouse), product page, dashboard KPI
+- [x] **Rebuild**: layers are built by replaying the movements and bills in order — at start-up for organisations with movements but no layers (real data: 2,132 movements → 2,129 layers in ~2 s, stock value **£99,851.54** vs £99,367 on cost price; 2 old test sales that went below zero costed at the cost price) and on request (`POST /costing/rebuild`, admin)
+- [x] Frontend: product page Stock → **Cost layers (FIFO)** (received, warehouse, from, came in, left, unit cost with "was £x" after a bill correction, value); sale order totals **Cost of goods shipped** (and per line on the margin); bill totals **Stock cost adjustment**
+- [x] Tests: `FifoCostingTest` (8) — 10 at £5 + 10 at £6, ship 15 → **COGS £80**, £30 left; bill at £5.50 after 4 shipped → +£2 COGS, +£3 stock, cancel takes it back; bill ahead of the goods; draft bill; transfer then bill; restocked return; adjustment costs; rebuild gives the same figures (142 backend tests); E2E FIFO-001 (79 cases)
+- [ ] Later: supplier credit notes on bills don't correct the cost yet; landed cost (charges into stock cost) only if wanted (decision 4)
 
 ---
 

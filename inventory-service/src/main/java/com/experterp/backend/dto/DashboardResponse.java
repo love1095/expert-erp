@@ -26,7 +26,7 @@ public record DashboardResponse(
             long products,
             long warehouses,
             long customers,
-            // Σ current stock × product cost price (products without a cost count as 0)
+            // What is left in the FIFO cost layers (stock without a cost counts as 0)
             BigDecimal stockValue,
             // Products whose stock + quantity on order is at or below their minimum (the reorder list, Cin7's rule)
             long productsToReorder,

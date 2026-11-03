@@ -67,4 +67,8 @@ public class InvoiceItem {
     // Credit note items: the invoice item they credit
     @Column
     private Long creditedItemId;
+
+    // Bill items: units matched to received stock (FIFO layers) so far; the rest waits for the goods
+    @Column(name = "cost_matched_quantity", nullable = false, precision = 18, scale = 4)
+    private BigDecimal costMatchedQuantity = BigDecimal.ZERO;
 }

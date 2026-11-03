@@ -22,5 +22,7 @@ public class StockMovementResponse {
     private ReferenceType referenceType;
     private String referenceId;
     private String notes;
+    // Stock in: the cost of one unit its FIFO layer opened at
+    private BigDecimal unitCost;
     private LocalDateTime createdAt;
 }

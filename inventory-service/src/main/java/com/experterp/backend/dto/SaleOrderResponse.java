@@ -25,6 +25,8 @@ public class SaleOrderResponse {
     private BigDecimal subtotal;
     private BigDecimal taxTotal;
     private BigDecimal total;
+    // FIFO cost of everything shipped on the order (order page only); null until something ships
+    private BigDecimal costOfGoods;
     private List<Charge> charges;
     // A reserving order (confirmed, or imported from Shopify) the stock on hand cannot cover in full
     private boolean backordered;
@@ -77,8 +79,10 @@ public class SaleOrderResponse {
         private BigDecimal netAmount;
         private BigDecimal taxAmount;
         private BigDecimal totalAmount;
-        // Over the product's cost price (FIFO cost once costing exists); null without a cost
+        // Over the FIFO cost of what has shipped (and the product's cost price for the rest); null without a cost
         private BigDecimal marginPercent;
+        // FIFO cost of the units shipped (less those returned to stock); null until something ships
+        private BigDecimal costOfGoods;
         // Reserving orders only (null otherwise): of the quantity still to ship, what the stock on hand covers
         // (first confirmed, first served) and what is short
         private BigDecimal allocatedQuantity;

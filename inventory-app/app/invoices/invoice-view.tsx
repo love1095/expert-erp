@@ -1,6 +1,7 @@
 "use client";
 
 import { Clip } from "@/components/ListToolbar";
+import PrintButton from "@/components/PrintButton";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -74,6 +75,7 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
           </div>
         }
         actions={!crediting && <>
+          {inv.type === "SALES" && <PrintButton kind="invoices" id={inv.id} fileName={`${inv.invoiceNumber}.pdf`} />}
           {(inv.status === "DRAFT" || inv.status === "ISSUED") && !isCreditNote && (
             <button disabled={busy} onClick={() => { if (confirm(`Cancel ${inv.invoiceNumber}?`)) cancelMut.mutate(inv.id); }} className={BTN_DANGER}>
               Cancel invoice
@@ -212,6 +214,11 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
             <dt className="text-gray-500">Before tax</dt><dd className="text-right">{money(inv, inv.subtotal)}</dd>
             <dt className="text-gray-500">VAT</dt><dd className="text-right">{money(inv, inv.taxTotal)}</dd>
             <dt className="font-semibold border-t border-gray-200 pt-1">Total</dt><dd className="text-right font-semibold border-t border-gray-200 pt-1">{money(inv, inv.totalAmount)}</dd>
+            {inv.costAdjustment != null && Number(inv.costAdjustment) !== 0 && <>
+              <dt className="text-gray-500 border-t border-gray-200 pt-1" title="The bill's prices differ from the PO: the stock received and the cost of what has already shipped are corrected (FIFO)">Stock cost adjustment</dt>
+              <dd data-testid="bill-cost-adjustment" className={`text-right border-t border-gray-200 pt-1 ${Number(inv.costAdjustment) > 0 ? "text-amber-700" : "text-green-700"}`}>
+                {Number(inv.costAdjustment) > 0 ? "+" : ""}{money(inv, inv.costAdjustment)}</dd>
+            </>}
           </dl>
         </div>
       </RecordLayout>

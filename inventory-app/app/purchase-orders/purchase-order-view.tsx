@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PrintButton from "@/components/PrintButton";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPurchaseOrder, receivePurchaseLines, cancelPurchaseOrder, orderPurchaseOrder, closeShortPurchaseOrder, getWarehouses } from "@/lib/api";
@@ -134,7 +135,8 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
               · {po.paymentStatus === "PAID" ? "Paid" : po.paymentStatus === "PARTIALLY_PAID" ? "Partially paid" : "Unpaid"}</span>}
           </div>
         }
-        actions={!busyMode && (open || canBill) && <>
+        actions={!busyMode && <>
+          <PrintButton kind="purchase-orders" id={po.id} fileName={`${po.orderNumber}.pdf`} />
           {canBill && <button disabled={busy} onClick={() => { setError(""); setBilling(true); }} className={BTN_SECONDARY}>Enter bill</button>}
           {open && <>
           {anyReceived ? (

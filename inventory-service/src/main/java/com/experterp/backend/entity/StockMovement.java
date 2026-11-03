@@ -62,8 +62,13 @@ public class StockMovement {
     private String notes;
 
     // Cost of one unit on an inbound movement (FIFO layers are built from it); empty on outbound movements
+    // (their cost is in cost_consumptions)
     @Column(name = "unit_cost", precision = 18, scale = 4)
     private BigDecimal unitCost;
+
+    // The order line it belongs to: the PO line of a receipt, the sale order line of a shipment or a return
+    @Column(name = "source_line_id")
+    private Long sourceLineId;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -14,13 +14,15 @@ import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
-import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_PRINT, NOT_YET_EMAIL } from "@/components/BulkActions";
+import { printMany } from "@/components/PrintButton";
+import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_EMAIL } from "@/components/BulkActions";
 
 // Cin7's actions on ticked purchases
 const PURCHASE_ACTIONS: BulkAction<PurchaseOrder>[] = [
   { label: "Undo", confirm: UNDO_WARNING, each: o => undoPurchaseOrder(o.id) },
   { label: "Fill and authorise", each: o => orderPurchaseOrder(o.id) },
-  { label: "Print", unavailable: NOT_YET_PRINT },
+  // One PDF with every ticked document, in list order
+  { label: "Print", all: rows => printMany("purchase-orders", rows.map(o => o.id)) },
   { label: "Email", unavailable: NOT_YET_EMAIL },
   { label: "Export", all: rows => downloadCsv(`purchases-${new Date().toISOString().slice(0, 10)}.csv`,
       ["PO #", "Status", "Supplier", "Supplier reference", "Bills", "Required by", "Total inc VAT", "Created"],

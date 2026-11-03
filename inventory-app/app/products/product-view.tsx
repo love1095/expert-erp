@@ -196,7 +196,41 @@ function StockSection({ p }: { p: Product }) {
         </table>
       )}
     </Card>
+    <Card title={`Cost layers (FIFO): ${money(s.stockValue)}`} flush testId="product-cost-layers">
+      {s.costLayers.length === 0 ? <p className="p-4 text-sm text-gray-400">No stock left to cost</p> : (
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>{["Received", "Warehouse", "From", "Came in", "Left", "Unit cost", "Value"].map(h => <th key={h} className={TH}>{h}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {s.costLayers.map(l => {
+              const corrected = Number(l.unitCost) !== Number(l.originalUnitCost);
+              return (
+                <tr key={l.id}>
+                  <td className={`${TD} text-xs text-gray-500`}><ClientDate iso={l.receivedAt} /></td>
+                  <td className={TD}>{l.warehouseName ?? "—"}</td>
+                  <td className={`${TD} font-mono text-xs`}>{l.source ?? "—"}</td>
+                  <td className={`${TD} tabular-nums text-gray-600`}>{qty(l.quantity)}</td>
+                  <td className={`${TD} tabular-nums font-medium`}>{qty(l.remaining)}</td>
+                  <td className={`${TD} tabular-nums`} title={corrected ? `Received at ${unitCost(l.originalUnitCost)}, corrected by the supplier's bill` : undefined}>
+                    {unitCost(l.unitCost)}{corrected && <span className="ml-1 text-xs text-amber-700">(was {unitCost(l.originalUnitCost)})</span>}
+                  </td>
+                  <td className={`${TD} tabular-nums`}>{money(l.value)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </Card>
   </>;
+}
+
+// Unit costs keep up to 4 decimals (e.g. £5.3333 after a return), shown with at least 2
+function unitCost(n: number) {
+  const v = Number(n);
+  const s = v.toFixed(4).replace(/0{1,2}$/, "");
+  return "£" + s;
 }
 
 function Suppliers({ p }: { p: Product }) {

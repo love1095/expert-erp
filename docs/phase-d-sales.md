@@ -56,8 +56,9 @@ Each step is built, tested and checked on the real data before the next one.
 
 *Done when:* invoiced + to invoice = order total at every step; a credit note reduces the customer's balance and restocks what was marked so.
 
-### D5 — Documents
+### D5 — Documents ✅
 - **PDFs** for quote, sale order, invoice, credit note (company details, VAT number, lines with VAT, totals). E-mail sending comes later with the e-mail integration (spec §7).
+- Built (2026-11-03): also the purchase order PDF; company details and logo under Settings → Organisation; Print on record pages and on ticked list rows (one combined PDF).
 
 ## Decisions (2026-10-30)
 1. **Invoice timing:** both — invoices by hand from the order (as in Cin7 today) **and** an organisation setting to create one automatically on each shipment.

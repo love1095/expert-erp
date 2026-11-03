@@ -15,13 +15,15 @@ import SaleStages, { OrderDocuments } from "./sale-stages";
 import SaleOrderForm from "./sale-order-form";
 import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
 import { useAuth } from "@/contexts/AuthContext";
-import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_PRINT, NOT_YET_EMAIL } from "@/components/BulkActions";
+import { printMany } from "@/components/PrintButton";
+import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_EMAIL } from "@/components/BulkActions";
 
 // Cin7's actions on ticked sales
 const SALE_ACTIONS: BulkAction<SaleOrder>[] = [
   { label: "Undo", confirm: UNDO_WARNING, each: o => undoSaleOrder(o.id) },
   { label: "Fill and authorise", each: o => confirmSaleOrder(o.id) },
-  { label: "Print", unavailable: NOT_YET_PRINT },
+  // One PDF with every ticked document, in list order
+  { label: "Print", all: rows => printMany("sale-orders", rows.map(o => o.id)) },
   { label: "Email", unavailable: NOT_YET_EMAIL },
   { label: "Export", all: rows => downloadCsv(`sales-${new Date().toISOString().slice(0, 10)}.csv`,
       ["Order #", "Status", "Customer", "Reference", "Documents", "Sales rep", "Total inc VAT", "Created"],

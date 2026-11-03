@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<!-- One template for every printed document (phase D5): quote, sales order, invoice, credit note, purchase order.
+     Filled from DocumentModel; parts with nothing to show are left out. Rendered by OpenHTMLtoPDF (XHTML, CSS 2.1 + paged media). -->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title th:text="${d.title + ' ' + d.number}">Invoice INV-1</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 24mm 14mm;
+      @bottom-left { content: element(footer); vertical-align: top; }
+      @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "Liberation Sans"; font-size: 7.5pt; color: #737373; vertical-align: top; padding-top: 3mm; }
+    }
+    body { font-family: "Liberation Sans"; font-size: 9pt; color: #171717; margin: 0; line-height: 1.35; }
+    .footer { position: running(footer); font-size: 7.5pt; color: #737373; border-top: 0.5pt solid #d4d4d4; padding-top: 2.5mm; width: 150mm; }
+    table { border-collapse: collapse; width: 100%; }
+    td, th { vertical-align: top; padding: 0; }
+    .head td { padding-bottom: 6mm; }
+    .logo { max-height: 18mm; max-width: 60mm; margin-bottom: 2mm; }
+    .company-name { font-weight: 700; font-size: 11pt; }
+    .muted { color: #525252; }
+    .small { font-size: 8pt; }
+    .title { text-align: right; }
+    .title h1 { font-size: 20pt; font-weight: 700; margin: 0; letter-spacing: 0.3pt; }
+    .title .number { font-size: 11pt; font-weight: 700; margin-top: 1mm; }
+    .title .bar { border-top: 2pt solid #d42020; width: 22mm; margin: 2mm 0 0 auto; }
+    .stamp { display: inline-block; margin-top: 2mm; padding: 1mm 3mm; border: 1pt solid #d42020; color: #d42020; font-weight: 700; text-transform: uppercase; font-size: 9pt; letter-spacing: 1pt; }
+    .parties td.party { width: 33%; padding-right: 5mm; }
+    .label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #737373; letter-spacing: 0.5pt; margin-bottom: 1mm; }
+    .party-name { font-weight: 700; }
+    .fields { margin: 5mm 0 4mm 0; background-color: #f5f5f5; }
+    .fields td { padding: 2mm 3mm; }
+    .fields .value { font-weight: 700; }
+    .lines { margin-top: 2mm; }
+    .lines th { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #525252; text-align: left; border-bottom: 1pt solid #171717; padding: 1.5mm 1.5mm; }
+    .lines td { padding: 1.8mm 1.5mm; border-bottom: 0.5pt solid #e5e5e5; }
+    .lines tr { page-break-inside: avoid; }
+    .lines { -fs-table-paginate: paginate; }
+    .lines thead { display: table-header-group; }
+    .num, .lines th.num, .vat th.num { text-align: right; white-space: nowrap; }
+    .lines .desc { width: 100%; }
+    .lines td.num, .lines th.num { padding-left: 4mm; }
+    .empty td { color: #737373; font-style: italic; }
+    .code { font-size: 8pt; white-space: nowrap; }
+    .charge td { color: #404040; }
+    .bottom { margin-top: 5mm; page-break-inside: avoid; }
+    .vat th { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #737373; text-align: left; padding: 1mm 2mm 1mm 0; border-bottom: 0.5pt solid #d4d4d4; }
+    .vat td { padding: 1mm 2mm 1mm 0; }
+    .totals td { padding: 1.2mm 0 1.2mm 4mm; }
+    .totals .strong td { font-weight: 700; font-size: 11pt; border-top: 1pt solid #171717; padding-top: 2mm; }
+    .box { margin-top: 5mm; padding: 3mm; border: 0.5pt solid #d4d4d4; page-break-inside: avoid; }
+    .pre { white-space: pre-line; }
+  </style>
+</head>
+<body>
+  <div class="footer">
+    <span th:text="${d.company.name}">Expert Safety Ltd</span>
+    <span th:if="${d.company.companyNumber != null}" th:text="${' · Company no. ' + d.company.companyNumber}"> · Company no.</span>
+    <span th:if="${d.company.vatNumber != null}" th:text="${' · VAT no. ' + d.company.vatNumber}"> · VAT no.</span>
+    <div th:if="${d.company.footer != null}" class="pre" th:text="${d.company.footer}">Terms</div>
+  </div>
+
+  <table class="head">
+    <tr>
+      <td style="width: 60%">
+        <img th:if="${d.company.logoDataUri != null}" class="logo" th:src="${d.company.logoDataUri}" alt="" />
+        <div class="company-name" th:text="${d.company.name}">Expert Safety Ltd</div>
+        <div class="muted" th:each="line : ${d.company.address}" th:text="${line}">Address line</div>
+        <div class="muted small" th:if="${d.company.phone != null or d.company.email != null}">
+          <span th:if="${d.company.phone != null}" th:text="${'Tel ' + d.company.phone}">Tel</span>
+          <span th:if="${d.company.phone != null and d.company.email != null}"> · </span>
+          <span th:if="${d.company.email != null}" th:text="${d.company.email}">email</span>
+        </div>
+        <div class="muted small" th:if="${d.company.website != null}" th:text="${d.company.website}">website</div>
+        <div class="muted small" th:if="${d.company.vatNumber != null}" th:text="${'VAT no. ' + d.company.vatNumber}">VAT no.</div>
+      </td>
+      <td class="title">
+        <h1 th:text="${d.title}">Invoice</h1>
+        <div class="number" th:text="${d.number}">INV-1</div>
+        <div class="bar"></div>
+        <div th:if="${d.stamp != null}" class="stamp" th:text="${d.stamp}">Draft</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="parties">
+    <tr>
+      <td class="party" th:each="p : ${d.parties}">
+        <div class="label" th:text="${p.label}">Invoice to</div>
+        <div class="party-name" th:text="${p.name}">Customer</div>
+        <div th:each="line : ${p.lines}" th:text="${line}">line</div>
+      </td>
+      <td></td>
+    </tr>
+  </table>
+
+  <table class="fields" th:if="${!d.fields.isEmpty()}">
+    <tr>
+      <td th:each="f : ${d.fields}">
+        <div class="label" th:text="${f.label}">Date</div>
+        <div class="value" th:text="${f.value}">01/01/2026</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="lines">
+    <thead>
+      <tr>
+        <th th:if="${d.showCode}">SKU</th>
+        <th th:if="${d.showSupplierCode}">Supplier code</th>
+        <th class="desc">Description</th>
+        <th class="num">Qty</th>
+        <th class="num">Unit price</th>
+        <th class="num" th:if="${d.showDiscount}">Disc.</th>
+        <th>VAT</th>
+        <th class="num">Net</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="l : ${d.lines}" th:class="${l.charge} ? 'charge' : null">
+        <td th:if="${d.showCode}" class="code" th:text="${l.code}">SKU</td>
+        <td th:if="${d.showSupplierCode}" class="code" th:text="${l.supplierCode}">code</td>
+        <td class="desc" th:text="${l.description}">Product</td>
+        <td class="num" th:text="${l.quantity}">1</td>
+        <td class="num" th:text="${l.unitPrice}">£1.00</td>
+        <td class="num" th:if="${d.showDiscount}" th:text="${l.discount}">10%</td>
+        <td class="small" th:text="${l.tax}">20%</td>
+        <td class="num" th:text="${l.net}">£1.00</td>
+      </tr>
+      <tr class="empty" th:if="${d.lines.isEmpty()}">
+        <td th:attr="colspan=${5 + (d.showCode ? 1 : 0) + (d.showSupplierCode ? 1 : 0) + (d.showDiscount ? 1 : 0)}">Nothing left on this document: every line was cancelled</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table class="bottom">
+    <tr>
+      <td style="width: 55%; padding-right: 8mm">
+        <table class="vat" th:if="${!d.vatSummary.isEmpty()}">
+          <tr><th>VAT</th><th class="num">Net</th><th class="num">VAT</th></tr>
+          <tr th:each="v : ${d.vatSummary}">
+            <td class="small" th:text="${v.rate}">20%</td>
+            <td class="num" th:text="${v.net}">£1.00</td>
+            <td class="num" th:text="${v.vat}">£0.20</td>
+          </tr>
+        </table>
+      </td>
+      <td>
+        <table class="totals">
+          <tr th:each="t : ${d.totals}" th:class="${t.strong} ? 'strong' : null">
+            <td th:text="${t.label}">Total</td>
+            <td class="num" th:text="${t.value}">£1.20</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div class="box" th:if="${d.payment != null}">
+    <div class="label">Payment</div>
+    <div class="pre" th:text="${d.payment}">Please pay</div>
+  </div>
+
+  <div class="box" th:if="${d.notes != null and !d.notes.isBlank()}">
+    <div class="label">Notes</div>
+    <div class="pre" th:text="${d.notes}">Notes</div>
+  </div>
+</body>
+</html>

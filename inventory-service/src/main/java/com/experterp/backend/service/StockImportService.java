@@ -53,6 +53,7 @@ public class StockImportService {
     private final NamedParameterJdbcTemplate jdbc;
     private final AuditService auditService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CostingService costingService;
 
     public record Change(String sku, String name, BigDecimal before, BigDecimal after, BigDecimal unitCost) {}
 
@@ -156,6 +157,7 @@ public class StockImportService {
         }
 
         for (StockMovement saved : movementRepository.saveAll(movements)) {
+            costingService.record(saved);
             eventPublisher.publishEvent(new StockChangedEvent(this, saved.getProduct().getId(),
                     warehouse.getId(), saved.getQuantity(), saved.getType(), saved.getReferenceId()));
         }

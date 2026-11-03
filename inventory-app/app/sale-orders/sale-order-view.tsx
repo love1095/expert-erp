@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import PrintButton from "@/components/PrintButton";
 import { useState } from "react";
 import Link from "next/link";
 import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn, retryShopifyFulfilment,
@@ -229,6 +230,8 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
 
         {mode === "view" && (
           <div className="flex flex-wrap items-center gap-2">
+            <PrintButton kind="sale-orders" id={order.id} fileName={`${order.orderNumber}.pdf`}
+              label={order.status === "QUOTE" || order.status === "REJECTED" ? "Print quote" : "Print"} />
             {order.status === "QUOTE" && (
               <>
                 <button disabled={busy} onClick={() => { if (confirm("Reject this quote?")) rejectMutation.mutate(order.id); }} className={BTN_SECONDARY}>
@@ -479,7 +482,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                           <td className="text-gray-600" title={l.taxOverridden ? "Changed by hand" : l.taxName}>
                             <span className="block truncate max-w-24">{l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}</span>
                           </td>
-                          <td className="num text-gray-500">{l.marginPercent != null ? `${l.marginPercent}%` : "—"}</td>
+                          <td className="num text-gray-500" title={l.costOfGoods != null ? `Cost of goods shipped (FIFO): ${formatGBP(l.costOfGoods)}` : undefined}>{l.marginPercent != null ? `${l.marginPercent}%` : "—"}</td>
                           <td className="num">{formatGBP(l.netAmount)}</td>
                           {mode !== "view" && (
                             <td>
@@ -633,6 +636,11 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                 <tr className="border-t border-gray-200 font-semibold"><th className="px-4 pt-2 pb-3 text-left text-xs">Total</th>
                   <td className="px-4 pt-2 pb-3 text-right">{formatGBP(goods.net + goods.tax)}</td><td className="px-4 pt-2 pb-3 text-right">{formatGBP(extras.net + extras.tax)}</td>
                   <td className="px-4 pt-2 pb-3 text-right">{formatGBP(order.total)}</td></tr>
+                {order.costOfGoods != null && (
+                  <tr data-testid="order-cost-of-goods" className="border-t border-gray-200 text-gray-600">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500" title="What the shipped units cost, oldest stock first (FIFO), less returns put back in stock">Cost of goods shipped</th>
+                    <td className="px-4 py-2 text-right">{formatGBP(order.costOfGoods)}</td><td></td><td></td></tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -42,6 +42,8 @@ public class StockMovementService {
     private final AuditService auditService;
     private final AllocationService allocationService;
     private final com.experterp.backend.repository.PurchaseOrderRepository purchaseOrderRepository;
+    private final CostingService costingService;
+    private final com.experterp.backend.repository.CostLayerRepository costLayerRepository;
 
     @Transactional
     public StockMovementResponse create(StockMovementRequest req) {
@@ -56,7 +58,11 @@ public class StockMovementService {
 
         StockMovement m = buildMovement(product, warehouse, req.getQuantity(), req.getType(),
                 req.getReferenceType(), req.getReferenceId(), req.getNotes());
-        return toResponse(movementRepository.save(m));
+        // Stock in at the cost given, else the product's cost price (FIFO layer)
+        if (req.getType().isIn()) m.setUnitCost(req.getUnitCost());
+        StockMovement saved = movementRepository.save(m);
+        costingService.record(saved);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -81,6 +87,8 @@ public class StockMovementService {
                 MovementType.TRANSFER_IN, ReferenceType.TRANSFER, transferRef, req.getNotes());
 
         List<StockMovement> saved = movementRepository.saveAll(Arrays.asList(out, in));
+        // The layers taken out of one warehouse arrive in the other at their cost and date
+        saved.forEach(costingService::record);
         return saved.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
@@ -158,6 +166,11 @@ public class StockMovementService {
         });
         List<Long> productIds = levels.getContent().stream().map(StockLevelResponse::getProductId).distinct().toList();
         if (productIds.isEmpty()) return levels;
+        // Stock value = what is left in the FIFO layers (the cost price only where there are none)
+        Map<String, BigDecimal> fifoValue = new java.util.HashMap<>();
+        for (Object[] r : costLayerRepository.valueByProductAndWarehouse(productIds)) {
+            fifoValue.put(AllocationService.key(toLong(r[0]), toLong(r[1])), new BigDecimal(r[2].toString()));
+        }
         // Reservations and open purchase orders for the whole page, one query each
         Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(productIds);
         Map<String, Object[]> onOrder = new java.util.HashMap<>();
@@ -166,6 +179,8 @@ public class StockMovementService {
         }
         levels.forEach(l -> {
             String key = AllocationService.key(l.getProductId(), l.getWarehouseId());
+            BigDecimal value = fifoValue.get(key);
+            if (value != null) l.setStockValue(value.setScale(2, java.math.RoundingMode.HALF_UP));
             l.setReserved(reserved.getOrDefault(key, BigDecimal.ZERO));
             l.setAvailable(l.getStock().subtract(l.getReserved()));
             Object[] po = onOrder.get(key);
@@ -193,10 +208,25 @@ public class StockMovementService {
     @Transactional
     public StockMovement createMovement(Product product, Warehouse warehouse, BigDecimal qty,
                                         MovementType type, ReferenceType refType, String refId, String notes) {
+        return createMovement(product, warehouse, qty, type, refType, refId, notes, null, null);
+    }
+
+    /**
+     * A movement for an order line (the PO line of a receipt, the sale order line of a shipment or return) and, for
+     * stock in, the cost of one unit; its FIFO cost layer is opened or consumed at once.
+     */
+    @Transactional
+    public StockMovement createMovement(Product product, Warehouse warehouse, BigDecimal qty,
+                                        MovementType type, ReferenceType refType, String refId, String notes,
+                                        Long sourceLineId, BigDecimal unitCost) {
         if (!type.isIn()) {
             assertSufficientStock(product.getId(), warehouse.getId(), qty);
         }
-        StockMovement saved = movementRepository.save(buildMovement(product, warehouse, qty, type, refType, refId, notes));
+        StockMovement m = buildMovement(product, warehouse, qty, type, refType, refId, notes);
+        m.setSourceLineId(sourceLineId);
+        if (type.isIn()) m.setUnitCost(unitCost);
+        StockMovement saved = movementRepository.save(m);
+        costingService.record(saved);
         eventPublisher.publishEvent(new StockChangedEvent(this, saved.getProduct().getId(),
                 saved.getWarehouse().getId(), saved.getQuantity(), saved.getType(), saved.getReferenceId()));
         auditService.log("STOCK_MOVEMENT", saved.getId(), "CREATE", Map.of(
@@ -288,6 +318,7 @@ public class StockMovementService {
         r.setReferenceType(m.getReferenceType());
         r.setReferenceId(m.getReferenceId());
         r.setNotes(m.getNotes());
+        r.setUnitCost(m.getUnitCost());
         r.setCreatedAt(m.getCreatedAt());
         return r;
     }

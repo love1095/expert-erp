@@ -19,6 +19,14 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     Page<StockMovement> findByProductId(Long productId, Pageable pageable);
 
+    // The stock-out of a transfer (same reference and product)
+    java.util.Optional<StockMovement> findFirstByReferenceIdAndProductIdAndTypeOrderByIdDesc(
+            String referenceId, Long productId, StockMovement.MovementType type);
+
+    // Every movement of the tenant in the order it happened (FIFO rebuild)
+    @Query("SELECT m.id FROM StockMovement m ORDER BY m.createdAt, m.id")
+    List<Long> findAllIdsInOrder();
+
     Page<StockMovement> findByWarehouseId(Long warehouseId, Pageable pageable);
 
     Page<StockMovement> findByProductIdAndWarehouseId(Long productId, Long warehouseId, Pageable pageable);

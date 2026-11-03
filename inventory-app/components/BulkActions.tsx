@@ -9,8 +9,8 @@ export type BulkAction<T> = {
   confirm?: string;
   // Run for each ticked row, one after another; a row that fails is reported and the others carry on
   each?: (row: T) => Promise<unknown>;
-  // Or one go with all the ticked rows (e.g. export)
-  all?: (rows: T[]) => void;
+  // Or one go with all the ticked rows (e.g. export, print)
+  all?: (rows: T[]) => void | Promise<void>;
   // Not available yet: shown greyed out with this reason
   unavailable?: string;
   danger?: boolean;
@@ -58,7 +58,17 @@ export function BulkActionBar<T>({ selected, name, actions, onClear, onDone }: {
   const run = async (a: BulkAction<T>) => {
     if (a.confirm && !confirm(a.confirm)) return;
     setResult(null);
-    if (a.all) { a.all(selected); return; }
+    if (a.all) {
+      setBusy(a.label);
+      try {
+        await a.all(selected);
+      } catch (e) {
+        setResult({ label: a.label, done: 0, failed: [{ name: a.label, error: (e as Error).message || "Failed" }] });
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
     if (!a.each) return;
     setBusy(a.label);
     const r: Result = { label: a.label, done: 0, failed: [] };
@@ -131,5 +141,4 @@ export function downloadCsv(filename: string, header: string[], rows: (string | 
 
 // Cin7's warnings
 export const UNDO_WARNING = "This will change the task status back to draft. Would you like to proceed anyway?";
-export const NOT_YET_PRINT = "Comes with the PDF documents (D5)";
 export const NOT_YET_EMAIL = "Comes with e-mail sending";
