@@ -14,6 +14,7 @@ import {
 import SaleStages from "../sale-orders/sale-stages";
 import { STATUS_COLOR } from "../sale-orders/sale-order-view";
 import ContractPrices from "./contract-prices";
+import CreditCard from "./credit-card";
 
 // One customer on its own page, like Cin7's customer screen: account details, contacts and their sales
 export default function CustomerView({ customerId }: { customerId: number }) {
@@ -104,6 +105,7 @@ export default function CustomerView({ customerId }: { customerId: number }) {
           </> },
         ]} />
 
+        <CreditCard customer={c} />
         <ContractPrices customer={c} />
 
         <Card title="Recent sale orders" flush testId={`customer-orders-${c.id}`}

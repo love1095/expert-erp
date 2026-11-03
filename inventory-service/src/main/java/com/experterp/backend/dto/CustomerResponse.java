@@ -20,6 +20,9 @@ public class CustomerResponse {
     private String priceTier;
     private BigDecimal discount;
     private BigDecimal creditLimit;
+    // Phase G2: put on credit hold by hand
+    private boolean onHold;
+    private String holdReason;
     private String accountReceivable;
     private String saleAccount;
     private String carrier;

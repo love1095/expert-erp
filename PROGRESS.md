@@ -487,7 +487,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase G — Customers and pricing (spec §5) 🔄
+## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ · next G3 statements and reminders, G4 delivery addresses)
 
 ### G1 Price tiers and contract prices ✅
 - [x] **Price tiers** per organisation (`V25` `price_tiers`), numbered like Cin7's PriceTier1..10 and named in Settings → Organisation → **Price tiers** (ADMIN): tiers 1–4 use each product's own price for the tier (Cin7's PriceTier1–4 columns: sell price, trade price, tier 3, tier 4; a product without one gets tier 1), or a **percentage off tier 1**; tiers 5–10 must be a percentage. Seeded *1 Retail* and *2 Contract* (the name the real Cin7 customers use: 191 Contract, 141 Retail) or *Trade*; renaming a tier renames it on its customers; a tier in use cannot be removed
@@ -497,6 +497,14 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Price tier on the sale order**, like Cin7's header (`V26`): the customer's tier by default, changeable per order on the form; lines without a typed price follow it at once (the customer's contract prices still win); kept on the order and shown on its page
 - [x] Tests: `PricingTest` (5) — order tier chosen / changed / unknown; tier price, Retail fallback, typed price kept; contract price wins only while valid, no discount; overlapping periods refused; percentage tier, rename moves customers, tier in use kept; E2E PRICE-001
 - [ ] To confirm in Cin7 (read-only): that PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data: tier 1 is the shop price)
+
+### G2 Credit control ✅
+- [x] A customer is **on credit hold** (`CreditService`) when put on hold by hand (with a reason), when what they owe (issued invoices less payments and unused credit notes) plus their orders not invoiced yet (confirmed or shipped) is **over the credit limit** (no limit = none), or when an **invoice is past its due date**
+- [x] **Warning at order entry**: the order form (preview), a new order and the order page show the reasons, e.g. "£102.00 owed and on order with this order is £2.00 over the £100.00 credit limit"
+- [x] **Confirming** a held customer's order is refused; a **manager or admin** confirms anyway with a reason (`V27` `credit_override`, shown on the order, audited `CREDIT_OVERRIDE`); bulk *Fill and authorise* stops at held customers; Shopify orders (paid at checkout) are not checked
+- [x] Customer page **Credit** card: limit, owed, on order not invoiced, available, overdue (oldest, days), status; **Put on hold** / **Release** (MANAGER and above, `PUT /customers/{id}/credit/hold`, audited); customers list shows **On hold**
+- [x] Tests: `CreditTest` (3) — £54 owed + £12 on order against £100, a £36 order warns and needs a manager (STAFF refused); an invoice 5 days overdue holds a customer with no limit; hold by hand needs a reason, blocks confirming, release; E2E CREDIT-001
+- [ ] Later: shipping is not stopped for orders confirmed before the hold; overdue reminders come with G3
 
 ---
 

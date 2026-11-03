@@ -181,6 +181,8 @@ public class CustomerService {
         r.setPriceTier(c.getPriceTier());
         r.setDiscount(c.getDiscount());
         r.setCreditLimit(c.getCreditLimit());
+        r.setOnHold(c.isOnHold());
+        r.setHoldReason(c.getHoldReason());
         r.setAccountReceivable(c.getAccountReceivable());
         r.setSaleAccount(c.getSaleAccount());
         r.setCarrier(c.getCarrier());

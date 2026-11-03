@@ -271,6 +271,7 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-600">
                           {c.paymentTerm || "—"}{c.priceTier && <span className="text-gray-400"> · {c.priceTier}</span>}
+                          {c.onHold && <span title={c.holdReason ?? undefined} className="ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">On hold</span>}
                         </td>
                         
                         <td className="px-4 py-3 text-xs text-gray-600">{c.salesRepresentative || "—"}</td>

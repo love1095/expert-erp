@@ -46,6 +46,19 @@ public class Customer {
     @Column(precision = 18, scale = 2)
     private BigDecimal creditLimit;
 
+    // Phase G2: put on credit hold by hand (the limit and overdue invoices hold a customer by themselves)
+    @Column(name = "on_hold", nullable = false)
+    private boolean onHold;
+
+    @Column(name = "hold_reason", length = 255)
+    private String holdReason;
+
+    @Column(name = "held_by", length = 100)
+    private String heldBy;
+
+    @Column(name = "held_at")
+    private java.time.LocalDateTime heldAt;
+
     // Accounting codes, e.g. 610 / 200
     private String accountReceivable;
     private String saleAccount;

@@ -286,6 +286,12 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         </dl>
       </div>
       {previewError && <p className="text-xs text-amber-700">{previewError}</p>}
+      {/* G2: warning at order entry; the order can be saved, but only a manager can confirm it */}
+      {preview?.creditWarning && (
+        <p data-testid="so-form-credit-warning" role="alert" className="text-sm text-red-800 bg-red-50 border border-red-200 rounded px-3 py-2">
+          {preview.creditWarning}. The order can be saved; only a manager can confirm it.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         {editing ? (

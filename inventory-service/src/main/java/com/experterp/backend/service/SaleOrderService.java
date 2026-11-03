@@ -61,6 +61,7 @@ public class SaleOrderService {
     private final InvoiceService invoiceService;
     private final CostingService costingService;
     private final PricingService pricingService;
+    private final CreditService creditService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
 
@@ -114,6 +115,8 @@ public class SaleOrderService {
         if (!so.getCharges().isEmpty()) audit.put("charges", so.getCharges().size());
         if (!taxOverrides.isEmpty()) audit.put("taxOverrides", taxOverrides);
         auditService.log("SALE_ORDER", saved.getId(), "CREATE", audit);
+        // Warning at order entry (G2)
+        credit(saved, creditService.check(customer, saved.getTotal(), saved.getId()));
         return saved;
     }
 
@@ -135,7 +138,15 @@ public class SaleOrderService {
                 .filter(c -> c.getDescription() != null && !c.getDescription().isBlank() && c.getUnitPrice() != null).toList());
         SaleOrder so = build(complete, warehouse, customer, new ArrayList<>());
         if (customer == null) so.setCustomerName(req.getCustomerName());
-        return toResponse(so);
+        SaleOrderResponse r = toResponse(so);
+        // Warning at order entry (G2): the customer's standing with this order on top
+        if (customer != null) credit(r, creditService.check(customer, r.getTotal(), null));
+        return r;
+    }
+
+    private static void credit(SaleOrderResponse r, CreditService.CreditStatus st) {
+        r.setCreditHold(st.held());
+        r.setCreditWarning(st.warning());
     }
 
     /**
@@ -219,9 +230,30 @@ public class SaleOrderService {
 
     @Transactional
     public SaleOrderResponse confirm(Long id) {
+        return confirm(id, null);
+    }
+
+    /**
+     * Confirms a draft. A customer on credit hold (G2) stops it, unless a manager gives a reason to confirm
+     * anyway (kept on the order, audited). Shopify orders were paid at checkout and are not checked.
+     */
+    @Transactional
+    public SaleOrderResponse confirm(Long id, String creditOverride) {
         SaleOrder so = lockSO(id);
         if (so.getStatus() != Status.DRAFT) {
             throw new IllegalStateException("Only DRAFT orders can be confirmed (order is " + so.getStatus() + ")");
+        }
+        if (so.getCustomer() != null && so.getSource() == SaleOrder.Source.MANUAL) {
+            BigDecimal total = toResponse(so).getTotal();
+            CreditService.CreditStatus st = creditService.check(so.getCustomer(), total, so.getId());
+            if (st.held()) {
+                if (creditOverride == null || creditOverride.isBlank()) {
+                    throw new IllegalStateException(st.warning() + ". A manager can confirm it anyway, with a reason");
+                }
+                if (!isManager()) throw new org.springframework.security.access.AccessDeniedException("Only a manager or admin can confirm past a credit hold");
+                so.setCreditOverride(creditOverride.trim());
+                auditService.log("SALE_ORDER", id, "CREDIT_OVERRIDE", Map.of("reason", creditOverride.trim(), "hold", st.warning()));
+            }
         }
         so.setStatus(Status.CONFIRMED);
         so.setConfirmedAt(LocalDateTime.now());
@@ -631,6 +663,13 @@ public class SaleOrderService {
         // Changes made in this transaction must be visible to the allocation query
         soRepository.flush();
         SaleOrderResponse r = toResponse(so, allocationService.forOrders(List.of(so.getId())));
+        r.setCreditOverride(so.getCreditOverride());
+        // Credit hold (G2), while the order can still be stopped; Shopify orders are paid at checkout
+        if (so.getCustomer() != null && so.getSource() == SaleOrder.Source.MANUAL
+                && (so.getStatus() == Status.QUOTE || so.getStatus() == Status.DRAFT || so.getStatus() == Status.CONFIRMED)) {
+            BigDecimal mine = so.getStatus() == Status.CONFIRMED ? r.getToInvoiceTotal() : r.getTotal();
+            credit(r, creditService.check(so.getCustomer(), mine, so.getId()));
+        }
         r.setFulfilments(fulfilmentRepository.findBySaleOrderIdOrderByCreatedAtAsc(so.getId()).stream().map(f -> {
             SaleOrderResponse.FulfilmentEntry e = new SaleOrderResponse.FulfilmentEntry();
             e.setId(f.getId());
@@ -825,5 +864,13 @@ public class SaleOrderService {
         r.setTotal(totals[0].add(totals[1]));
         r.setToInvoiceTotal(toInvoice[0]);
         return r;
+    }
+
+    private static boolean isManager() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        // Jobs run without a user
+        if (auth == null || "anonymousUser".equals(auth.getPrincipal())) return true;
+        return auth.getAuthorities().stream().map(a -> a.getAuthority())
+                .anyMatch(a -> a.equals("ROLE_MANAGER") || a.equals("ROLE_ADMIN") || a.equals("ROLE_SUPER_ADMIN"));
     }
 }

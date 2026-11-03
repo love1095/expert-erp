@@ -72,9 +72,10 @@ public class SaleOrderController {
         return saleOrderService.preview(req);
     }
 
+    // Body {"creditOverride": "..."}: a manager confirming past the customer's credit hold (G2)
     @PostMapping("/{id}/confirm")
-    public SaleOrderResponse confirm(@PathVariable Long id) {
-        return saleOrderService.confirm(id);
+    public SaleOrderResponse confirm(@PathVariable Long id, @RequestBody(required = false) java.util.Map<String, String> body) {
+        return saleOrderService.confirm(id, body == null ? null : body.get("creditOverride"));
     }
 
     // Back to draft (Cin7's Undo), until something is shipped or invoiced

@@ -180,6 +180,9 @@ export interface CustomerContact {
 
 // Fields follow the Cin7 Core customer export
 export interface Customer {
+  // Phase G2: put on credit hold by hand
+  onHold?: boolean;
+  holdReason?: string | null;
   id: number;
   name: string;
   status: "ACTIVE" | "DEPRECATED";
@@ -485,6 +488,10 @@ export interface SaleOrderReturn {
 }
 
 export interface SaleOrder {
+  // Phase G2: the customer's credit hold as a warning; a manager's reason for confirming past it
+  creditHold?: boolean;
+  creditWarning?: string | null;
+  creditOverride?: string | null;
   // Phase G1: the tier the order is priced at (the customer's unless changed on the order)
   priceTier?: string | null;
   id: number;
@@ -955,4 +962,23 @@ export interface ContractPrice {
   note?: string | null;
   createdBy: string;
   current: boolean;
+}
+
+// A customer's credit standing (G2)
+export interface CreditStatus {
+  customerId: number;
+  creditLimit?: number | null;
+  balance: number;
+  notInvoiced: number;
+  exposure: number;
+  available?: number | null;
+  overdue: number;
+  oldestDueDate?: string | null;
+  daysOverdue?: number | null;
+  manualHold: boolean;
+  holdReason?: string | null;
+  heldBy?: string | null;
+  heldAt?: string | null;
+  held: boolean;
+  reasons: string[];
 }

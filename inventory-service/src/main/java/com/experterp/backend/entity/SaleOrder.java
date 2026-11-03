@@ -90,6 +90,10 @@ public class SaleOrder {
     @Column(name = "price_tier", length = 100)
     private String priceTier;
 
+    // Phase G2: confirmed past a credit hold by a manager, and why
+    @Column(name = "credit_override", length = 255)
+    private String creditOverride;
+
     @Column(length = 100)
     private String paymentTerm;
 

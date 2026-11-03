@@ -121,7 +121,8 @@ export const createCreditNote = ({ id, data }: { id: number; data: unknown }) =>
 export const invoiceSaleOrder = ({ id, data }: { id: number; data: unknown }) => api.post(`/sale-orders/${id}/invoices`, data).then(r => r.data);
 export const convertQuote     = (id: number) => api.post(`/sale-orders/${id}/convert`).then(r => r.data);
 export const rejectQuote      = (id: number) => api.post(`/sale-orders/${id}/reject`).then(r => r.data);
-export const confirmSaleOrder = (id: number) => api.post(`/sale-orders/${id}/confirm`).then(r => r.data);
+export const confirmSaleOrder = (id: number, creditOverride?: string) =>
+  api.post(`/sale-orders/${id}/confirm`, creditOverride ? { creditOverride } : undefined).then(r => r.data);
 // No body = ship everything remaining
 export const fulfillSaleOrder = ({ id, data }: { id: number; data?: FulfilmentRequest }) =>
   api.post(`/sale-orders/${id}/fulfill`, data).then(r => r.data);
@@ -258,3 +259,8 @@ export const addContractPrice = (customerId: number, body: { productId: number; 
 export const updateContractPrice = (customerId: number, id: number, body: { unitPrice: number; validFrom: string; validTo: string | null; note: string | null }) =>
   api.put(`/customers/${customerId}/contract-prices/${id}`, body).then(r => r.data);
 export const deleteContractPrice = (customerId: number, id: number) => api.delete(`/customers/${customerId}/contract-prices/${id}`);
+
+// ---- Credit control (G2) ----
+export const getCustomerCredit = (customerId: number) => api.get(`/customers/${customerId}/credit`).then(r => r.data);
+export const setCustomerHold = (customerId: number, hold: boolean, reason?: string) =>
+  api.put(`/customers/${customerId}/credit/hold`, { hold, reason }).then(r => r.data);

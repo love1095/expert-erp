@@ -51,6 +51,10 @@ public class SaleOrderResponse {
     private SaleOrder.Source source;
     private String externalReference;
     private boolean needsReview;
+    // Phase G2: the customer's credit hold, as a warning at order entry; a manager's reason for confirming past it
+    private boolean creditHold;
+    private String creditWarning;
+    private String creditOverride;
     private String reviewReason;
     private LocalDateTime createdAt;
     private LocalDateTime confirmedAt;

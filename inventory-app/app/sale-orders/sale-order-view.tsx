@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import PrintButton from "@/components/PrintButton";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import Link from "next/link";
 import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, createSaleReturn, retryShopifyFulfilment,
@@ -76,7 +77,10 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
   const onFail = (e: unknown) =>
     setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Request failed");
 
-  const confirmMutation = useMutation({ mutationFn: confirmSaleOrder, onSuccess: onDone, onError: onFail });
+  const { user } = useAuth();
+  const canOverrideCredit = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
+  const confirmMutation = useMutation({ mutationFn: ({ id, override }: { id: number; override?: string }) => confirmSaleOrder(id, override),
+    onSuccess: onDone, onError: onFail });
   const cancelMutation  = useMutation({ mutationFn: cancelSaleOrder,  onSuccess: onDone, onError: onFail });
   const shipMutation    = useMutation({ mutationFn: fulfillSaleOrder, onSuccess: onDone, onError: onFail });
   const returnMutation  = useMutation({ mutationFn: createSaleReturn, onSuccess: onDone, onError: onFail });
@@ -264,9 +268,16 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
             {canInvoice && <button disabled={busy} onClick={() => startMode("invoice")} className={BTN_SECONDARY}>Create invoice</button>}
             {canShip && <button disabled={busy} onClick={() => startMode("ship")} className={BTN_PRIMARY}>Ship items</button>}
             {order.status === "DRAFT" && (
-              <button disabled={busy} onClick={() => confirmMutation.mutate(order.id)} className={BTN_PRIMARY}>
-                {order.needsReview ? "Confirm as it is" : "Confirm order"}
-              </button>
+              order.creditHold && order.status === "DRAFT" ? (
+                // G2: a customer on credit hold: only a manager confirms, with a reason
+                <button disabled={busy || !canOverrideCredit} title={canOverrideCredit ? undefined : "Only a manager or admin can confirm past a credit hold"}
+                  onClick={() => { const reason = window.prompt("The customer is on credit hold. Why confirm anyway?"); if (reason) confirmMutation.mutate({ id: order.id, override: reason }); }}
+                  className={BTN_PRIMARY}>Confirm anyway</button>
+              ) : (
+                <button disabled={busy} onClick={() => confirmMutation.mutate({ id: order.id })} className={BTN_PRIMARY}>
+                  {order.needsReview ? "Confirm as it is" : "Confirm order"}
+                </button>
+              )
             )}
           </div>
         )}
@@ -381,6 +392,16 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                 Items not found in the ERP are not on this order. Fix them in Shopify or add the products here, or confirm to accept the order as it is.
               </p>
             </div>
+          )}
+
+          {order.creditWarning && (
+            <div data-testid={`so-credit-${orderId}`} className="text-sm text-red-900 bg-red-50 border border-red-200 px-3 py-2 rounded">
+              <p className="font-semibold">{order.creditWarning}</p>
+              {order.customerId && <Link href={`/customers/${order.customerId}`} className="text-xs text-red-700 hover:underline">See the customer&apos;s credit</Link>}
+            </div>
+          )}
+          {order.creditOverride && (
+            <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded px-3 py-1.5">Confirmed past a credit hold: {order.creditOverride}</p>
           )}
 
           {order.source === "SHOPIFY" && <ShopifyRefunds orderId={order.id} />}
