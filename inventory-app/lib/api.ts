@@ -241,3 +241,9 @@ export const applyShopifyRefund = (orderId: number, refundId: number, restockLin
 export const dismissShopifyRefund = (orderId: number, refundId: number, reason: string) =>
   api.post(`/sale-orders/${orderId}/shopify-refunds/${refundId}/dismiss`, { reason }).then(r => r.data);
 export const getShopifyRefundsToReview = () => api.get("/integrations/shopify/refunds").then(r => r.data);
+
+// ---- Stock to Shopify (7.6): available over all warehouses ----
+export const syncShopifyStock = () => api.post("/integrations/shopify/stock/sync").then(r => r.data);
+// 204 / null when the product is not in Shopify
+export const getProductShopifyStock = (productId: number) =>
+  api.get(`/products/${productId}/shopify-stock`).then(r => (r.status === 204 ? null : r.data));

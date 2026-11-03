@@ -33,6 +33,8 @@ services:
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is not set - see .env.example}
       # The platform's super admin (made on first start when there is none)
       APP_SUPERADMIN_PASSWORD: ${APP_SUPERADMIN_PASSWORD:-}
+      # Shopify background work: retries, the daily check, stock sent every 20 s (false = only when asked on the page)
+      APP_SHOPIFY_SCHEDULER_ENABLED: ${APP_SHOPIFY_SCHEDULER_ENABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy

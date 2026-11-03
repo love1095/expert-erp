@@ -810,6 +810,11 @@ export interface ShopifyHealth {
   lastReconcileSummary?: string | null;
   lastReconcileError?: string | null;
   refundsToReview: number;
+  // 7.6: stock sent to Shopify
+  stockSyncedAt?: string | null;
+  stockSyncResult?: string | null;
+  stockSyncError?: string | null;
+  stockWaiting: number;
   warnings: string[];
 }
 
@@ -908,4 +913,20 @@ export interface ShopifyRefundWaiting {
   shopifyOrder?: string | null;
   amount: number;
   refundedAt?: string | null;
+}
+
+// What Shopify was last told about a product's stock (7.6)
+export interface ProductShopifyStock {
+  sent?: number | null;
+  sentAt?: string | null;
+  available: number;
+  upToDate: boolean;
+}
+
+export interface ShopifyStockSyncResult {
+  checked: number;
+  sent: number;
+  unchanged: number;
+  failed: number;
+  problems: string[];
 }

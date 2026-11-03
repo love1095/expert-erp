@@ -55,7 +55,7 @@ export default function ShopifyProducts({ conn }: { conn: ShopifyConnection }) {
           <h2 className="font-semibold text-gray-800">Products</h2>
           <p className="text-xs text-gray-500 mt-0.5 max-w-2xl">
             Sends the ERP&apos;s active products to Shopify: name, description, category, brand, tags, SKU, selling price,
-            cost, weight and the stock in the warehouse that ships Shopify orders. A product family (same item in several
+            cost, weight and stock (available over all warehouses). A product family (same item in several
             sizes/colours) becomes <b>one</b> Shopify product with a variant per SKU. Products are matched by SKU; new ones
             are created as <b>Draft</b>, so add photos and set them Active in Shopify. Without a selling price they get
             £0.00: price them before making them Active. Deprecated products are removed from Shopify (archived if you
@@ -89,7 +89,7 @@ export default function ShopifyProducts({ conn }: { conn: ShopifyConnection }) {
               <p>
                 Step {PHASES.indexOf(run.phase) + 1} of 3 — {PHASE_LABEL[run.phase]}… {run.phaseDone.toLocaleString()} of{" "}
                 {run.phaseTotal ? run.phaseTotal.toLocaleString() : "?"}
-                {run.locationName && <> (stock from {run.warehouseName} → Shopify location {run.locationName})</>}
+                {run.locationName && <> (stock → Shopify location {run.locationName})</>}
               </p>
               <div role="progressbar" aria-label="Product sync progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}
                 className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -105,8 +105,7 @@ export default function ShopifyProducts({ conn }: { conn: ShopifyConnection }) {
               {run.removed > 0 && <>, {run.removed.toLocaleString()} removed</>}
               {run.failed > 0 && <>, <span className="text-red-700">{run.failed} failed</span></>}.
               {run.notSent > 0 && <> {run.notSent.toLocaleString()} deprecated/service products not sent.</>}{" "}
-              Stock set for {run.stockUpdated.toLocaleString()}
-              {run.warehouseName && <> from {run.warehouseName}</>}
+              Stock set for {run.stockUpdated.toLocaleString()} (available over all warehouses)
               {run.locationName && <> at Shopify location {run.locationName}</>}.
               {run.withoutPrice > 0 && <> <Link href="/products" className="text-emerald-700 hover:underline">Set selling prices</Link></>}
             </p>

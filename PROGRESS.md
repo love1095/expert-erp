@@ -405,7 +405,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase 7 — Shopify integration 🔄
+## Phase 7 — Shopify integration ✅
 
 > Goal: Shopify orders flow into the ERP; fulfilments, cancellations, returns and stock flow back.
 
@@ -476,8 +476,13 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Tests: `ShopifyRefundTest` (6) — £34.92 order with shipping = £34.92 in the ERP (2p rounding), every amount 1p–£30 splits exactly or 1p under, £50 vs £25 needs review, cancel before / after shipping, refund → credit note with restock (seen twice, kept once), refund before shipping → quantity cancelled, goodwill dismissed; E2E SHP-012
 - [ ] Orders imported before this keep their old lines (prices with VAT, no VAT rate): only new imports are split
 
-### Next (phase F)
-- [ ] 7.6 stock push (available over all warehouses)
+### 7.6 Stock to Shopify ✅ (phase F)
+- [x] Shopify shows each product's **available stock over all warehouses** (on hand − reserved, whole units, never below 0; business-rules.md §5), set as Shopify's **available** quantity — so Shopify does not take its own unshipped orders off a second time (the product sync used to set *on hand* of one warehouse)
+- [x] `ShopifyStockSync` (`V24`: what Shopify was last given per product, the store's location): compares and sends **only what changed**, in batches of 100 (a refused batch is sent item by item so the bad one names itself). Nothing has to call it when stock moves: a worker runs it **every 20 s**, so receipts, shipments, adjustments, transfers, returns, imports and orders confirmed / cancelled all reach Shopify without hooks that could be missed; **everything again every night** (03:45) and with **Send all stock now** (`POST /integrations/shopify/stock/sync`); the product sync sends stock the same way
+- [x] Health card: last stock run and result, products still to send, warnings when Shopify refused some; product page Stock tab: what Shopify shows and when it was sent (`GET /products/{id}/shopify-stock`)
+- [x] `APP_SHOPIFY_SCHEDULER_ENABLED` (docker-compose, `.env.example`): false on a development machine connected to a real store, so retries, the daily check and stock are only sent when asked on the page
+- [x] Tests: `ShopifyProductSyncTest` +1 (10 + 4 in two warehouses = 14; nothing moved → nothing sent; 3 reserved → only that product, 11; more reserved than on hand → 0), product sync now sets *available*; E2E SHP-008 checks the stock line
+- [ ] Not yet run against the real dev store (it would set stock for its 13,959 linked SKUs)
 - [x] ~~Stock on hand from Cin7~~ ✅ — see Phase C (still to do: push stock to Shopify, 7.6)
 
 ---
@@ -570,5 +575,5 @@ Agreed order (each phase is done when its feature works, its tests are written, 
 1. ~~**Persistent JWT / secret key**~~ ✅ done — see Cross-cutting
 2. ~~**Phase 8 — Customers**~~ ✅ done — see Phase 8 (Cin7 layout + CSV import)
 3. ~~**Phase 6 — Dashboard**~~ ✅ done — see Phase 6; brought to the functional spec in steps: ~~6.1 period, status counts, reorder, top/worst sellers~~ ✅ → 6.2 sales rep, VAT, bills due/overdue → 6.3 PO part receipts + supplier bills, revenue vs expense by month. Full plan: [`docs/roadmap.md`](docs/roadmap.md)
-4. **Phase 7 — Shopify integration** 🔄 (~~7.1 connection~~ ✅ → ~~7.2 order import~~ ✅ → ~~7.3 fulfilment~~ ✅ → 7.4 cancellations/returns → 7.5 reliability → 7.6 stock sync). Shopify access tokens get their own encryption key, handled like `APP_JWT_SECRET`
+4. **Phase 7 — Shopify integration** ✅ (~~7.1 connection~~ → ~~7.2 order import~~ → ~~7.3 fulfilment~~ → ~~7.4 cancellations / refunds~~ → ~~7.5 reliability~~ → ~~7.6 stock~~, phase F). Shopify access tokens get their own encryption key, handled like `APP_JWT_SECRET`
 5. Then: Stripe billing, notifications, custom fields (former Phase 4), advanced inventory, purchasing, reporting; production hardening throughout

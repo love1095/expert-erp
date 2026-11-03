@@ -79,6 +79,19 @@ public class ShopifyConnection {
 
     private LocalDateTime lastProductSyncAt;
 
+    // Stock push (7.6): Shopify location holding the stock; the last run
+    @Column(name = "location_id", length = 100)
+    private String locationId;
+
+    @Column(name = "stock_synced_at")
+    private LocalDateTime stockSyncedAt;
+
+    @Column(name = "stock_sync_result", columnDefinition = "TEXT")
+    private String stockSyncResult;
+
+    @Column(name = "stock_sync_error", columnDefinition = "TEXT")
+    private String stockSyncError;
+
     // The daily check against Shopify (7.5)
     @Column(name = "last_reconciled_at")
     private LocalDateTime lastReconciledAt;

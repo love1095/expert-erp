@@ -1,6 +1,8 @@
 package com.experterp.backend.integration.shopify;
 
 import com.experterp.backend.TestcontainersConfiguration;
+import com.experterp.backend.dto.SaleOrderRequest;
+import com.experterp.backend.entity.Customer;
 import com.experterp.backend.entity.*;
 import com.experterp.backend.entity.StockMovement.MovementType;
 import com.experterp.backend.entity.StockMovement.ReferenceType;
@@ -83,6 +85,9 @@ class ShopifyProductSyncTest {
 
     @Autowired ShopifyConnectionService connectionService;
     @Autowired ShopifyProductSyncService sync;
+    @Autowired ShopifyStockSync stockSync;
+    @Autowired com.experterp.backend.service.SaleOrderService saleOrderService;
+    @Autowired com.experterp.backend.repository.CustomerRepository customerRepository;
     @Autowired StockMovementService movementService;
     @Autowired ShopifyProductLinkRepository linkRepository;
     @Autowired TenantRepository tenantRepository;
@@ -185,13 +190,13 @@ class ShopifyProductSyncTest {
                 .isEqualTo(link(navyL).getShopifyProductId());
         assertThat(link(navyM).isSingleVariant()).isFalse();
 
-        // Nothing changed: no product sent, stock still set (on hand, no change-from check)
+        // Nothing changed: no product sent, stock still set (Shopify's available, no change-from check; 7.6)
         calls.clear();
         SyncView second = runSync();
         assertThat(second.unchanged()).isEqualTo(1);
         assertThat(names()).doesNotContain("productSet");
         JsonNode set = only("inventorySetQuantities").path("input");
-        assertThat(set.path("name").asText()).isEqualTo("on_hand");
+        assertThat(set.path("name").asText()).isEqualTo("available");
         Map<String, Integer> byItem = new HashMap<>();
         set.path("quantities").forEach(q -> {
             assertThat(q.path("changeFromQuantity").isNull()).isTrue();
@@ -322,6 +327,52 @@ class ShopifyProductSyncTest {
     }
 
     // ---- helpers ----
+
+    @Test
+    void shopifyShowsWhatIsAvailableOverAllWarehousesAndOnlyChangesAreSentAfterwards() {
+        Product vest = product("AVAIL-" + id, "Vest", "12.50", "4.10");
+        stock(vest, "10");
+        Warehouse second = new Warehouse();
+        second.setName("WH2-" + id);
+        second = warehouseRepository.save(second);
+        movementService.createMovement(vest, second, new BigDecimal("4"), MovementType.PURCHASE_IN, ReferenceType.MANUAL, "T", null);
+        runSync();
+        String item = link(vest).getShopifyInventoryItemId();
+        assertThat(link(vest).getStockSent()).isEqualTo(14);
+
+        // Nothing moved: nothing is sent
+        calls.clear();
+        assertThat(stockSync.sync(false).sent()).isZero();
+        assertThat(names()).doesNotContain("inventorySetQuantities");
+
+        // 3 reserved by a confirmed order: Shopify shows 11, only for this product
+        Customer buyer = new Customer();
+        buyer.setName("Buyer " + id);
+        buyer = customerRepository.save(buyer);
+        SaleOrderRequest req = new SaleOrderRequest();
+        req.setCustomerId(buyer.getId());
+        req.setWarehouseId(warehouse.getId());
+        SaleOrderRequest.Line l = new SaleOrderRequest.Line();
+        l.setProductId(vest.getId());
+        l.setQuantity(new BigDecimal("3"));
+        l.setUnitPrice(new BigDecimal("12.50"));
+        req.setLines(List.of(l));
+        saleOrderService.confirm(saleOrderService.create(req).getId());
+        calls.clear();
+        ShopifyStockSync.Result r = stockSync.sync(false);
+        assertThat(r.sent()).isEqualTo(1);
+        JsonNode q = only("inventorySetQuantities").path("input").path("quantities").get(0);
+        assertThat(q.path("inventoryItemId").asText()).isEqualTo(item);
+        assertThat(q.path("quantity").asInt()).isEqualTo(11);
+        assertThat(stockSync.waiting()).isZero();
+
+        // More reserved than on hand: never below 0
+        l.setQuantity(new BigDecimal("20"));
+        saleOrderService.confirm(saleOrderService.create(req).getId());
+        stockSync.sync(false);
+        assertThat(link(vest).getStockSent()).isZero();
+        assertThat(connectionService.get()).isPresent();
+    }
 
     private SyncView runSync() {
         sync.start();

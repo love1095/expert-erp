@@ -25,6 +25,7 @@ public class ShopifyConnectionController {
     private final ShopifyReconciler reconciler;
     private final ShopifyHealthService healthService;
     private final ShopifyRefundService refundService;
+    private final ShopifyStockSync stockSync;
 
     public record EventView(Long id, String topic, String eventId, ShopifyWebhookEvent.Status status, String error,
                             LocalDateTime receivedAt, LocalDateTime processedAt, int attempts, LocalDateTime nextAttemptAt) {
@@ -99,6 +100,12 @@ public class ShopifyConnectionController {
     @PostMapping("/reconcile")
     public ShopifyReconciler.Result reconcile() {
         return reconciler.reconcile();
+    }
+
+    // Every linked product's available stock to Shopify now (changes alone go every 20 s by themselves)
+    @PostMapping("/stock/sync")
+    public ShopifyStockSync.Result syncStock() {
+        return stockSync.sync(true);
     }
 
     // Shopify refunds waiting for review, oldest first (each is reviewed on its order)

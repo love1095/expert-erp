@@ -48,4 +48,11 @@ public class ShopifyProductLink {
     private String contentHash;
 
     private LocalDateTime syncedAt;
+
+    // Stock push (7.6): the available quantity Shopify was last given, and when
+    @Column(name = "stock_sent")
+    private Integer stockSent;
+
+    @Column(name = "stock_sent_at")
+    private LocalDateTime stockSentAt;
 }

@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { deleteProduct, getAuditLog, getMovementsPage, getProduct, getProductStock } from "@/lib/api";
+import { deleteProduct, getAuditLog, getMovementsPage, getProduct, getProductStock, getProductShopifyStock } from "@/lib/api";
+import { ProductShopifyStock } from "@/types";
 import { AuditLog, Page, Product, ProductStock, StockMovement } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { ClientDate } from "@/components/ClientDate";
@@ -149,6 +150,18 @@ function Prices({ p }: { p: Product }) {
   );
 }
 
+/** 7.6: what Shopify shows for this product (available over all warehouses); nothing when it is not in Shopify. */
+function ShopifyStockLine({ productId }: { productId: number }) {
+  const { data } = useQuery<ProductShopifyStock | null>({ queryKey: ["product-shopify-stock", productId], queryFn: () => getProductShopifyStock(productId) });
+  if (!data) return null;
+  return (
+    <p data-testid="product-shopify-stock" className="text-xs text-gray-600 -mt-2">
+      Shopify: {data.sent == null ? "stock not sent yet" : <>shows <b>{qty(data.sent)}</b> available{data.sentAt ? <> (sent <ClientDate iso={data.sentAt} showTime />)</> : null}</>}
+      {!data.upToDate && <span className="text-amber-700"> · {qty(data.available)} goes next (within 20 seconds)</span>}
+    </p>
+  );
+}
+
 function StockSection({ p }: { p: Product }) {
   const { data: s, isLoading } = useQuery<ProductStock>({ queryKey: ["product-stock", p.id], queryFn: () => getProductStock(p.id) });
   if (isLoading || !s) return <p className="text-gray-400 text-sm">Loading…</p>;
@@ -176,6 +189,7 @@ function StockSection({ p }: { p: Product }) {
         )}
       </table>
     </Card>
+    <ShopifyStockLine productId={p.id} />
     <Card title={`On order: ${qty(s.onOrderTotal)}`} flush>
       {s.onOrder.length === 0 ? <p className="p-4 text-sm text-gray-400">Not on any open purchase order</p> : (
         <table className="w-full text-sm">

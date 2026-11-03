@@ -38,7 +38,7 @@ import java.util.regex.Pattern;
 
 /**
  * Sends the ERP's products to Shopify: title, description, category (product type), brand (vendor), tags, SKU,
- * selling price, cost, weight and the stock of the warehouse that ships Shopify orders.
+ * selling price, cost, weight and stock: what is available over all warehouses (business-rules.md §5).
  * <p>
  * Products of one family (same family SKU, e.g. a polo shirt in several sizes/colours) become ONE Shopify product
  * with a variant per SKU and Size/Colour options; other products become a product with a single variant.
@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
  * no longer sent are removed, and ERP-made products that nothing uses any more are deleted. Products made by hand
  * in Shopify are only updated (the matching variant's price, SKU, cost; the title only on a single-variant
  * product) and archived, never deleted, when their ERP product is deprecated.
- * Stock is set as Shopify's "on hand" quantity: Shopify keeps its own "committed" count for unshipped orders.
+ * Stock is set as Shopify's "available" quantity by {@link ShopifyStockSync}, which also keeps it right afterwards.
  * <p>
  * Runs in the background (one run per tenant at a time); the page polls {@link #status()}.
  */
@@ -157,6 +157,7 @@ public class ShopifyProductSyncService {
     private final NamedParameterJdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final ObjectMapper objectMapper;
+    private final ShopifyStockSync stockSync;
 
     // Latest run per tenant (in memory: a restart forgets it, and the next run picks up where Shopify is)
     private final Map<Long, Job> jobs = new ConcurrentHashMap<>();
@@ -170,7 +171,8 @@ public class ShopifyProductSyncService {
                                      ShopifyProductLinkRepository linkRepository, WarehouseRepository warehouseRepository,
                                      ShopifyConnectionService connectionService, ShopifyClient client,
                                      AuditService auditService, NamedParameterJdbcTemplate jdbc, TransactionTemplate tx,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper, ShopifyStockSync stockSync) {
+        this.stockSync = stockSync;
         this.connectionRepository = connectionRepository;
         this.linkRepository = linkRepository;
         this.warehouseRepository = warehouseRepository;
@@ -259,7 +261,9 @@ public class ShopifyProductSyncService {
         fetchVariants(shop, token, locationId, bySku, byVariant);
 
         List<ErpProduct> products = loadProducts();
-        Map<Long, BigDecimal> stock = loadStock(target.warehouseId());
+        // Available over all warehouses (7.6), as the stock sync sends it
+        Map<Long, BigDecimal> stock = new HashMap<>();
+        stockSync.availableByProduct().forEach((id, qty) -> stock.put(id, BigDecimal.valueOf(qty)));
         Map<Long, ShopifyProductLink> links = new ConcurrentHashMap<>();
         tx.execute(s -> linkRepository.findAll()).forEach(l -> links.put(l.getProductId(), l));
 
@@ -672,45 +676,14 @@ public class ShopifyProductSyncService {
         job.removed.incrementAndGet();
     }
 
-    /** Sets on-hand quantities in batches; a refused batch is retried item by item so one bad item names itself. */
+    /** Every linked product's available stock, sent by the stock sync (which records what Shopify was given). */
     private void pushStock(Ctx ctx, Job job) {
-        List<StockSet> all = new ArrayList<>(ctx.stockUpdates());
-        job.startPhase(Phase.STOCK, all.size());
-        for (int i = 0; i < all.size(); i += STOCK_BATCH) {
-            List<StockSet> batch = all.subList(i, Math.min(i + STOCK_BATCH, all.size()));
-            job.phaseDone.addAndGet(batch.size());
-            try {
-                setQuantities(ctx, batch);
-                job.stockUpdated.addAndGet(batch.size());
-            } catch (ShopifyApiException e) {
-                for (StockSet one : batch) {
-                    try {
-                        setQuantities(ctx, List.of(one));
-                        job.stockUpdated.incrementAndGet();
-                    } catch (ShopifyApiException single) {
-                        job.failed.incrementAndGet();
-                        job.problem(one.sku() + ": stock not updated — " + single.getMessage());
-                    }
-                }
-            }
-        }
-    }
-
-    private void setQuantities(Ctx ctx, List<StockSet> batch) {
-        List<Map<String, Object>> quantities = new ArrayList<>();
-        for (StockSet s : batch) {
-            Map<String, Object> q = new HashMap<>();
-            q.put("inventoryItemId", s.inventoryItemId());
-            q.put("locationId", ctx.locationId());
-            q.put("quantity", s.quantity());
-            // Required since 2026-04; null = set it whatever Shopify has now (the ERP is the source of truth)
-            q.put("changeFromQuantity", null);
-            quantities.add(q);
-        }
-        Map<String, Object> input = Map.of("name", "on_hand", "reason", "correction", "quantities", quantities);
-        userErrors(client.graphql(ctx.shop(), ctx.token(), SET_QUANTITIES,
-                Map.of("input", input, "idempotencyKey", UUID.randomUUID().toString()))
-                .path("inventorySetQuantities"), "Shopify refused the stock update");
+        job.startPhase(Phase.STOCK, ctx.stockUpdates().size());
+        ShopifyStockSync.Result r = stockSync.sync(true);
+        job.phaseDone.addAndGet(ctx.stockUpdates().size());
+        job.stockUpdated.addAndGet(r.sent());
+        job.failed.addAndGet(r.failed());
+        r.problems().forEach(p -> job.problem(p + " (stock not updated)"));
     }
 
     private void fetchVariants(String shop, String token, String locationId,
@@ -768,16 +741,6 @@ public class ShopifyProductSyncService {
                             rs.getString("family_sku"), rs.getString("family_name"), options,
                             weight == null ? null : new BigDecimal(weight), rs.getString("weight_unit"), sendable);
                 });
-    }
-
-    private Map<Long, BigDecimal> loadStock(Long warehouseId) {
-        Map<Long, BigDecimal> stock = new HashMap<>();
-        jdbc.query("SELECT product_id, COALESCE(SUM(CASE WHEN type IN (" + StockMovementRepository.IN_TYPES + ") "
-                        + "THEN quantity ELSE -quantity END), 0) AS stock "
-                        + "FROM stock_movements WHERE tenant_id = :t AND warehouse_id = :w GROUP BY product_id",
-                Map.of("t", TenantContext.get(), "w", warehouseId),
-                (RowCallbackHandler) rs -> stock.put(rs.getLong("product_id"), rs.getBigDecimal("stock")));
-        return stock;
     }
 
     // ---- small rules ----

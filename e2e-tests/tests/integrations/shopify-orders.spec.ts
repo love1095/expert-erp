@@ -84,6 +84,8 @@ test.describe('Shopify order import', () => {
       await page.goto('/settings/integrations/shopify');
       await expect(page.getByTestId('shopify-health')).toBeVisible();
       await expect(page.getByTestId('shopify-waiting-retry')).toHaveText('1');
+      // 7.6: stock goes to Shopify as available over all warehouses; nothing linked here yet
+      await expect(page.getByTestId('shopify-stock-sync')).toContainText('Shopify is up to date');
       await page.getByRole('link', { name: 'Audit Log → Shopify webhooks' }).click();
       await expect(page.getByRole('tab', { name: 'Shopify webhooks' })).toHaveAttribute('aria-selected', 'true');
       const events = page.getByTestId('shopify-events');
