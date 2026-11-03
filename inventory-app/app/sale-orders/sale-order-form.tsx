@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder } from "@/lib/api";
-import { Customer, SaleOrder, TaxRate, Warehouse } from "@/types";
+import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder, getPriceTiers } from "@/lib/api";
+import { Customer, PriceTier, SaleOrder, TaxRate, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "./product-picker";
@@ -41,6 +41,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   const [warehouseId, setWarehouseId] = useState(str(editing?.warehouseId));
   const [header, setHeader] = useState({
     customerReference: str(editing?.customerReference), salesRep: str(editing?.salesRep), paymentTerm: str(editing?.paymentTerm),
+    priceTier: str(editing?.priceTier),
     shipBy: str(editing?.shipBy), carrier: str(editing?.carrier), shippingNotes: str(editing?.shippingNotes), notes: str(editing?.notes),
   });
   const [quoteValidUntil, setQuoteValidUntil] = useState(str(editing?.quoteValidUntil));
@@ -55,10 +56,14 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   const [error, setError] = useState("");
 
   const existing = customers.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
+  const { data: tiers = [] } = useQuery<PriceTier[]>({ queryKey: ["price-tiers"], queryFn: getPriceTiers });
+  // The tier the customer is on (a Cin7 name that is not a tier here prices at tier 1)
+  const customerTier = tiers.find(t => t.name.toLowerCase() === (existing?.priceTier ?? "").toLowerCase())?.name ?? tiers[0]?.name ?? "Retail";
   const request = {
     customerId: existing?.id, customerName: existing ? undefined : customerName.trim(),
     warehouseId: warehouseId ? Number(warehouseId) : undefined,
     customerReference: text(header.customerReference), salesRep: text(header.salesRep), paymentTerm: text(header.paymentTerm),
+    priceTier: text(header.priceTier),
     shipBy: text(header.shipBy), carrier: text(header.carrier), shippingNotes: text(header.shippingNotes), notes: text(header.notes),
     lines: lines.map(l => ({
       productId: l.productId ? Number(l.productId) : undefined, quantity: num(l.quantity), unitPrice: num(l.unitPrice) ?? null,
@@ -158,6 +163,15 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
             placeholder={preview?.salesRep ? `${preview.salesRep} (customer's)` : "None"} autoComplete="off" className={`${INPUT} w-full`} />
         </div>
         <div>
+          {/* Like Cin7: the customer's tier unless changed for this order; lines without a typed price follow it (G1) */}
+          <label htmlFor="sale-orders-price-tier" className={LABEL}>Price tier</label>
+          <select id="sale-orders-price-tier" value={header.priceTier} onChange={e => setHeader({ ...header, priceTier: e.target.value })}
+            className={`${INPUT} w-full`}>
+            <option value="">{customerTier} (customer&apos;s)</option>
+            {tiers.map(t => <option key={t.number} value={t.name}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
           <label htmlFor="sale-orders-terms" className={LABEL}>Terms</label>
           <input id="sale-orders-terms" value={header.paymentTerm} onChange={e => setHeader({ ...header, paymentTerm: e.target.value })}
             placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (customer's)` : "None"} autoComplete="off" className={`${INPUT} w-full`} />
@@ -200,14 +214,16 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
             <div key={i} className="mb-2" data-testid={`so-form-line-${i}`}>
               <div className="grid grid-cols-12 gap-2 items-center">
                 <div className="col-span-4">
-                  {/* Picking a product fills in its shop price when no price is typed yet */}
+                  {/* No typed price: the server prices it for the customer (contract price, else tier, else Retail; G1) */}
                   <ProductPicker label={`Product for line ${i + 1}`}
                     selected={l.productSku ? { id: Number(l.productId), sku: l.productSku, name: l.productName ?? "" } : undefined}
-                    onSelect={pr => setLine(i, { productId: String(pr.id), unitPrice: l.unitPrice || (pr.sellPrice != null ? String(pr.sellPrice) : "") })} />
+                    onSelect={pr => setLine(i, { productId: String(pr.id) })} />
                 </div>
                 <input aria-label={`Quantity for line ${i + 1}`} type="number" min="0.0001" step="any" value={l.quantity} placeholder="Qty" required
                   onChange={e => setLine(i, { quantity: e.target.value })} className={INPUT} />
-                <input aria-label={`Unit price for line ${i + 1}`} type="number" min="0" step="any" value={l.unitPrice} placeholder="£"
+                <input aria-label={`Unit price for line ${i + 1}`} type="number" min="0" step="any" value={l.unitPrice}
+                  placeholder={p && p.unitPrice != null ? String(Number(p.unitPrice)) : "£"}
+                  title={p?.priceSource ? `${p.priceSource} price — type a price to change it` : undefined}
                   onChange={e => setLine(i, { unitPrice: e.target.value })} className={INPUT} />
                 <input aria-label={`Discount for line ${i + 1}`} type="number" min="0" max="100" step="any" value={l.discountPercent}
                   placeholder={p ? String(p.discountPercent) : "%"} onChange={e => setLine(i, { discountPercent: e.target.value })} className={INPUT} />
@@ -216,6 +232,9 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
                 <span className="text-right text-sm tabular-nums text-gray-500">{p ? formatGBP(p.taxAmount) : "—"}</span>
                 <button type="button" onClick={() => setLines(lines.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
               </div>
+              {p?.priceSource && !l.unitPrice && (
+                <p data-testid={`so-form-price-source-${i}`} className="text-[11px] text-gray-400 mt-0.5 ml-[33%]">{p.priceSource} price {formatGBP(p.unitPrice)}</p>
+              )}
               {l.taxRule && (
                 <input aria-label={`VAT reason for line ${i + 1}`} value={l.taxReason} onChange={e => setLine(i, { taxReason: e.target.value })}
                   placeholder="Reason for changing the VAT (needed when it is less VAT)" className={`${INPUT} w-full mt-1`} />

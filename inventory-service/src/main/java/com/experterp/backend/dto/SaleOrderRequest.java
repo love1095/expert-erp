@@ -31,6 +31,10 @@ public class SaleOrderRequest {
     @Size(max = 100)
     private String salesRep;
 
+    // Empty = the customer's price tier; lines without a typed price are priced at it (phase G1)
+    @Size(max = 100)
+    private String priceTier;
+
     // Empty = the customer's payment terms
     @Size(max = 100)
     private String paymentTerm;
@@ -65,8 +69,9 @@ public class SaleOrderRequest {
     public static class Line {
         @NotNull private Long productId;
         @NotNull @Positive private BigDecimal quantity;
+        // Empty = the customer's price (contract price, else their tier, else Retail; phase G1)
         private BigDecimal unitPrice;
-        // Empty = the customer's discount
+        // Empty = the customer's discount (none on a contract price)
         @DecimalMin("0") @DecimalMax("100") private BigDecimal discountPercent;
         // Empty = the product's / customer's / default tax rule; a different one needs MANAGER or above
         private String taxRule;

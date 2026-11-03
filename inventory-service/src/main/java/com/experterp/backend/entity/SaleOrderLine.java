@@ -62,6 +62,10 @@ public class SaleOrderLine {
     @Column(nullable = false)
     private boolean taxOverridden;
 
+    // Where the price came from (phase G1): "Contract price", "Contract tier", "Retail", "Typed"
+    @Column(name = "price_source", length = 100)
+    private String priceSource;
+
     // On invoices that are not cancelled
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal invoicedQuantity = BigDecimal.ZERO;

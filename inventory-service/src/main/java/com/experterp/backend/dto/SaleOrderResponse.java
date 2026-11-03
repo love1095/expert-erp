@@ -17,6 +17,8 @@ public class SaleOrderResponse {
     private String orderNumber;
     private String customerReference;
     private String salesRep;
+    // Phase G1: the tier the order is priced at
+    private String priceTier;
     private String paymentTerm;
     private LocalDate shipBy;
     private String carrier;
@@ -75,6 +77,8 @@ public class SaleOrderResponse {
         private String taxName;
         private BigDecimal taxRate;
         private boolean taxOverridden;
+        // Phase G1: "Contract price", "Contract tier", "Retail", "Typed"
+        private String priceSource;
         // For the quantity not cancelled
         private BigDecimal netAmount;
         private BigDecimal taxAmount;

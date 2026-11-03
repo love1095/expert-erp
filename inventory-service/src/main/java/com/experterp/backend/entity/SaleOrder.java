@@ -86,6 +86,10 @@ public class SaleOrder {
     @Column(length = 100)
     private String salesRep;
 
+    // Phase G1: the tier the order is priced at (the customer's unless changed on the order, like Cin7)
+    @Column(name = "price_tier", length = 100)
+    private String priceTier;
+
     @Column(length = 100)
     private String paymentTerm;
 

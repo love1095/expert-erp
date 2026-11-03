@@ -247,3 +247,14 @@ export const syncShopifyStock = () => api.post("/integrations/shopify/stock/sync
 // 204 / null when the product is not in Shopify
 export const getProductShopifyStock = (productId: number) =>
   api.get(`/products/${productId}/shopify-stock`).then(r => (r.status === 204 ? null : r.data));
+
+// ---- Price tiers and contract prices (G1) ----
+export const getPriceTiers = () => api.get("/settings/price-tiers").then(r => r.data);
+export const updatePriceTiers = (tiers: { number: number; name: string; discountPercent: number | null }[]) =>
+  api.put("/settings/price-tiers", tiers).then(r => r.data);
+export const getContractPrices = (customerId: number) => api.get(`/customers/${customerId}/contract-prices`).then(r => r.data);
+export const addContractPrice = (customerId: number, body: { productId: number; unitPrice: number; validFrom: string; validTo: string | null; note: string }) =>
+  api.post(`/customers/${customerId}/contract-prices`, body).then(r => r.data);
+export const updateContractPrice = (customerId: number, id: number, body: { unitPrice: number; validFrom: string; validTo: string | null; note: string | null }) =>
+  api.put(`/customers/${customerId}/contract-prices/${id}`, body).then(r => r.data);
+export const deleteContractPrice = (customerId: number, id: number) => api.delete(`/customers/${customerId}/contract-prices/${id}`);

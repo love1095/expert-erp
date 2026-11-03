@@ -487,6 +487,19 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
+## Phase G — Customers and pricing (spec §5) 🔄
+
+### G1 Price tiers and contract prices ✅
+- [x] **Price tiers** per organisation (`V25` `price_tiers`), numbered like Cin7's PriceTier1..10 and named in Settings → Organisation → **Price tiers** (ADMIN): tiers 1–4 use each product's own price for the tier (Cin7's PriceTier1–4 columns: sell price, trade price, tier 3, tier 4; a product without one gets tier 1), or a **percentage off tier 1**; tiers 5–10 must be a percentage. Seeded *1 Retail* and *2 Contract* (the name the real Cin7 customers use: 191 Contract, 141 Retail) or *Trade*; renaming a tier renames it on its customers; a tier in use cannot be removed
+- [x] **Contract prices** (`customer_prices`): one customer, one SKU, a net price from a date, until a date or open; periods for one SKU never overlap; on the customer page with the tier price beside it, **End today**, delete (ADMIN); MANAGER and above change them; audited on the customer
+- [x] **An order line without a typed price** is priced by the server: contract price valid on the day → the customer's tier → Retail; no customer discount on top of a contract price; each line keeps **where its price came from** (`price_source`: Contract price / Contract tier / Retail / Typed), shown on the order and as the price placeholder on the order form (which no longer copies the shop price in). A product with no price stays without one, as before
+- [x] Customer form: the price tier is a list of the organisation's tiers (a Cin7 name that is not a tier stays visible)
+- [x] **Price tier on the sale order**, like Cin7's header (`V26`): the customer's tier by default, changeable per order on the form; lines without a typed price follow it at once (the customer's contract prices still win); kept on the order and shown on its page
+- [x] Tests: `PricingTest` (5) — order tier chosen / changed / unknown; tier price, Retail fallback, typed price kept; contract price wins only while valid, no discount; overlapping periods refused; percentage tier, rename moves customers, tier in use kept; E2E PRICE-001
+- [ ] To confirm in Cin7 (read-only): that PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data: tier 1 is the shop price)
+
+---
+
 ## Cross-cutting (done throughout)
 
 - [x] **JWT authentication** — signing key from `APP_JWT_SECRET` (base64, ≥ 32 bytes; local value in git-ignored `.env`, see `.env.example`). Tokens survive restarts; the backend refuses to start without a valid key. Expiry 24 h

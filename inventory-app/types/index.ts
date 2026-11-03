@@ -401,6 +401,8 @@ export interface SaleOrderLine extends OrderLine {
   backorderedQuantity?: number;
   invoicedQuantity: number;
   toInvoiceQuantity: number;
+  // Phase G1: where the price came from: "Contract price", "Contract tier", "Retail", "Typed"
+  priceSource?: string | null;
 }
 
 export interface SaleOrderInvoice {
@@ -483,6 +485,8 @@ export interface SaleOrderReturn {
 }
 
 export interface SaleOrder {
+  // Phase G1: the tier the order is priced at (the customer's unless changed on the order)
+  priceTier?: string | null;
   id: number;
   // e.g. SO-66006 (absent on a preview)
   orderNumber: string;
@@ -929,4 +933,26 @@ export interface ShopifyStockSyncResult {
   unchanged: number;
   failed: number;
   problems: string[];
+}
+
+// Phase G1: price tiers and contract prices
+export interface PriceTier {
+  number: number;
+  name: string;
+  discountPercent?: number | null;
+  customers: number;
+}
+
+export interface ContractPrice {
+  id: number;
+  productId: number;
+  sku: string;
+  productName: string;
+  unitPrice: number;
+  tierPrice?: number | null;
+  validFrom: string;
+  validTo?: string | null;
+  note?: string | null;
+  createdBy: string;
+  current: boolean;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCustomersPage, getCustomer, createCustomer, updateCustomer, deleteCustomer, importCustomers } from "@/lib/api";
-import { Customer, CustomerContact, CustomerImportResult, Page } from "@/types";
+import { getCustomersPage, getCustomer, createCustomer, updateCustomer, deleteCustomer, importCustomers, getPriceTiers } from "@/lib/api";
+import { Customer, CustomerContact, CustomerImportResult, Page, PriceTier } from "@/types";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,6 +33,7 @@ export default function CustomersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
+  const { data: tiers = [] } = useQuery<PriceTier[]>({ queryKey: ["price-tiers"], queryFn: getPriceTiers });
   const [contacts, setContacts] = useState<CustomerContact[]>([]);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -168,7 +169,16 @@ export default function CustomersPage() {
 
           <div className="grid grid-cols-4 gap-4">
             <Field id="customers-payment-term" label="Payment Term" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} placeholder="e.g. 30 Day EOM" />
-            <Field id="customers-price-tier" label="Price Tier" value={form.priceTier} onChange={v => set("priceTier", v)} placeholder="e.g. Contract" />
+            <div>
+              <label htmlFor="customers-price-tier" className="block text-xs font-medium text-gray-600 mb-1">Price Tier</label>
+              <select id="customers-price-tier" value={form.priceTier} onChange={e => set("priceTier", e.target.value)} className={INPUT}>
+                <option value="">{tiers[0]?.name ?? "Retail"} (default)</option>
+                {tiers.filter(t => t.number !== 1).map(t => <option key={t.number} value={t.name}>{t.name}</option>)}
+                {/* A name from Cin7 that is not a tier here: keep it visible */}
+                {form.priceTier && !tiers.some(t => t.name.toLowerCase() === form.priceTier.toLowerCase()) && <option value={form.priceTier}>{form.priceTier} (not a tier)</option>}
+                {tiers[0] && form.priceTier.toLowerCase() === tiers[0].name.toLowerCase() && <option value={form.priceTier}>{form.priceTier}</option>}
+              </select>
+            </div>
             <Field id="customers-credit-limit" label="Credit Limit (£)" value={form.creditLimit} onChange={v => set("creditLimit", v)} type="number" />
             <Field id="customers-currency" label="Currency" value={form.currency} onChange={v => set("currency", v)} placeholder="GBP" />
             <Field id="customers-tax-rule" label="Tax Rule" value={form.taxRule} onChange={v => set("taxRule", v)} placeholder="e.g. 20% (VAT on Income)" />

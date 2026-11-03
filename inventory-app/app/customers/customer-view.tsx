@@ -13,6 +13,7 @@ import {
 } from "@/components/DetailParts";
 import SaleStages from "../sale-orders/sale-stages";
 import { STATUS_COLOR } from "../sale-orders/sale-order-view";
+import ContractPrices from "./contract-prices";
 
 // One customer on its own page, like Cin7's customer screen: account details, contacts and their sales
 export default function CustomerView({ customerId }: { customerId: number }) {
@@ -102,6 +103,8 @@ export default function CustomerView({ customerId }: { customerId: number }) {
             <Field label="Location" value={c.location} />
           </> },
         ]} />
+
+        <ContractPrices customer={c} />
 
         <Card title="Recent sale orders" flush testId={`customer-orders-${c.id}`}
           right={orders && orders.totalElements > (orders.content.length) ? <span className="text-xs text-gray-400">latest {orders.content.length} of {orders.totalElements}</span> : undefined}>

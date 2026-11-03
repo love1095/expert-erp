@@ -60,6 +60,7 @@ public class SaleOrderService {
     private final AllocationService allocationService;
     private final InvoiceService invoiceService;
     private final CostingService costingService;
+    private final PricingService pricingService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
 
@@ -162,6 +163,7 @@ public class SaleOrderService {
         so.setNotes(built.getNotes());
         so.setCustomerReference(built.getCustomerReference());
         so.setSalesRep(built.getSalesRep());
+        so.setPriceTier(built.getPriceTier());
         so.setPaymentTerm(built.getPaymentTerm());
         so.setShipBy(built.getShipBy());
         so.setCarrier(built.getCarrier());
@@ -467,15 +469,35 @@ public class SaleOrderService {
         so.setCarrier(orElse(req.getCarrier(), customer != null ? customer.getCarrier() : null));
         so.setShippingNotes(blankToNull(req.getShippingNotes()));
         BigDecimal customerDiscount = customer != null && customer.getDiscount() != null ? customer.getDiscount() : BigDecimal.ZERO;
+        // The customer's prices on the day (contract, tier, Retail)
+        Map<Long, Product> products = new LinkedHashMap<>();
+        for (SaleOrderRequest.Line l : req.getLines()) products.computeIfAbsent(l.getProductId(), productService::getProduct);
+        // The order's tier: the one chosen on the order, else the customer's
+        so.setPriceTier(pricingService.tierFor(customer, req.getPriceTier()).getName());
+        Map<Long, PricingService.Price> prices = pricingService.prices(customer, products.values(), LocalDate.now(), so.getPriceTier());
 
         for (SaleOrderRequest.Line l : req.getLines()) {
-            Product product = productService.getProduct(l.getProductId());
+            Product product = products.get(l.getProductId());
             SaleOrderLine line = new SaleOrderLine();
             line.setSaleOrder(so);
             line.setProduct(product);
             line.setQuantity(l.getQuantity());
-            line.setUnitPrice(l.getUnitPrice());
-            line.setDiscountPercent(l.getDiscountPercent() != null ? l.getDiscountPercent() : customerDiscount);
+            PricingService.Price price = prices.get(product.getId());
+            if (l.getUnitPrice() == null) {
+                // A product with no selling price stays without one, as before (priced later on the order)
+                if (price != null && price.unitPrice() != null) {
+                    line.setUnitPrice(price.unitPrice());
+                    line.setPriceSource(price.source());
+                }
+            } else {
+                line.setUnitPrice(l.getUnitPrice());
+                // The customer's price kept on an edited order keeps its source
+                line.setPriceSource(price != null && price.unitPrice() != null && price.unitPrice().compareTo(l.getUnitPrice()) == 0
+                        ? price.source() : "Typed");
+            }
+            // A contract price is the agreed net price: no customer discount on top
+            boolean contract = price != null && price.contract() && !"Typed".equals(line.getPriceSource());
+            line.setDiscountPercent(l.getDiscountPercent() != null ? l.getDiscountPercent() : contract ? BigDecimal.ZERO : customerDiscount);
             TaxChoice tax = chooseTax(l.getTaxRule(), l.getTaxReason(), taxService.resolveSale(product, customer),
                     product.getSku(), taxOverrides);
             line.setTaxName(tax.rate().getName());
@@ -718,6 +740,7 @@ public class SaleOrderService {
         r.setNotes(so.getNotes());
         r.setCustomerReference(so.getCustomerReference());
         r.setSalesRep(so.getSalesRep());
+        r.setPriceTier(so.getPriceTier());
         r.setPaymentTerm(so.getPaymentTerm());
         r.setShipBy(so.getShipBy());
         r.setCarrier(so.getCarrier());
@@ -753,6 +776,7 @@ public class SaleOrderService {
             lr.setTaxName(l.getTaxName());
             lr.setTaxRate(l.getTaxRate());
             lr.setTaxOverridden(l.isTaxOverridden());
+            lr.setPriceSource(l.getPriceSource());
             // Cancelled quantities are not sold
             BigDecimal qty = l.getQuantity().subtract(l.getCancelledQuantity());
             BigDecimal net = SaleAmounts.net(qty, l.getUnitPrice(), l.getDiscountPercent());

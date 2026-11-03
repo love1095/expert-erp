@@ -414,6 +414,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
               <dl className="space-y-2.5">
                 <Field label="Terms" value={order.paymentTerm} />
                 <Field label="Sales rep" value={order.salesRep} />
+                <Field label="Price tier" value={order.priceTier} />
                 {order.status === "QUOTE" ? (
                   <div data-testid={`so-valid-until-${orderId}`}>
                     <Field label="Quote valid until" warn={order.quoteExpired}
@@ -480,7 +481,11 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                             title={(l.backorderedQuantity ?? 0) > 0 ? `${qty(l.backorderedQuantity!)} short` : undefined}>
                             {l.allocatedQuantity != null ? qty(l.allocatedQuantity) : "—"}
                           </td>
-                          <td className="num">{l.unitPrice != null ? formatGBP(l.unitPrice) : "—"}</td>
+                          <td className="num" title={l.priceSource ? `${l.priceSource} price` : undefined}>
+                            {l.unitPrice != null ? formatGBP(l.unitPrice) : "—"}
+                            {l.priceSource && l.priceSource !== "Typed" && l.priceSource !== "Retail" && (
+                              <span data-testid={`so-line-price-source-${l.id}`} className="block text-[10px] text-gray-400">{l.priceSource}</span>)}
+                          </td>
                           <td className="num text-gray-500">{l.discountPercent ? `${l.discountPercent}%` : "—"}</td>
                           <td className="text-gray-600" title={l.taxOverridden ? "Changed by hand" : l.taxName}>
                             <span className="block truncate max-w-24">{l.taxName ?? "Not recorded"}{l.taxOverridden && " ✎"}</span>
