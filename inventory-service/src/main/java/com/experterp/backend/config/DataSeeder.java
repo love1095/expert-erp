@@ -9,6 +9,7 @@ import com.experterp.backend.repository.SubscriptionRepository;
 import com.experterp.backend.repository.TenantRepository;
 import com.experterp.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
@@ -29,6 +30,10 @@ public class DataSeeder implements ApplicationRunner {
     private final SubscriptionRepository subscriptionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
+
+    // The platform owner's password (APP_SUPERADMIN_PASSWORD in .env); a random one is made and logged once when unset
+    @Value("${app.super-admin.password:}")
+    private String superAdminPassword;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -71,18 +76,21 @@ public class DataSeeder implements ApplicationRunner {
         // No demo stock or minimums: they would mix invented figures into real (imported) data.
         // Stock comes from purchase orders, adjustments or a Cin7 stock import.
 
-        // 3. Create or update admin user
-        if (!userRepository.existsByUsername("admin")) {
+        // 2b. The platform's super admin: no organisation, no subscription, every permission
+        seedSuperAdmin();
+
+        // 3. Create or update Expert Safety's own admin
+        if (!userRepository.existsByUsername("expertsafety")) {
             User admin = new User();
-            admin.setUsername("admin");
-            admin.setEmail("admin@experterp.com");
+            admin.setUsername("expertsafety");
+            admin.setEmail("expertsafety@experterp.com");
             admin.setPasswordHash(passwordEncoder.encode("admin123"));
             admin.setRole(User.Role.ADMIN);
             admin.setTenantId(tid);
             userRepository.save(admin);
-            System.out.println("==> Created admin user: admin / admin123");
+            System.out.println("==> Created Expert Safety admin: expertsafety / admin123");
         } else {
-            userRepository.findByUsername("admin").ifPresent(u -> {
+            userRepository.findByUsername("expertsafety").ifPresent(u -> {
                 if (u.getTenantId() == null) {
                     u.setTenantId(tid);
                     userRepository.save(u);
@@ -90,6 +98,23 @@ public class DataSeeder implements ApplicationRunner {
                 }
             });
         }
+    }
+
+    private void seedSuperAdmin() {
+        if (userRepository.existsByRole(User.Role.SUPER_ADMIN)) return;
+        // "admin" when free (Expert Safety's own admin is "expertsafety")
+        String username = userRepository.existsByUsername("admin") ? "superadmin-" + System.currentTimeMillis() % 10000 : "admin";
+        boolean given = superAdminPassword != null && !superAdminPassword.isBlank();
+        String password = given ? superAdminPassword : java.util.UUID.randomUUID().toString();
+        User sa = new User();
+        sa.setUsername(username);
+        sa.setEmail("admin@experterp.com");
+        sa.setPasswordHash(passwordEncoder.encode(password));
+        sa.setRole(User.Role.SUPER_ADMIN);
+        sa.setTenantId(null);
+        userRepository.save(sa);
+        System.out.println("==> Created super admin: " + username
+                + (given ? " (password from APP_SUPERADMIN_PASSWORD)" : " / " + password + "  <- set APP_SUPERADMIN_PASSWORD or change it"));
     }
 
     private void seedPlans() {

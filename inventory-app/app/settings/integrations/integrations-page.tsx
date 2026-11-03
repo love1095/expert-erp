@@ -61,6 +61,14 @@ export default function IntegrationsPage() {
             status={shopifyStatus(shopify)}
             loading={isLoading}
           />
+          <IntegrationCard
+            testId="integration-api"
+            name="API"
+            description="Let other systems use this organisation's data with its Account ID and an Application Key."
+            href="/settings/integrations/api"
+            status={{ label: "Keys", color: "bg-gray-100 text-gray-600" }}
+            loading={false}
+          />
         </div>
       )}
     </div>

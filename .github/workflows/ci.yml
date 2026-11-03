@@ -59,6 +59,7 @@ jobs:
           # Throwaway keys for this run only
           echo "APP_JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')" > .env
           echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')" >> .env
+          echo "APP_SUPERADMIN_PASSWORD=$(openssl rand -hex 16)" >> .env
           docker compose up -d --build
 
       - name: Build and start frontend
@@ -88,7 +89,10 @@ jobs:
 
       - name: Run end-to-end tests
         working-directory: e2e-tests
-        run: npx playwright test
+        run: |
+          # The platform super admin gives each test organisation its plan
+          export E2E_SUPERADMIN_PASSWORD=$(grep '^APP_SUPERADMIN_PASSWORD=' ../.env | cut -d= -f2-)
+          npx playwright test
 
       - name: Upload Playwright report
         if: always()

@@ -339,7 +339,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase E — Purchasing (spec §3) 🔄
+## Phase E — Purchasing (spec §3) ✅
 
 > Plan, Cin7 findings and decisions: `docs/phase-e-purchasing.md`. Also done before it: the Cin7-style redesign (app frame, list toolbar, record pages for sale orders / invoices / POs / customers).
 
@@ -474,6 +474,8 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Category management** — products can be categorised; filter by category on products + stock overview
 - [x] **Docker multi-stage build** — compiles Java inside Docker; `make up` = `docker compose up --build`
 - [x] **DataSeeder** — seeds plans, default tenant, admin user, opening stock on first run
+- [x] **Platform super admin and subscriptions** — the super admin (`admin`, made on first start; Expert Safety's own admin is `expertsafety`; password `APP_SUPERADMIN_PASSWORD` in `.env`) is in **no organisation and has no subscription** (`GET /subscription` → 204) and passes every role check. It sees only **Platform → Organisations**: every organisation with plan, subscription status, users / products / warehouses, and **gives the plan** (`PUT /tenants/{id}/subscription`, written to that organisation's audit log) or **switches an organisation off / on** (`PUT /tenants/{id}/active`: its people cannot log in, its API keys stop). An organisation's own admin now sees its plan but **cannot change it** (the self-service `POST /subscription/upgrade` is gone: there is no payment yet). Tests: `PlatformTest` (4), e2e PLAT-001; e2e organisations get their plan from the super admin (`make e2e` passes the password)
+- [x] **API access per organisation, like Cin7 Core** (`V21`) — each organisation (= one subscription) has an **Account ID** (UUID on `tenants`); its admins make **Application Keys** under Settings → Integrations → **API** (name + role STAFF / MANAGER / ADMIN, at most 20 in use). Another system sends both in the headers `api-auth-accountid` and `api-auth-applicationkey` (Cin7's names) and works as that organisation only, with the key's role. The key (`ek_` + 32 random bytes) is shown once; only its SHA-256 is kept. Revoking a key, deactivating the organisation or a subscription that is no longer ACTIVE stops it at once. Keys never reach `/auth`, `/users`, `/subscription`, `/settings`, `/tenants`, `/integrations`, `/costing` (403: a person must log in). Last used is kept to the minute; audit entries name the key ("API: Warehouse scanner", actor INTEGRATION). Tests: `ApiKeyTest` (6), e2e API-001. Later: rate limits per key
 
 ---
 
@@ -530,15 +532,17 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/sale-orders/{id}/convert` · `/reject` | Quote → draft order · quote rejected |
 | POST | `/sale-orders/preview` | The order as it would be created (defaults, VAT, totals); nothing saved |
 | GET/PUT | `/settings/organisation` | Order numbering, Shopify sales rep, default sale tax rule (PUT: ADMIN) |
+| GET/POST | `/settings/api-keys` | The organisation's Account ID and Application Keys / make a key (shown once) (ADMIN) |
+| DELETE | `/settings/api-keys/{id}` | Revoke a key (ADMIN) |
 | GET  | `/tax-rates` | The organisation's VAT rates (`usage` SALE / PURCHASE) |
 | GET  | `/dashboard/reorder` | Products whose available stock + on order is at or below their minimum (`search`, `page`, `size`) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |
-| GET  | `/tenants` | List tenants (SUPER_ADMIN) |
-| PUT  | `/tenants/{id}/toggle` | Enable/disable tenant (SUPER_ADMIN) |
-| GET  | `/subscription` | Current subscription + usage |
+| GET  | `/tenants` | Every organisation with its plan and usage (SUPER_ADMIN) |
+| GET  | `/subscription` | The organisation's subscription + usage (read only; 204 for the super admin) |
 | GET  | `/plans` | All available plans |
-| POST | `/subscription/upgrade` | Switch plan (ADMIN) |
+| PUT  | `/tenants/{id}/subscription` | Give an organisation its plan / status / end date (SUPER_ADMIN) |
+| PUT  | `/tenants/{id}/active` | Switch an organisation on or off (SUPER_ADMIN) |
 
 ---
 

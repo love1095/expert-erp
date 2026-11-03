@@ -808,3 +808,45 @@ export interface CompanyDetails {
   documentFooter?: string | null;
   hasLogo: boolean;
 }
+
+// API access (Settings → Integrations → API): the organisation's Account ID and Application Keys, like Cin7 Core
+export interface ApiKey {
+  id: number;
+  name: string;
+  keyPrefix: string;
+  role: "ADMIN" | "MANAGER" | "STAFF";
+  createdBy: string;
+  createdAt: string;
+  lastUsedAt?: string | null;
+  revokedAt?: string | null;
+  revokedBy?: string | null;
+}
+
+export interface ApiAccess {
+  accountId: string;
+  keys: ApiKey[];
+}
+
+// A new key: applicationKey is shown this once only
+export interface ApiKeyCreated {
+  accountId: string;
+  key: ApiKey;
+  applicationKey: string;
+}
+
+// Platform → Organisations (SUPER_ADMIN): one organisation = one subscription
+export interface PlatformOrganisation {
+  id: number;
+  name: string;
+  slug: string;
+  active: boolean;
+  createdAt: string;
+  planTier: "FREE" | "PRO" | "ENTERPRISE";
+  planName: string;
+  monthlyPrice: number;
+  status: "ACTIVE" | "CANCELLED" | "EXPIRED";
+  endDate?: string | null;
+  users: number;
+  products: number;
+  warehouses: number;
+}

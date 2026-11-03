@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
+import { PLATFORM_HOME } from "@/components/nav";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -17,7 +18,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (!isLoading && !user && !isPublic) {
       router.push("/login");
     }
-  }, [isLoading, user, pathname, router]);
+    // The super admin is in no organisation: its pages are the platform's
+    if (!isLoading && user?.role === "SUPER_ADMIN" && !isPublic && !pathname.startsWith("/platform")) {
+      router.push(PLATFORM_HOME);
+    }
+  }, [isLoading, user, pathname, router, isPublic]);
 
   if (isPublic) {
     return <>{children}</>;

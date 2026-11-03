@@ -6,13 +6,15 @@ import com.experterp.backend.security.UserDetailsImpl;
 import com.experterp.backend.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
+/**
+ * The organisation's own plan and usage (read only). Plans are changed by the platform's super admin
+ * (PUT /api/tenants/{id}/subscription): there is no online payment yet.
+ */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -25,20 +27,10 @@ public class SubscriptionController {
         return subscriptionService.getAllPlans();
     }
 
+    // The super admin belongs to no organisation and has no subscription: 204
     @GetMapping("/subscription")
-    public SubscriptionResponse getSubscription(@AuthenticationPrincipal UserDetailsImpl user) {
-        return subscriptionService.getSubscriptionInfo(user.getTenantId());
-    }
-
-    @PostMapping("/subscription/upgrade")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    public ResponseEntity<SubscriptionResponse> upgrade(
-            @AuthenticationPrincipal UserDetailsImpl user,
-            @RequestBody Map<String, String> body) {
-        String tier = body.get("planTier");
-        if (tier == null || tier.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(subscriptionService.upgradePlan(user.getTenantId(), tier));
+    public ResponseEntity<SubscriptionResponse> getSubscription(@AuthenticationPrincipal UserDetailsImpl user) {
+        if (user.getTenantId() == null) return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(subscriptionService.getSubscriptionInfo(user.getTenantId()));
     }
 }

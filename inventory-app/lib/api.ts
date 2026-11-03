@@ -196,9 +196,9 @@ export const getShopifyProductSync   = () => api.get("/integrations/shopify/prod
 export const getShopifyEvents        = () => api.get("/integrations/shopify/events", { params: { size: 20 } }).then(r => r.data);
 
 // Subscription / Plans
-export const getSubscription = () => api.get("/subscription").then(r => r.data);
+// null for the super admin (no organisation, no subscription: 204)
+export const getSubscription = () => api.get("/subscription").then(r => r.data || null);
 export const getPlans        = () => api.get("/plans").then(r => r.data);
-export const upgradePlan     = (planTier: string) => api.post("/subscription/upgrade", { planTier }).then(r => r.data);
 
 // ---- Documents as PDF (D5) ----
 // One document: /sale-orders/{id}/pdf, /invoices/{id}/pdf, /purchase-orders/{id}/pdf
@@ -217,3 +217,14 @@ export const uploadCompanyLogo = (file: File) => {
 };
 export const deleteCompanyLogo = () => api.delete("/settings/company/logo").then(r => r.data);
 export const getCompanyLogo = () => api.get("/settings/company/logo", { responseType: "blob" }).then(r => r.data as Blob);
+
+// ---- API access: Account ID + Application Keys (admins) ----
+export const getApiAccess = () => api.get("/settings/api-keys").then(r => r.data);
+export const createApiKey = (body: { name: string; role: string }) => api.post("/settings/api-keys", body).then(r => r.data);
+export const revokeApiKey = (id: number) => api.delete(`/settings/api-keys/${id}`).then(r => r.data);
+
+// ---- Platform (SUPER_ADMIN): every organisation and its subscription ----
+export const getOrganisations = () => api.get("/tenants").then(r => r.data);
+export const setOrganisationSubscription = (id: number, body: { planTier: string; status?: string; endDate?: string | null }) =>
+  api.put(`/tenants/${id}/subscription`, body).then(r => r.data);
+export const setOrganisationActive = (id: number, active: boolean) => api.put(`/tenants/${id}/active`, { active }).then(r => r.data);

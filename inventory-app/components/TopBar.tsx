@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSubscription } from "@/lib/api";
 import { SubscriptionInfo } from "@/types";
-import { locate } from "@/components/nav";
+import { locate, PLATFORM_HOME } from "@/components/nav";
 
 const PLAN_COLOR: Record<string, string> = {
   FREE:       "bg-gray-100 text-gray-600",
@@ -20,10 +20,12 @@ export default function TopBar() {
   const { user, logout } = useAuth();
   const { module, item } = locate(pathname);
 
-  const { data: sub } = useQuery<SubscriptionInfo>({
+  const superAdmin = user?.role === "SUPER_ADMIN";
+  // The super admin has no subscription
+  const { data: sub } = useQuery<SubscriptionInfo | null>({
     queryKey: ["subscription"],
     queryFn: getSubscription,
-    enabled: !!user,
+    enabled: !!user && !superAdmin,
     staleTime: 60_000,
   });
 
@@ -42,7 +44,7 @@ export default function TopBar() {
     <header className="h-14 bg-white border-b border-gray-200 flex items-center gap-4 px-6 shrink-0">
       {/* Where you are: Home / Sale / Invoices */}
       <nav aria-label="You are here" className="flex items-center gap-1.5 text-sm min-w-0">
-        <Link href="/" className="text-gray-400 hover:text-gray-700">Home</Link>
+        <Link href={superAdmin ? PLATFORM_HOME : "/"} className="text-gray-400 hover:text-gray-700">Home</Link>
         {module && module.href !== "/" && <>
           <span className="text-gray-300">/</span>
           <span className="text-gray-400">{module.label}</span>
@@ -54,7 +56,7 @@ export default function TopBar() {
       </nav>
 
       <div className="ml-auto flex items-center gap-3">
-        <span className="hidden sm:inline text-sm text-gray-600 font-medium">{user?.tenantName}</span>
+        <span className="hidden sm:inline text-sm text-gray-600 font-medium">{superAdmin ? "Expert ERP platform" : user?.tenantName}</span>
         {sub && (
           <Link href="/settings/subscription"
             className={`text-[10px] font-bold tracking-wide px-2 py-1 rounded ${PLAN_COLOR[sub.planTier] ?? PLAN_COLOR.FREE}`}>
@@ -72,8 +74,8 @@ export default function TopBar() {
           </button>
           {menu && (
             <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-50 text-sm">
-              <Link href="/settings/organisation" onClick={() => setMenu(false)}
-                className="block px-3 py-2 text-gray-700 hover:bg-gray-50">Organisation settings</Link>
+              {!superAdmin && <Link href="/settings/organisation" onClick={() => setMenu(false)}
+                className="block px-3 py-2 text-gray-700 hover:bg-gray-50">Organisation settings</Link>}
               <button type="button" onClick={logout}
                 className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Sign out</button>
             </div>

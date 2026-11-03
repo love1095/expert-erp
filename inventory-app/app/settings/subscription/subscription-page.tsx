@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSubscription, getPlans, upgradePlan } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { getSubscription, getPlans } from "@/lib/api";
 import { SubscriptionInfo, Plan } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -43,13 +43,7 @@ function UsageBar({ label, used, max }: { label: string; used: number; max: numb
   );
 }
 
-function PlanCard({ plan, current, canUpgrade, onSelect }: {
-  plan: Plan;
-  current: boolean;
-  canUpgrade: boolean;
-  onSelect: () => void;
-}) {
-  const isDowngrade = current; // simplification — current plan is neither upgrade nor downgrade
+function PlanCard({ plan, current }: { plan: Plan; current: boolean }) {
   return (
     <div className={`border rounded-xl p-5 flex flex-col gap-3 ${current ? TIER_BORDER[plan.tier] : "border-gray-200"}`}>
       <div className="flex items-center justify-between">
@@ -71,18 +65,10 @@ function PlanCard({ plan, current, canUpgrade, onSelect }: {
         <li>Warehouses: <span className="font-medium">{plan.maxWarehouses < 0 ? "Unlimited" : plan.maxWarehouses.toLocaleString()}</span></li>
       </ul>
 
-      {current ? (
+      {current && (
         <span className="mt-auto inline-block text-center text-xs font-semibold text-brand-600 bg-brand-50 px-3 py-1.5 rounded-lg">
           Current plan
         </span>
-      ) : (
-        <button
-          onClick={onSelect}
-          disabled={!canUpgrade}
-          className="mt-auto w-full text-sm font-semibold px-3 py-1.5 rounded-lg border border-brand-400 text-brand-700 hover:bg-brand-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Switch to {plan.displayName}
-        </button>
       )}
     </div>
   );
@@ -90,10 +76,9 @@ function PlanCard({ plan, current, canUpgrade, onSelect }: {
 
 export default function SubscriptionPage() {
   const { user } = useAuth();
-  const qc = useQueryClient();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const isAdmin = user?.role === "ADMIN";
 
-  const { data: sub, isLoading } = useQuery<SubscriptionInfo>({
+  const { data: sub, isLoading } = useQuery<SubscriptionInfo | null>({
     queryKey: ["subscription"],
     queryFn: getSubscription,
   });
@@ -103,11 +88,6 @@ export default function SubscriptionPage() {
     queryFn: getPlans,
   });
 
-  const mutation = useMutation({
-    mutationFn: (tier: string) => upgradePlan(tier),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["subscription"] }),
-  });
-
   if (isLoading) return <p className="text-gray-400 text-sm">Loading…</p>;
   if (!sub) return null;
 
@@ -115,7 +95,7 @@ export default function SubscriptionPage() {
     <div className="max-w-3xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Subscription</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Manage your plan and usage limits</p>
+        <p className="text-gray-500 text-sm mt-0.5">Your plan and usage limits</p>
       </div>
 
       {/* Current plan badge + usage */}
@@ -142,22 +122,10 @@ export default function SubscriptionPage() {
       {/* Plan cards */}
       {isAdmin && (
         <>
-          <h2 className="text-base font-semibold text-gray-700 mb-3">Available plans</h2>
-          {mutation.isError && (
-            <p className="text-sm text-red-600 mb-3">
-              {(mutation.error as any)?.response?.data?.error ?? "Failed to switch plan"}
-            </p>
-          )}
+          <h2 className="text-base font-semibold text-gray-700 mb-1">Plans</h2>
+          <p data-testid="plan-change-note" className="text-sm text-gray-500 mb-3">To change your plan, contact Expert ERP: plans are given by the platform.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {plans.map(plan => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                current={plan.tier === sub.planTier}
-                canUpgrade={isAdmin && plan.tier !== sub.planTier && !mutation.isPending}
-                onSelect={() => mutation.mutate(plan.tier)}
-              />
-            ))}
+            {plans.map(plan => <PlanCard key={plan.id} plan={plan} current={plan.tier === sub.planTier} />)}
           </div>
         </>
       )}

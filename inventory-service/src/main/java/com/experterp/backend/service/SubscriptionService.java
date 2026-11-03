@@ -70,21 +70,6 @@ public class SubscriptionService {
         return planRepository.findAll();
     }
 
-    @Transactional
-    public SubscriptionResponse upgradePlan(Long tenantId, String tierName) {
-        Plan.PlanTier tier = Plan.PlanTier.valueOf(tierName.toUpperCase());
-        Plan plan = planRepository.findByTier(tier)
-                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + tierName));
-
-        Subscription sub = subscriptionRepository.findByTenantId(tenantId)
-                .orElseGet(() -> { Subscription s = new Subscription(); s.setTenantId(tenantId); return s; });
-        sub.setPlan(plan);
-        sub.setStatus(Subscription.SubscriptionStatus.ACTIVE);
-        subscriptionRepository.save(sub);
-
-        return getSubscriptionInfo(tenantId);
-    }
-
     /** Called when a new organisation registers — assigns FREE plan automatically. */
     @Transactional
     public void assignFreePlan(Long tenantId) {

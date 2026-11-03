@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NavIcon from "@/components/NavIcon";
-import { NAV, isActive, locate } from "@/components/nav";
+import { navFor, isActive, locate, PLATFORM_HOME } from "@/components/nav";
+import { useAuth } from "@/contexts/AuthContext";
 
 const OPEN_KEY = "nav.open";
 const COLLAPSED_KEY = "nav.collapsed";
@@ -18,6 +19,8 @@ function save(key: string, value: unknown) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const nav = navFor(user?.role);
   const current = locate(pathname).module?.key;
 
   // Open modules (remembered); going to a page opens its module
@@ -42,7 +45,7 @@ export default function Sidebar() {
 
   return (
     <aside className={`${collapsed ? "w-16" : "w-60"} bg-shell text-slate-300 flex flex-col shrink-0 transition-[width] duration-150`}>
-      <Link href="/" className="h-14 flex items-center gap-2.5 px-4 border-b border-white/10 shrink-0">
+      <Link href={user?.role === "SUPER_ADMIN" ? PLATFORM_HOME : "/"} className="h-14 flex items-center gap-2.5 px-4 border-b border-white/10 shrink-0">
         <span className="w-8 h-8 rounded-md bg-accent-600 text-white font-bold text-sm flex items-center justify-center shrink-0">E</span>
         {!collapsed && (
           <span className="leading-tight">
@@ -52,7 +55,7 @@ export default function Sidebar() {
       </Link>
 
       <nav aria-label="Main" className="flex-1 py-3 overflow-y-auto">
-        {NAV.map(m => {
+        {nav.map(m => {
           if (m.href) {
             const active = isActive(m.href, pathname);
             return (

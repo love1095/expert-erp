@@ -77,7 +77,7 @@ export default function LoginPage() {
         </form>
 
         <div className="text-center mt-4 space-y-1">
-          <p className="text-xs text-gray-400">Default: admin / admin123</p>
+          <p className="text-xs text-gray-400">Default: expertsafety / admin123</p>
           <p className="text-xs text-gray-400">
             New org?{" "}
             <a href="/register" className="text-brand-500 hover:underline">Create organization</a>

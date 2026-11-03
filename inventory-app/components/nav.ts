@@ -33,13 +33,25 @@ export const NAV: NavModule[] = [
   ]},
 ];
 
+// The platform's super admin: in no organisation, so no business modules, just the organisations it serves
+export const PLATFORM_HOME = "/platform/organisations";
+export const PLATFORM_NAV: NavModule[] = [
+  { key: "platform", label: "Platform", icon: "admin", items: [
+    { href: PLATFORM_HOME, label: "Organisations" },
+  ]},
+];
+
+export function navFor(role?: string): NavModule[] {
+  return role === "SUPER_ADMIN" ? PLATFORM_NAV : NAV;
+}
+
 export function isActive(href: string, pathname: string) {
   return pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
 }
 
 // Module and page for the current path, e.g. Sale › Invoices
 export function locate(pathname: string): { module?: NavModule; item?: NavItem } {
-  for (const m of NAV) {
+  for (const m of [...NAV, ...PLATFORM_NAV]) {
     if (m.href && isActive(m.href, pathname)) return { module: m };
     const item = m.items?.find(i => isActive(i.href, pathname));
     if (item) return { module: m, item };

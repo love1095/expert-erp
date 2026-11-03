@@ -31,6 +31,8 @@ services:
       # Login token signing key — set in .env (see .env.example)
       APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET is not set - copy .env.example to .env}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is not set - see .env.example}
+      # The platform's super admin (made on first start when there is none)
+      APP_SUPERADMIN_PASSWORD: ${APP_SUPERADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy

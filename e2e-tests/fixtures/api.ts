@@ -77,7 +77,7 @@ async function ok<T>(res: APIResponse, what: string): Promise<T> {
 }
 
 export class ErpApi {
-  constructor(readonly http: APIRequestContext, readonly session: Session) {}
+  constructor(readonly http: APIRequestContext, readonly session: Session, readonly baseURL: string) {}
 
   // ---- products & stock ----
 
@@ -173,13 +173,41 @@ export class ErpApi {
     return ok(await this.http.get('/api/dashboard/reorder', { params: search ? { search } : {} }), 'get reorder list');
   }
 
+  /** Plans are given by the platform's super admin (an organisation cannot change its own plan). */
   async upgradePlan(planTier: PlanTier): Promise<void> {
-    await ok(await this.http.post('/api/subscription/upgrade', { data: { planTier } }), 'upgrade plan');
+    const sa = await superAdminApi(this.baseURL);
+    await ok(await sa.put(`/api/tenants/${this.session.user.tenantId}/subscription`, { data: { planTier } }), 'give plan');
   }
 
   async dispose() {
     await this.http.dispose();
   }
+}
+
+/**
+ * The platform's super admin ("admin", in no organisation). Its password is APP_SUPERADMIN_PASSWORD from the
+ * repo's .env, passed in as E2E_SUPERADMIN_PASSWORD (make e2e does this).
+ */
+export const SUPER_ADMIN = { username: process.env.E2E_SUPERADMIN_USERNAME ?? 'admin', password: process.env.E2E_SUPERADMIN_PASSWORD ?? '' };
+// One super admin connection per worker and server, kept for the worker's life
+const superAdmins = new Map<string, Promise<APIRequestContext>>();
+
+export function superAdminApi(baseURL: string): Promise<APIRequestContext> {
+  let ctx = superAdmins.get(baseURL);
+  if (!ctx) {
+    ctx = (async () => {
+      if (!SUPER_ADMIN.password) throw new Error('E2E_SUPERADMIN_PASSWORD is not set (run the suite with make e2e)');
+      const anon = await anonymousApi(baseURL);
+      try {
+        const r = await ok<LoginResponse>(await anon.post('/api/auth/login', { data: SUPER_ADMIN }), 'super admin login');
+        return request.newContext({ baseURL, extraHTTPHeaders: { Authorization: `Bearer ${r.token}` } });
+      } finally {
+        await anon.dispose();
+      }
+    })();
+    superAdmins.set(baseURL, ctx);
+  }
+  return ctx;
 }
 
 /** API context with no credentials (login, register, unauthenticated checks). */
@@ -192,7 +220,7 @@ export async function apiFor(baseURL: string, session: Session): Promise<ErpApi>
     baseURL,
     extraHTTPHeaders: { Authorization: `Bearer ${session.token}` },
   });
-  return new ErpApi(http, session);
+  return new ErpApi(http, session, baseURL);
 }
 
 interface LoginResponse {

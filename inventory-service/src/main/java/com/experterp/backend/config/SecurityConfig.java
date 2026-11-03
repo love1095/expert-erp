@@ -1,5 +1,6 @@
 package com.experterp.backend.config;
 
+import com.experterp.backend.security.ApiKeyAuthFilter;
 import com.experterp.backend.security.JwtAuthFilter;
 import com.experterp.backend.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final ApiKeyAuthFilter apiKeyAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
 
     @Bean
@@ -43,12 +45,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/webhooks/shopify").permitAll()
                 // Spring forwards unhandled exceptions to /error; securing it turned every 500 into a 403
                 .requestMatchers("/error").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
-                .requestMatchers("/api/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .anyRequest().authenticated()
             )
             .userDetailsService(userDetailsService)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            // Account ID + Application Key (other systems calling the API), checked before a login token
+            .addFilterBefore(apiKeyAuthFilter, JwtAuthFilter.class);
         return http.build();
     }
 

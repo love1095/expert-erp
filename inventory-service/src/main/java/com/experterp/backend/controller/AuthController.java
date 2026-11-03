@@ -52,6 +52,10 @@ public class AuthController {
             if (entity.getTenantId() != null) {
                 Tenant t = tenantRepo.findById(entity.getTenantId()).orElse(null);
                 if (t != null) { tenantName = t.getName(); tenantSlug = t.getSlug(); }
+                // A switched-off organisation (Platform → Organisations): its people cannot log in
+                if (t != null && !t.isActive()) {
+                    return ResponseEntity.status(403).body(Map.of("error", "This organisation is switched off. Contact Expert ERP."));
+                }
             }
 
             return ResponseEntity.ok(new LoginResponse(
@@ -120,7 +124,11 @@ public class AuthController {
                 return ResponseEntity.status(403).body(Map.of("error", "Only a super admin can create super admins"));
             }
             tenantId = currentUser.getTenantId();
-            subscriptionService.checkUserLimit(tenantId);
+            // The super admin belongs to no organisation: it can only add other super admins here
+            if (tenantId == null && role != User.Role.SUPER_ADMIN) {
+                return ResponseEntity.badRequest().body(Map.of("error", "A super admin belongs to no organisation: people are added by the organisation's admin"));
+            }
+            if (tenantId != null) subscriptionService.checkUserLimit(tenantId);
         }
 
         User user = new User();
@@ -131,13 +139,13 @@ public class AuthController {
         user.setRole(role);
         userRepository.save(user);
 
-        Tenant tenant = tenantRepo.findById(tenantId).orElseThrow();
+        Tenant tenant = tenantId == null ? null : tenantRepo.findById(tenantId).orElseThrow();
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
         String token = jwtUtil.generateToken(userDetails);
         return ResponseEntity.ok(new LoginResponse(
                 token, user.getId(), user.getUsername(),
                 user.getEmail(), user.getRole().name(),
-                tenantId, tenant.getName(), tenant.getSlug()));
+                tenantId, tenant == null ? null : tenant.getName(), tenant == null ? null : tenant.getSlug()));
     }
 
     @GetMapping("/users")

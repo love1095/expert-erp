@@ -27,6 +27,11 @@ public class Tenant {
     @Column(nullable = false)
     private boolean active = true;
 
+    // Identifies the organisation to the API (with an Application Key), like Cin7's Account ID; made by the database
+    @Column(name = "account_id", nullable = false, unique = true, insertable = false, updatable = false)
+    @org.hibernate.annotations.Generated
+    private java.util.UUID accountId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

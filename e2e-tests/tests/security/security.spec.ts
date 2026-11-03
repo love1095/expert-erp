@@ -32,7 +32,9 @@ test.describe('Security', () => {
       expect((await staff.http.get('/api/products')).status()).toBe(200);
       expect((await staff.http.delete(`/api/products/${product.id}`)).status()).toBe(403);
       expect((await staff.http.get('/api/auth/users')).status()).toBe(403);
-      expect((await staff.http.post('/api/subscription/upgrade', { data: { planTier: 'PRO' } })).status()).toBe(403);
+      // Plans are given by the platform's super admin only
+      expect((await staff.http.put(`/api/tenants/${staff.session.user.tenantId}/subscription`, { data: { planTier: 'PRO' } })).status()).toBe(403);
+      expect((await api.http.put(`/api/tenants/${api.session.user.tenantId}/subscription`, { data: { planTier: 'PRO' } })).status()).toBe(403);
     } finally {
       await staff.dispose();
     }

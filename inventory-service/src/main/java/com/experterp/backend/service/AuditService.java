@@ -2,6 +2,7 @@ package com.experterp.backend.service;
 
 import com.experterp.backend.entity.AuditLog;
 import com.experterp.backend.repository.AuditLogRepository;
+import com.experterp.backend.security.ApiKeyPrincipal;
 import com.experterp.backend.security.UserDetailsImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +30,11 @@ public class AuditService {
             entry.setActorType(actor.type());
             entry.setActorId(actor.id());
             entry.setUsername(actor.id());
+        } else if (auth != null && auth.getPrincipal() instanceof ApiKeyPrincipal k) {
+            // Another system, with one of the organisation's Application Keys
+            entry.setActorType(AuditLog.ActorType.INTEGRATION);
+            entry.setActorId(k.toString());
+            entry.setUsername(k.toString());
         } else if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl u) {
             entry.setUserId(u.getId());
             entry.setUsername(u.getUsername());
