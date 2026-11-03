@@ -8,6 +8,7 @@ import { ShopifyConnection } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import ShopifyOrders from "./shopify-orders";
 import ShopifyProducts from "./shopify-products";
+import ShopifyHealthCard from "./shopify-health";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400";
 
@@ -130,6 +131,7 @@ export default function ShopifyPage() {
             </section>
           )}
 
+          {conn && !editing && <ShopifyHealthCard />}
           {conn && !editing && <ShopifyOrders conn={conn} />}
           {conn && !editing && <ShopifyProducts conn={conn} />}
 

@@ -193,7 +193,12 @@ export const importShopifyOrders     = (days: number) => api.post("/integrations
 // Send all ERP products (details, price, stock) to Shopify; runs in the background — poll the GET (204 = never run)
 export const syncShopifyProducts     = () => api.post("/integrations/shopify/products/sync").then(r => r.data);
 export const getShopifyProductSync   = () => api.get("/integrations/shopify/products/sync").then(r => (r.status === 204 ? null : r.data));
-export const getShopifyEvents        = () => api.get("/integrations/shopify/events", { params: { size: 20 } }).then(r => r.data);
+export const getShopifyEvents        = (status?: string) =>
+  api.get("/integrations/shopify/events", { params: { size: status ? 100 : 20, status } }).then(r => r.data);
+// 7.5: run a failed webhook event now; the daily check now; how the link is doing (204 = no store)
+export const retryShopifyEvent       = (id: number) => api.post(`/integrations/shopify/events/${id}/retry`).then(r => r.data);
+export const reconcileShopify        = () => api.post("/integrations/shopify/reconcile").then(r => r.data);
+export const getShopifyHealth        = () => api.get("/integrations/shopify/health").then(r => (r.status === 204 ? null : r.data));
 
 // Subscription / Plans
 // null for the super admin (no organisation, no subscription: 204)

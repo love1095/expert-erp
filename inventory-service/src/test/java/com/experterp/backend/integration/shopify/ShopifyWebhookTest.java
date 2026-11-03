@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,6 +57,8 @@ class ShopifyWebhookTest {
     @Autowired CustomerService customerService;
     @Autowired SaleOrderService saleOrderService;
     @Autowired TransactionTemplate tx;
+    @Autowired ShopifyEventProcessor processor;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     Long tenantId;
     String shop;
@@ -241,12 +245,76 @@ class ShopifyWebhookTest {
     }
 
     @Test
-    void anEventThatFailsAnswers500SoShopifyRetries() throws Exception {
-        send("orders/create", "evt-bad", "{not json").andExpect(status().isInternalServerError());
+    void aFailedEventIsAnsweredOkAndTriedAgainLaterWaitingLongerEachTime() throws Exception {
+        // Shopify gets 200 once the event is stored: we retry, so Shopify never gives up on the subscription
+        send("orders/create", "evt-bad", "{not json").andExpect(status().isOk());
+        ShopifyWebhookEvent failed = event("evt-bad");
+        assertThat(failed.getStatus()).isEqualTo(ShopifyWebhookEvent.Status.FAILED);
+        assertThat(failed.getAttempts()).isEqualTo(1);
+        assertThat(failed.getError()).contains("not valid JSON");
+        assertThat(failed.getNextAttemptAt()).isBetween(LocalDateTime.now().plusSeconds(50), LocalDateTime.now().plusSeconds(70));
+
+        // Not due yet: nothing runs
+        processor.runDue();
+        assertThat(event("evt-bad").getAttempts()).isEqualTo(1);
+        // Due: runs again, and waits longer (5 minutes) after the second failure
+        due("evt-bad");
+        processor.runDue();
+        assertThat(event("evt-bad").getAttempts()).isEqualTo(2);
+        assertThat(event("evt-bad").getNextAttemptAt()).isAfter(LocalDateTime.now().plusMinutes(4));
+
+        // Gives up after the last attempt; it can still be retried by hand
+        for (int i = 2; i < ShopifyEventProcessor.MAX_ATTEMPTS; i++) {
+            due("evt-bad");
+            processor.runDue();
+        }
+        ShopifyWebhookEvent given = event("evt-bad");
+        assertThat(given.getAttempts()).isEqualTo(ShopifyEventProcessor.MAX_ATTEMPTS);
+        assertThat(given.getNextAttemptAt()).isNull();
+        assertThat(given.getError()).contains("gave up after");
+    }
+
+    @Test
+    void aFailedEventSucceedsWhenTriedAgainAndARetryByHandRunsItAtOnce() throws Exception {
+        String good = order(4242, "paid", "GBP", null, line(helmetSku, "Helmet", 1, "25.00", null));
+        send("orders/create", "evt-later", "{not json").andExpect(status().isOk());
+        // What failed is put right (here: the stored body), then the retry imports the order
+        jdbc.update("UPDATE shopify_webhook_events SET payload = ? WHERE event_id = ?", good, "evt-later");
+        due("evt-later");
+        assertThat(processor.runDue()).isEqualTo(1);
+        assertThat(event("evt-later").getStatus()).isEqualTo(ShopifyWebhookEvent.Status.PROCESSED);
+        assertThat(event("evt-later").getNextAttemptAt()).isNull();
+        assertThat(statusOf("4242")).isEqualTo(Status.CONFIRMED);
+
+        // By hand: runs now whatever the wait; an event already handled is refused
+        send("orders/create", "evt-hand", "{not json").andExpect(status().isOk());
+        jdbc.update("UPDATE shopify_webhook_events SET payload = ? WHERE event_id = ?",
+                order(4243, "paid", "GBP", null, line(helmetSku, "Helmet", 1, "25.00", null)), "evt-hand");
+        Long id = event("evt-hand").getId();
+        TenantContext.set(tenantId);
+        try {
+            assertThat(processor.retryNow(id).getStatus()).isEqualTo(ShopifyWebhookEvent.Status.PROCESSED);
+            assertThatThrownBy(() -> processor.retryNow(id)).isInstanceOf(IllegalStateException.class);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    void anEventStoredButNeverRunIsPickedUpByTheWorker() throws Exception {
+        // As if the backend stopped right after storing it
         asTenant(() -> {
-            assertThat(eventRepository.findByEventId("evt-bad").orElseThrow().getStatus()).isEqualTo(ShopifyWebhookEvent.Status.FAILED);
-            return null;
+            ShopifyWebhookEvent e = new ShopifyWebhookEvent();
+            e.setEventId("evt-stranded");
+            e.setTopic("orders/create");
+            e.setShopDomain(shop);
+            e.setPayload(order(5151, "paid", "GBP", null, line(helmetSku, "Helmet", 1, "25.00", null)));
+            e.setReceivedAt(LocalDateTime.now().minusMinutes(10));
+            return eventRepository.save(e);
         });
+        processor.runDue();
+        assertThat(event("evt-stranded").getStatus()).isEqualTo(ShopifyWebhookEvent.Status.PROCESSED);
+        assertThat(statusOf("5151")).isEqualTo(Status.CONFIRMED);
     }
 
     @Test
@@ -269,6 +337,15 @@ class ShopifyWebhookTest {
                 .header("X-Shopify-Event-Id", eventId)
                 .header("X-Shopify-Webhook-Id", UUID.randomUUID().toString())
                 .header("X-Shopify-Hmac-Sha256", sign(body, SECRET)));
+    }
+
+    private ShopifyWebhookEvent event(String eventId) {
+        return asTenant(() -> eventRepository.findByEventId(eventId).orElseThrow());
+    }
+
+    // The wait is over
+    private void due(String eventId) {
+        jdbc.update("UPDATE shopify_webhook_events SET next_attempt_at = now() - interval '1 second' WHERE event_id = ?", eventId);
     }
 
     private Status statusOf(String shopifyId) {

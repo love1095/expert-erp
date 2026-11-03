@@ -21,9 +21,17 @@ public class ShopifyConnectionController {
     private final ShopifyOrderSyncService syncService;
     private final ShopifyProductSyncService productSyncService;
     private final ShopifyWebhookEventRepository eventRepository;
+    private final ShopifyEventProcessor eventProcessor;
+    private final ShopifyReconciler reconciler;
+    private final ShopifyHealthService healthService;
 
     public record EventView(Long id, String topic, String eventId, ShopifyWebhookEvent.Status status, String error,
-                            LocalDateTime receivedAt, LocalDateTime processedAt) {}
+                            LocalDateTime receivedAt, LocalDateTime processedAt, int attempts, LocalDateTime nextAttemptAt) {
+        static EventView of(ShopifyWebhookEvent e) {
+            return new EventView(e.getId(), e.getTopic(), e.getEventId(), e.getStatus(), e.getError(), e.getReceivedAt(),
+                    e.getProcessedAt(), e.getAttempts(), e.getNextAttemptAt());
+        }
+    }
 
     // 204 when no store is connected yet
     @GetMapping
@@ -71,13 +79,31 @@ public class ShopifyConnectionController {
         return productSyncService.status().map(ResponseEntity::ok).orElse(ResponseEntity.noContent().build());
     }
 
-    // Latest webhook deliveries, newest first
+    // Latest webhook deliveries, newest first; status=FAILED for the ones that need attention
     @GetMapping("/events")
-    public List<EventView> events(@RequestParam(defaultValue = "20") int size) {
-        return eventRepository.findAllByOrderByReceivedAtDesc(PageRequest.of(0, Math.min(Math.max(size, 1), 100)))
-                .map(e -> new EventView(e.getId(), e.getTopic(), e.getEventId(), e.getStatus(), e.getError(),
-                        e.getReceivedAt(), e.getProcessedAt()))
-                .getContent();
+    public List<EventView> events(@RequestParam(defaultValue = "20") int size,
+                                  @RequestParam(required = false) ShopifyWebhookEvent.Status status) {
+        PageRequest page = PageRequest.of(0, Math.min(Math.max(size, 1), 100));
+        return (status == null ? eventRepository.findAllByOrderByReceivedAtDesc(page)
+                : eventRepository.findByStatusOrderByReceivedAtDesc(status, page)).map(EventView::of).getContent();
+    }
+
+    // Runs a failed (or waiting) event now
+    @PostMapping("/events/{id}/retry")
+    public EventView retryEvent(@PathVariable Long id) {
+        return EventView.of(eventProcessor.retryNow(id));
+    }
+
+    // The daily check, now: missing webhooks made again, orders changed since the last check imported
+    @PostMapping("/reconcile")
+    public ShopifyReconciler.Result reconcile() {
+        return reconciler.reconcile();
+    }
+
+    // 204 when no store is connected
+    @GetMapping("/health")
+    public ResponseEntity<ShopifyHealthService.Health> health() {
+        return healthService.health().map(ResponseEntity::ok).orElse(ResponseEntity.noContent().build());
     }
 
     @DeleteMapping

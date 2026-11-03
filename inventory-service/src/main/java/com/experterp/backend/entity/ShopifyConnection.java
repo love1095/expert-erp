@@ -79,6 +79,16 @@ public class ShopifyConnection {
 
     private LocalDateTime lastProductSyncAt;
 
+    // The daily check against Shopify (7.5)
+    @Column(name = "last_reconciled_at")
+    private LocalDateTime lastReconciledAt;
+
+    @Column(name = "last_reconcile_summary", columnDefinition = "TEXT")
+    private String lastReconcileSummary;
+
+    @Column(name = "last_reconcile_error", columnDefinition = "TEXT")
+    private String lastReconcileError;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

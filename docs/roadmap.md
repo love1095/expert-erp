@@ -46,5 +46,5 @@ If Shopify work starts taking too long, pause it (phase F moves later) and carry
 
 ## Open questions
 - Couriers and courier accounts in use today?
-- Do Shopify prices include VAT? — **parked**: handled together with the Shopify work (phase F); until then phase D treats Shopify order lines as they arrive today
+- Do Shopify prices include VAT? — **yes** (decided 2026-11-03, see business-rules.md §5): Shopify lines are gross and are split into net + VAT
 - Accounting package: not chosen — the design supports Xero, QuickBooks Online and Sage, with a CSV export first.

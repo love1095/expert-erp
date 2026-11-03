@@ -793,6 +793,30 @@ export interface ShopifyWebhookEvent {
   error?: string;
   receivedAt: string;
   processedAt?: string;
+  // 7.5: runs so far; when a failed one is tried again (none = given up)
+  attempts: number;
+  nextAttemptAt?: string | null;
+}
+
+// How the Shopify link is doing (7.5)
+export interface ShopifyHealth {
+  ok: boolean;
+  lastEventAt?: string | null;
+  processedLast24h: number;
+  failedLast24h: number;
+  waitingRetry: number;
+  gaveUp: number;
+  lastReconciledAt?: string | null;
+  lastReconcileSummary?: string | null;
+  lastReconcileError?: string | null;
+  warnings: string[];
+}
+
+export interface ShopifyReconcileResult {
+  checkedAt: string;
+  summary: string;
+  error?: string | null;
+  problems: string[];
 }
 
 // The company details printed on documents (D5); empty fields are left out of the page

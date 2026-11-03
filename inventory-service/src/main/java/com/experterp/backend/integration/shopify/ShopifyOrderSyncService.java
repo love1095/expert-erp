@@ -15,6 +15,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /** Phase 7.2: order-import settings, webhook registration and the catch-up import. */
@@ -119,9 +121,31 @@ public class ShopifyOrderSyncService {
     /** Fetches orders created in the last {@code days} days and imports each one (one transaction per order). */
     public ImportResult importRecent(int days) {
         if (days < 1 || days > 60) throw new IllegalArgumentException("days must be between 1 and 60");
+        return importOrders("created_at:>=" + LocalDate.now().minusDays(days), Map.of("days", days));
+    }
+
+    /** Orders created or changed in Shopify since {@code since}: the daily check's catch-up for missed webhooks. */
+    public ImportResult importChangedSince(LocalDateTime since) {
+        String utc = since.atZone(ZoneId.systemDefault()).toInstant().truncatedTo(ChronoUnit.SECONDS).toString();
+        return importOrders("updated_at:>='" + utc + "'", Map.of("changedSince", utc));
+    }
+
+    /** Our webhook topics Shopify has no subscription for at our address (e.g. removed after repeated failures). */
+    public List<String> missingWebhookTopics() {
+        ShopifyConnection c = tx.execute(s -> current());
+        if (c.getPublicUrl() == null) return List.of();
+        String uri = c.getPublicUrl() + WEBHOOK_PATH;
+        Set<String> present = new HashSet<>();
+        for (JsonNode sub : client.graphql(c.getShopDomain(), connectionService.accessToken(), LIST_WEBHOOKS, Map.of())
+                .path("webhookSubscriptions").path("nodes")) {
+            if (uri.equals(sub.path("uri").asText())) present.add(sub.path("topic").asText());
+        }
+        return WEBHOOK_TOPICS.stream().filter(t -> !present.contains(t)).toList();
+    }
+
+    private ImportResult importOrders(String q, Map<String, Object> what) {
         ShopifyConnection c = tx.execute(s -> current());
         String token = connectionService.accessToken();
-        String q = "created_at:>=" + LocalDate.now().minusDays(days);
 
         int fetched = 0, created = 0, updated = 0, unchanged = 0, skipped = 0, review = 0;
         List<String> problems = new ArrayList<>();
@@ -159,8 +183,9 @@ public class ShopifyOrderSyncService {
         tx.executeWithoutResult(s -> {
             ShopifyConnection fresh = current();
             fresh.setLastImportAt(LocalDateTime.now());
-            auditService.log("SHOPIFY", fresh.getId(), "IMPORT_ORDERS",
-                    Map.of("days", days, "fetched", f, "created", cr, "updated", up, "needsReview", rv));
+            Map<String, Object> audit = new LinkedHashMap<>(what);
+            audit.putAll(Map.of("fetched", f, "created", cr, "updated", up, "needsReview", rv));
+            auditService.log("SHOPIFY", fresh.getId(), "IMPORT_ORDERS", audit);
         });
         return new ImportResult(fetched, created, updated, unchanged, skipped, review, problems);
     }

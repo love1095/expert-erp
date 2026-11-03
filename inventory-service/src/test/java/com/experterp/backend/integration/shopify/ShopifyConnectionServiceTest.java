@@ -74,6 +74,8 @@ class ShopifyConnectionServiceTest {
 
     @Autowired ShopifyConnectionService service;
     @Autowired ShopifyOrderSyncService syncService;
+    @Autowired ShopifyReconciler reconciler;
+    @Autowired ShopifyHealthService healthService;
     @Autowired com.experterp.backend.repository.SaleOrderRepository saleOrderRepository;
     @Autowired com.experterp.backend.repository.ProductRepository productRepository;
     @Autowired com.experterp.backend.repository.WarehouseRepository warehouseRepository;
@@ -247,6 +249,50 @@ class ShopifyConnectionServiceTest {
     }
 
     @Test
+    void theDailyCheckMakesMissingWebhooksAgainAndImportsOrdersChangedSinceTheLastCheck() {
+        com.experterp.backend.entity.Warehouse wh = new com.experterp.backend.entity.Warehouse();
+        wh.setName("WH-" + UUID.randomUUID());
+        warehouseRepository.save(wh);
+        knownSku = "SKU-" + UUID.randomUUID();
+        com.experterp.backend.entity.Product p = new com.experterp.backend.entity.Product();
+        p.setSku(knownSku);
+        p.setName("Helmet");
+        p.setUnit("pcs");
+        productRepository.save(p);
+        service.save(new ShopifyConnectionService.SaveRequest(shop, "good-client", "good-secret"));
+        syncService.updateSettings(new ShopifyOrderSyncService.Settings(null, "https://daily.trycloudflare.com"));
+        syncService.registerWebhooks();
+        graphqlCalls.clear();
+
+        // The fake Shopify lists none of ours at this address, as if Shopify had removed them
+        var first = reconciler.reconcile();
+        assertThat(first.error()).isNull();
+        assertThat(first.summary()).contains("webhooks made again").contains("2 orders changed since the last check: 2 new");
+        assertThat(graphqlCalls).contains("create ORDERS_CREATE https://daily.trycloudflare.com/api/webhooks/shopify")
+                .anyMatch(c -> c.startsWith("orders updated_at:>='"));
+        assertThat(saleOrderRepository.findBySourceAndExternalId(com.experterp.backend.entity.SaleOrder.Source.SHOPIFY, "9001")).isPresent();
+        var c = repository.findFirstByOrderByIdAsc().orElseThrow();
+        assertThat(c.getLastReconciledAt()).isNotNull();
+        assertThat(c.getLastReconcileError()).isNull();
+
+        // Safe to repeat: nothing new
+        assertThat(reconciler.reconcile().summary()).contains("0 new");
+        var health = healthService.health().orElseThrow();
+        assertThat(health.lastReconciledAt()).isNotNull();
+        assertThat(health.gaveUp()).isZero();
+        assertThat(health.warnings()).isEmpty();
+        assertThat(health.ok()).isTrue();
+    }
+
+    @Test
+    void theNextCheckStartsAnHourBeforeTheLastOneAndNeverLooksBackMoreThan60Days() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.of(2026, 11, 3, 3, 15);
+        assertThat(ShopifyReconciler.since(null, now)).isEqualTo(now.minusDays(2));
+        assertThat(ShopifyReconciler.since(now.minusDays(1), now)).isEqualTo(now.minusDays(1).minusHours(1));
+        assertThat(ShopifyReconciler.since(now.minusDays(90), now)).isEqualTo(now.minusDays(60));
+    }
+
+    @Test
     void shopifyRefusingAWebhookTopicIsReportedWithItsReason() {
         service.save(new ShopifyConnectionService.SaveRequest(shop, "good-client", "good-secret"));
         syncService.updateSettings(new ShopifyOrderSyncService.Settings(null, "https://refused-topics.trycloudflare.com"));
@@ -318,6 +364,7 @@ class ShopifyConnectionServiceTest {
                     graphqlCalls.add("create " + topic + " " + uri);
                     reply(ex, 200, "{\"data\":{\"webhookSubscriptionCreate\":{\"webhookSubscription\":{\"id\":\"x\"},\"userErrors\":[]}}}");
                 } else if (gql.contains("orders(")) {
+                    graphqlCalls.add("orders " + gql.replaceAll("(?s).*\"q\":\"([^\"]*)\".*", "$1"));
                     reply(ex, 200, ORDERS_PAGE.replace("KNOWN_SKU", knownSku));
                 } else {
                     reply(ex, 200, "{\"data\":{\"shop\":{\"name\":\"Fake Shop\",\"myshopifyDomain\":\"fake.myshopify.com\",\"currencyCode\":\"GBP\"}}}");

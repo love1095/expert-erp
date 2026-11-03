@@ -21,7 +21,7 @@ Each rule says what was decided, then how it is built. Country: **UK**, currency
 **Built as**
 - Allocated is computed from order lines like on-hand is computed from movements: no allocation table, nothing to get out of step. Per product and warehouse.
 - Confirm / import lock the product rows (as stock changes already do) so two orders cannot both take the last unit unseen.
-- Shopify receives **available**, never below 0 (phase F).
+- Shopify receives **available** over all warehouses together, never below 0 (phase F).
 
 ## 2. Costing — FIFO
 
@@ -65,6 +65,12 @@ Each rule says what was decided, then how it is built. Country: **UK**, currency
 
 **Decided:** the **ERP is the master** for product data (descriptions, images, prices, variants). Shopify gets it when **Sync products to Shopify** is clicked; edits made in Shopify are overwritten at the next sync.
 
+**Decided for phase F (2026-11-03)**
+- **Shopify prices include VAT.** A Shopify order line's price is gross: the ERP splits it into net + VAT with the line's rate (20 % → net = gross ÷ 1.2), so totals match what the customer paid.
+- **Refunds wait for review.** A refund made in Shopify does not make a credit note by itself: it shows on the order as *refund to review*, and someone in the ERP makes the credit note (and restocks what came back) from it.
+- **Stock sent to Shopify = available over all warehouses together** (on hand − allocated, summed over every warehouse, never below 0).
+- **Cancelled in Shopify after shipping:** not handled for now (later). Cancelling before anything shipped cancels the ERP order and frees its stock.
+
 **Rule for the plan:** if Shopify work starts taking too long, pause it and carry on with the other modules (phase F can move later).
 
 ## 6. Accounting — designed for any package
@@ -80,5 +86,4 @@ Each rule says what was decided, then how it is built. Country: **UK**, currency
 
 ## Still open
 - Couriers and courier accounts in use (phase I / warehouse).
-- Do Shopify prices include VAT? (UK stores usually do; decides how Shopify order lines are split into net + VAT.) — **parked, handled with the Shopify work (phase F)**
 - Should the financial year start (1 December, seen in Cin7) be an organisation setting? Assumed yes.

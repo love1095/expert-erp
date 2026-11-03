@@ -71,20 +71,32 @@ test.describe('Shopify order import', () => {
       await expect(status).not.toContainText('Needs review');
     });
 
-  test('SHP-008 without any warehouse the order is refused (500, so Shopify retries) and the reason is shown', { tag: ['@P2', '@shopify', '@integrations', '@external'] },
+  test('SHP-008 an order that cannot be imported is answered OK, retried by the ERP, and imported by Retry once fixed', { tag: ['@P2', '@shopify', '@integrations', '@external'] },
     async ({ page, api }) => {
       // No `warehouses` fixture: this tenant has none
       const helmet = await api.createProduct();
       const shop = await connectFakeShop(api);
       const res = await sendWebhook(shop, 'orders/create',
         shopifyOrder(Date.now() % 1_000_000_000, [{ sku: helmet.sku, title: 'Helmet', quantity: 1, price: '1.00' }]));
-      expect(res.status()).toBe(500);
+      // Stored = safe: Shopify gets 200 and the ERP retries (Shopify can drop a subscription that keeps failing)
+      expect(res.status()).toBe(200);
 
       await page.goto('/settings/integrations/shopify');
+      await expect(page.getByTestId('shopify-health')).toBeVisible();
+      await expect(page.getByTestId('shopify-waiting-retry')).toHaveText('1');
       await page.getByRole('link', { name: 'Audit Log → Shopify webhooks' }).click();
       await expect(page.getByRole('tab', { name: 'Shopify webhooks' })).toHaveAttribute('aria-selected', 'true');
-      await expect(page.getByTestId('shopify-events')).toContainText('FAILED');
-      await expect(page.getByTestId('shopify-events')).toContainText('No warehouse exists');
+      const events = page.getByTestId('shopify-events');
+      await expect(events).toContainText('FAILED');
+      await expect(events).toContainText('No warehouse exists');
+      await expect(events).toContainText('next');
+
+      // Put right, then Retry: imported now, without waiting for the next try
+      await api.createWarehouse();
+      await page.getByLabel('Failed only').check();
+      await events.getByRole('button', { name: 'Retry' }).click();
+      await expect(page.getByRole('status')).toContainText('orders/create handled');
+      await expect(events).toContainText('Nothing failed');
     });
 
   test('SHP-009 shipping a Shopify order sends it to Shopify; if Shopify is unreachable the shipment stands and can be retried', { tag: ['@P1', '@shopify', '@integrations', '@external'] },

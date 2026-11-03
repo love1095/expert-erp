@@ -24,8 +24,6 @@ public class ShopifyWebhookController {
             case OK -> ResponseEntity.ok().build();
             case UNAUTHORIZED -> ResponseEntity.status(401).build();
             case BAD_REQUEST -> ResponseEntity.badRequest().build();
-            // Shopify retries non-2xx answers
-            case FAILED -> ResponseEntity.internalServerError().build();
         };
     }
 }

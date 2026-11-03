@@ -1,6 +1,5 @@
 package com.experterp.backend.integration.shopify;
 
-import com.experterp.backend.entity.AuditLog.ActorType;
 import com.experterp.backend.entity.ShopifyConnection;
 import com.experterp.backend.entity.ShopifyWebhookEvent;
 import com.experterp.backend.entity.ShopifyWebhookEvent.Status;
@@ -8,8 +7,6 @@ import com.experterp.backend.multitenancy.TenantContext;
 import com.experterp.backend.repository.ShopifyConnectionRepository;
 import com.experterp.backend.repository.ShopifyWebhookEventRepository;
 import com.experterp.backend.security.SecretCipher;
-import com.experterp.backend.service.AuditActorContext;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,7 +18,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.Set;
@@ -29,8 +25,8 @@ import java.util.Set;
 /**
  * Receives Shopify webhooks. No user is logged in: the shop domain header says which tenant the event is for,
  * and the HMAC signature (made with that tenant's client secret) proves it came from Shopify.
- * Each event is stored first, then processed. A repeated delivery of an already processed event is skipped;
- * a failed one is processed again, and failures answer 500 so Shopify retries.
+ * Each event is stored first and answered at once; {@link ShopifyEventProcessor} runs it in the background and
+ * retries failures. A repeated delivery of an already processed event is skipped; a failed one is run again.
  */
 @Slf4j
 @Service
@@ -39,13 +35,12 @@ public class ShopifyWebhookService {
 
     static final Set<String> ORDER_TOPICS = Set.of("orders/create", "orders/updated", "orders/paid", "orders/cancelled");
 
-    public enum Reply { OK, UNAUTHORIZED, BAD_REQUEST, FAILED }
+    public enum Reply { OK, UNAUTHORIZED, BAD_REQUEST }
 
     private final ShopifyConnectionRepository connectionRepository;
     private final ShopifyWebhookEventRepository eventRepository;
-    private final ShopifyOrderImporter importer;
+    private final ShopifyEventProcessor processor;
     private final SecretCipher cipher;
-    private final ObjectMapper objectMapper;
     private final TransactionTemplate tx;
 
     /** The tenant was set from the shop domain by {@link ShopifyWebhookTenantFilter}. */
@@ -67,7 +62,10 @@ public class ShopifyWebhookService {
 
         Long eventPk = store(id, topic, shop, new String(body, StandardCharsets.UTF_8));
         if (eventPk == null) return Reply.OK;  // already handled
-        return process(eventPk, conn.getId()) ? Reply.OK : Reply.FAILED;
+        // Stored = safe: answer now and run it in the background. A failure is retried by us, not by Shopify
+        // (Shopify can remove a subscription that keeps failing)
+        processor.submit(TenantContext.get(), eventPk);
+        return Reply.OK;
     }
 
     /** Stores the event; returns its id, or null when this event was already processed or ignored. */
@@ -90,50 +88,6 @@ public class ShopifyWebhookService {
             // The same event arrived twice at the same moment; the other delivery handles it
             return null;
         }
-    }
-
-    private boolean process(Long eventPk, Long connectionId) {
-        ShopifyWebhookEvent event = eventRepository.findById(eventPk).orElseThrow();
-        Status outcome;
-        String error = null;
-        try {
-            outcome = AuditActorContext.runAs(ActorType.INTEGRATION, "shopify", () -> handle(event, connectionId));
-        } catch (RuntimeException e) {
-            log.warn("Shopify webhook {} ({}) failed: {}", event.getTopic(), event.getEventId(), e.getMessage());
-            outcome = Status.FAILED;
-            error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-        }
-        Status finalOutcome = outcome;
-        String finalError = error;
-        tx.executeWithoutResult(s -> eventRepository.findById(eventPk).ifPresent(e -> {
-            e.setStatus(finalOutcome);
-            e.setError(finalError);
-            e.setProcessedAt(LocalDateTime.now());
-        }));
-        return outcome != Status.FAILED;
-    }
-
-    private Status handle(ShopifyWebhookEvent event, Long connectionId) {
-        if (ORDER_TOPICS.contains(event.getTopic())) {
-            try {
-                importer.importOrder(ShopifyOrder.fromWebhook(objectMapper.readTree(event.getPayload())));
-            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-                throw new IllegalArgumentException("Webhook body is not valid JSON");
-            }
-            return Status.PROCESSED;
-        }
-        if ("app/uninstalled".equals(event.getTopic())) {
-            tx.executeWithoutResult(s -> connectionRepository.findById(connectionId).ifPresent(c -> {
-                c.setStatus(ShopifyConnection.Status.ERROR);
-                c.setLastError("The Expert ERP app was uninstalled from the Shopify store. Install it again, then test the connection.");
-                c.setAccessTokenEncrypted(null);
-                c.setTokenExpiresAt(null);
-                c.setWebhooksRegisteredAt(null);
-                c.setWebhookTopics(null);
-            }));
-            return Status.PROCESSED;
-        }
-        return Status.IGNORED;
     }
 
     /** Shopify signs the raw body with HMAC-SHA256 using the app's client secret (base64 in X-Shopify-Hmac-Sha256). */

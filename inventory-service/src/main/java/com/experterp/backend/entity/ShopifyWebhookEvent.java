@@ -47,5 +47,15 @@ public class ShopifyWebhookEvent {
 
     private LocalDateTime processedAt;
 
+    // Retries (7.5): how many times it was run, when a failed one runs again, who has it now
+    @Column(nullable = false)
+    private int attempts;
+
+    @Column(name = "next_attempt_at")
+    private LocalDateTime nextAttemptAt;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
     public enum Status { RECEIVED, PROCESSED, IGNORED, FAILED }
 }

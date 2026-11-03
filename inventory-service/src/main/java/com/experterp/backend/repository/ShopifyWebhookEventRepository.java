@@ -12,4 +12,15 @@ public interface ShopifyWebhookEventRepository extends JpaRepository<ShopifyWebh
     Optional<ShopifyWebhookEvent> findByEventId(String eventId);
 
     Page<ShopifyWebhookEvent> findAllByOrderByReceivedAtDesc(Pageable pageable);
+
+    Page<ShopifyWebhookEvent> findByStatusOrderByReceivedAtDesc(ShopifyWebhookEvent.Status status, Pageable pageable);
+
+    Optional<ShopifyWebhookEvent> findFirstByOrderByReceivedAtDesc();
+
+    long countByStatusAndReceivedAtAfter(ShopifyWebhookEvent.Status status, java.time.LocalDateTime after);
+
+    // Failed and still to be tried again / failed for good
+    long countByStatusAndNextAttemptAtIsNotNull(ShopifyWebhookEvent.Status status);
+
+    long countByStatusAndNextAttemptAtIsNull(ShopifyWebhookEvent.Status status);
 }

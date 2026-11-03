@@ -459,8 +459,16 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] UI moves: Shopify webhook deliveries → Audit Log tab **Shopify webhooks** (admins); **Import recent orders** → Sale Orders page
 - [x] Tests: `ShopifyProductSyncTest` (8, fake Shopify); E2E SHP-010, SHP-011, AUD-002 (59 cases, 77 backend tests at the time)
 
-### Next
-- [ ] 7.4 cancellations / returns · 7.5 reliability (retry failed events, reconciliation, background processing) · 7.6 stock sync
+### 7.5 Reliability ✅ (phase F)
+- [x] Webhooks are **answered as soon as they are stored** (200) and run in the background (`ShopifyEventProcessor`, pool of 2–4); a failure no longer answers 500, so Shopify never drops a subscription that keeps failing — the ERP retries instead
+- [x] **Retries** (`V22`: attempts, next try, lock): 1 min, 5 min, 15 min, 1 h, 4 h, 12 h, 24 h, then given up (8 runs); a worker runs due ones every 30 s and picks up events stored but never run (backend stopped). Each run first takes the event, so two workers or a worker and a person never run it together
+- [x] Audit Log → **Shopify webhooks**: tries, next try / given up, **Failed only**, **Retry** (`POST /integrations/shopify/events/{id}/retry`)
+- [x] **Daily check** at 03:15 for every connected organisation, or **Check now** (`POST /integrations/shopify/reconcile`): webhook subscriptions Shopify removed are made again; orders created or changed since the last check (1 h overlap, at most 60 days) are imported — safe to repeat
+- [x] **Health** card on the Shopify page (`GET /integrations/shopify/health`): last webhook, last 24 h handled / failed, retrying, failed for good, last check and its result; warnings when the connection, webhooks or the daily check need attention
+- [x] Tests: `ShopifyWebhookTest` +3 (retry schedule and give-up, success on retry and Retry by hand, stranded event), `ShopifyConnectionServiceTest` +2 (daily check, look-back window); E2E SHP-008 now: answered 200, retried, imported by Retry once a warehouse exists
+
+### Next (phase F)
+- [ ] 7.4 cancellations / refunds (refunds wait for review; prices include VAT) · 7.6 stock push (available over all warehouses)
 - [x] ~~Stock on hand from Cin7~~ ✅ — see Phase C (still to do: push stock to Shopify, 7.6)
 
 ---
