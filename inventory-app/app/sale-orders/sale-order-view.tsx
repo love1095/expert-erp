@@ -9,6 +9,7 @@ import { getSaleOrder, confirmSaleOrder, fulfillSaleOrder, cancelSaleOrder, crea
 import { Customer, FulfilmentStatus, SaleOrder, SaleOrderLine, SaleOrderStatus, Warehouse } from "@/types";
 import SaleOrderForm from "./sale-order-form";
 import SaleStages from "./sale-stages";
+import ShopifyRefunds from "./shopify-refunds";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import { Clip, ListHead } from "@/components/ListToolbar";
@@ -381,6 +382,8 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
               </p>
             </div>
           )}
+
+          {order.source === "SHOPIFY" && <ShopifyRefunds orderId={order.id} />}
 
           {order.backordered && (
             <p data-testid={`so-backordered-${orderId}`} className="text-sm text-orange-900 bg-orange-50 border border-orange-200 px-3 py-2 rounded">

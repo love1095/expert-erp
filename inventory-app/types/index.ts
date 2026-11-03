@@ -809,6 +809,7 @@ export interface ShopifyHealth {
   lastReconciledAt?: string | null;
   lastReconcileSummary?: string | null;
   lastReconcileError?: string | null;
+  refundsToReview: number;
   warnings: string[];
 }
 
@@ -873,4 +874,38 @@ export interface PlatformOrganisation {
   users: number;
   products: number;
   warehouses: number;
+}
+
+// A refund made in Shopify, reviewed on its order (7.4): never credited by itself
+export interface ShopifyRefundLine {
+  lineItemId?: string | null;
+  saleOrderLineId?: number | null;
+  sku?: string | null;
+  title?: string | null;
+  quantity: number;
+  amount: number;
+  restockType?: string | null;
+}
+
+export interface ShopifyRefund {
+  id: number;
+  refundId: string;
+  refundedAt?: string | null;
+  amount: number;
+  otherAmount: number;
+  note?: string | null;
+  status: "TO_REVIEW" | "DONE" | "DISMISSED";
+  outcome?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  lines: ShopifyRefundLine[];
+}
+
+export interface ShopifyRefundWaiting {
+  id: number;
+  saleOrderId: number;
+  orderNumber?: string | null;
+  shopifyOrder?: string | null;
+  amount: number;
+  refundedAt?: string | null;
 }

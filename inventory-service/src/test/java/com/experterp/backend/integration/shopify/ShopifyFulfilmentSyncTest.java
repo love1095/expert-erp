@@ -199,7 +199,7 @@ class ShopifyFulfilmentSyncTest {
         }
         String orderId = String.valueOf(Math.abs(new Random().nextLong() % 1_000_000_000L));
         var result = importer.importOrder(new ShopifyOrder(orderId, "#" + orderId, "paid", "GBP", OffsetDateTime.now(), false,
-                null, null, null, null, lines));
+                null, null, null, null, lines, true, null, List.of(), List.of()));
         return saleOrderService.findById(result.saleOrderId());
     }
 

@@ -45,5 +45,5 @@ public class Payment {
     private String reference;
 
     // CREDIT_NOTE = paid with a credit note; a payment recorded on a credit note is a refund
-    public enum PaymentMethod { CASH, BANK, STRIPE, CREDIT_NOTE }
+    public enum PaymentMethod { CASH, BANK, STRIPE, CREDIT_NOTE, SHOPIFY }
 }

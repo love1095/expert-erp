@@ -23,10 +23,11 @@ public class ShopifyHealthService {
 
     private final ShopifyConnectionRepository connectionRepository;
     private final ShopifyWebhookEventRepository eventRepository;
+    private final com.experterp.backend.repository.ShopifyRefundRepository refundRepository;
 
     public record Health(boolean ok, LocalDateTime lastEventAt, long processedLast24h, long failedLast24h,
                          long waitingRetry, long gaveUp, LocalDateTime lastReconciledAt, String lastReconcileSummary,
-                         String lastReconcileError, List<String> warnings) {}
+                         String lastReconcileError, long refundsToReview, List<String> warnings) {}
 
     @Transactional(readOnly = true)
     public Optional<Health> health() {
@@ -49,6 +50,8 @@ public class ShopifyHealthService {
             warnings.add("Webhooks are not registered: new orders only arrive with Import or the daily check");
         }
         if (gaveUp > 0) warnings.add(gaveUp + " webhook event(s) failed for good: see Audit Log → Shopify webhooks and retry them");
+        long refunds = refundRepository.countByStatus(com.experterp.backend.entity.ShopifyRefund.Status.TO_REVIEW);
+        if (refunds > 0) warnings.add(refunds + " Shopify refund(s) to review: credit or cancel them on their orders");
         if (c.getLastReconcileError() != null) warnings.add("The last daily check failed: " + c.getLastReconcileError());
         if (c.getStatus() == ShopifyConnection.Status.CONNECTED
                 && (c.getLastReconciledAt() == null ? c.getCreatedAt().isBefore(now.minusHours(CHECK_LATE_HOURS))
@@ -56,6 +59,6 @@ public class ShopifyHealthService {
             warnings.add("The daily check has not run for more than " + CHECK_LATE_HOURS + " hours");
         }
         return new Health(warnings.isEmpty(), lastEvent, processed, failed, waiting, gaveUp, c.getLastReconciledAt(),
-                c.getLastReconcileSummary(), c.getLastReconcileError(), warnings);
+                c.getLastReconcileSummary(), c.getLastReconcileError(), refunds, warnings);
     }
 }

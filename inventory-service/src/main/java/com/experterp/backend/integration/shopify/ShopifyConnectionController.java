@@ -24,6 +24,7 @@ public class ShopifyConnectionController {
     private final ShopifyEventProcessor eventProcessor;
     private final ShopifyReconciler reconciler;
     private final ShopifyHealthService healthService;
+    private final ShopifyRefundService refundService;
 
     public record EventView(Long id, String topic, String eventId, ShopifyWebhookEvent.Status status, String error,
                             LocalDateTime receivedAt, LocalDateTime processedAt, int attempts, LocalDateTime nextAttemptAt) {
@@ -98,6 +99,12 @@ public class ShopifyConnectionController {
     @PostMapping("/reconcile")
     public ShopifyReconciler.Result reconcile() {
         return reconciler.reconcile();
+    }
+
+    // Shopify refunds waiting for review, oldest first (each is reviewed on its order)
+    @GetMapping("/refunds")
+    public List<ShopifyRefundService.Waiting> refundsToReview() {
+        return refundService.waiting();
     }
 
     // 204 when no store is connected

@@ -34,7 +34,15 @@ public class ShopifyOrderSyncService {
               orders(first: 50, after: $cursor, query: $q, sortKey: CREATED_AT) {
                 pageInfo { hasNextPage endCursor }
                 nodes {
-                  id name createdAt cancelledAt displayFinancialStatus currencyCode email phone
+                  id name createdAt cancelledAt displayFinancialStatus currencyCode email phone taxesIncluded
+                  totalPriceSet { shopMoney { amount } }
+                  shippingLines(first: 10) { nodes { title discountedPriceSet { shopMoney { amount } } } }
+                  refunds(first: 20) {
+                    id createdAt note totalRefundedSet { shopMoney { amount } }
+                    refundLineItems(first: 100) {
+                      nodes { lineItem { id } quantity restockType subtotalSet { shopMoney { amount } } totalTaxSet { shopMoney { amount } } }
+                    }
+                  }
                   customer { id firstName lastName }
                   shippingAddress { name address1 address2 city zip country phone }
                   lineItems(first: 100) {

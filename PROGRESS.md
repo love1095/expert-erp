@@ -467,8 +467,17 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Health** card on the Shopify page (`GET /integrations/shopify/health`): last webhook, last 24 h handled / failed, retrying, failed for good, last check and its result; warnings when the connection, webhooks or the daily check need attention
 - [x] Tests: `ShopifyWebhookTest` +3 (retry schedule and give-up, success on retry and Retry by hand, stranded event), `ShopifyConnectionServiceTest` +2 (daily check, look-back window); E2E SHP-008 now: answered 200, retried, imported by Retry once a warehouse exists
 
+### 7.4 Prices with VAT, cancellations and refunds ✅ (phase F)
+- [x] **Shopify prices include VAT** (business-rules.md §5): each imported line gets the ERP's VAT rule (product → customer → default) and a net price whose net + VAT is what Shopify charged (`VatIncluded`); **shipping** comes in as a charge (it was dropped before). The ERP total is checked against Shopify's: up to 5p of VAT rounding (about 1 amount in 6 cannot be split exactly with VAT per line) becomes a visible *Rounding to Shopify's total* charge at 0 %; a bigger difference puts the order up for review
+- [x] **Cancelled in Shopify before anything shipped** → the ERP order is cancelled and its stock freed (also after it was confirmed). After shipping: left as it is (later)
+- [x] **Refunds wait for review** (`V23` `shopify_refunds`): every refund in an order's data (webhook or the daily check; also on confirmed / shipped orders) is kept on the order — amount, note, items with Shopify's restock type, amount beyond the items. Nothing is credited by itself
+- [x] On the order: **Apply in the ERP** — invoiced items get a **credit note** on their invoice (ticked items **back in stock**, ticked by default when Shopify says *sent back*), items not invoiced and not shipped are **cancelled** on the order, shipping / other money is credited as a charge; the credit note is set against what is still due, else recorded as paid back through **Shopify** (new payment method). **Dismiss** needs a reason. Who / when / what is kept; audited
+- [x] Shopify page: refunds waiting for review, each linked to its order; Health warns while any wait
+- [x] Tests: `ShopifyRefundTest` (6) — £34.92 order with shipping = £34.92 in the ERP (2p rounding), every amount 1p–£30 splits exactly or 1p under, £50 vs £25 needs review, cancel before / after shipping, refund → credit note with restock (seen twice, kept once), refund before shipping → quantity cancelled, goodwill dismissed; E2E SHP-012
+- [ ] Orders imported before this keep their old lines (prices with VAT, no VAT rate): only new imports are split
+
 ### Next (phase F)
-- [ ] 7.4 cancellations / refunds (refunds wait for review; prices include VAT) · 7.6 stock push (available over all warehouses)
+- [ ] 7.6 stock push (available over all warehouses)
 - [x] ~~Stock on hand from Cin7~~ ✅ — see Phase C (still to do: push stock to Shopify, 7.6)
 
 ---

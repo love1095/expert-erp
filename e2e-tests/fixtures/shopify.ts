@@ -61,6 +61,19 @@ export function shopifyOrder(id: number, lines: { sku: string | null; title: str
     customer: opts.customer
       ? { id: opts.customer.id, first_name: opts.customer.first, last_name: opts.customer.last, email: opts.customer.email, phone: null }
       : null,
-    line_items: lines.map(l => ({ sku: l.sku, title: l.title, quantity: l.quantity, price: l.price, discount_allocations: [] })),
+    // Line item ids 1, 2, ... (refunds point at them)
+    line_items: lines.map((l, i) => ({ id: i + 1, sku: l.sku, title: l.title, quantity: l.quantity, price: l.price, discount_allocations: [] })),
+  };
+}
+
+/** A refund on a Shopify order (REST shape), for the item line ids of shopifyOrder (1, 2, ...). */
+export function shopifyRefund(id: number, amount: string, lines: { lineItemId: number; quantity: number; subtotal: string; restock: string }[],
+                              note: string | null = null) {
+  return {
+    id,
+    created_at: new Date().toISOString(),
+    note,
+    refund_line_items: lines.map(l => ({ line_item_id: l.lineItemId, quantity: l.quantity, subtotal: l.subtotal, total_tax: 0, restock_type: l.restock })),
+    transactions: [{ kind: 'refund', status: 'success', amount }],
   };
 }

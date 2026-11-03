@@ -233,3 +233,11 @@ export const getOrganisations = () => api.get("/tenants").then(r => r.data);
 export const setOrganisationSubscription = (id: number, body: { planTier: string; status?: string; endDate?: string | null }) =>
   api.put(`/tenants/${id}/subscription`, body).then(r => r.data);
 export const setOrganisationActive = (id: number, active: boolean) => api.put(`/tenants/${id}/active`, { active }).then(r => r.data);
+
+// ---- Shopify refunds to review (7.4) ----
+export const getShopifyRefunds = (orderId: number) => api.get(`/sale-orders/${orderId}/shopify-refunds`).then(r => r.data);
+export const applyShopifyRefund = (orderId: number, refundId: number, restockLineIds: number[]) =>
+  api.post(`/sale-orders/${orderId}/shopify-refunds/${refundId}/apply`, { restockLineIds }).then(r => r.data);
+export const dismissShopifyRefund = (orderId: number, refundId: number, reason: string) =>
+  api.post(`/sale-orders/${orderId}/shopify-refunds/${refundId}/dismiss`, { reason }).then(r => r.data);
+export const getShopifyRefundsToReview = () => api.get("/integrations/shopify/refunds").then(r => r.data);

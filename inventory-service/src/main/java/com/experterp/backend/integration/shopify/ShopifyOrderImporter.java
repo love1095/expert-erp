@@ -6,15 +6,21 @@ import com.experterp.backend.repository.CustomerRepository;
 import com.experterp.backend.repository.ProductRepository;
 import com.experterp.backend.repository.SaleOrderRepository;
 import com.experterp.backend.repository.ShopifyConnectionRepository;
+import com.experterp.backend.repository.ShopifyRefundRepository;
 import com.experterp.backend.repository.WarehouseRepository;
 import com.experterp.backend.service.AuditService;
 import com.experterp.backend.service.OrganisationSettingsService;
+import com.experterp.backend.service.SaleAmounts;
+import com.experterp.backend.service.SaleOrderService;
+import com.experterp.backend.service.TaxService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
@@ -25,8 +31,12 @@ import java.util.*;
  *   <li>Idempotent: the order is found again by its Shopify id, so repeats update instead of duplicating.</li>
  *   <li>Paid and nothing to check → CONFIRMED (ready to ship). Unpaid → DRAFT.</li>
  *   <li>Unknown SKU, no SKU or another currency → still imported, as DRAFT marked "needs review", with the reason.</li>
- *   <li>Once the order has left DRAFT in the ERP, Shopify updates no longer change it (fulfilment and
- *       cancellation sync come in 7.3 / 7.4).</li>
+ *   <li>Prices include VAT (business-rules.md §5): each line and shipping charge is split into net + VAT with its
+ *       rate, so the ERP total is what the customer paid; a penny of VAT rounding is shown as a rounding charge,
+ *       anything bigger puts the order up for review.</li>
+ *   <li>Once the order has left DRAFT in the ERP, Shopify updates no longer change its lines. Two things still
+ *       come through (7.4): a cancellation, when nothing has shipped yet, cancels the ERP order; refunds are kept on
+ *       the order to be reviewed (a person makes the credit note).</li>
  * </ul>
  * Callers set the tenant and the audit actor.
  */
@@ -45,6 +55,14 @@ public class ShopifyOrderImporter {
     private final ShopifyConnectionRepository connectionRepository;
     private final AuditService auditService;
     private final OrganisationSettingsService settingsService;
+    private final TaxService taxService;
+    private final SaleOrderService saleOrderService;
+    private final ShopifyRefundRepository refundRepository;
+    private final ObjectMapper objectMapper;
+
+    // Up to this much under Shopify's total is VAT rounding, made up by a rounding charge; more needs a person
+    static final BigDecimal ROUNDING_TOLERANCE = new BigDecimal("0.05");
+    static final String ROUNDING_CHARGE = "Rounding to Shopify's total (VAT included in prices)";
 
     // Currency the ERP's prices are in
     @Value("${app.currency:GBP}")
@@ -58,13 +76,16 @@ public class ShopifyOrderImporter {
         boolean isNew = so == null;
 
         if (!isNew && so.getStatus() != Status.DRAFT) {
-            return new Result(Outcome.UNCHANGED, so.getId(), o.name(), so.isNeedsReview(), so.getReviewReason());
+            boolean changed = recordRefunds(so, o);
+            if (o.cancelled() && cancelUnshipped(so, o)) changed = true;
+            return new Result(changed ? Outcome.UPDATED : Outcome.UNCHANGED, so.getId(), o.name(), so.isNeedsReview(), so.getReviewReason());
         }
         if (o.cancelled()) {
             if (isNew) return new Result(Outcome.SKIPPED, null, o.name(), false, "cancelled in Shopify");
             so.setStatus(Status.CANCELLED);
             so.setCancelledAt(LocalDateTime.now());
             auditService.log("SALE_ORDER", so.getId(), "CANCEL", Map.of("shopifyOrder", String.valueOf(o.name()), "reason", "cancelled in Shopify"));
+            recordRefunds(so, o);
             return new Result(Outcome.UPDATED, so.getId(), o.name(), so.isNeedsReview(), so.getReviewReason());
         }
 
@@ -95,6 +116,8 @@ public class ShopifyOrderImporter {
 
         // DRAFT orders have shipped nothing, so their lines can be rebuilt from Shopify
         so.getLines().clear();
+        so.getCharges().clear();
+        BigDecimal shortBy = BigDecimal.ZERO;
         for (ShopifyOrder.Line l : o.lines()) {
             if (l.quantity().signum() <= 0) continue;
             String label = "'" + (l.title() == null ? "item" : l.title()) + "' × " + l.quantity().stripTrailingZeros().toPlainString();
@@ -111,12 +134,56 @@ public class ShopifyOrderImporter {
             line.setSaleOrder(so);
             line.setProduct(product.get());
             line.setQuantity(l.quantity());
-            line.setUnitPrice(l.unitPrice());
             line.setExternalLineId(l.id());
-            // No VAT recorded until it is settled whether Shopify prices include VAT (phase F)
+            // The ERP's VAT rule for the product and customer (business-rules.md §3)
+            TaxRate rate = taxService.resolveSale(product.get(), customer);
+            line.setTaxName(rate.getName());
+            line.setTaxRate(rate.getRate());
+            if (o.taxesIncluded()) {
+                VatIncluded.Split split = VatIncluded.split(l.amount(), l.quantity(), rate.getRate());
+                line.setUnitPrice(split.unitNet());
+                shortBy = shortBy.add(split.shortBy());
+            } else {
+                line.setUnitPrice(l.unitPrice());
+            }
             so.getLines().add(line);
         }
         if (so.getLines().isEmpty() && issues.isEmpty()) issues.add("the order has no items");
+
+        // Delivery charged in Shopify
+        TaxRate chargeRate = taxService.resolveSale(null, customer);
+        for (ShopifyOrder.Shipping sh : o.shipping()) {
+            if (sh.price() == null || sh.price().signum() <= 0) continue;
+            SaleOrderCharge charge = new SaleOrderCharge();
+            charge.setSaleOrder(so);
+            charge.setDescription("Shipping" + (sh.title() == null ? "" : ": " + sh.title()));
+            charge.setTaxName(chargeRate.getName());
+            charge.setTaxRate(chargeRate.getRate());
+            if (o.taxesIncluded()) {
+                VatIncluded.Split split = VatIncluded.split(sh.price(), BigDecimal.ONE, chargeRate.getRate());
+                charge.setUnitPrice(split.unitNet());
+                shortBy = shortBy.add(split.shortBy());
+            } else {
+                charge.setUnitPrice(sh.price());
+            }
+            so.getCharges().add(charge);
+        }
+        // The ERP total must be what the customer paid
+        if (issues.isEmpty() && o.totalPrice() != null) {
+            BigDecimal diff = o.totalPrice().subtract(erpTotal(so));
+            if (diff.signum() > 0 && diff.compareTo(ROUNDING_TOLERANCE) <= 0) {
+                SaleOrderCharge rounding = new SaleOrderCharge();
+                rounding.setSaleOrder(so);
+                rounding.setDescription(ROUNDING_CHARGE);
+                rounding.setUnitPrice(diff);
+                rounding.setTaxName("No VAT");
+                rounding.setTaxRate(BigDecimal.ZERO);
+                so.getCharges().add(rounding);
+            } else if (diff.signum() != 0) {
+                issues.add("the ERP total " + money(erpTotal(so)) + " is not Shopify's " + money(o.totalPrice())
+                        + " (a discount, tip or tax the ERP does not know about?)");
+            }
+        }
 
         so.setNeedsReview(!issues.isEmpty());
         so.setReviewReason(issues.isEmpty() ? null : String.join("; ", issues));
@@ -134,8 +201,82 @@ public class ShopifyOrderImporter {
         changes.put("lines", so.getLines().size());
         if (so.isNeedsReview()) changes.put("needsReview", so.getReviewReason());
         auditService.log("SALE_ORDER", so.getId(), isNew ? "IMPORT" : "IMPORT_UPDATE", changes);
+        recordRefunds(so, o);
 
         return new Result(isNew ? Outcome.CREATED : Outcome.UPDATED, so.getId(), o.name(), so.isNeedsReview(), so.getReviewReason());
+    }
+
+    /**
+     * Keeps each refund Shopify reports that the ERP has not seen, for review on the order (7.4). Nothing is credited
+     * here: a person decides (business-rules.md §5). True when one was added.
+     */
+    private boolean recordRefunds(SaleOrder so, ShopifyOrder o) {
+        boolean added = false;
+        for (ShopifyOrder.Refund r : o.refunds()) {
+            if (r.id() == null || refundRepository.existsByRefundId(r.id())) continue;
+            List<Map<String, Object>> lines = new ArrayList<>();
+            for (ShopifyOrder.RefundLine rl : r.lines()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("lineItemId", rl.lineItemId());
+                SaleOrderLine line = so.getLines().stream().filter(x -> rl.lineItemId() != null && rl.lineItemId().equals(x.getExternalLineId()))
+                        .findFirst().orElse(null);
+                ShopifyOrder.Line shopifyLine = o.lines().stream().filter(x -> rl.lineItemId() != null && rl.lineItemId().equals(x.id()))
+                        .findFirst().orElse(null);
+                m.put("saleOrderLineId", line == null ? null : line.getId());
+                m.put("sku", line != null ? line.getProduct().getSku() : shopifyLine == null ? null : shopifyLine.sku());
+                m.put("title", line != null ? line.getProduct().getName() : shopifyLine == null ? null : shopifyLine.title());
+                m.put("quantity", rl.quantity());
+                m.put("amount", rl.amount());
+                m.put("restockType", rl.restockType());
+                lines.add(m);
+            }
+            ShopifyRefund refund = new ShopifyRefund();
+            refund.setSaleOrderId(so.getId());
+            refund.setRefundId(r.id());
+            refund.setRefundedAt(r.createdAt() == null ? LocalDateTime.now()
+                    : r.createdAt().atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime());
+            refund.setAmount(r.amount());
+            refund.setOtherAmount(r.otherAmount());
+            refund.setNote(r.note());
+            try {
+                refund.setLines(objectMapper.writeValueAsString(lines));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+            refundRepository.save(refund);
+            auditService.log("SALE_ORDER", so.getId(), "SHOPIFY_REFUND", Map.of("shopifyOrder", String.valueOf(o.name()),
+                    "refund", r.id(), "amount", r.amount(), "toReview", true));
+            added = true;
+        }
+        return added;
+    }
+
+    /** Cancelled in Shopify before anything shipped: the ERP order is cancelled and its stock freed. */
+    private boolean cancelUnshipped(SaleOrder so, ShopifyOrder o) {
+        if (so.getStatus() != Status.CONFIRMED || so.hasFulfilledAnything()) {
+            // Shipped already, or finished: handled later (business-rules.md §5)
+            return false;
+        }
+        saleOrderService.cancel(so.getId());
+        auditService.log("SALE_ORDER", so.getId(), "CANCELLED_IN_SHOPIFY", Map.of("shopifyOrder", String.valueOf(o.name()), "reason", "cancelled in Shopify"));
+        return true;
+    }
+
+    private static BigDecimal erpTotal(SaleOrder so) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (SaleOrderLine l : so.getLines()) {
+            BigDecimal net = SaleAmounts.net(l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent());
+            total = total.add(net).add(SaleAmounts.tax(net, l.getTaxRate()));
+        }
+        for (SaleOrderCharge c : so.getCharges()) {
+            BigDecimal net = SaleAmounts.net(c.getQuantity(), c.getUnitPrice(), c.getDiscountPercent());
+            total = total.add(net).add(SaleAmounts.tax(net, c.getTaxRate()));
+        }
+        return total;
+    }
+
+    private static String money(BigDecimal v) {
+        return "£" + v.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
     }
 
     private Warehouse warehouse(ShopifyConnection conn) {

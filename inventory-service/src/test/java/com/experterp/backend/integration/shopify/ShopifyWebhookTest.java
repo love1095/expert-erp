@@ -111,8 +111,9 @@ class ShopifyWebhookTest {
             assertThat(so.isNeedsReview()).isFalse();
             assertThat(so.getCustomerName()).isEqualTo("Pat Jones");
             assertThat(so.getLines()).hasSize(2);
-            // £5 discount spread over 2 helmets
-            assertThat(so.getLines().get(0).getUnitPrice()).isEqualByComparingTo("22.50");
+            // £5 discount on 2 helmets: £45.00 paid, VAT included → net £37.50 (18.75 each) + £7.50 VAT
+            assertThat(so.getLines().get(0).getUnitPrice()).isEqualByComparingTo("18.75");
+            assertThat(so.getLines().get(0).getTaxRate()).isEqualByComparingTo("20");
 
             Customer c = so.getCustomer();
             assertThat(c.getSource()).isEqualTo(Customer.Source.SHOPIFY);

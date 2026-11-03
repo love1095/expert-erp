@@ -3,14 +3,20 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getShopifyHealth, reconcileShopify } from "@/lib/api";
-import { ShopifyHealth, ShopifyReconcileResult } from "@/types";
+import { getShopifyHealth, reconcileShopify, getShopifyRefundsToReview } from "@/lib/api";
+import { ShopifyHealth, ShopifyReconcileResult, ShopifyRefundWaiting } from "@/types";
+import { formatGBP } from "@/lib/currency";
 import { ClientDate } from "@/components/ClientDate";
 
 /** 7.5: is anything being lost? Webhook deliveries, failures waiting or given up, and the daily check. */
 export default function ShopifyHealthCard() {
   const qc = useQueryClient();
   const { data: health } = useQuery<ShopifyHealth | null>({ queryKey: ["shopify-health"], queryFn: getShopifyHealth, refetchInterval: 60_000 });
+  const { data: refunds = [] } = useQuery<ShopifyRefundWaiting[]>({
+    queryKey: ["shopify-refunds-waiting", health?.refundsToReview],
+    queryFn: getShopifyRefundsToReview,
+    enabled: !!health && health.refundsToReview > 0,
+  });
   const [result, setResult] = useState<ShopifyReconcileResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const check = useMutation({
@@ -42,6 +48,19 @@ export default function ShopifyHealthCard() {
             {health.gaveUp > 0 ? <Link href="/audit-log?tab=shopify-webhooks" className="hover:underline">{health.gaveUp} → retry</Link> : 0}
           </dd></div>
       </dl>
+      {refunds.length > 0 && (
+        <div data-testid="shopify-refunds-waiting" className="mt-4 border-t border-gray-100 pt-4 text-xs">
+          <p className="text-gray-500 mb-1">Refunds made in Shopify, to review on their orders</p>
+          <ul className="space-y-0.5">
+            {refunds.map(r => (
+              <li key={r.id}>
+                <Link href={`/sale-orders/${r.saleOrderId}`} className="text-brand-600 hover:underline">{r.orderNumber}{r.shopifyOrder ? ` (${r.shopifyOrder})` : ""}</Link>
+                {" "}— {formatGBP(r.amount)}{r.refundedAt ? <>, <ClientDate iso={r.refundedAt} /></> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="mt-4 border-t border-gray-100 pt-4 flex items-start gap-4">
         <div className="text-xs flex-1">
           <p className="text-gray-500">Daily check against Shopify (missed orders, removed webhooks), every night at 03:15</p>

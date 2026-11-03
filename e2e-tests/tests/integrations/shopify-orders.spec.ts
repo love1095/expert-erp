@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures/test';
 import { SaleOrdersPage } from '../../fixtures/pages/sale-orders';
-import { connectFakeShop, sendWebhook, shopifyOrder } from '../../fixtures/shopify';
+import { connectFakeShop, sendWebhook, shopifyOrder, shopifyRefund } from '../../fixtures/shopify';
 
 // Uses a made-up store: saving it calls Shopify once (the store does not exist), hence @external.
 
@@ -178,5 +178,42 @@ test.describe('Shopify order import', () => {
         publicUrl: 'https://e2e-tunnel.trycloudflare.com',
         webhookUrl: 'https://e2e-tunnel.trycloudflare.com/api/webhooks/shopify',
       });
+    });
+
+  test('SHP-012 a refund made in Shopify waits on the order; applied, the refunded item is cancelled; a cancellation cancels the order', { tag: ['@P1', '@shopify', '@integrations', '@external'] },
+    async ({ page, api, warehouses }) => {
+      const helmet = await api.createProduct({ name: 'Helmet' });
+      await api.addStock(helmet, warehouses.main, 20);
+      const shop = await connectFakeShop(api);
+      const orderNo = Date.now() % 1_000_000_000;
+      // VAT is included in Shopify prices: 3 × £12.00 = £36.00 paid
+      const order = { ...shopifyOrder(orderNo, [{ sku: helmet.sku, title: 'Helmet', quantity: 3, price: '12.00' }]), taxes_included: true, total_price: '36.00' };
+      expect((await sendWebhook(shop, 'orders/create', order)).status()).toBe(200);
+
+      await page.goto('/sale-orders');
+      const row = page.locator('[data-testid^="so-row-"]', { hasText: `Shopify #${orderNo}` });
+      await expect(row).toContainText('CONFIRMED');
+      const id = Number((await row.getAttribute('data-testid'))!.replace('so-row-', ''));
+
+      // One helmet refunded in Shopify before it shipped
+      await sendWebhook(shop, 'orders/updated', { ...order, refunds: [shopifyRefund(orderNo, '12.00',
+        [{ lineItemId: 1, quantity: 1, subtotal: '12.00', restock: 'cancel' }], 'Only needs two')] });
+      await page.goto(`/sale-orders/${id}`);
+      const refund = page.getByTestId(`shopify-refund-${orderNo}`);
+      await expect(refund).toContainText('Refund in Shopify to review: £12.00');
+      await expect(refund).toContainText('Only needs two');
+      // The Shopify page lists it too
+      await page.goto('/settings/integrations/shopify');
+      await expect(page.getByTestId('shopify-refunds-waiting')).toContainText(`(#${orderNo})`);
+      await page.getByTestId('shopify-refunds-waiting').getByRole('link').first().click();
+
+      await refund.getByRole('button', { name: 'Apply in the ERP' }).click();
+      await expect(refund.getByTestId('shopify-refund-outcome')).toContainText(`1 × ${helmet.sku} cancelled on the order`);
+      await expect(refund).toContainText('Applied');
+
+      // Then cancelled in Shopify before anything shipped: the ERP order is cancelled
+      await sendWebhook(shop, 'orders/updated', { ...order, cancelled_at: new Date().toISOString() });
+      await page.reload();
+      await expect(page.getByTestId(`so-status-${id}`)).toContainText('CANCELLED');
     });
 });
