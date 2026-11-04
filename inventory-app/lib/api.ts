@@ -64,11 +64,19 @@ export const createCustomer = (data: unknown) => api.post("/customers", data).th
 export const updateCustomer = ({ id, data }: { id: number; data: unknown }) => api.put(`/customers/${id}`, data).then(r => r.data);
 export const deleteCustomer = (id: number) => api.delete(`/customers/${id}`);
 // Cin7 Core customer export (CSV)
-export const importCustomers = (file: File) => {
+// Cin7's customer files; a file of another type than the one chosen is refused
+export type CustomerFileType = "CUSTOMERS" | "ADDRESSES" | "CONTACTS" | "CUSTOM_PRICES";
+export const importCustomers = ({ file, type }: { file: File; type: CustomerFileType }) => {
   const body = new FormData();
   body.append("file", file);
-  return api.post("/customers/import", body, { headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
+  return api.post("/customers/import", body, { params: { type }, headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
 };
+// Same files, in Cin7's columns; the file name comes from the server (e.g. CustomerAddresses_2026-11-04.csv)
+export const exportCustomers = (type: CustomerFileType) =>
+  api.get("/customers/export", { params: { type }, responseType: "blob" }).then(r => ({
+    blob: r.data as Blob,
+    fileName: /filename="([^"]+)"/.exec(String(r.headers["content-disposition"] ?? ""))?.[1] ?? `customers_${type.toLowerCase()}.csv`,
+  }));
 
 // Stock movements — array for dropdowns (fetches all)
 export const getMovements   = (params?: { productId?: number; warehouseId?: number }) =>

@@ -153,7 +153,7 @@ test.describe('Customers', () => {
     async ({ page, api, baseURL }) => {
       await page.goto('/customers');
       await page.getByLabel('Customer CSV file').setInputFiles({ name: 'stock.csv', mimeType: 'text/csv', buffer: Buffer.from('Sku,Qty\nA,1\n') });
-      await expect(page.getByTestId('customer-import-error')).toContainText("no 'Name' column");
+      await expect(page.getByTestId('customer-import-error')).toContainText("not Cin7's customers file");
 
       const staff = await apiFor(baseURL!, await addUser(api, 'STAFF'));
       try {

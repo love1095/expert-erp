@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCustomersPage, getCustomer, createCustomer, updateCustomer, deleteCustomer, importCustomers, getPriceTiers } from "@/lib/api";
+import { getCustomersPage, getCustomer, createCustomer, updateCustomer, deleteCustomer, importCustomers, exportCustomers, getPriceTiers, CustomerFileType } from "@/lib/api";
+import MoreActions from "@/components/MoreActions";
 import { AddressType, Customer, CustomerAddress, CustomerContact, CustomerImportResult, Page, PriceTier } from "@/types";
 import { ADDRESS_TYPES, AddressFields, EMPTY_ADDRESS } from "@/components/AddressFields";
 import { useEffect, useRef, useState } from "react";
@@ -22,6 +23,14 @@ const EMPTY_FORM = {
   tags: "", notes: "",
 };
 type Form = typeof EMPTY_FORM;
+
+// Cin7 Core's customer files, on the Import and Export menus
+const FILE_TYPES: { value: CustomerFileType; label: string }[] = [
+  { value: "CUSTOMERS", label: "Customers" },
+  { value: "ADDRESSES", label: "Addresses" },
+  { value: "CONTACTS", label: "Contacts" },
+  { value: "CUSTOM_PRICES", label: "Custom prices" },
+];
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const SMALL_INPUT = "w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400";
@@ -50,6 +59,9 @@ export default function CustomersPage() {
   const [importResult, setImportResult] = useState<CustomerImportResult | null>(null);
   const [importError, setImportError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  // Which of Cin7's files the Import menu asked for (the file must be that one)
+  const [importType, setImportType] = useState<CustomerFileType>("CUSTOMERS");
+  const [exporting, setExporting] = useState(false);
 
   const { data, isLoading, isFetching, refetch } = useQuery<Page<Customer>>({
     queryKey: ["customers-page", search, page, size],
@@ -128,11 +140,22 @@ export default function CustomersPage() {
     <div>
       <PageHeader title="Customers" count={totalElements} noun="customers">
           <input ref={fileInput} type="file" accept=".csv,text/csv" className="hidden" aria-label="Customer CSV file"
-            onChange={e => { const f = e.target.files?.[0]; if (f) importMutation.mutate(f); }} />
-          <button onClick={() => fileInput.current?.click()} disabled={importMutation.isPending}
-            className="border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
-            {importMutation.isPending ? "Importing..." : "Import CSV"}
-          </button>
+            onChange={e => { const f = e.target.files?.[0]; if (f) importMutation.mutate({ file: f, type: importType }); }} />
+          <MoreActions label={importMutation.isPending ? "Importing…" : "Import"}
+            actions={FILE_TYPES.map(t => ({ label: t.label, onClick: () => { setImportType(t.value); fileInput.current?.click(); } }))} />
+          <MoreActions label={exporting ? "Exporting…" : "Export"}
+            actions={FILE_TYPES.map(t => ({ label: t.label, onClick: async () => {
+              setExporting(true);
+              try {
+                const { blob, fileName } = await exportCustomers(t.value);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch { setImportError("Could not export"); } finally { setExporting(false); }
+            } }))} />
           <button onClick={() => (showForm ? closeForm() : startCreate())}
             className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
             {showForm ? "Cancel" : "+ New Customer"}
@@ -145,7 +168,10 @@ export default function CustomersPage() {
           <div className="flex items-start justify-between">
             <p>
               Imported {importResult.rows} rows: {importResult.customersCreated} customers created,{" "}
-              {importResult.customersUpdated} updated, {importResult.contacts} contacts.
+              {importResult.customersUpdated} updated
+              {importResult.contacts > 0 && <>, {importResult.contacts} contacts</>}
+              {importResult.addresses > 0 && <>, {importResult.addresses} addresses</>}
+              {importResult.prices > 0 && <>, {importResult.prices} contract prices</>}.
             </p>
             <button onClick={() => setImportResult(null)} className="text-xs text-emerald-700 hover:underline ml-4">Dismiss</button>
           </div>

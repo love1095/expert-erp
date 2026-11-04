@@ -51,4 +51,39 @@ test.describe('Customer addresses', () => {
       expect(order.shippingAddress.line1).toBe('Yard 2, Moss Lane');
       expect(order.shipToContact).toBe('Gatehouse');
     });
+
+  test('ADDRESS-002 the Import menu takes the chosen Cin7 file and refuses another; Export gives the same file back', { tag: ['@P1', '@customers'] },
+    async ({ page, api }) => {
+      const customer = await api.createCustomer({ name: `Menu ${Date.now()}` });
+      const file = (rows: string) => ({ name: 'CustomerAddresses.csv', mimeType: 'text/csv', buffer: Buffer.from(
+        'Action,Name,AddressType,AddressDefaultForType,AddressLine1,AddressLine2,City,State,Postcode,Country,IsParent\n' + rows) });
+      const addresses = file(`"Create/Update","${customer.name}",Billing,True,"1 Mill Lane","","Bury","","BL9 9SX","United Kingdom","False"\n`);
+      await page.goto('/customers');
+
+      // Import → Customers with the addresses file: refused, nothing imported
+      await page.getByRole('button', { name: 'Import', exact: true }).click();
+      let chooser = page.waitForEvent('filechooser');
+      await page.getByRole('menuitem', { name: 'Customers' }).click();
+      await (await chooser).setFiles(addresses);
+      await expect(page.getByTestId('customer-import-error')).toContainText('customer addresses file, not customers: choose Import → Addresses');
+      expect((await api.getCustomer(customer.id)).addresses).toHaveLength(0);
+
+      // Import → Addresses: taken
+      await page.getByRole('button', { name: 'Import', exact: true }).click();
+      chooser = page.waitForEvent('filechooser');
+      await page.getByRole('menuitem', { name: 'Addresses' }).click();
+      await (await chooser).setFiles(addresses);
+      await expect(page.getByTestId('customer-import-result')).toContainText('1 addresses');
+      expect((await api.getCustomer(customer.id)).address).toBe('1 Mill Lane, Bury BL9 9SX, United Kingdom');
+
+      // Export → Addresses: Cin7's file, with this customer's address in it
+      await page.getByRole('button', { name: 'Export', exact: true }).click();
+      const download = page.waitForEvent('download');
+      await page.getByRole('menuitem', { name: 'Addresses' }).click();
+      const d = await download;
+      expect(d.suggestedFilename()).toMatch(/^CustomerAddresses_\d{4}-\d{2}-\d{2}\.csv$/);
+      const text = require('fs').readFileSync(await d.path(), 'utf8');
+      expect(text).toContain('AddressType,AddressDefaultForType');
+      expect(text).toContain(`Create/Update,${customer.name},Billing,True,1 Mill Lane`);
+    });
 });

@@ -5,6 +5,7 @@ import com.experterp.backend.dto.CustomerRequest;
 import com.experterp.backend.dto.CustomerResponse;
 import com.experterp.backend.entity.Customer;
 import com.experterp.backend.entity.CustomerContact.MarketingConsent;
+import com.experterp.backend.entity.Product;
 import com.experterp.backend.entity.Tenant;
 import com.experterp.backend.multitenancy.TenantContext;
 import com.experterp.backend.repository.TenantRepository;
@@ -34,6 +35,9 @@ class CustomerImportServiceTest {
 
     @Autowired CustomerImportService importService;
     @Autowired CustomerService customerService;
+    @Autowired PricingService pricingService;
+    @Autowired CustomerExportService exportService;
+    @Autowired com.experterp.backend.repository.ProductRepository productRepository;
     @Autowired TenantRepository tenantRepository;
 
     @BeforeEach
@@ -125,6 +129,116 @@ class CustomerImportServiceTest {
         assertThat(c.getPaymentTerm()).isEqualTo("60 Day EOM");
         assertThat(c.getAddress()).isEqualTo("1 Mill Lane");
         assertThat(c.getAddresses()).singleElement().satisfies(a -> assertThat(a.isDefaultForType()).isTrue());
+    }
+
+    @Test
+    void cin7sAddressFileFillsTheAddressBooksOfKnownCustomers() throws IOException {
+        CustomerRequest req = new CustomerRequest();
+        req.setName("A Forrest");
+        Long id = customerService.create(req).getId();
+        String file = """
+                Action,Name,AddressType,AddressDefaultForType,AddressLine1,AddressLine2,City,State,Postcode,Country,IsParent
+                "Create/Update","A Forrest",Billing,True,"18 Crescent Road","","Sheffield","ENG","S7 1HL","United Kingdom","False",""
+                "Create/Update","a forrest",Shipping,False,"Unit 2, Mill Yard","","Rotherham","","S60 1AA","United Kingdom","False",""
+                "Create/Update","A Forrest",Shipping,True,"18 Crescent Road","","Sheffield","ENG","S7 1HL","United Kingdom","False",""
+                "Create/Update","Nobody Ltd",Billing,True,"1 Lost Lane","","Leeds","","LS1","United Kingdom","False",""
+                """;
+
+        CustomerImportService.ImportResult r = importService.importCsv(csv(file));
+        assertThat(r.customersUpdated()).isEqualTo(1);
+        assertThat(r.customersCreated()).isZero();
+        assertThat(r.addresses()).isEqualTo(3);
+        assertThat(r.warnings()).singleElement().asString().contains("Nobody Ltd", "skipped");
+
+        CustomerResponse c = customerService.findById(id);
+        assertThat(c.getAddress()).isEqualTo("18 Crescent Road, Sheffield ENG S7 1HL, United Kingdom");
+        assertThat(c.getAddresses()).filteredOn(a -> a.getType() == com.experterp.backend.entity.CustomerAddress.Type.SHIPPING)
+                .extracting(CustomerResponse.Address::getLine1, CustomerResponse.Address::isDefaultForType)
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("Unit 2, Mill Yard", false),
+                        org.assertj.core.groups.Tuple.tuple("18 Crescent Road", true));
+        // The same file again gives the same address book
+        importService.importCsv(csv(file));
+        assertThat(customerService.findById(id).getAddresses()).hasSize(3);
+    }
+
+    @Test
+    void cin7sContactsFileReplacesTheContactsOfKnownCustomers() throws IOException {
+        CustomerRequest req = new CustomerRequest();
+        req.setName("A M E Services Ltd");
+        Long id = customerService.create(req).getId();
+        importService.importCsv(csv("""
+                Action,Customer,Contact,Phone,MobilePhone,JobTitle,Fax,Email,Website,Comment,Default,IncludeInEmails,MarketingConsent
+                "Create/Update","A M E Services Ltd",Dan Henshaw,01706861029,"","","","","","","True","False","Unknown",""
+                "Create/Update","A M E Services Ltd",Accounts,"","","","","accounts@ame.test","","","False","True","Unknown",""
+                """));
+        CustomerResponse c = customerService.findById(id);
+        assertThat(c.getContacts()).extracting(CustomerResponse.Contact::getName).containsExactly("Dan Henshaw", "Accounts");
+        assertThat(c.getContacts().get(1).isIncludeInEmail()).isTrue();
+    }
+
+    @Test
+    void cin7sCustomPricesBecomeContractPricesFromTodayAndAChangedOneReplacesTheOld() throws IOException {
+        CustomerRequest req = new CustomerRequest();
+        req.setName("AE Yates Ltd");
+        Long id = customerService.create(req).getId();
+        Product mask = new Product();
+        mask.setSku("*RPDM-" + UUID.randomUUID().toString().substring(0, 6) + "*");
+        mask.setName("Respirator *Expired*");
+        mask.setUnit("Box");
+        mask = productRepository.save(mask);
+        String file = "Action,ProductSKU,ProductName,CustomerName,Price\n"
+                + ",\"" + mask.getSku() + "\",\"Respirator\",AE Yates Ltd,5.5000\n"
+                + ",NO-SUCH-SKU,Thing,AE Yates Ltd,1.00\n";
+
+        CustomerImportService.ImportResult r = importService.importCsv(csv(file));
+        assertThat(r.prices()).isEqualTo(1);
+        assertThat(r.warnings()).singleElement().asString().contains("NO-SUCH-SKU");
+        List<PricingService.ContractPriceView> prices = pricingService.contractPrices(id);
+        assertThat(prices).singleElement().satisfies(p -> {
+            assertThat(p.unitPrice()).isEqualByComparingTo("5.50");
+            assertThat(p.validFrom()).isEqualTo(java.time.LocalDate.now());
+            assertThat(p.validTo()).isNull();
+        });
+
+        // Same file again: nothing changes; a new price today replaces today's
+        assertThat(importService.importCsv(csv(file)).prices()).isZero();
+        importService.importCsv(csv(file.replace("5.5000", "5.2500")));
+        assertThat(pricingService.contractPrices(id)).singleElement().satisfies(p -> assertThat(p.unitPrice()).isEqualByComparingTo("5.25"));
+    }
+
+    @Test
+    void eachExportImportsBackAsTheSameKindAndAFileOfAnotherKindIsRefused() throws IOException {
+        String addresses = """
+                Action,Name,AddressType,AddressDefaultForType,AddressLine1,AddressLine2,City,State,Postcode,Country,IsParent
+                "Create/Update","Round Trip Ltd",Billing,True,"1 Mill Lane","","Bury","","BL9 9SX","United Kingdom","False"
+                "Create/Update","Round Trip Ltd",Shipping,True,"Yard 2","","Bolton","","","United Kingdom","False"
+                """;
+        CustomerRequest req = new CustomerRequest();
+        req.setName("Round Trip Ltd");
+        CustomerRequest.Contact dan = new CustomerRequest.Contact();
+        dan.setName("Dan");
+        dan.setEmail("dan@trip.test");
+        dan.setDefaultContact(true);
+        req.setContacts(List.of(dan));
+        Long id = customerService.create(req).getId();
+
+        assertThatThrownBy(() -> importService.importCsv(csv(addresses), CustomerImportService.Kind.CUSTOMERS))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("customer addresses file, not customers")
+                .hasMessageContaining("Import → Addresses");
+        assertThat(customerService.findById(id).getAddresses()).as("nothing imported").isEmpty();
+        importService.importCsv(csv(addresses), CustomerImportService.Kind.ADDRESSES);
+
+        for (CustomerImportService.Kind kind : CustomerImportService.Kind.values()) {
+            java.io.StringWriter out = new java.io.StringWriter();
+            exportService.export(kind, out);
+            String file = out.toString();
+            assertThat(file).as(kind.name()).contains(kind == CustomerImportService.Kind.CUSTOM_PRICES ? "ProductSKU" : "Round Trip Ltd");
+            CustomerImportService.ImportResult r = importService.importCsv(csv(file), kind);
+            assertThat(r.warnings()).as(kind.name()).isEmpty();
+        }
+        CustomerResponse c = customerService.findById(id);
+        assertThat(c.getAddresses()).hasSize(2);
+        assertThat(c.getContacts()).singleElement().satisfies(x -> assertThat(x.getEmail()).isEqualTo("dan@trip.test"));
     }
 
     @Test

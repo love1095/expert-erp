@@ -487,7 +487,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ G3 ✅ G4 ✅ · Cin7 addresses import waiting for the export)
+## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ G3 ✅ G4 ✅)
 
 ### G1 Price tiers and contract prices ✅
 - [x] **Price tiers** per organisation (`V25` `price_tiers`), numbered like Cin7's PriceTier1..10 and named in Settings → Organisation → **Price tiers** (ADMIN): tiers 1–4 use each product's own price for the tier (Cin7's PriceTier1–4 columns: sell price, trade price, tier 3, tier 4; a product without one gets tier 1), or a **percentage off tier 1**; tiers 5–10 must be a percentage. Seeded *1 Retail* and *2 Contract* (the name the real Cin7 customers use: 191 Contract, 141 Retail) or *Trade*; renaming a tier renames it on its customers; a tier in use cannot be removed
@@ -525,7 +525,9 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Shopify orders** deliver to Shopify's shipping address (with the name as Ship to contact); new Shopify customers get it as their default Shipping address
 - [x] **Printed**: the order's billing address on quotes, orders and invoices, and a **Deliver to** block (company, Attn: contact, shipping address)
 - [x] Tests: `AddressTest` (2) — one default per type, blank rows dropped, address book kept when not sent; order copies the defaults, one-off delivery address, kept when the customer moves, printed on order and invoice; Shopify and document tests moved to the address book; E2E ADDRESS-001
-- [ ] **Import Cin7's customer addresses** (CSV exported by the user from Cin7 into ~/Documents/expertsafety): Expert Safety's 336 customers have no addresses in the ERP yet
+- [x] **Customers → Import CSV knows Cin7's three customer files** by their columns: the customer export, *CustomerAddresses* (each customer in the file gets the file's address book) and *CustomerContacts* (each customer in the file gets the file's contacts); names not in the ERP are reported, not created; *CustomPrices* (one SKU, one customer, one price, no dates in Cin7) become **contract prices from today with no end**: the same price again is left alone, a different one ends the old price yesterday (or replaces today's). Tests: `CustomerImportServiceTest` (+3)
+- [x] **Import ▾ / Export ▾ menus** on Customers, like Cin7: Customers, Addresses, Contacts, Custom prices. An import checks the file is the type chosen (e.g. the addresses file under Customers is refused: "choose Import → Addresses"), nothing imported; each export is in Cin7's own columns (`GET /customers/export?type=`) and imports back the same. Tests: `CustomerImportServiceTest` (round trip of all four), E2E ADDRESS-002
+- [x] Real data (2026-11-04): CustomerAddresses_2026-11-04.csv loaded, 781 addresses for 307 customers, no warnings (customers with no default of a type got their first one as default); CustomPrices_2026-11-04.csv loaded, 561 contract prices for 45 customers, no warnings (e.g. AE Yates' CUST-AEYEVO3BLACK now prices at £11.40, *Contract price*)
 
 ---
 

@@ -217,6 +217,8 @@ export interface CustomerImportResult {
   customersCreated: number;
   customersUpdated: number;
   contacts: number;
+  addresses: number;
+  prices: number;
   warnings: string[];
 }
 

@@ -22,6 +22,7 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final CustomerImportService importService;
+    private final com.experterp.backend.service.CustomerExportService exportService;
 
     @GetMapping
     public Page<CustomerResponse> list(
@@ -41,12 +42,22 @@ public class CustomerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(customerService.create(req));
     }
 
-    // Cin7 Core customer export; creates or updates customers by name
+    // Cin7 Core's customer files (type = CUSTOMERS, ADDRESSES, CONTACTS, CUSTOM_PRICES; a file of another type is refused)
     @PostMapping(value = "/import", consumes = "multipart/form-data")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
-    public CustomerImportService.ImportResult importCsv(@RequestParam("file") MultipartFile file) throws IOException {
+    public CustomerImportService.ImportResult importCsv(@RequestParam("file") MultipartFile file,
+                                                        @RequestParam(required = false) CustomerImportService.Kind type) throws IOException {
         if (file.isEmpty()) throw new IllegalArgumentException("The file is empty");
-        return importService.importCsv(file.getInputStream());
+        return importService.importCsv(file.getInputStream(), type);
+    }
+
+    // The same four files, in Cin7's columns, so they can be imported back (here or in Cin7)
+    @GetMapping(value = "/export", produces = "text/csv")
+    public void export(@RequestParam(defaultValue = "CUSTOMERS") CustomerImportService.Kind type,
+                       jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + exportService.fileName(type) + "\"");
+        exportService.export(type, response.getWriter());
     }
 
     @PutMapping("/{id}")
