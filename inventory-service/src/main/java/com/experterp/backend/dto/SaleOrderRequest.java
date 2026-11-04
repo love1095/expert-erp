@@ -46,6 +46,14 @@ public class SaleOrderRequest {
 
     private String shippingNotes;
 
+    // Phase G4: empty = the customer's default billing / shipping address
+    private com.experterp.backend.entity.Address billingAddress;
+    private com.experterp.backend.entity.Address shippingAddress;
+    @Size(max = 255)
+    private String shipToCompany;
+    @Size(max = 255)
+    private String shipToContact;
+
     // Make a quote instead of an order: reserves nothing, becomes the order when converted
     private boolean quote;
 

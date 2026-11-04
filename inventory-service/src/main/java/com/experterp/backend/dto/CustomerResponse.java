@@ -29,7 +29,9 @@ public class CustomerResponse {
     private String salesRepresentative;
     private String location;
     private String tags;
+    // The billing address on one line (lists); the address book is in addresses (G4)
     private String address;
+    private List<Address> addresses;
     private String notes;
     // Default contact first
     private List<Contact> contacts;
@@ -38,6 +40,19 @@ public class CustomerResponse {
     private long orderCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Data
+    public static class Address {
+        private Long id;
+        private String line1;
+        private String line2;
+        private String city;
+        private String state;
+        private String postcode;
+        private String country;
+        private com.experterp.backend.entity.CustomerAddress.Type type;
+        private boolean defaultForType;
+    }
 
     @Data
     public static class Contact {

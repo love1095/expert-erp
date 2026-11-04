@@ -3,6 +3,8 @@ package com.experterp.backend.service;
 import com.experterp.backend.dto.CustomerRequest;
 import com.experterp.backend.dto.CustomerResponse;
 import com.experterp.backend.entity.Customer;
+import com.experterp.backend.entity.Address;
+import com.experterp.backend.entity.CustomerAddress;
 import com.experterp.backend.entity.CustomerContact;
 import com.experterp.backend.exception.ResourceNotFoundException;
 import com.experterp.backend.repository.CustomerRepository;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -126,7 +129,6 @@ public class CustomerService {
         c.setSalesRepresentative(blankToNull(req.getSalesRepresentative()));
         c.setLocation(blankToNull(req.getLocation()));
         c.setTags(blankToNull(req.getTags()));
-        c.setAddress(blankToNull(req.getAddress()));
         c.setNotes(blankToNull(req.getNotes()));
 
         List<CustomerContact> contacts = req.getContacts() == null ? List.of() : req.getContacts().stream()
@@ -143,6 +145,31 @@ public class CustomerService {
         // Same order as @OrderBy gives when loaded: default first, then as given
         contacts.sort(Comparator.comparing(cc -> !cc.isDefaultContact()));
         c.replaceContacts(contacts);
+        if (req.getAddresses() != null) c.replaceAddresses(addresses(req.getAddresses()));
+    }
+
+    /** The address book from the request: empty rows dropped, one default per type (the first marked, else the first). */
+    static List<CustomerAddress> addresses(List<CustomerRequest.Address> rows) {
+        List<CustomerAddress> out = new ArrayList<>();
+        for (CustomerRequest.Address r : rows) {
+            Address a = Address.clean(new Address(r.getLine1(), r.getLine2(), r.getCity(), r.getState(), r.getPostcode(), r.getCountry()));
+            if (a == null) continue;
+            CustomerAddress ca = new CustomerAddress();
+            ca.setAddress(a);
+            ca.setType(r.getType() != null ? r.getType() : CustomerAddress.Type.BILLING);
+            ca.setDefaultForType(r.isDefaultForType());
+            out.add(ca);
+        }
+        for (CustomerAddress.Type type : CustomerAddress.Type.values()) {
+            List<CustomerAddress> ofType = out.stream().filter(a -> a.getType() == type).toList();
+            boolean seen = false;
+            for (CustomerAddress a : ofType) {
+                if (a.isDefaultForType() && !seen) seen = true;
+                else a.setDefaultForType(false);
+            }
+            if (!seen && !ofType.isEmpty()) ofType.get(0).setDefaultForType(true);
+        }
+        return out;
     }
 
     private static CustomerContact toContact(CustomerRequest.Contact r) {
@@ -189,7 +216,21 @@ public class CustomerService {
         r.setSalesRepresentative(c.getSalesRepresentative());
         r.setLocation(c.getLocation());
         r.setTags(c.getTags());
-        r.setAddress(c.getAddress());
+        r.setAddress(c.billingAddress().map(Address::oneLine).orElse(null));
+        r.setAddresses(c.getAddresses().stream().map(ca -> {
+            CustomerResponse.Address x = new CustomerResponse.Address();
+            Address a = ca.getAddress();
+            x.setId(ca.getId());
+            x.setLine1(a.getLine1());
+            x.setLine2(a.getLine2());
+            x.setCity(a.getCity());
+            x.setState(a.getState());
+            x.setPostcode(a.getPostcode());
+            x.setCountry(a.getCountry());
+            x.setType(ca.getType());
+            x.setDefaultForType(ca.isDefaultForType());
+            return x;
+        }).toList());
         r.setNotes(c.getNotes());
         r.setContacts(c.getContacts().stream().map(cc -> {
             CustomerResponse.Contact x = new CustomerResponse.Contact();

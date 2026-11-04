@@ -2,7 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCustomersPage, getCustomer, createCustomer, updateCustomer, deleteCustomer, importCustomers, getPriceTiers } from "@/lib/api";
-import { Customer, CustomerContact, CustomerImportResult, Page, PriceTier } from "@/types";
+import { AddressType, Customer, CustomerAddress, CustomerContact, CustomerImportResult, Page, PriceTier } from "@/types";
+import { ADDRESS_TYPES, AddressFields, EMPTY_ADDRESS } from "@/components/AddressFields";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,7 +19,7 @@ const EMPTY_CONTACT: CustomerContact = {
 const EMPTY_FORM = {
   name: "", status: "ACTIVE" as Customer["status"], currency: "GBP", paymentTerm: "", priceTier: "",
   creditLimit: "", taxRule: "", taxNumber: "", carrier: "", salesRepresentative: "", location: "",
-  tags: "", address: "", notes: "",
+  tags: "", notes: "",
 };
 type Form = typeof EMPTY_FORM;
 
@@ -35,6 +36,15 @@ export default function CustomersPage() {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const { data: tiers = [] } = useQuery<PriceTier[]>({ queryKey: ["price-tiers"], queryFn: getPriceTiers });
   const [contacts, setContacts] = useState<CustomerContact[]>([]);
+  // G4: the address book, like Cin7's Addresses tab (one default per type)
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const setAddress = (i: number, patch: Partial<CustomerAddress>) =>
+    setAddresses(as => as.map((a, j) => {
+      if (j === i) return { ...a, ...patch };
+      // Ticking a default (or moving to a type) leaves one default of that type
+      const type = patch.type ?? as[i].type;
+      return (patch.defaultForType || (patch.type && as[i].defaultForType)) && a.type === type ? { ...a, defaultForType: false } : a;
+    }));
   const [error, setError] = useState("");
   const router = useRouter();
   const [importResult, setImportResult] = useState<CustomerImportResult | null>(null);
@@ -58,7 +68,7 @@ export default function CustomersPage() {
     qc.invalidateQueries({ queryKey: ["customers-page"] });
     qc.invalidateQueries({ queryKey: ["customers"] });
   };
-  const closeForm = () => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setContacts([]); setError(""); };
+  const closeForm = () => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setContacts([]); setAddresses([]); setError(""); };
   const onSaved = () => { refresh(); closeForm(); };
   const onError = (e: any) => {
     const fields = e.response?.data?.fields;
@@ -80,7 +90,8 @@ export default function CustomersPage() {
   });
 
   const startCreate = () => {
-    setEditingId(null); setForm(EMPTY_FORM); setContacts([{ ...EMPTY_CONTACT, defaultContact: true }]); setError(""); setShowForm(true);
+    setEditingId(null); setForm(EMPTY_FORM); setContacts([{ ...EMPTY_CONTACT, defaultContact: true }]);
+    setAddresses([{ ...EMPTY_ADDRESS, type: "BILLING", defaultForType: true }]); setError(""); setShowForm(true);
   };
 
   const startEdit = (c: Customer) => {
@@ -90,9 +101,10 @@ export default function CustomersPage() {
       priceTier: c.priceTier ?? "", creditLimit: c.creditLimit != null ? String(c.creditLimit) : "",
       taxRule: c.taxRule ?? "", taxNumber: c.taxNumber ?? "", carrier: c.carrier ?? "",
       salesRepresentative: c.salesRepresentative ?? "", location: c.location ?? "", tags: c.tags ?? "",
-      address: c.address ?? "", notes: c.notes ?? "",
+      notes: c.notes ?? "",
     });
     setContacts(c.contacts.map(x => ({ ...x })));
+    setAddresses((c.addresses ?? []).map(x => ({ ...x })));
     setError("");
     setShowForm(true);
     window.scrollTo({ top: 0 });
@@ -105,7 +117,7 @@ export default function CustomersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const body = { ...form, creditLimit: form.creditLimit === "" ? null : Number(form.creditLimit), contacts };
+    const body = { ...form, creditLimit: form.creditLimit === "" ? null : Number(form.creditLimit), contacts, addresses };
     if (editingId != null) updateMutation.mutate({ id: editingId, data: body });
     else createMutation.mutate(body);
   };
@@ -191,14 +203,40 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="customers-address" className="block text-xs font-medium text-gray-600 mb-1">Address</label>
-              <textarea id="customers-address" rows={2} value={form.address} onChange={e => set("address", e.target.value)} className={INPUT} />
+          <div>
+            <label htmlFor="customers-notes" className="block text-xs font-medium text-gray-600 mb-1">Comments</label>
+            <textarea id="customers-notes" rows={2} value={form.notes} onChange={e => set("notes", e.target.value)} className={INPUT} />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gray-600">Addresses</span>
+              <button type="button" onClick={() => {
+                const type: AddressType = addresses.some(a => a.type === "BILLING") ? "SHIPPING" : "BILLING";
+                setAddresses([...addresses, { ...EMPTY_ADDRESS, type, defaultForType: !addresses.some(a => a.type === type) }]);
+              }} className="text-xs text-brand-600 hover:text-brand-800">+ Add address</button>
             </div>
-            <div>
-              <label htmlFor="customers-notes" className="block text-xs font-medium text-gray-600 mb-1">Comments</label>
-              <textarea id="customers-notes" rows={2} value={form.notes} onChange={e => set("notes", e.target.value)} className={INPUT} />
+            {addresses.length === 0 && <p className="text-xs text-gray-400">No addresses</p>}
+            <div className="grid md:grid-cols-2 gap-3">
+              {addresses.map((a, i) => (
+                <div key={i} className="border border-gray-200 rounded-md p-3 space-y-2" data-testid={`address-row-${i}`}>
+                  <div className="flex items-center gap-3 text-xs">
+                    <select aria-label={`Address ${i + 1} type`} value={a.type} onChange={e => setAddress(i, { type: e.target.value as AddressType })}
+                      className={`${SMALL_INPUT} w-32`}>
+                      {ADDRESS_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <label className="flex items-center gap-1 text-gray-600">
+                      <input type="checkbox" aria-label={`Address ${i + 1} default for type`} checked={a.defaultForType}
+                        onChange={e => setAddress(i, { defaultForType: e.target.checked })} />
+                      Default for type
+                    </label>
+                    <button type="button" onClick={() => setAddresses(addresses.filter((_, j) => j !== i))}
+                      className="ml-auto text-red-400 hover:text-red-600">Remove</button>
+                  </div>
+                  <AddressFields label={`Address ${i + 1}`} value={a} inputClass={SMALL_INPUT}
+                    onChange={v => setAddress(i, v)} />
+                </div>
+              ))}
             </div>
           </div>
 

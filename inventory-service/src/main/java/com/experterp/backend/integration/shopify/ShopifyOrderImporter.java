@@ -108,6 +108,11 @@ public class ShopifyOrderImporter {
         so.setCustomer(customer);
         so.setCustomerName(customer.getName());
         so.setNotes("Imported from Shopify order " + (o.name() == null ? o.id() : o.name()));
+        // G4: delivered where the Shopify order says; billed at the customer's billing address, else there too
+        Address ship = address(o.shippingAddress());
+        so.setShippingAddress(ship);
+        so.setShipToContact(o.shippingAddress() != null ? o.shippingAddress().name() : null);
+        so.setBillingAddress(customer.billingAddress().map(Address::new).orElse(ship == null ? null : new Address(ship)));
 
         List<String> issues = new ArrayList<>();
         if (o.currency() != null && !o.currency().equalsIgnoreCase(erpCurrency)) {
@@ -279,6 +284,10 @@ public class ShopifyOrderImporter {
         return "£" + v.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
     }
 
+    private static Address address(ShopifyOrder.Address a) {
+        return a == null ? null : Address.clean(new Address(a.address1(), a.address2(), a.city(), null, a.zip(), a.country()));
+    }
+
     private Warehouse warehouse(ShopifyConnection conn) {
         if (conn.getDefaultWarehouse() != null) return conn.getDefaultWarehouse();
         return warehouseRepository.findFirstByOrderByIdAsc().orElseThrow(() ->
@@ -307,7 +316,14 @@ public class ShopifyOrderImporter {
         c.setSource(Customer.Source.SHOPIFY);
         c.setExternalId(sc != null ? sc.id() : null);
         c.setCurrency(o.currency());
-        if (ship != null) c.setAddress(ship.formatted());
+        Address delivery = address(ship);
+        if (delivery != null) {
+            CustomerAddress ca = new CustomerAddress();
+            ca.setAddress(delivery);
+            ca.setType(CustomerAddress.Type.SHIPPING);
+            ca.setDefaultForType(true);
+            c.replaceAddresses(new ArrayList<>(List.of(ca)));
+        }
         if (email != null || phone != null) {
             CustomerContact contact = new CustomerContact();
             contact.setName(name);

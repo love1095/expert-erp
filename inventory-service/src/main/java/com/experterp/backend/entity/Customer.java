@@ -73,15 +73,18 @@ public class Customer {
     private String tags;
 
     @Column(columnDefinition = "TEXT")
-    private String address;
-
-    @Column(columnDefinition = "TEXT")
     private String notes;
 
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("defaultContact DESC, id")
     @BatchSize(size = 100)
     private List<CustomerContact> contacts = new ArrayList<>();
+
+    // Phase G4: the address book, like Cin7's Addresses tab (billing, business, shipping; one default per type)
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("type, defaultForType DESC, id")
+    @BatchSize(size = 100)
+    private List<CustomerAddress> addresses = new ArrayList<>();
 
     // Where the customer came from; integrations look customers up by (source, externalId)
     @Enumerated(EnumType.STRING)
@@ -101,6 +104,31 @@ public class Customer {
 
     // Cin7 calls an inactive customer "Deprecated"
     public enum Status { ACTIVE, DEPRECATED }
+
+    public void replaceAddresses(List<CustomerAddress> newAddresses) {
+        addresses.clear();
+        newAddresses.forEach(a -> a.setCustomer(this));
+        addresses.addAll(newAddresses);
+    }
+
+    /** The default address of a type, else the first of that type. */
+    public java.util.Optional<Address> defaultAddress(CustomerAddress.Type type) {
+        return addresses.stream().filter(a -> a.getType() == type)
+                .sorted(java.util.Comparator.comparing(a -> !a.isDefaultForType()))
+                .map(CustomerAddress::getAddress).findFirst();
+    }
+
+    /** Where invoices go: the billing address, else the business one, else any. */
+    public java.util.Optional<Address> billingAddress() {
+        return defaultAddress(CustomerAddress.Type.BILLING)
+                .or(() -> defaultAddress(CustomerAddress.Type.BUSINESS))
+                .or(() -> addresses.stream().findFirst().map(CustomerAddress::getAddress));
+    }
+
+    /** Where goods go: the shipping address, else the billing one. */
+    public java.util.Optional<Address> shippingAddress() {
+        return defaultAddress(CustomerAddress.Type.SHIPPING).or(this::billingAddress);
+    }
 
     public void replaceContacts(List<CustomerContact> newContacts) {
         contacts.clear();

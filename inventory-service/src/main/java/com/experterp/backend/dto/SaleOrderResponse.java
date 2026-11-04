@@ -23,6 +23,11 @@ public class SaleOrderResponse {
     private LocalDate shipBy;
     private String carrier;
     private String shippingNotes;
+    // Phase G4
+    private com.experterp.backend.entity.Address billingAddress;
+    private com.experterp.backend.entity.Address shippingAddress;
+    private String shipToCompany;
+    private String shipToContact;
     // Σ lines and charges, cancelled quantities left out
     private BigDecimal subtotal;
     private BigDecimal taxTotal;

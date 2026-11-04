@@ -43,12 +43,27 @@ public class CustomerRequest {
     private String salesRepresentative;
     private String location;
     private String tags;
-    private String address;
     private String notes;
+
+    // Phase G4: replaces the customer's address book; null leaves it as it is (e.g. the CSV import)
+    @Valid
+    private List<Address> addresses;
 
     // Replaces all of the customer's contacts
     @Valid
     private List<Contact> contacts = new ArrayList<>();
+
+    @Data
+    public static class Address {
+        @Size(max = 255) private String line1;
+        @Size(max = 255) private String line2;
+        @Size(max = 100) private String city;
+        @Size(max = 100) private String state;
+        @Size(max = 30) private String postcode;
+        @Size(max = 100) private String country;
+        private com.experterp.backend.entity.CustomerAddress.Type type = com.experterp.backend.entity.CustomerAddress.Type.BILLING;
+        private boolean defaultForType;
+    }
 
     @Data
     public static class Contact {

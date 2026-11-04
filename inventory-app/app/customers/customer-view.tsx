@@ -15,6 +15,7 @@ import SaleStages from "../sale-orders/sale-stages";
 import { STATUS_COLOR } from "../sale-orders/sale-order-view";
 import ContractPrices from "./contract-prices";
 import CreditCard from "./credit-card";
+import { ADDRESS_TYPES, AddressText } from "@/components/AddressFields";
 import StatementCard from "./statement-card";
 
 // One customer on its own page, like Cin7's customer screen: account details, contacts and their sales
@@ -100,12 +101,26 @@ export default function CustomerView({ customerId }: { customerId: number }) {
             <Field label="VAT number" value={c.taxNumber} />
           </> },
           { title: "Shipping", fields: <>
-            <Field label="Address" value={c.address && <span className="whitespace-pre-line">{c.address}</span>} />
             <Field label="Carrier" value={c.carrier} />
             <Field label="Location" value={c.location} />
           </> },
         ]} />
 
+        <Card title={`Addresses (${c.addresses?.length ?? 0})`} testId={`customer-addresses-${c.id}`}>
+          {(c.addresses ?? []).length === 0 ? <p className="text-sm text-gray-400">No addresses yet: add them with Edit</p> : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+              {(c.addresses ?? []).map(a => (
+                <div key={a.id} className="border border-gray-200 rounded-md px-3 py-2">
+                  <div className="text-xs text-gray-500 mb-1">
+                    {ADDRESS_TYPES.find(t => t.value === a.type)?.label}
+                    {a.defaultForType && <span className="ml-2 text-[11px] font-semibold text-brand-700">Default</span>}
+                  </div>
+                  <AddressText address={a} />
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
         <CreditCard customer={c} />
         <StatementCard customer={c} />
         <ContractPrices customer={c} />

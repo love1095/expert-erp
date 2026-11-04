@@ -487,7 +487,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ G3 ✅ · next G4 delivery addresses)
+## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ G3 ✅ G4 ✅ · Cin7 addresses import waiting for the export)
 
 ### G1 Price tiers and contract prices ✅
 - [x] **Price tiers** per organisation (`V25` `price_tiers`), numbered like Cin7's PriceTier1..10 and named in Settings → Organisation → **Price tiers** (ADMIN): tiers 1–4 use each product's own price for the tier (Cin7's PriceTier1–4 columns: sell price, trade price, tier 3, tier 4; a product without one gets tier 1), or a **percentage off tier 1**; tiers 5–10 must be a percentage. Seeded *1 Retail* and *2 Contract* (the name the real Cin7 customers use: 191 Contract, 141 Retail) or *Trade*; renaming a tier renames it on its customers; a tier in use cannot be removed
@@ -517,6 +517,15 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Sales invoices typed by hand can name their customer (`customerId`), so they show on the statement
 - [x] Tests: `StatementTest` (3) — activity and outstanding agree, opening / running / closing balance, ageing, open items on a past date; partly applied credit note counted once; reminders list only overdue invoices, preview records nothing, 1st → 2nd → final, audited; E2E STATEMENT-001
 - [ ] Local data: Expert Safety has no invoices yet (only customers, products and stock came from Cin7), so statements were checked on test data; e-mailing statements and reminders comes with e-mail sending
+
+### G4 Billing and delivery addresses ✅
+- [x] Cin7 checked (read-only, 2026-11-04): the customer **Addresses** tab is a list (Line 1, Line 2, City / Suburb, State / Province, Zip / Postcode, Country, Type Billing / Business / Shipping, Default for type); the sale order header copies a billing and a shipping address, with Ship to company, Ship to contact and Shipping notes. The customer export CSV has no addresses
+- [x] **Address book per customer** (`V29` `customer_addresses`): any number, one default per type (the first ticked, else the first); edited on the customer form, shown on the customer page; saving a customer without addresses (CSV import) keeps them. The old one-text address became the default billing address (its first line as line 1)
+- [x] **Addresses on the sale order**: billing and shipping copied from the customer's defaults (shipping falls back to billing), changeable per order (pick a saved address or type a one-off), plus Ship to company and Ship to contact; kept when the customer's addresses change later; orders made before V29 got the customer's address
+- [x] **Shopify orders** deliver to Shopify's shipping address (with the name as Ship to contact); new Shopify customers get it as their default Shipping address
+- [x] **Printed**: the order's billing address on quotes, orders and invoices, and a **Deliver to** block (company, Attn: contact, shipping address)
+- [x] Tests: `AddressTest` (2) — one default per type, blank rows dropped, address book kept when not sent; order copies the defaults, one-off delivery address, kept when the customer moves, printed on order and invoice; Shopify and document tests moved to the address book; E2E ADDRESS-001
+- [ ] **Import Cin7's customer addresses** (CSV exported by the user from Cin7 into ~/Documents/expertsafety): Expert Safety's 336 customers have no addresses in the ERP yet
 
 ---
 
@@ -558,6 +567,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/customers/import` | Import a Cin7 Core customer CSV (multipart `file`; ADMIN/MANAGER) |
 | GET | `/customers/{id}/statement` | Statement (`type` ACTIVITY / OUTSTANDING, `from`, `to`): ledger entries, open items, ageing (G3) |
 | GET | `/customers/{id}/statement/pdf` · `/statements/pdf?ids=` | Statement as PDF; ticked customers in one PDF |
+| (in `/customers` body) | `addresses: [{type, defaultForType, line1, line2, city, state, postcode, country}]` | The address book (G4); left out = unchanged |
 | GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
 | GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
 | POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |

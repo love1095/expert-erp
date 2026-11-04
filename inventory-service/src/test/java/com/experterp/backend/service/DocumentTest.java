@@ -71,7 +71,10 @@ class DocumentTest {
         movementService.createMovement(helmet, warehouse, BigDecimal.TEN, MovementType.ADJUSTMENT_IN, ReferenceType.MANUAL, "T", null);
         customer = new Customer();
         customer.setName("Loudfoot Builders");
-        customer.setAddress("12 High Street\nRochdale\nOL11 1AA");
+        CustomerAddress billing = new CustomerAddress();
+        billing.setAddress(new Address("12 High Street", null, "Rochdale", null, "OL11 1AA", null));
+        billing.setDefaultForType(true);
+        customer.replaceAddresses(new java.util.ArrayList<>(List.of(billing)));
         customer.setTaxNumber("GB123456789");
         customer = customerRepository.save(customer);
         companyDetailsService.update(new CompanyDetailsService.Details("Expert Safety Ltd", "Unit 1, Mill Lane\nRochdale\nOL11 1NS",

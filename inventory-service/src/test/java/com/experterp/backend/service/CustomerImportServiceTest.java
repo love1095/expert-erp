@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -112,7 +113,9 @@ class CustomerImportServiceTest {
     void anExistingCustomerIsMatchedIgnoringCaseAndKeepsFieldsTheFileDoesNotHave() throws IOException {
         CustomerRequest req = new CustomerRequest();
         req.setName("OLD MILL PLUMBING");
-        req.setAddress("1 Mill Lane");
+        CustomerRequest.Address mill = new CustomerRequest.Address();
+        mill.setLine1("1 Mill Lane");
+        req.setAddresses(List.of(mill));
         Long id = customerService.create(req).getId();
 
         importService.importCsv(csv("Name,Status,PaymentTerm\nOld Mill Plumbing,Active,60 Day EOM\n"));
@@ -121,6 +124,7 @@ class CustomerImportServiceTest {
         assertThat(c.getName()).isEqualTo("OLD MILL PLUMBING");
         assertThat(c.getPaymentTerm()).isEqualTo("60 Day EOM");
         assertThat(c.getAddress()).isEqualTo("1 Mill Lane");
+        assertThat(c.getAddresses()).singleElement().satisfies(a -> assertThat(a.isDefaultForType()).isTrue());
     }
 
     @Test

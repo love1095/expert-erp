@@ -199,7 +199,9 @@ export interface Customer {
   salesRepresentative?: string;
   location?: string;
   tags?: string;
+  // The billing address on one line; the address book is in addresses (G4)
   address?: string;
+  addresses?: CustomerAddress[];
   notes?: string;
   // Default contact first
   contacts: CustomerContact[];
@@ -504,6 +506,11 @@ export interface SaleOrder {
   shipBy?: string;
   carrier?: string;
   shippingNotes?: string;
+  // Phase G4: copied onto the order from the customer's defaults, changeable per order
+  billingAddress?: PostalAddress | null;
+  shippingAddress?: PostalAddress | null;
+  shipToCompany?: string | null;
+  shipToContact?: string | null;
   charges: SaleOrderCharge[];
   // Lines + charges, cancelled quantities left out
   subtotal: number;
@@ -1032,4 +1039,20 @@ export interface OverdueCustomer {
   nextLevel: number;     // 1 = first reminder, 2 = second, 3 = final notice
   lastReminderAt?: string | null;
   onHold: boolean;
+}
+
+// ---- Addresses (G4), Cin7's fields ----
+export interface PostalAddress {
+  line1?: string | null;
+  line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postcode?: string | null;
+  country?: string | null;
+}
+export type AddressType = "BILLING" | "BUSINESS" | "SHIPPING";
+export interface CustomerAddress extends PostalAddress {
+  id?: number;
+  type: AddressType;
+  defaultForType: boolean;
 }

@@ -219,7 +219,16 @@ class ShopifyWebhookTest {
         asTenant(() -> {
             Customer c = saleOrderRepository.findBySourceAndExternalId(SaleOrder.Source.SHOPIFY, "1010").orElseThrow().getCustomer();
             assertThat(c.getContacts()).singleElement().satisfies(cc -> assertThat(cc.getPhone()).isEqualTo("+447700900123"));
-            assertThat(c.getAddress()).isEqualTo("10 Downing Street\nLondon\nSW1A 2AA\nUnited Kingdom");
+            // G4: the delivery address goes in the customer's address book as their shipping address, and on the order
+            assertThat(c.getAddresses()).singleElement().satisfies(a -> {
+                assertThat(a.getType()).isEqualTo(CustomerAddress.Type.SHIPPING);
+                assertThat(a.isDefaultForType()).isTrue();
+                assertThat(a.getAddress().lines()).containsExactly("10 Downing Street", "London SW1A 2AA", "United Kingdom");
+            });
+            SaleOrder so = saleOrderRepository.findBySourceAndExternalId(SaleOrder.Source.SHOPIFY, "1010").orElseThrow();
+            assertThat(so.getShippingAddress().getLine1()).isEqualTo("10 Downing Street");
+            assertThat(so.getShipToContact()).isEqualTo("Tina Tinh");
+            assertThat(so.getBillingAddress().getPostcode()).isEqualTo("SW1A 2AA");
             return null;
         });
     }

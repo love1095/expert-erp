@@ -164,7 +164,6 @@ public class CustomerImportService {
         r.setSalesRepresentative(c.getSalesRepresentative());
         r.setLocation(c.getLocation());
         r.setTags(c.getTags());
-        r.setAddress(c.getAddress());
         r.setNotes(c.getNotes());
         r.setContacts(c.getContacts().stream().map(cc -> {
             CustomerRequest.Contact x = new CustomerRequest.Contact();

@@ -125,7 +125,7 @@ public class DocumentService {
                 new Total("VAT", money(so.getTaxTotal()), false),
                 new Total("Total", money(so.getTotal()), true));
         return new DocumentModel(quote ? "Quote" : "Sales order", number, stamp, company.forPrint(),
-                List.of(customerParty(quote ? "Quote for" : "Customer", so.getCustomerId(), so.getCustomerName())),
+                orderParties(quote ? "Quote for" : "Customer", so),
                 fields, true, false, anyDiscount(lines), lines, totals, vatSummary(taxed), so.getNotes(), null, number + ".pdf");
     }
 
@@ -187,9 +187,26 @@ public class DocumentService {
         }
         Long customerId = inv.getCustomerId() != null ? inv.getCustomerId() : so != null ? so.getCustomerId() : null;
         return new DocumentModel(credit ? "Credit note" : "Invoice", inv.getInvoiceNumber(), stamp, company.forPrint(),
-                List.of(customerParty(credit ? "Credit to" : "Invoice to", customerId, inv.getPartyName())),
+                invoiceParties(credit ? "Credit to" : "Invoice to", customerId, inv.getPartyName(), so),
                 fields, lines.stream().anyMatch(l -> l.code() != null), false, anyDiscount(lines), lines, totals,
                 vatSummary(taxed), inv.getNotes(), payment, inv.getInvoiceNumber() + ".pdf");
+    }
+
+    private List<Party> orderParties(String label, SaleOrderResponse so) {
+        List<Party> parties = new ArrayList<>();
+        parties.add(customerParty(label, so.getCustomerId(), so.getCustomerName(), so.getBillingAddress()));
+        Party ship = deliverTo(so.getShipToCompany(), so.getShipToContact(), so.getShippingAddress(), so.getCustomerName());
+        if (ship != null) parties.add(ship);
+        return parties;
+    }
+
+    private List<Party> invoiceParties(String label, Long customerId, String name, SaleOrderResponse so) {
+        if (so == null) return List.of(customerParty(label, customerId, name));
+        List<Party> parties = new ArrayList<>();
+        parties.add(customerParty(label, customerId, name, so.getBillingAddress()));
+        Party ship = deliverTo(so.getShipToCompany(), so.getShipToContact(), so.getShippingAddress(), name);
+        if (ship != null && !label.startsWith("Credit")) parties.add(ship);
+        return parties;
     }
 
     // ---- purchase orders ----
@@ -269,9 +286,15 @@ public class DocumentService {
     }
 
     Party customerParty(String label, Long customerId, String fallbackName) {
+        return customerParty(label, customerId, fallbackName, null);
+    }
+
+    /** The customer with an address: the one given (the order's), else their billing address (G4). */
+    Party customerParty(String label, Long customerId, String fallbackName, Address address) {
         Customer c = customerId == null ? null : customerRepository.findById(customerId).orElse(null);
-        if (c == null) return new Party(label, fallbackName, List.of());
-        List<String> out = new ArrayList<>(lines(c.getAddress()));
+        Address a = Address.clean(address);
+        if (c == null) return new Party(label, fallbackName, a == null ? List.of() : a.lines());
+        List<String> out = new ArrayList<>(a != null ? a.lines() : c.billingAddress().map(Address::lines).orElse(List.of()));
         c.getContacts().stream().filter(CustomerContact::isDefaultContact).findFirst()
                 .or(() -> c.getContacts().stream().findFirst())
                 .ifPresent(ct -> {
@@ -281,6 +304,16 @@ public class DocumentService {
                 });
         if (c.getTaxNumber() != null && !c.getTaxNumber().isBlank()) out.add("VAT no. " + c.getTaxNumber().trim());
         return new Party(label, c.getName(), out);
+    }
+
+    /** Where the goods go (G4): ship-to company and contact, then the shipping address; null when there is none. */
+    private static Party deliverTo(String company, String contact, Address shipping, String customerName) {
+        Address a = Address.clean(shipping);
+        if (a == null && company == null && contact == null) return null;
+        List<String> out = new ArrayList<>();
+        if (contact != null && !contact.equals(company)) out.add("Attn: " + contact);
+        if (a != null) out.addAll(a.lines());
+        return new Party("Deliver to", company != null ? company : customerName, out);
     }
 
     private record Taxed(String name, BigDecimal rate, BigDecimal net, BigDecimal vat) {}

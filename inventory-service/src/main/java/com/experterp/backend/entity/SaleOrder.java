@@ -106,6 +106,33 @@ public class SaleOrder {
     @Column(columnDefinition = "TEXT")
     private String shippingNotes;
 
+    // Phase G4: billing and shipping addresses copied onto the order (Cin7's header), changeable per order
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "billing_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "billing_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "billing_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "billing_state")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "billing_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "billing_country"))})
+    private Address billingAddress;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "shipping_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "shipping_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "shipping_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "shipping_state")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "shipping_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "shipping_country"))})
+    private Address shippingAddress;
+
+    @Column(name = "ship_to_company", length = 255)
+    private String shipToCompany;
+
+    @Column(name = "ship_to_contact", length = 255)
+    private String shipToContact;
+
     // When the sale became an order (created as one, or converted from a quote); null for quotes.
     // Sales figures are dated by it.
     @Column

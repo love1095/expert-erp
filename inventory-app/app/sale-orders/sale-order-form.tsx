@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder, getPriceTiers } from "@/lib/api";
-import { Customer, PriceTier, SaleOrder, TaxRate, Warehouse } from "@/types";
+import { Customer, CustomerAddress, PostalAddress, PriceTier, SaleOrder, TaxRate, Warehouse } from "@/types";
+import { AddressFields, EMPTY_ADDRESS, oneLine } from "@/components/AddressFields";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "./product-picker";
@@ -16,6 +17,21 @@ const emptyLine = (): LineForm => ({ productId: "", quantity: "", unitPrice: "",
 const emptyCharge = (): ChargeForm => ({ description: "", quantity: "1", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
 const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
 const text = (s: string) => (s.trim() === "" ? undefined : s.trim());
+
+// The customer's default of a type, like the server picks them (G4)
+const pick = (list: CustomerAddress[], type: CustomerAddress["type"]) =>
+  list.filter(a => a.type === type).sort((a, b) => Number(b.defaultForType) - Number(a.defaultForType))[0];
+const plain = (a?: PostalAddress | null): PostalAddress => ({
+  line1: a?.line1 ?? "", line2: a?.line2 ?? "", city: a?.city ?? "", state: a?.state ?? "", postcode: a?.postcode ?? "", country: a?.country ?? "",
+});
+export function defaultBilling(c?: Customer): PostalAddress {
+  const list = c?.addresses ?? [];
+  return plain(pick(list, "BILLING") ?? pick(list, "BUSINESS") ?? list[0]);
+}
+export function defaultShipping(c?: Customer): PostalAddress {
+  return pick(c?.addresses ?? [], "SHIPPING") ? plain(pick(c!.addresses!, "SHIPPING")) : defaultBilling(c);
+}
+const sendAddress = (a: PostalAddress) => (oneLine(a) ? a : undefined);
 
 const INPUT = "border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
@@ -44,6 +60,10 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
     priceTier: str(editing?.priceTier),
     shipBy: str(editing?.shipBy), carrier: str(editing?.carrier), shippingNotes: str(editing?.shippingNotes), notes: str(editing?.notes),
   });
+  // G4: billing and shipping addresses on the order, from the customer's defaults unless changed
+  const [billing, setBilling] = useState<PostalAddress>(plain(editing?.billingAddress ?? EMPTY_ADDRESS));
+  const [shipping, setShipping] = useState<PostalAddress>(plain(editing?.shippingAddress ?? EMPTY_ADDRESS));
+  const [shipTo, setShipTo] = useState({ company: str(editing?.shipToCompany), contact: str(editing?.shipToContact) });
   const [quoteValidUntil, setQuoteValidUntil] = useState(str(editing?.quoteValidUntil));
   const [lines, setLines] = useState<LineForm[]>(editing ? editing.lines.map(l => ({
     productSku: l.productSku, productName: l.productName, productId: String(l.productId), quantity: str(l.quantity),
@@ -56,6 +76,14 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   const [error, setError] = useState("");
 
   const existing = customers.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
+  // Another customer chosen: their addresses (an order being changed keeps its own until then)
+  const [addressesOf, setAddressesOf] = useState<number | undefined>(editing?.customerId ?? undefined);
+  if (existing && existing.id !== addressesOf) {
+    setAddressesOf(existing.id);
+    setBilling(defaultBilling(existing));
+    setShipping(defaultShipping(existing));
+  }
+  const saved = existing?.addresses ?? [];
   const { data: tiers = [] } = useQuery<PriceTier[]>({ queryKey: ["price-tiers"], queryFn: getPriceTiers });
   // The tier the customer is on (a Cin7 name that is not a tier here prices at tier 1)
   const customerTier = tiers.find(t => t.name.toLowerCase() === (existing?.priceTier ?? "").toLowerCase())?.name ?? tiers[0]?.name ?? "Retail";
@@ -65,6 +93,8 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
     customerReference: text(header.customerReference), salesRep: text(header.salesRep), paymentTerm: text(header.paymentTerm),
     priceTier: text(header.priceTier),
     shipBy: text(header.shipBy), carrier: text(header.carrier), shippingNotes: text(header.shippingNotes), notes: text(header.notes),
+    billingAddress: sendAddress(billing), shippingAddress: sendAddress(shipping),
+    shipToCompany: text(shipTo.company), shipToContact: text(shipTo.contact),
     lines: lines.map(l => ({
       productId: l.productId ? Number(l.productId) : undefined, quantity: num(l.quantity), unitPrice: num(l.unitPrice) ?? null,
       discountPercent: num(l.discountPercent), taxRule: text(l.taxRule), taxReason: text(l.taxReason),
@@ -199,6 +229,18 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         </div>
       </div>
 
+      <div className="grid md:grid-cols-2 gap-4" data-testid="so-form-addresses">
+        <AddressBlock title="Billing address" value={billing} onChange={setBilling} saved={saved} />
+        <AddressBlock title="Shipping address" value={shipping} onChange={setShipping} saved={saved}>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <input aria-label="Ship to company" placeholder="Ship to company" value={shipTo.company} autoComplete="off"
+              onChange={e => setShipTo({ ...shipTo, company: e.target.value })} className={INPUT} />
+            <input aria-label="Ship to contact" placeholder="Ship to contact" value={shipTo.contact} autoComplete="off"
+              onChange={e => setShipTo({ ...shipTo, contact: e.target.value })} className={INPUT} />
+          </div>
+        </AddressBlock>
+      </div>
+
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-gray-600">Lines *</span>
@@ -317,5 +359,29 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         )}
       </div>
     </form>
+  );
+}
+
+// One address on the order: pick one of the customer's saved addresses, or type it (G4)
+function AddressBlock({ title, value, onChange, saved, children }: {
+  title: string; value: PostalAddress; onChange: (a: PostalAddress) => void; saved: CustomerAddress[]; children?: React.ReactNode;
+}) {
+  const current = saved.findIndex(a => oneLine(a) === oneLine(value));
+  return (
+    <div className="border border-gray-200 rounded-md p-3">
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <span className="text-xs font-medium text-gray-600">{title}</span>
+        {saved.length > 0 && (
+          <select aria-label={`${title}: saved addresses`} value={current >= 0 ? String(current) : ""}
+            onChange={e => { const a = saved[Number(e.target.value)]; if (a) onChange(plain(a)); }}
+            className={`${INPUT} max-w-[60%] text-xs`}>
+            <option value="">{current >= 0 ? "" : "Typed for this order"}</option>
+            {saved.map((a, i) => <option key={a.id ?? i} value={i}>{a.type.charAt(0) + a.type.slice(1).toLowerCase()}: {oneLine(a)}</option>)}
+          </select>
+        )}
+      </div>
+      {children}
+      <AddressFields label={title} value={value} onChange={onChange} inputClass={`${INPUT} w-full`} />
+    </div>
   );
 }

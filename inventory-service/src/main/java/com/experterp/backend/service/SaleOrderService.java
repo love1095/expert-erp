@@ -179,6 +179,10 @@ public class SaleOrderService {
         so.setShipBy(built.getShipBy());
         so.setCarrier(built.getCarrier());
         so.setShippingNotes(built.getShippingNotes());
+        so.setBillingAddress(built.getBillingAddress());
+        so.setShippingAddress(built.getShippingAddress());
+        so.setShipToCompany(built.getShipToCompany());
+        so.setShipToContact(built.getShipToContact());
         if (so.getStatus() == Status.QUOTE && req.getQuoteValidUntil() != null) so.setQuoteValidUntil(req.getQuoteValidUntil());
         so.getLines().clear();
         built.getLines().forEach(l -> { l.setSaleOrder(so); so.getLines().add(l); });
@@ -500,6 +504,13 @@ public class SaleOrderService {
         so.setShipBy(req.getShipBy());
         so.setCarrier(orElse(req.getCarrier(), customer != null ? customer.getCarrier() : null));
         so.setShippingNotes(blankToNull(req.getShippingNotes()));
+        // Addresses as typed on the order, else the customer's defaults (copied: later changes to the customer keep them)
+        Address billing = Address.clean(req.getBillingAddress());
+        Address shipping = Address.clean(req.getShippingAddress());
+        so.setBillingAddress(billing != null ? billing : customer == null ? null : customer.billingAddress().map(Address::new).orElse(null));
+        so.setShippingAddress(shipping != null ? shipping : customer == null ? null : customer.shippingAddress().map(Address::new).orElse(null));
+        so.setShipToCompany(blankToNull(req.getShipToCompany()));
+        so.setShipToContact(blankToNull(req.getShipToContact()));
         BigDecimal customerDiscount = customer != null && customer.getDiscount() != null ? customer.getDiscount() : BigDecimal.ZERO;
         // The customer's prices on the day (contract, tier, Retail)
         Map<Long, Product> products = new LinkedHashMap<>();
@@ -784,6 +795,10 @@ public class SaleOrderService {
         r.setShipBy(so.getShipBy());
         r.setCarrier(so.getCarrier());
         r.setShippingNotes(so.getShippingNotes());
+        r.setBillingAddress(Address.clean(so.getBillingAddress()));
+        r.setShippingAddress(Address.clean(so.getShippingAddress()));
+        r.setShipToCompany(so.getShipToCompany());
+        r.setShipToContact(so.getShipToContact());
         r.setOrderedAt(so.getOrderedAt());
         r.setQuoteValidUntil(so.getQuoteValidUntil());
         r.setQuoteExpired(isExpired(so));

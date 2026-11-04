@@ -11,6 +11,7 @@ import { Customer, FulfilmentStatus, SaleOrder, SaleOrderLine, SaleOrderStatus, 
 import SaleOrderForm from "./sale-order-form";
 import SaleStages from "./sale-stages";
 import ShopifyRefunds from "./shopify-refunds";
+import { AddressText } from "@/components/AddressFields";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import { Clip, ListHead } from "@/components/ListToolbar";
@@ -428,6 +429,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                 <Field label="Customer" value={order.customerName} />
                 <Field label="Reference" value={order.customerReference} />
                 <Field label="Order" value={order.orderNumber} />
+                <div data-testid={`so-billing-${orderId}`}><Field label="Billing address" value={<AddressText address={order.billingAddress} />} /></div>
               </dl>
             </div>
             <div>
@@ -452,6 +454,10 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                 <Field label="Location" value={order.warehouseName} />
                 <Field label="Ship by" value={order.shipBy} />
                 <Field label="Carrier / service" value={order.carrier} />
+                {(order.shipToCompany || order.shipToContact) && (
+                  <Field label="Ship to" value={[order.shipToCompany, order.shipToContact].filter(Boolean).join(" · ")} />
+                )}
+                <div data-testid={`so-shipping-${orderId}`}><Field label="Shipping address" value={<AddressText address={order.shippingAddress} />} /></div>
                 {order.shippingNotes && <Field label="Shipping notes" value={order.shippingNotes} />}
               </dl>
             </div>
