@@ -15,4 +15,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     // Paid with this credit note on invoices
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.creditNoteId = :creditNoteId")
     BigDecimal sumAppliedFromCreditNote(@Param("creditNoteId") Long creditNoteId);
+
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.customerCreditId = :creditId")
+    BigDecimal sumUsedFromCustomerCredit(@Param("creditId") Long creditId);
+    boolean existsByPaymentAccountId(Long paymentAccountId);
 }

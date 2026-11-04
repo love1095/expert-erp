@@ -184,12 +184,16 @@ public class StatementService {
                          CASE WHEN i.kind = 'INVOICE' THEN p.amount ELSE 0 END
                   FROM payments p JOIN invoices i ON i.id = p.invoice_id
                   WHERE i.tenant_id = ? AND i.customer_id = ? AND i.type = 'SALES' AND i.status IN ('ISSUED', 'PAID')
-                    AND p.method <> 'CREDIT_NOTE'
+                    AND p.method NOT IN ('CREDIT_NOTE', 'CUSTOMER_CREDIT')
+                  UNION ALL
+                  -- H1: money received on account (overpayments, prepayments); using it on an invoice is not counted again
+                  SELECT cc.received_on, 3, 'CREDIT', NULL, 'On account', COALESCE(cc.reference, cc.note), NULL, cc.id, 0, cc.amount
+                  FROM customer_credits cc WHERE cc.tenant_id = ? AND cc.customer_id = ?
                 ) x WHERE x.d <= ?
                 ORDER BY x.d, x.o, x.sort_id""", (rs, n) -> new Entry(rs.getDate("d").toLocalDate(), rs.getString("k"),
-                rs.getLong("invoice_id"), rs.getString("num"), rs.getString("ref"), date(rs.getDate("due")),
+                (Long) rs.getObject("invoice_id", Long.class), rs.getString("num"), rs.getString("ref"), date(rs.getDate("due")),
                 money(rs.getBigDecimal("debit")), money(rs.getBigDecimal("credit")), null),
-                t, customerId, t, customerId, Date.valueOf(to));
+                t, customerId, t, customerId, t, customerId, Date.valueOf(to));
     }
 
     /**
@@ -222,6 +226,19 @@ public class StatementService {
                     credit ? total.negate() : total, credit ? settled.negate() : settled, credit ? open.negate() : open,
                     days, rs.getInt("reminder_count"), last == null ? null : last.toLocalDateTime());
         }, d, d, t, customerId, d);
+        // H1: customer credit not used by then (an overpayment or a payment before the invoice)
+        items = new ArrayList<>(items);
+        items.addAll(jdbc.query("""
+                SELECT cc.id, cc.received_on, cc.reference, cc.note, cc.amount,
+                       COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.customer_credit_id = cc.id AND CAST(p.paid_at AS date) <= ?), 0) AS used
+                FROM customer_credits cc WHERE cc.tenant_id = ? AND cc.customer_id = ? AND cc.received_on <= ?
+                ORDER BY cc.received_on, cc.id""", (rs, n) -> {
+            BigDecimal amount = money(rs.getBigDecimal("amount"));
+            BigDecimal used = money(rs.getBigDecimal("used"));
+            String ref = rs.getString("reference");
+            return new OpenItem(null, "CREDIT", ref != null ? "On account " + ref : "On account", rs.getDate("received_on").toLocalDate(),
+                    null, amount.negate(), used.negate(), used.subtract(amount), 0, 0, null);
+        }, d, t, customerId, d));
         return items.stream().filter(i -> i.open().abs().compareTo(PENNY) >= 0).toList();
     }
 

@@ -17,6 +17,7 @@ import ContractPrices from "./contract-prices";
 import CreditCard from "./credit-card";
 import { ADDRESS_TYPES, AddressText } from "@/components/AddressFields";
 import StatementCard from "./statement-card";
+import CustomerCreditCard from "./customer-credit";
 
 // One customer on its own page, like Cin7's customer screen: account details, contacts and their sales
 export default function CustomerView({ customerId }: { customerId: number }) {
@@ -123,6 +124,7 @@ export default function CustomerView({ customerId }: { customerId: number }) {
         </Card>
         <CreditCard customer={c} />
         <StatementCard customer={c} />
+        <CustomerCreditCard customer={c} />
         <ContractPrices customer={c} />
 
         <Card title="Recent sale orders" flush testId={`customer-orders-${c.id}`}

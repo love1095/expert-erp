@@ -289,3 +289,20 @@ export const getReminderPreviewPdf = (customerId: number) =>
 // Prints the reminder and records it on the overdue invoices (the next one is firmer)
 export const sendReminderPdf = (customerId: number) =>
   api.post(`/customers/${customerId}/reminder`, undefined, { responseType: "blob" }).then(r => r.data as Blob);
+
+// ---- Sales ledger (H1) ----
+export const getPaymentAccounts = () => api.get("/settings/payment-accounts").then(r => r.data);
+export const savePaymentAccounts = (rows: unknown[]) => api.put("/settings/payment-accounts", rows).then(r => r.data);
+export const getCustomerCredits = (customerId: number) => api.get(`/customers/${customerId}/credits`).then(r => r.data);
+export const receiveOnAccount = (customerId: number, body: { amount: number; receivedOn?: string; accountId?: number; reference?: string; note?: string }) =>
+  api.post(`/customers/${customerId}/credits`, body).then(r => r.data);
+export const voidCustomerCredit = (customerId: number, creditId: number, reason: string) =>
+  api.post(`/customers/${customerId}/credits/${creditId}/void`, { reason });
+export const getOpenCreditNotes = (customerId: number) => api.get(`/customers/${customerId}/open-credit-notes`).then(r => r.data);
+export const applyCustomerCredit = (invoiceId: number, amount?: number) => api.post(`/invoices/${invoiceId}/use-credit`, { amount }).then(r => r.data);
+export const allocateCreditNote = (invoiceId: number, creditNoteId: number, amount?: number) =>
+  api.post(`/invoices/${invoiceId}/allocate-credit-note`, { creditNoteId, amount }).then(r => r.data);
+export const voidPayment = (invoiceId: number, paymentId: number, reason: string) =>
+  api.post(`/invoices/${invoiceId}/payments/${paymentId}/void`, { reason }).then(r => r.data);
+export const getAgedDebtors = (asAt?: string) => api.get("/reports/aged-debtors", { params: { asAt } }).then(r => r.data);
+export const getAgedDebtorsCsv = (asAt?: string) => api.get("/reports/aged-debtors/csv", { params: { asAt }, responseType: "blob" }).then(r => r.data as Blob);

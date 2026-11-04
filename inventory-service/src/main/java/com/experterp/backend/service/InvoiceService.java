@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,9 @@ public class InvoiceService {
     private final SaleOrderRepository saleOrderRepository;
     private final OrganisationSettingsService settingsService;
     private final PaymentRepository paymentRepository;
+    private final com.experterp.backend.repository.PaymentAccountRepository paymentAccountRepository;
+    private final com.experterp.backend.repository.CustomerCreditRepository customerCreditRepository;
+    private final com.experterp.backend.repository.VoidedPaymentRepository voidedPaymentRepository;
     private final ProductRepository productRepository;
     private final AuditService auditService;
     private final PurchaseOrderRepository purchaseOrderRepository;
@@ -126,6 +130,7 @@ public class InvoiceService {
         Invoice saved = invoiceRepository.save(inv);
         // A supplier bill prices the stock received (FIFO layers) from now on
         if (isBill(saved)) costingService.billIssued(saved);
+        paidInShopify(saved);
         auditService.log("INVOICE", id, "ISSUE", Map.of("invoiceNumber", inv.getInvoiceNumber()));
         return toResponse(saved);
     }
@@ -218,6 +223,7 @@ public class InvoiceService {
         inv.setDueDate(PaymentTerms.dueDate(so.getPaymentTerm(), today));
         if (issue) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
         Invoice saved = invoiceRepository.save(inv);
+        if (issue) paidInShopify(saved);
         Map<String, Object> audit = new HashMap<>(Map.of("invoiceNumber", saved.getInvoiceNumber(), "order", so.getOrderNumber(),
                 "total", saved.getTotalAmount(), "status", saved.getStatus()));
         if (fulfilmentId != null) audit.put("fulfilmentId", fulfilmentId);
@@ -411,6 +417,11 @@ public class InvoiceService {
         return toResponse(saved);
     }
 
+    /**
+     * Records money paid on an invoice, a bill, or (a refund) a credit note: on a day (not in the future), to a payment
+     * account, with a reference (phase H1). A sales invoice paid more than is due takes what is due and the rest becomes
+     * the customer's credit (Cin7's Customer credit); a bill or a refund cannot be more than is due.
+     */
     @Transactional
     public InvoiceResponse addPayment(Long id, PaymentRequest req) {
         Invoice inv = getInvoice(id);
@@ -423,28 +434,97 @@ public class InvoiceService {
         if (inv.getStatus() == Invoice.InvoiceStatus.PAID) {
             throw new IllegalStateException("Invoice is already fully paid");
         }
+        LocalDate day = req.getPaidOn() != null ? req.getPaidOn() : LocalDate.now();
+        if (day.isAfter(LocalDate.now())) throw new IllegalArgumentException("A payment cannot be dated in the future");
+        PaymentAccount account = paymentAccount(req.getAccountId());
+        Payment.PaymentMethod method = req.getMethod() != null ? req.getMethod() : account != null ? account.getKind().method() : null;
+        if (method == null) throw new IllegalArgumentException("Choose the payment account (or how it was paid)");
+        if (method.isCredit()) throw new IllegalArgumentException("Use 'Use customer credit' or 'Allocate credit note' for credit");
+
+        BigDecimal due = inv.getTotalAmount().subtract(settled(inv));
+        BigDecimal amount = req.getAmount();
+        BigDecimal extra = amount.subtract(due);
+        boolean salesInvoice = inv.getType() == Invoice.InvoiceType.SALES && inv.getKind() == Invoice.Kind.INVOICE;
+        if (extra.signum() > 0 && !(salesInvoice && inv.getCustomerId() != null)) {
+            throw new IllegalArgumentException("£" + amount.setScale(2) + " is more than the £" + due.setScale(2) + " still due on " + inv.getInvoiceNumber());
+        }
+        String reference = req.getReference() == null || req.getReference().isBlank() ? null : req.getReference().trim();
 
         Payment payment = new Payment();
         payment.setInvoice(inv);
-        payment.setAmount(req.getAmount());
-        payment.setMethod(req.getMethod());
+        payment.setAmount(extra.signum() > 0 ? due : amount);
+        payment.setMethod(method);
+        payment.setPaidAt(day.equals(LocalDate.now()) ? LocalDateTime.now() : day.atTime(12, 0));
+        payment.setPaymentAccountId(account != null ? account.getId() : null);
+        payment.setReference(reference);
         paymentRepository.save(payment);
         inv.getPayments().add(payment);
 
-        BigDecimal totalPaid = inv.getPayments().stream()
-                .map(Payment::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        // A payment on a credit note is a refund; with what was used on invoices it settles the credit note
-        if (inv.getKind() == Invoice.Kind.CREDIT_NOTE) totalPaid = totalPaid.add(paymentRepository.sumAppliedFromCreditNote(inv.getId()));
-
+        Map<String, Object> audit = new HashMap<>(Map.of("amount", amount, "method", method, "paidOn", day.toString()));
+        if (account != null) audit.put("account", account.label());
+        if (reference != null) audit.put("reference", reference);
+        if (extra.signum() > 0) {
+            CustomerCredit credit = new CustomerCredit();
+            credit.setCustomerId(inv.getCustomerId());
+            credit.setAmount(extra);
+            credit.setReceivedOn(day);
+            credit.setMethod(method);
+            credit.setPaymentAccountId(payment.getPaymentAccountId());
+            credit.setReference(reference);
+            credit.setSourceInvoiceId(inv.getId());
+            credit.setNote("Overpaid " + inv.getInvoiceNumber());
+            credit.setCreatedBy(auditService.currentActorName());
+            customerCreditRepository.save(credit);
+            audit.put("toCustomerCredit", extra);
+        }
+        BigDecimal totalPaid = settled(inv);
+        audit.put("totalPaid", totalPaid);
         if (totalPaid.compareTo(inv.getTotalAmount()) >= 0) {
             inv.setStatus(Invoice.InvoiceStatus.PAID);
             invoiceRepository.save(inv);
         }
-
-        auditService.log("INVOICE", id, "PAYMENT",
-                Map.of("amount", req.getAmount(), "method", req.getMethod(), "totalPaid", totalPaid));
+        auditService.log("INVOICE", id, "PAYMENT", audit);
         return toResponse(inv);
+    }
+
+    /**
+     * A Shopify order is only confirmed once Shopify says it is paid (checkout), so its invoice is paid when issued:
+     * a Shopify payment on the organisation's Shopify payment account, if it has one (H1). Shopify refunds come back as
+     * credit notes refunded through Shopify (7.4).
+     */
+    private void paidInShopify(Invoice inv) {
+        if (inv.getType() != Invoice.InvoiceType.SALES || inv.getKind() != Invoice.Kind.INVOICE || inv.getSaleOrderId() == null) return;
+        SaleOrder so = saleOrderRepository.findById(inv.getSaleOrderId()).orElse(null);
+        if (so == null || so.getSource() != SaleOrder.Source.SHOPIFY) return;
+        BigDecimal due = inv.getTotalAmount().subtract(settled(inv));
+        if (due.signum() <= 0) return;
+        Payment p = new Payment();
+        p.setInvoice(inv);
+        p.setAmount(due);
+        p.setMethod(Payment.PaymentMethod.SHOPIFY);
+        p.setReference(so.getExternalReference());
+        paymentAccountRepository.findFirstByKindAndActiveTrueOrderByCodeAsc(PaymentAccount.Kind.SHOPIFY).ifPresent(a -> p.setPaymentAccountId(a.getId()));
+        paymentRepository.save(p);
+        inv.getPayments().add(p);
+        inv.setStatus(Invoice.InvoiceStatus.PAID);
+        auditService.log("INVOICE", inv.getId(), "PAYMENT", Map.of("amount", due, "method", "SHOPIFY", "reference",
+                String.valueOf(so.getExternalReference()), "note", "paid at Shopify checkout"));
+    }
+
+    /** What has settled the invoice: its payments, and for a credit note also what was used to pay invoices. */
+    BigDecimal settled(Invoice inv) {
+        BigDecimal paid = inv.getPayments().stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (inv.getKind() == Invoice.Kind.CREDIT_NOTE && inv.getId() != null) paid = paid.add(paymentRepository.sumAppliedFromCreditNote(inv.getId()));
+        return paid;
+    }
+
+    /** The chosen payment account (must be active), else the organisation's default, else none. */
+    PaymentAccount paymentAccount(Long id) {
+        if (id == null) return paymentAccountRepository.findFirstByDefaultAccountTrueAndActiveTrue().orElse(null);
+        PaymentAccount a = paymentAccountRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment account not found: " + id));
+        if (!a.isActive()) throw new IllegalArgumentException(a.label() + " is no longer used");
+        return a;
     }
 
     private Invoice getInvoice(Long id) {
@@ -525,8 +605,27 @@ public class InvoiceService {
             pr.setPaidAt(p.getPaidAt());
             pr.setReference(p.getReference());
             pr.setCreditNoteId(p.getCreditNoteId());
+            pr.setCustomerCreditId(p.getCustomerCreditId());
+            if (p.getPaymentAccountId() != null) {
+                pr.setAccountId(p.getPaymentAccountId());
+                paymentAccountRepository.findById(p.getPaymentAccountId()).ifPresent(a -> pr.setAccount(a.label()));
+            }
             return pr;
         }).collect(Collectors.toList()));
+        if (inv.getId() != null) {
+            r.setVoidedPayments(voidedPaymentRepository.findByInvoiceIdOrderByVoidedAtAsc(inv.getId()).stream().map(v -> {
+                InvoiceResponse.VoidedPaymentResponse x = new InvoiceResponse.VoidedPaymentResponse();
+                x.setPaymentId(v.getPaymentId());
+                x.setAmount(v.getAmount());
+                x.setMethod(v.getMethod());
+                x.setPaidAt(v.getPaidAt());
+                x.setReference(v.getReference());
+                x.setReason(v.getReason());
+                x.setVoidedBy(v.getVoidedBy());
+                x.setVoidedAt(v.getVoidedAt());
+                return x;
+            }).toList());
+        }
 
         BigDecimal paid = inv.getPayments().stream()
                 .map(Payment::getAmount)

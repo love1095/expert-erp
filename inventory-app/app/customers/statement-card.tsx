@@ -17,7 +17,7 @@ export const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1
 export const defaultFrom = () => { const d = new Date(); return isoDay(new Date(d.getFullYear(), d.getMonth() - 2, 1)); };
 
 export const REMINDER_LABEL: Record<number, string> = { 1: "1st reminder", 2: "2nd reminder", 3: "Final notice" };
-const KIND: Record<string, string> = { INVOICE: "Invoice", CREDIT_NOTE: "Credit note", PAYMENT: "Payment", REFUND: "Refund" };
+const KIND: Record<string, string> = { INVOICE: "Invoice", CREDIT_NOTE: "Credit note", PAYMENT: "Payment", REFUND: "Refund", CREDIT: "Payment on account" };
 const day = (iso?: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-GB") : "");
 const isOverdue = (i: StatementOpenItem) => i.kind === "INVOICE" && i.daysOverdue > 0;
 
@@ -144,7 +144,7 @@ function ActivityTable({ st }: { st: Statement }) {
             <tr key={i} className="border-b border-gray-100">
               <td className="py-1.5 pr-2">{day(e.date)}</td>
               <td className="pr-2">{KIND[e.kind]}</td>
-              <td className="pr-2"><Link href={`/invoices/${e.invoiceId}`} className="text-brand-700 hover:underline">{e.number}</Link></td>
+              <td className="pr-2">{e.invoiceId ? <Link href={`/invoices/${e.invoiceId}`} className="text-brand-700 hover:underline">{e.number}</Link> : e.number}</td>
               <td className="pr-2 text-gray-600">{e.reference === "BANK" ? "Bank" : e.reference === "CASH" ? "Cash" : e.reference}</td>
               <td className="pr-2 text-gray-600">{day(e.dueDate)}</td>
               <td className="pr-2 text-right">{Number(e.debit) ? formatGBP(e.debit) : ""}</td>
@@ -180,10 +180,10 @@ function OpenTable({ items }: { items: StatementOpenItem[] }) {
         </thead>
         <tbody className="tabular-nums">
           {items.map(i => (
-            <tr key={i.invoiceId} className={`border-b border-gray-100 ${isOverdue(i) ? "text-red-700" : ""}`}>
+            <tr key={i.invoiceId ?? `credit-${i.number}-${i.date}`} className={`border-b border-gray-100 ${isOverdue(i) ? "text-red-700" : ""}`}>
               <td className="py-1.5 pr-2">{day(i.date)}</td>
               <td className="pr-2">{KIND[i.kind]}</td>
-              <td className="pr-2"><Link href={`/invoices/${i.invoiceId}`} className="text-brand-700 hover:underline">{i.number}</Link></td>
+              <td className="pr-2">{i.invoiceId ? <Link href={`/invoices/${i.invoiceId}`} className="text-brand-700 hover:underline">{i.number}</Link> : i.number}</td>
               <td className="pr-2">{day(i.dueDate)}</td>
               <td className="pr-2 text-right">{isOverdue(i) ? i.daysOverdue : ""}</td>
               <td className="pr-2 text-right">{formatGBP(i.total)}</td>

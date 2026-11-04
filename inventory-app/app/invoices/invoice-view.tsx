@@ -6,13 +6,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getInvoice, issueInvoice, cancelInvoice, payInvoice } from "@/lib/api";
-import { Invoice, InvoiceStatus, PaymentMethod } from "@/types";
+import { getInvoice, issueInvoice, cancelInvoice } from "@/lib/api";
+import { Invoice, InvoiceStatus } from "@/types";
 import {
   BackLink, RecordHeader, RecordLayout, TrailCard, Card, DetailColumns, Field,
   BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER,
 } from "@/components/DetailParts";
 import CreditNoteForm from "./credit-note-form";
+import PaymentsCard from "./payments-card";
 
 export const INVOICE_STATUS_COLOR: Record<InvoiceStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -21,7 +22,6 @@ export const INVOICE_STATUS_COLOR: Record<InvoiceStatus, string> = {
   CANCELLED: "bg-gray-100 text-gray-500",
 };
 
-const METHODS: PaymentMethod[] = ["CASH", "BANK", "STRIPE"];
 const money = (inv: Invoice, n: number | undefined) => `${inv.currency} ${Number(n ?? 0).toFixed(2)}`;
 
 // One invoice or credit note on its own page, like Cin7's invoice tab
@@ -31,26 +31,21 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
   const { data: inv, isLoading } = useQuery<Invoice>({ queryKey: ["invoice", invoiceId], queryFn: () => getInvoice(invoiceId) });
 
   const [error, setError] = useState("");
-  const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("BANK");
   const [crediting, setCrediting] = useState(false);
 
   const onDone = (updated: Invoice) => {
     qc.setQueryData(["invoice", invoiceId], updated);
     qc.invalidateQueries({ queryKey: ["invoices"] });
     qc.invalidateQueries({ queryKey: ["sale-order"] });
+    qc.invalidateQueries({ queryKey: ["customer-credits"] });
+    qc.invalidateQueries({ queryKey: ["open-credit-notes"] });
     setError("");
   };
   const onFail = (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Request failed");
 
   const issueMut = useMutation({ mutationFn: issueInvoice, onSuccess: onDone, onError: onFail });
   const cancelMut = useMutation({ mutationFn: cancelInvoice, onSuccess: onDone, onError: onFail });
-  const payMut = useMutation({
-    mutationFn: ({ amount, method }: { amount: string; method: PaymentMethod }) => payInvoice(invoiceId, { amount: parseFloat(amount), method }),
-    onSuccess: (u: Invoice) => { onDone(u); setPayAmount(""); },
-    onError: onFail,
-  });
-  const busy = issueMut.isPending || cancelMut.isPending || payMut.isPending;
+  const busy = issueMut.isPending || cancelMut.isPending;
 
   if (isLoading || !inv) return <p className="text-gray-400 text-sm">Loading…</p>;
 
@@ -98,41 +93,7 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
           </TrailCard>
         )}
 
-        <TrailCard title={isCreditNote ? "Refunds and credit used" : "Payments"}
-          badge={inv.status === "CANCELLED" ? <span className="text-[11px] font-semibold text-gray-400">Cancelled</span>
-            : inv.status === "DRAFT" ? <span className="text-[11px] font-semibold text-gray-400">Not issued</span>
-            : <span className={`text-[11px] font-semibold ${balance > 0.004 ? "text-red-600" : "text-emerald-700"}`}>
-                {balance > 0.004 ? `${money(inv, balance)} due` : "Settled"}
-              </span>}>
-          {inv.payments.length === 0 && <p className="text-xs text-gray-400">None yet</p>}
-          {inv.payments.map(p => (
-            <div key={p.id} className="flex justify-between gap-2 text-xs">
-              <span className="text-gray-600">
-                {p.method === "CREDIT_NOTE" ? `Credit note ${p.reference ?? ""}` : p.method} · {new Date(p.paidAt).toLocaleDateString("en-GB")}
-                {p.reference && p.method !== "CREDIT_NOTE" && ` · ${p.reference}`}
-              </span>
-              <span className="text-emerald-700 font-semibold tabular-nums">{Number(p.amount).toFixed(2)}</span>
-            </div>
-          ))}
-          {inv.status === "ISSUED" && !crediting && (
-            <div className="border-t border-gray-100 pt-3 space-y-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{isCreditNote ? "Record refund" : "Record payment"}</p>
-              <label htmlFor="invoice-pay-amount" className="sr-only">Amount</label>
-              <input id="invoice-pay-amount" type="number" step="0.01" min="0.01" value={payAmount}
-                onChange={e => setPayAmount(e.target.value)} placeholder={`Amount (due ${balance.toFixed(2)})`}
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
-              <label htmlFor="invoice-pay-method" className="sr-only">Method</label>
-              <select id="invoice-pay-method" value={payMethod} onChange={e => setPayMethod(e.target.value as PaymentMethod)}
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
-                {METHODS.map(m => <option key={m}>{m}</option>)}
-              </select>
-              <button disabled={!payAmount || busy} onClick={() => payMut.mutate({ amount: payAmount, method: payMethod })}
-                className={`w-full ${BTN_PRIMARY}`}>
-                {payMut.isPending ? "Saving…" : isCreditNote ? "Record refund" : "Record payment"}
-              </button>
-            </div>
-          )}
-        </TrailCard>
+        <PaymentsCard inv={inv} busy={busy} hidden={crediting} onDone={onDone} onFail={onFail} />
       </>}>
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
@@ -144,6 +105,8 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
                 qc.invalidateQueries({ queryKey: ["invoices"] });
                 qc.invalidateQueries({ queryKey: ["invoice"] });
                 qc.invalidateQueries({ queryKey: ["sale-order"] });
+    qc.invalidateQueries({ queryKey: ["customer-credits"] });
+    qc.invalidateQueries({ queryKey: ["open-credit-notes"] });
                 qc.invalidateQueries({ queryKey: ["stock-overview"] });
                 router.push(`/invoices/${cn.id}`);
               }} />

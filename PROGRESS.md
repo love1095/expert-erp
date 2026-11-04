@@ -529,6 +529,24 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Import ▾ / Export ▾ menus** on Customers, like Cin7: Customers, Addresses, Contacts, Custom prices. An import checks the file is the type chosen (e.g. the addresses file under Customers is refused: "choose Import → Addresses"), nothing imported; each export is in Cin7's own columns (`GET /customers/export?type=`) and imports back the same. Tests: `CustomerImportServiceTest` (round trip of all four), E2E ADDRESS-002
 - [x] Real data (2026-11-04): CustomerAddresses_2026-11-04.csv loaded, 781 addresses for 307 customers, no warnings (customers with no default of a type got their first one as default); CustomPrices_2026-11-04.csv loaded, 561 contract prices for 45 customers, no warnings (e.g. AE Yates' CUST-AEYEVO3BLACK now prices at £11.40, *Contract price*)
 
+
+---
+
+## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ · next H2 purchase ledger)
+
+### H1 Sales ledger ✅
+- [x] Cin7 checked (read-only, 2026-11-04): an invoice's **Payments** are Account (e.g. *650: Current Account - RBS*), Reference, Date paid, Amount, with *Use customer credit*, *Allocate credit note* and a **Customer credit** section; the chart of accounts is **loaded from Xero** (accounting package = Xero): bank 650 / 652 / 653 / 654, 641 Cash, 643 Card Payments, 644 Paypal Payments, 802 Customer Credits
+- [x] **Payment accounts** per organisation (`V30` `payment_accounts`: code, name, kind Bank / Card / Cash / PayPal / Shopify / Other, active, one default) in Settings → Organisation (ADMIN); one used by payments is switched off, not removed. Without accounts, a payment records only how it was paid
+- [x] **Recording a payment**: amount, **date paid** (not in the future), **payment account**, **reference**; part payments as before. **Overpaying** a sales invoice: what is due goes on the invoice, the rest becomes **customer credit** (`customer_credits`); a bill or a refund cannot be more than is due
+- [x] **Customer credit** card on the customer page: credit held, used, left; **+ Payment on account** (money before the invoice); a manager removes unused credit with a reason. On the invoice: **Use customer credit** (oldest first) and **Allocate credit note** (a credit note of the same customer kept as credit)
+- [x] **Void a payment** entered by mistake: manager or admin, with a reason; out of every total, kept in `voided_payments` and shown on the invoice (*1 voided*), audited `PAYMENT_VOID`; the invoice (and a credit note it used) opens again. Shopify payments are refused (refund in Shopify)
+- [x] The **statement and the credit balance** count customer credit once (received money is the credit; using it is not counted again)
+- [x] **Sale → Aged debtors**: every customer owing or in credit on a day (as at), Current / 1–30 / 31–60 / 61–90 / over 90 days, credit, total, credit limit, on hold; totals; **Export CSV**
+- [x] **Shopify orders' invoices are paid when issued** (the order is only confirmed once Shopify says it is paid): a Shopify payment with the order number as reference, on the Shopify payment account if there is one
+- [x] Tests: `SalesLedgerTest` (6) — accounts (one default, a used one switched off, no duplicate codes); day / account / reference kept, overpayment → credit → used on the next invoice, payment on account, no future date; credit note allocated to another invoice, not to another customer's; void (STAFF refused, reason needed, invoice open again, audited); aged debtors; Shopify invoice paid on issue; E2E LEDGER-001
+- [ ] **To test later with the live Shopify store**: Shopify payouts (money Shopify pays into the bank, less fees) are not matched to orders yet; the Shopify-paid invoice above is tested with a fake order only
+- [x] Local data: Expert Safety's payment accounts entered as in Cin7 (650 Current Account - RBS default, 652, 653, 654, 641 Cash, 643 Card Payments, 644 Paypal Payments)
+
 ---
 
 ## Cross-cutting (done throughout)
@@ -570,6 +588,12 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET | `/customers/{id}/statement` | Statement (`type` ACTIVITY / OUTSTANDING, `from`, `to`): ledger entries, open items, ageing (G3) |
 | GET | `/customers/{id}/statement/pdf` · `/statements/pdf?ids=` | Statement as PDF; ticked customers in one PDF |
 | (in `/customers` body) | `addresses: [{type, defaultForType, line1, line2, city, state, postcode, country}]` | The address book (G4); left out = unchanged |
+| GET/PUT | `/settings/payment-accounts` | Payment accounts (H1; PUT = the whole list, ADMIN) |
+| POST | `/invoices/{id}/pay` | `{amount, paidOn, accountId, reference, method}`; overpaid sales invoice → customer credit (H1) |
+| POST | `/invoices/{id}/use-credit` · `/invoices/{id}/allocate-credit-note` | Pay with customer credit / a kept credit note |
+| POST | `/invoices/{id}/payments/{paymentId}/void` | `{reason}`; MANAGER/ADMIN |
+| GET/POST | `/customers/{id}/credits` · `/customers/{id}/credits/{creditId}/void` | Customer credit; payment on account; remove unused (MANAGER/ADMIN) |
+| GET | `/reports/aged-debtors?asAt=` · `/reports/aged-debtors/csv` | Aged debtors |
 | GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
 | GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
 | POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |

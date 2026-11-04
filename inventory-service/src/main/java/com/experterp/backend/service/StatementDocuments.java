@@ -191,6 +191,7 @@ public class StatementDocuments {
             case "CREDIT_NOTE" -> "Credit note";
             case "PAYMENT" -> "Payment";
             case "REFUND" -> "Refund";
+            case "CREDIT" -> "Payment on account";
             default -> k;
         };
     }

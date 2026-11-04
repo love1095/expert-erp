@@ -44,6 +44,21 @@ public class Payment {
     @Column(length = 100)
     private String reference;
 
-    // CREDIT_NOTE = paid with a credit note; a payment recorded on a credit note is a refund
-    public enum PaymentMethod { CASH, BANK, STRIPE, CREDIT_NOTE, SHOPIFY }
+    // Phase H1: the payment account the money went to (e.g. 650 Current Account - RBS)
+    @Column(name = "payment_account_id")
+    private Long paymentAccountId;
+
+    // Phase H1: paid with customer credit (an earlier overpayment or prepayment): the credit it came from
+    @Column(name = "customer_credit_id")
+    private Long customerCreditId;
+
+    // CREDIT_NOTE = paid with a credit note; CUSTOMER_CREDIT = paid with customer credit; a payment recorded on a
+    // credit note is a refund. STRIPE is the old name for a card payment (CARD).
+    public enum PaymentMethod { CASH, BANK, STRIPE, CARD, PAYPAL, CREDIT_NOTE, CUSTOMER_CREDIT, SHOPIFY;
+
+        /** Paid with credit the customer already had, not with new money. */
+        public boolean isCredit() {
+            return this == CREDIT_NOTE || this == CUSTOMER_CREDIT;
+        }
+    }
 }

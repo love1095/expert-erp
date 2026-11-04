@@ -573,7 +573,7 @@ export interface SaleReturnRequest {
 export type InvoiceType   = "SALES" | "PURCHASE";
 export type InvoiceStatus = "DRAFT" | "ISSUED" | "PAID" | "CANCELLED";
 // CREDIT_NOTE = an invoice paid with a credit note; a payment on a credit note is a refund
-export type PaymentMethod = "CASH" | "BANK" | "STRIPE" | "CREDIT_NOTE";
+export type PaymentMethod = "CASH" | "BANK" | "STRIPE" | "CARD" | "PAYPAL" | "CREDIT_NOTE" | "CUSTOMER_CREDIT" | "SHOPIFY";
 
 export interface InvoiceItem {
   id: number;
@@ -606,6 +606,21 @@ export interface InvoicePayment {
   paidAt: string;
   reference?: string;
   creditNoteId?: number;
+  // Phase H1
+  accountId?: number | null;
+  account?: string | null;
+  customerCreditId?: number | null;
+}
+
+export interface VoidedPayment {
+  paymentId: number;
+  amount: number;
+  method: PaymentMethod;
+  paidAt: string;
+  reference?: string | null;
+  reason: string;
+  voidedBy: string;
+  voidedAt: string;
 }
 
 export interface Invoice {
@@ -642,6 +657,8 @@ export interface Invoice {
   createdAt: string;
   items: InvoiceItem[];
   payments: InvoicePayment[];
+  // Phase H1: payments a manager voided
+  voidedPayments?: VoidedPayment[];
 }
 
 export type PlanTier = "FREE" | "PRO" | "ENTERPRISE";
@@ -995,8 +1012,8 @@ export interface CreditStatus {
 // ---- Statements and overdue reminders (G3) ----
 export interface StatementEntry {
   date: string;
-  kind: "INVOICE" | "CREDIT_NOTE" | "PAYMENT" | "REFUND";
-  invoiceId: number;
+  kind: "INVOICE" | "CREDIT_NOTE" | "PAYMENT" | "REFUND" | "CREDIT";
+  invoiceId?: number | null;
   number: string;
   reference?: string | null;
   dueDate?: string | null;
@@ -1005,8 +1022,8 @@ export interface StatementEntry {
   balance: number;
 }
 export interface StatementOpenItem {
-  invoiceId: number;
-  kind: "INVOICE" | "CREDIT_NOTE";
+  invoiceId?: number | null;
+  kind: "INVOICE" | "CREDIT_NOTE" | "CREDIT";
   number: string;
   date: string;
   dueDate?: string | null;
@@ -1058,3 +1075,44 @@ export interface CustomerAddress extends PostalAddress {
   type: AddressType;
   defaultForType: boolean;
 }
+
+// ---- Sales ledger (H1) ----
+export type PaymentAccountKind = "BANK" | "CARD" | "CASH" | "PAYPAL" | "SHOPIFY" | "OTHER";
+export interface PaymentAccount {
+  id?: number;
+  code: string;
+  name: string;
+  kind: PaymentAccountKind;
+  active: boolean;
+  defaultAccount: boolean;
+  used?: boolean;
+}
+export interface CustomerCredit {
+  id: number;
+  receivedOn: string;
+  amount: number;
+  used: number;
+  available: number;
+  method: PaymentMethod;
+  account?: string | null;
+  reference?: string | null;
+  sourceInvoiceId?: number | null;
+  sourceInvoiceNumber?: string | null;
+  note?: string | null;
+  createdBy: string;
+}
+export interface OpenCreditNote { id: number; number: string; date: string; available: number }
+export interface AgedDebtor {
+  customerId?: number | null;
+  customerName: string;
+  current: number;
+  days1to30: number;
+  days31to60: number;
+  days61to90: number;
+  over90: number;
+  total: number;
+  credit: number;
+  creditLimit?: number | null;
+  onHold: boolean;
+}
+export interface AgedDebtors { asAt: string; customers: AgedDebtor[]; totals: AgedDebtor }

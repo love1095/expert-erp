@@ -81,5 +81,24 @@ public class InvoiceResponse {
         private String reference;
         // Paid with this credit note
         private Long creditNoteId;
+        // Phase H1: the payment account (code: name), and the customer credit it was paid with
+        private Long accountId;
+        private String account;
+        private Long customerCreditId;
+    }
+
+    // Phase H1: payments a manager voided, kept with the reason
+    private List<VoidedPaymentResponse> voidedPayments;
+
+    @Data
+    public static class VoidedPaymentResponse {
+        private Long paymentId;
+        private BigDecimal amount;
+        private Payment.PaymentMethod method;
+        private LocalDateTime paidAt;
+        private String reference;
+        private String reason;
+        private String voidedBy;
+        private LocalDateTime voidedAt;
     }
 }
