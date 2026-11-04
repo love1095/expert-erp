@@ -9,13 +9,11 @@ export const NAV: NavModule[] = [
     { href: "/invoices",    label: "Invoices" },
     { href: "/customers",   label: "Customers" },
     { href: "/overdue",     label: "Overdue" },
-    { href: "/aged-debtors", label: "Aged debtors" },
   ]},
   { key: "purchase", label: "Purchase", icon: "purchase", items: [
     { href: "/purchase-orders", label: "Purchase Orders" },
     { href: "/reorder",         label: "Reorder" },
     { href: "/suppliers",       label: "Suppliers" },
-    { href: "/aged-creditors",  label: "Aged creditors" },
   ]},
   { key: "inventory", label: "Inventory", icon: "inventory", items: [
     { href: "/stock-overview",  label: "Stock Overview" },
@@ -24,6 +22,11 @@ export const NAV: NavModule[] = [
     { href: "/stock-movements", label: "Movements Log" },
     { href: "/stock-transfer",  label: "Transfer" },
     { href: "/stock-history",   label: "History" },
+  ]},
+  { key: "finance", label: "Finance", icon: "finance", items: [
+    { href: "/vat-return",     label: "VAT return" },
+    { href: "/aged-debtors",   label: "Aged debtors" },
+    { href: "/aged-creditors", label: "Aged creditors" },
   ]},
   { key: "admin", label: "Admin", icon: "admin", items: [
     { href: "/users",     label: "Users" },

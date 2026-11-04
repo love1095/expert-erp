@@ -51,6 +51,7 @@ Each rule says what was decided, then how it is built. Country: **UK**, currency
 - Per-organisation **tax rates**, seeded for the UK and named as in Cin7 so imports match: `20% (VAT on Income)` 20 %, reduced 5 %, `Zero Rated Income` 0 %, exempt, `No VAT` (outside the scope), reverse charge (purchases); purchase-side equivalents.
 - The rate's code, percentage and VAT amount are **copied onto each line** when the order is made: later rate changes never change old orders or invoices.
 - VAT per line, rounded half-up to the penny; totals = Σ lines.
+- **VAT return (H3):** standard scheme (by invoice / bill date). Each rate has a VAT type: reverse charge and EC acquisitions charge 0 % on the line and report notional 20 %; *Full VAT* lines (import VAT) are all VAT. Boxes 6–9 in whole pounds.
 - Override validation: the rate must exist and be active; a lower rate than the product's needs a reason; reverse charge only for a customer with a VAT number.
 
 ## 4. Sales rep

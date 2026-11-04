@@ -25,6 +25,16 @@ public final class SaleAmounts {
         return net.multiply(ratePercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
     }
 
+    /**
+     * Net and VAT of a line (H3). A 100 % rate means the whole amount is VAT (Cin7 / Xero "Full VAT": import VAT
+     * from a courier or a C79): no net amount, all VAT. Otherwise net after discount and VAT at the rate.
+     */
+    public static BigDecimal[] split(BigDecimal quantity, BigDecimal unitPrice, BigDecimal discountPercent, BigDecimal ratePercent) {
+        BigDecimal net = net(quantity, unitPrice, discountPercent);
+        if (ratePercent != null && ratePercent.compareTo(HUNDRED) >= 0) return new BigDecimal[]{BigDecimal.ZERO.setScale(2), net};
+        return new BigDecimal[]{net, tax(net, ratePercent)};
+    }
+
     /** Margin % of the net amount over the cost, or null when there is no cost or no sale value. */
     public static BigDecimal marginPercent(BigDecimal net, BigDecimal quantity, BigDecimal unitCost) {
         if (unitCost == null || net.signum() == 0) return null;

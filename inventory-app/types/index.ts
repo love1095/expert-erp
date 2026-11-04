@@ -440,7 +440,8 @@ export interface SaleOrderCharge {
   invoiced: boolean;
 }
 
-export interface TaxRate { id: number; name: string; rate: number; usage: "SALE" | "PURCHASE"; active: boolean }
+export type VatType = "STANDARD" | "REDUCED" | "ZERO" | "EXEMPT" | "NO_VAT" | "REVERSE_CHARGE" | "EC_ACQUISITION" | "FULL_VAT";
+export interface TaxRate { id: number; name: string; rate: number; usage: "SALE" | "PURCHASE"; active: boolean; vatType?: VatType; reportRate?: number }
 
 export interface OrganisationSettings {
   saleOrderPrefix: string;
@@ -1145,3 +1146,9 @@ export interface AgedCreditor {
   total: number;
 }
 export interface AgedCreditors { asAt: string; suppliers: AgedCreditor[]; totals: AgedCreditor }
+
+// ---- VAT return (H3) ----
+export interface VatBoxes { box1: number; box2: number; box3: number; box4: number; box5: number; box6: number; box7: number; box8: number; box9: number }
+export interface VatRateRow { side: "SALES" | "PURCHASES"; taxName: string; vatType: VatType; rate: number; net: number; vat: number; lines: number }
+export interface VatDocument { invoiceId: number; side: "SALES" | "PURCHASES"; kind: "INVOICE" | "CREDIT_NOTE"; number: string; date: string; party: string; net: number; vat: number }
+export interface VatReturn { from: string; to: string; boxes: VatBoxes; rates: VatRateRow[]; documents: VatDocument[]; refund: boolean }

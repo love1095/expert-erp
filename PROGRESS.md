@@ -532,7 +532,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ H2 ✅ · next H3 VAT)
+## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ H2 ✅ H3 ✅ · next H4 margin and stock valuation)
 
 ### H1 Sales ledger ✅
 - [x] Cin7 checked (read-only, 2026-11-04): an invoice's **Payments** are Account (e.g. *650: Current Account - RBS*), Reference, Date paid, Amount, with *Use customer credit*, *Allocate credit note* and a **Customer credit** section; the chart of accounts is **loaded from Xero** (accounting package = Xero): bank 650 / 652 / 653 / 654, 641 Cash, 643 Card Payments, 644 Paypal Payments, 802 Customer Credits
@@ -557,6 +557,16 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] A purchase order typed with a supplier name now uses that supplier (any case) or creates it, so its bills are on a supplier's ledger (orders made before stay as they are)
 - [x] Tests: `PurchaseLedgerTest` (4) — a vest sent back costs this order's £65.50 not FIFO's £60.00, stock value £311.00, credit note pays off the bill, not more than billed; deposit + overpayment used on the next bills; kept credit note allocated, refund by the supplier; aged creditors; E2E PLEDGER-001
 - [ ] Later: a supplier credit note for a price (no goods back) does not lower the stock's FIFO cost yet (as before E5's open item)
+
+
+### H3 VAT return ✅
+- [x] Cin7 checked (read-only, 2026-11-04, Settings → Tax rules, 17): active 20% (VAT on Income), 20% / 5% (VAT on Expenses), EC Acquisitions (20%) and (Zero Rated), 100% VAT, Full VAT, No VAT, Zero Rated Expenses / Income; deprecated 5% (VAT on Income), Exempt, Reverse Charge Expenses (20%) (at 0 %), VAT on Imports, Zero Rated EC Goods / Services
+- [x] **Each tax rate has a VAT type** (`V32`: Standard, Reduced, Zero, Exempt, No VAT = outside the scope, Reverse charge, EC acquisition, Full VAT) and a **report rate**; existing rates typed by name; *EC Acquisitions (20%)*, *(Zero Rated)* and *Full VAT* added for organisations that lacked them
+- [x] **Reverse charge** adds nothing to the bill (0 % on the line, as Cin7 shows it) and reports notional 20 % in box 1 and box 4; **EC acquisitions** notional in box 2 and box 4, net in box 9; **Full VAT** (import VAT, C79): the whole line is VAT, no net (bills, bill charges, PO costs, supplier credit notes)
+- [x] **Finance → VAT return** (standard scheme: invoices, bills and credit notes by their date, issued or paid, drafts / cancelled left out): HMRC's **nine boxes** (1–5 in pence, 6–9 in whole pounds), *To pay HMRC* / *HMRC owes you*, net and VAT **by tax rate**, the **documents** behind it (links), quarter picker by VAT stagger (Mar/Jun/Sep/Dec, Jan/Apr/Jul/Oct, Feb/May/Aug/Nov) or custom dates, **Export CSV**. Filing stays in Xero (Making Tax Digital)
+- [x] Menu: **Finance** (VAT return, Aged debtors, Aged creditors)
+- [x] Tests: `VatReturnTest` (2) — rates know their types, reverse charge charges nothing; sale + zero-rated sale + credit note + bill with import VAT and reverse charge → boxes 1 £38.00, 4 £84.30, 5 £46.30 (refund), 6 £140, 7 £296; out-of-period and cancelled left out; E2E VAT-001
+- [ ] Later: Cin7 has 5% (VAT on Income), Exempt and Reverse Charge deprecated; they are still active here (switch them off in Cin7's way if wanted). Cash accounting scheme not built (Expert Safety uses the standard scheme)
 
 ---
 
@@ -609,6 +619,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/invoices/{id}/use-supplier-credit` · `/invoices/{id}/allocate-supplier-credit-note` | Pay a bill with deposits / a kept credit note |
 | GET/POST | `/suppliers/{id}/credits` · `/suppliers/{id}/credits/{creditId}/void` · `/suppliers/{id}/open-credit-notes` | Supplier deposits |
 | GET | `/reports/aged-creditors?asAt=` · `/reports/aged-creditors/csv` | Aged creditors |
+| GET | `/reports/vat-return?from=&to=` · `/reports/vat-return/csv` | VAT return: nine boxes, by rate, documents (H3) |
 | GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
 | GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
 | POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |

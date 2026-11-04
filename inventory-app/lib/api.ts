@@ -321,3 +321,8 @@ export const voidSupplierCredit = (supplierId: number, creditId: number, reason:
 export const getSupplierOpenCreditNotes = (supplierId: number) => api.get(`/suppliers/${supplierId}/open-credit-notes`).then(r => r.data);
 export const getAgedCreditors = (asAt?: string) => api.get("/reports/aged-creditors", { params: { asAt } }).then(r => r.data);
 export const getAgedCreditorsCsv = (asAt?: string) => api.get("/reports/aged-creditors/csv", { params: { asAt }, responseType: "blob" }).then(r => r.data as Blob);
+
+// ---- VAT return (H3) ----
+export const getVatReturn = (from: string, to: string) => api.get("/reports/vat-return", { params: { from, to } }).then(r => r.data);
+export const getVatReturnCsv = (from: string, to: string) =>
+  api.get("/reports/vat-return/csv", { params: { from, to }, responseType: "blob" }).then(r => r.data as Blob);

@@ -5,6 +5,7 @@ import com.experterp.backend.entity.Product;
 import com.experterp.backend.entity.Supplier;
 import com.experterp.backend.entity.TaxRate;
 import com.experterp.backend.entity.TaxRate.Usage;
+import com.experterp.backend.entity.TaxRate.VatType;
 import com.experterp.backend.entity.Tenant;
 import com.experterp.backend.multitenancy.TenantContext;
 import com.experterp.backend.repository.TaxRateRepository;
@@ -39,14 +40,19 @@ public class TaxService {
                 new TaxRate("20% (VAT on Income)", "20", Usage.SALE),
                 new TaxRate("5% (VAT on Income)", "5", Usage.SALE),
                 new TaxRate("Zero Rated Income", "0", Usage.SALE),
-                new TaxRate("Exempt Income", "0", Usage.SALE),
-                new TaxRate("No VAT", "0", Usage.SALE),
+                new TaxRate("Exempt Income", "0", Usage.SALE, VatType.EXEMPT, "0"),
+                new TaxRate("No VAT", "0", Usage.SALE, VatType.NO_VAT, "0"),
                 new TaxRate("20% (VAT on Expenses)", "20", Usage.PURCHASE),
                 new TaxRate("5% (VAT on Expenses)", "5", Usage.PURCHASE),
                 new TaxRate("Zero Rated Expenses", "0", Usage.PURCHASE),
-                new TaxRate("Exempt Expenses", "0", Usage.PURCHASE),
-                new TaxRate("Reverse Charge Expenses (20%)", "20", Usage.PURCHASE),
-                new TaxRate("No VAT", "0", Usage.PURCHASE));
+                new TaxRate("Exempt Expenses", "0", Usage.PURCHASE, VatType.EXEMPT, "0"),
+                // H3: nothing charged on the line; the VAT return counts 20 % both ways (like Cin7 / Xero)
+                new TaxRate("Reverse Charge Expenses (20%)", "0", Usage.PURCHASE, VatType.REVERSE_CHARGE, "20"),
+                new TaxRate("EC Acquisitions (20%)", "0", Usage.PURCHASE, VatType.EC_ACQUISITION, "20"),
+                new TaxRate("EC Acquisitions (Zero Rated)", "0", Usage.PURCHASE, VatType.EC_ACQUISITION, "0"),
+                // The whole line is VAT: import VAT (courier, C79)
+                new TaxRate("Full VAT", "100", Usage.PURCHASE, VatType.FULL_VAT, "100"),
+                new TaxRate("No VAT", "0", Usage.PURCHASE, VatType.NO_VAT, "0"));
     }
 
     private final TaxRateRepository taxRateRepository;

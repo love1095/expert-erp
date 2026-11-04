@@ -479,8 +479,8 @@ public class PurchaseOrderService {
             lr.setTaxName(l.getTaxName());
             lr.setTaxRate(l.getTaxRate());
             lr.setTaxOverridden(l.isTaxOverridden());
-            BigDecimal net = SaleAmounts.net(l.getQuantity(), l.getUnitCost(), l.getDiscountPercent());
-            BigDecimal tax = SaleAmounts.tax(net, l.getTaxRate());
+            BigDecimal[] split = SaleAmounts.split(l.getQuantity(), l.getUnitCost(), l.getDiscountPercent(), l.getTaxRate());
+            BigDecimal net = split[0], tax = split[1];
             lr.setNetAmount(net);
             lr.setTaxAmount(tax);
             lr.setTotalAmount(net.add(tax));
@@ -504,8 +504,8 @@ public class PurchaseOrderService {
             cr.setDiscountPercent(c.getDiscountPercent());
             cr.setTaxName(c.getTaxName());
             cr.setTaxRate(c.getTaxRate());
-            BigDecimal net = SaleAmounts.net(c.getQuantity(), c.getUnitPrice(), c.getDiscountPercent());
-            BigDecimal tax = SaleAmounts.tax(net, c.getTaxRate());
+            BigDecimal[] split = SaleAmounts.split(c.getQuantity(), c.getUnitPrice(), c.getDiscountPercent(), c.getTaxRate());
+            BigDecimal net = split[0], tax = split[1];
             cr.setNetAmount(net);
             cr.setTaxAmount(tax);
             cr.setTotalAmount(net.add(tax));

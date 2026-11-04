@@ -354,9 +354,10 @@ public class InvoiceService {
         item.setDiscountPercent(discount);
         item.setTaxName(taxName);
         item.setTaxRate(taxRate);
-        BigDecimal net = SaleAmounts.net(qty, unitPrice, discount);
-        item.setTotalPrice(net);
-        item.setTaxAmount(SaleAmounts.tax(net, taxRate));
+        // H3: a 100 % (Full VAT) line is all VAT
+        BigDecimal[] split = SaleAmounts.split(qty, unitPrice, discount, taxRate);
+        item.setTotalPrice(split[0]);
+        item.setTaxAmount(split[1]);
         inv.getItems().add(item);
         return item;
     }
