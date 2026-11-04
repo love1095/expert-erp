@@ -113,4 +113,9 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     Page<Object[]> getStockOverviewPaged(@Param("tenantId") Long tenantId, @Param("categoryId") Long categoryId,
                                          @Param("q") String q, @Param("activeOnly") boolean activeOnly,
                                          @Param("nonZero") boolean nonZero, Pageable pageable);
+
+    // Phase H2: how much of a PO line came in (PURCHASE_IN) or went back to the supplier (PURCHASE_RETURN_OUT)
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(m.quantity), 0) FROM StockMovement m WHERE m.type = :type AND m.sourceLineId = :lineId")
+    java.math.BigDecimal sumBySourceLine(@org.springframework.data.repository.query.Param("type") StockMovement.MovementType type,
+                                         @org.springframework.data.repository.query.Param("lineId") Long lineId);
 }

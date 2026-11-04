@@ -573,7 +573,7 @@ export interface SaleReturnRequest {
 export type InvoiceType   = "SALES" | "PURCHASE";
 export type InvoiceStatus = "DRAFT" | "ISSUED" | "PAID" | "CANCELLED";
 // CREDIT_NOTE = an invoice paid with a credit note; a payment on a credit note is a refund
-export type PaymentMethod = "CASH" | "BANK" | "STRIPE" | "CARD" | "PAYPAL" | "CREDIT_NOTE" | "CUSTOMER_CREDIT" | "SHOPIFY";
+export type PaymentMethod = "CASH" | "BANK" | "STRIPE" | "CARD" | "PAYPAL" | "CREDIT_NOTE" | "CUSTOMER_CREDIT" | "SUPPLIER_CREDIT" | "SHOPIFY";
 
 export interface InvoiceItem {
   id: number;
@@ -1116,3 +1116,32 @@ export interface AgedDebtor {
   onHold: boolean;
 }
 export interface AgedDebtors { asAt: string; customers: AgedDebtor[]; totals: AgedDebtor }
+
+// ---- Purchase ledger (H2) ----
+export interface SupplierCredit {
+  id: number;
+  paidOn: string;
+  amount: number;
+  used: number;
+  available: number;
+  method: PaymentMethod;
+  account?: string | null;
+  reference?: string | null;
+  sourceInvoiceId?: number | null;
+  sourceInvoiceNumber?: string | null;
+  purchaseOrderId?: number | null;
+  note?: string | null;
+  createdBy: string;
+}
+export interface AgedCreditor {
+  supplierId?: number | null;
+  supplierName: string;
+  current: number;
+  days1to30: number;
+  days31to60: number;
+  days61to90: number;
+  over90: number;
+  credit: number;
+  total: number;
+}
+export interface AgedCreditors { asAt: string; suppliers: AgedCreditor[]; totals: AgedCreditor }

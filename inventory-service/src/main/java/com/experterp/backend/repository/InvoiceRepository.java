@@ -38,4 +38,5 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     // Invoices and credit notes of a page of orders (the sales list's Documents column)
     java.util.List<Invoice> findBySaleOrderIdInOrderByCreatedAtAscIdAsc(java.util.Collection<Long> saleOrderIds);
+    long countByCreditedInvoiceId(Long creditedInvoiceId);
 }

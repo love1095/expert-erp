@@ -306,3 +306,18 @@ export const voidPayment = (invoiceId: number, paymentId: number, reason: string
   api.post(`/invoices/${invoiceId}/payments/${paymentId}/void`, { reason }).then(r => r.data);
 export const getAgedDebtors = (asAt?: string) => api.get("/reports/aged-debtors", { params: { asAt } }).then(r => r.data);
 export const getAgedDebtorsCsv = (asAt?: string) => api.get("/reports/aged-debtors/csv", { params: { asAt }, responseType: "blob" }).then(r => r.data as Blob);
+
+// ---- Purchase ledger (H2) ----
+export const createSupplierCreditNote = ({ id, data }: { id: number; data: unknown }) =>
+  api.post(`/invoices/${id}/supplier-credit-notes`, data).then(r => r.data);
+export const applySupplierCredit = (billId: number, amount?: number) => api.post(`/invoices/${billId}/use-supplier-credit`, { amount }).then(r => r.data);
+export const allocateSupplierCreditNote = (billId: number, creditNoteId: number) =>
+  api.post(`/invoices/${billId}/allocate-supplier-credit-note`, { creditNoteId }).then(r => r.data);
+export const getSupplierCredits = (supplierId: number) => api.get(`/suppliers/${supplierId}/credits`).then(r => r.data);
+export const paySupplierDeposit = (supplierId: number, body: { amount: number; paidOn?: string; accountId?: number; reference?: string; purchaseOrderId?: number }) =>
+  api.post(`/suppliers/${supplierId}/credits`, body).then(r => r.data);
+export const voidSupplierCredit = (supplierId: number, creditId: number, reason: string) =>
+  api.post(`/suppliers/${supplierId}/credits/${creditId}/void`, { reason });
+export const getSupplierOpenCreditNotes = (supplierId: number) => api.get(`/suppliers/${supplierId}/open-credit-notes`).then(r => r.data);
+export const getAgedCreditors = (asAt?: string) => api.get("/reports/aged-creditors", { params: { asAt } }).then(r => r.data);
+export const getAgedCreditorsCsv = (asAt?: string) => api.get("/reports/aged-creditors/csv", { params: { asAt }, responseType: "blob" }).then(r => r.data as Blob);

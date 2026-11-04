@@ -51,6 +51,9 @@ public class VoidedPayment {
     @Column(name = "customer_credit_id")
     private Long customerCreditId;
 
+    @Column(name = "supplier_credit_id")
+    private Long supplierCreditId;
+
     @Column(nullable = false, length = 255)
     private String reason;
 

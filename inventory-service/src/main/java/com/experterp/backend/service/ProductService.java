@@ -197,6 +197,7 @@ public class ProductService {
             case PURCHASE_IN -> m.getReferenceId();
             case TRANSFER_IN -> "Transfer " + m.getReferenceId();
             case SALE_RETURN_IN -> "Return " + m.getReferenceId();
+            case PURCHASE_RETURN_OUT -> "Returned to supplier " + m.getReferenceId();
             default -> m.getReferenceType() == com.experterp.backend.entity.StockMovement.ReferenceType.STOCK_IMPORT
                     ? "Stock import" : "Adjustment" + (m.getReferenceId() != null ? " " + m.getReferenceId() : "");
         };

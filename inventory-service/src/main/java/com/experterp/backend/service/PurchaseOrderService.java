@@ -236,6 +236,16 @@ public class PurchaseOrderService {
                     .orElseThrow(() -> new ResourceNotFoundException("Supplier not found: " + req.getSupplierId()));
         } else if (req.getSupplierName() == null || req.getSupplierName().isBlank()) {
             throw new IllegalArgumentException("Choose a supplier");
+        } else {
+            // H2: a supplier typed by name is that supplier (any case), else a new one, so its bills are on its ledger
+            String name = req.getSupplierName().trim();
+            supplier = supplierRepository.findFirstByNameIgnoreCaseOrderByIdAsc(name).orElseGet(() -> {
+                Supplier s = new Supplier();
+                s.setName(name);
+                Supplier saved = supplierRepository.save(s);
+                auditService.log("SUPPLIER", saved.getId(), "CREATE", Map.of("name", name, "via", "purchase order"));
+                return saved;
+            });
         }
         po.setSupplier(supplier);
         po.setSupplierName(supplier != null ? supplier.getName() : req.getSupplierName().trim());

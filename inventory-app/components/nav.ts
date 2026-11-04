@@ -15,6 +15,7 @@ export const NAV: NavModule[] = [
     { href: "/purchase-orders", label: "Purchase Orders" },
     { href: "/reorder",         label: "Reorder" },
     { href: "/suppliers",       label: "Suppliers" },
+    { href: "/aged-creditors",  label: "Aged creditors" },
   ]},
   { key: "inventory", label: "Inventory", icon: "inventory", items: [
     { href: "/stock-overview",  label: "Stock Overview" },

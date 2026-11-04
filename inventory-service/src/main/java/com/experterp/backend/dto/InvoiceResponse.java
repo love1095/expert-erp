@@ -85,6 +85,7 @@ public class InvoiceResponse {
         private Long accountId;
         private String account;
         private Long customerCreditId;
+        private Long supplierCreditId;
     }
 
     // Phase H1: payments a manager voided, kept with the reason

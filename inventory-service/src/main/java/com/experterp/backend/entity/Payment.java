@@ -52,13 +52,17 @@ public class Payment {
     @Column(name = "customer_credit_id")
     private Long customerCreditId;
 
+    // Phase H2: a bill paid with supplier credit (a deposit or an earlier overpayment)
+    @Column(name = "supplier_credit_id")
+    private Long supplierCreditId;
+
     // CREDIT_NOTE = paid with a credit note; CUSTOMER_CREDIT = paid with customer credit; a payment recorded on a
     // credit note is a refund. STRIPE is the old name for a card payment (CARD).
-    public enum PaymentMethod { CASH, BANK, STRIPE, CARD, PAYPAL, CREDIT_NOTE, CUSTOMER_CREDIT, SHOPIFY;
+    public enum PaymentMethod { CASH, BANK, STRIPE, CARD, PAYPAL, CREDIT_NOTE, CUSTOMER_CREDIT, SUPPLIER_CREDIT, SHOPIFY;
 
         /** Paid with credit the customer already had, not with new money. */
         public boolean isCredit() {
-            return this == CREDIT_NOTE || this == CUSTOMER_CREDIT;
+            return this == CREDIT_NOTE || this == CUSTOMER_CREDIT || this == SUPPLIER_CREDIT;
         }
     }
 }

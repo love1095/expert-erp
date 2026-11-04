@@ -28,6 +28,7 @@ public class SalesLedgerService {
 
     private final PaymentAccountRepository accountRepository;
     private final CustomerCreditRepository creditRepository;
+    private final SupplierCreditRepository supplierCreditRepository;
     private final PaymentRepository paymentRepository;
     private final VoidedPaymentRepository voidedRepository;
     private final InvoiceRepository invoiceRepository;
@@ -95,7 +96,7 @@ public class SalesLedgerService {
 
     private boolean used(Long accountId) {
         return paymentRepository.existsByPaymentAccountId(accountId) || creditRepository.existsByPaymentAccountId(accountId)
-                || voidedRepository.existsByPaymentAccountId(accountId);
+                || voidedRepository.existsByPaymentAccountId(accountId) || supplierCreditRepository.existsByPaymentAccountId(accountId);
     }
 
     private AccountView view(PaymentAccount a) {
@@ -207,6 +208,7 @@ public class SalesLedgerService {
         v.setReference(p.getReference());
         v.setCreditNoteId(p.getCreditNoteId());
         v.setCustomerCreditId(p.getCustomerCreditId());
+        v.setSupplierCreditId(p.getSupplierCreditId());
         v.setReason(reason.trim());
         v.setVoidedBy(auditService.currentActorName());
         voidedRepository.save(v);
@@ -341,7 +343,7 @@ public class SalesLedgerService {
         return customerRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + id));
     }
 
-    private static void requireManager() {
+    static void requireManager() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean ok = auth != null && auth.getAuthorities().stream().anyMatch(a -> Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SUPER_ADMIN")
                 .contains(a.getAuthority()));

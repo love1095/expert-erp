@@ -34,6 +34,7 @@ public class InvoiceService {
     private final PaymentRepository paymentRepository;
     private final com.experterp.backend.repository.PaymentAccountRepository paymentAccountRepository;
     private final com.experterp.backend.repository.CustomerCreditRepository customerCreditRepository;
+    private final com.experterp.backend.repository.SupplierCreditRepository supplierCreditRepository;
     private final com.experterp.backend.repository.VoidedPaymentRepository voidedPaymentRepository;
     private final ProductRepository productRepository;
     private final AuditService auditService;
@@ -420,7 +421,8 @@ public class InvoiceService {
     /**
      * Records money paid on an invoice, a bill, or (a refund) a credit note: on a day (not in the future), to a payment
      * account, with a reference (phase H1). A sales invoice paid more than is due takes what is due and the rest becomes
-     * the customer's credit (Cin7's Customer credit); a bill or a refund cannot be more than is due.
+     * the customer's credit (Cin7's Customer credit); an overpaid bill leaves the rest with the supplier (H2); a refund
+     * cannot be more than is due.
      */
     @Transactional
     public InvoiceResponse addPayment(Long id, PaymentRequest req) {
@@ -439,13 +441,14 @@ public class InvoiceService {
         PaymentAccount account = paymentAccount(req.getAccountId());
         Payment.PaymentMethod method = req.getMethod() != null ? req.getMethod() : account != null ? account.getKind().method() : null;
         if (method == null) throw new IllegalArgumentException("Choose the payment account (or how it was paid)");
-        if (method.isCredit()) throw new IllegalArgumentException("Use 'Use customer credit' or 'Allocate credit note' for credit");
+        if (method.isCredit()) throw new IllegalArgumentException("Use the credit buttons ('Use customer credit', 'Use supplier deposit', 'Allocate credit note') for credit");
 
         BigDecimal due = inv.getTotalAmount().subtract(settled(inv));
         BigDecimal amount = req.getAmount();
         BigDecimal extra = amount.subtract(due);
         boolean salesInvoice = inv.getType() == Invoice.InvoiceType.SALES && inv.getKind() == Invoice.Kind.INVOICE;
-        if (extra.signum() > 0 && !(salesInvoice && inv.getCustomerId() != null)) {
+        boolean bill = inv.getType() == Invoice.InvoiceType.PURCHASE && inv.getKind() == Invoice.Kind.INVOICE;
+        if (extra.signum() > 0 && !(salesInvoice && inv.getCustomerId() != null) && !(bill && inv.getSupplierId() != null)) {
             throw new IllegalArgumentException("£" + amount.setScale(2) + " is more than the £" + due.setScale(2) + " still due on " + inv.getInvoiceNumber());
         }
         String reference = req.getReference() == null || req.getReference().isBlank() ? null : req.getReference().trim();
@@ -463,7 +466,22 @@ public class InvoiceService {
         Map<String, Object> audit = new HashMap<>(Map.of("amount", amount, "method", method, "paidOn", day.toString()));
         if (account != null) audit.put("account", account.label());
         if (reference != null) audit.put("reference", reference);
-        if (extra.signum() > 0) {
+        if (extra.signum() > 0 && bill) {
+            // H2: an overpaid bill leaves the rest with the supplier, used on the next bill (Cin7's supplier deposit)
+            SupplierCredit credit = new SupplierCredit();
+            credit.setSupplierId(inv.getSupplierId());
+            credit.setAmount(extra);
+            credit.setPaidOn(day);
+            credit.setMethod(method);
+            credit.setPaymentAccountId(payment.getPaymentAccountId());
+            credit.setReference(reference);
+            credit.setSourceInvoiceId(inv.getId());
+            credit.setPurchaseOrderId(inv.getPurchaseOrderId());
+            credit.setNote("Overpaid " + inv.getInvoiceNumber());
+            credit.setCreatedBy(auditService.currentActorName());
+            supplierCreditRepository.save(credit);
+            audit.put("toSupplierCredit", extra);
+        } else if (extra.signum() > 0) {
             CustomerCredit credit = new CustomerCredit();
             credit.setCustomerId(inv.getCustomerId());
             credit.setAmount(extra);
@@ -606,6 +624,7 @@ public class InvoiceService {
             pr.setReference(p.getReference());
             pr.setCreditNoteId(p.getCreditNoteId());
             pr.setCustomerCreditId(p.getCustomerCreditId());
+            pr.setSupplierCreditId(p.getSupplierCreditId());
             if (p.getPaymentAccountId() != null) {
                 pr.setAccountId(p.getPaymentAccountId());
                 paymentAccountRepository.findById(p.getPaymentAccountId()).ifPresent(a -> pr.setAccount(a.label()));

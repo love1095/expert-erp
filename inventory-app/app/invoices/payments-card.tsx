@@ -3,16 +3,17 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  allocateCreditNote, applyCustomerCredit, getCustomerCredits, getOpenCreditNotes, getPaymentAccounts, payInvoice, voidPayment,
+  allocateCreditNote, allocateSupplierCreditNote, applyCustomerCredit, applySupplierCredit, getCustomerCredits, getOpenCreditNotes,
+  getPaymentAccounts, getSupplierCredits, getSupplierOpenCreditNotes, payInvoice, voidPayment,
 } from "@/lib/api";
-import { CustomerCredit, Invoice, OpenCreditNote, PaymentAccount, PaymentMethod } from "@/types";
+import { CustomerCredit, Invoice, OpenCreditNote, PaymentAccount, PaymentMethod, SupplierCredit } from "@/types";
 import { TrailCard, BTN_PRIMARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
 import { isoDay } from "../customers/statement-card";
 
 export const METHOD_LABEL: Record<PaymentMethod, string> = {
   BANK: "Bank", CASH: "Cash", STRIPE: "Card", CARD: "Card", PAYPAL: "PayPal", SHOPIFY: "Shopify",
-  CREDIT_NOTE: "Credit note", CUSTOMER_CREDIT: "Customer credit",
+  CREDIT_NOTE: "Credit note", CUSTOMER_CREDIT: "Customer credit", SUPPLIER_CREDIT: "Supplier deposit",
 };
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB");
@@ -30,6 +31,8 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
   const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const isCreditNote = inv.kind === "CREDIT_NOTE";
   const salesInvoice = inv.type === "SALES" && !isCreditNote;
+  // H2: a supplier's bill uses the supplier's deposits and kept credit notes
+  const bill = inv.type === "PURCHASE" && !isCreditNote;
   const open = inv.status === "ISSUED";
   const balance = Number(inv.totalAmount) - Number(inv.amountPaid);
   const money = (n: number | undefined) => `${inv.currency} ${Number(n ?? 0).toFixed(2)}`;
@@ -43,7 +46,15 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
   const { data: creditNotes = [] } = useQuery<OpenCreditNote[]>({
     queryKey: ["open-credit-notes", customerId], queryFn: () => getOpenCreditNotes(customerId!), enabled: salesInvoice && open && customerId != null,
   });
-  const creditLeft = credits.reduce((s, c) => s + Number(c.available), 0);
+  const supplierId = inv.supplierId;
+  const { data: deposits = [] } = useQuery<SupplierCredit[]>({
+    queryKey: ["supplier-credits", supplierId], queryFn: () => getSupplierCredits(supplierId!), enabled: bill && open && supplierId != null,
+  });
+  const { data: supplierNotes = [] } = useQuery<OpenCreditNote[]>({
+    queryKey: ["supplier-open-credit-notes", supplierId], queryFn: () => getSupplierOpenCreditNotes(supplierId!), enabled: bill && open && supplierId != null,
+  });
+  const creditLeft = bill ? deposits.reduce((s, c) => s + Number(c.available), 0) : credits.reduce((s, c) => s + Number(c.available), 0);
+  const notesToAllocate = bill ? supplierNotes : creditNotes;
 
   const [amount, setAmount] = useState("");
   const [paidOn, setPaidOn] = useState(() => isoDay(new Date()));
@@ -60,14 +71,17 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
     }),
     onSuccess: done, onError: onFail,
   });
-  const useCredit = useMutation({ mutationFn: () => applyCustomerCredit(inv.id), onSuccess: done, onError: onFail });
-  const allocate = useMutation({ mutationFn: (cnId: number) => allocateCreditNote(inv.id, cnId), onSuccess: done, onError: onFail });
+  const useCredit = useMutation({ mutationFn: () => (bill ? applySupplierCredit(inv.id) : applyCustomerCredit(inv.id)), onSuccess: done, onError: onFail });
+  const allocate = useMutation({
+    mutationFn: (cnId: number) => (bill ? allocateSupplierCreditNote(inv.id, cnId) : allocateCreditNote(inv.id, cnId)),
+    onSuccess: done, onError: onFail,
+  });
   const voidIt = useMutation({
     mutationFn: ({ paymentId, reason }: { paymentId: number; reason: string }) => voidPayment(inv.id, paymentId, reason),
     onSuccess: done, onError: onFail,
   });
   const working = busy || pay.isPending || useCredit.isPending || allocate.isPending || voidIt.isPending;
-  const overpay = salesInvoice && Number(amount) - balance > 0.004;
+  const overpay = (salesInvoice || bill) && Number(amount) - balance > 0.004;
 
   return (
     <TrailCard title={isCreditNote ? "Refunds and credit used" : "Payments"}
@@ -111,7 +125,7 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
           <label htmlFor="invoice-pay-amount" className="sr-only">Amount</label>
           <input id="invoice-pay-amount" type="number" step="0.01" min="0.01" value={amount}
             onChange={e => setAmount(e.target.value)} placeholder={`Amount (due ${balance.toFixed(2)})`} className={INPUT} />
-          {overpay && <p className="text-[11px] text-amber-700">£{(Number(amount) - balance).toFixed(2)} over: kept as the customer&apos;s credit</p>}
+          {overpay && <p className="text-[11px] text-amber-700">£{(Number(amount) - balance).toFixed(2)} over: kept as {bill ? "a deposit with the supplier" : "the customer's credit"}</p>}
           <label htmlFor="invoice-pay-date" className="sr-only">Date paid</label>
           <input id="invoice-pay-date" type="date" value={paidOn} max={isoDay(new Date())} onChange={e => setPaidOn(e.target.value)} className={INPUT} />
           {active.length > 0 ? (
@@ -138,19 +152,19 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
             {pay.isPending ? "Saving…" : isCreditNote ? "Record refund" : "Record payment"}
           </button>
 
-          {salesInvoice && creditLeft > 0.004 && (
-            <button type="button" disabled={working} onClick={() => useCredit.mutate()} data-testid="use-customer-credit"
+          {(salesInvoice || bill) && creditLeft > 0.004 && (
+            <button type="button" disabled={working} onClick={() => useCredit.mutate()} data-testid={bill ? "use-supplier-credit" : "use-customer-credit"}
               className="w-full text-xs text-brand-700 hover:underline text-left">
-              Use customer credit ({money(creditLeft)} available)
+              {bill ? "Use supplier deposit" : "Use customer credit"} ({money(creditLeft)} available)
             </button>
           )}
-          {salesInvoice && creditNotes.length > 0 && (
+          {(salesInvoice || bill) && notesToAllocate.length > 0 && (
             <div className="text-xs">
               <label htmlFor="invoice-allocate-cn" className="text-gray-500">Allocate credit note</label>
               <select id="invoice-allocate-cn" value="" disabled={working} className={`${INPUT} mt-1`}
                 onChange={e => { if (e.target.value) allocate.mutate(Number(e.target.value)); }}>
                 <option value="">Choose…</option>
-                {creditNotes.map(c => <option key={c.id} value={c.id}>{c.number}: {money(c.available)} left</option>)}
+                {notesToAllocate.map(c => <option key={c.id} value={c.id}>{c.number}: {money(c.available)} left</option>)}
               </select>
             </div>
           )}

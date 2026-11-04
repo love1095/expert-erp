@@ -80,7 +80,9 @@ public class StockMovement {
         ADJUSTMENT_OUT,
         TRANSFER_IN,
         TRANSFER_OUT,
-        SALE_RETURN_IN;
+        SALE_RETURN_IN,
+        // Phase H2: goods sent back to the supplier on a supplier credit note, at the cost they came in at
+        PURCHASE_RETURN_OUT;
 
         public boolean isIn() {
             return name().endsWith("_IN");
@@ -91,6 +93,7 @@ public class StockMovement {
         PURCHASE_ORDER,
         SALE_ORDER,
         SALE_RETURN,
+        PURCHASE_RETURN,
         TRANSFER,
         ADJUSTMENT,
         MANUAL,

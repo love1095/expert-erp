@@ -532,7 +532,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ · next H2 purchase ledger)
+## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ H2 ✅ · next H3 VAT)
 
 ### H1 Sales ledger ✅
 - [x] Cin7 checked (read-only, 2026-11-04): an invoice's **Payments** are Account (e.g. *650: Current Account - RBS*), Reference, Date paid, Amount, with *Use customer credit*, *Allocate credit note* and a **Customer credit** section; the chart of accounts is **loaded from Xero** (accounting package = Xero): bank 650 / 652 / 653 / 654, 641 Cash, 643 Card Payments, 644 Paypal Payments, 802 Customer Credits
@@ -546,6 +546,17 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Tests: `SalesLedgerTest` (6) — accounts (one default, a used one switched off, no duplicate codes); day / account / reference kept, overpayment → credit → used on the next invoice, payment on account, no future date; credit note allocated to another invoice, not to another customer's; void (STAFF refused, reason needed, invoice open again, audited); aged debtors; Shopify invoice paid on issue; E2E LEDGER-001
 - [ ] **To test later with the live Shopify store**: Shopify payouts (money Shopify pays into the bank, less fees) are not matched to orders yet; the Shopify-paid invoice above is tested with a fake order only
 - [x] Local data: Expert Safety's payment accounts entered as in Cin7 (650 Current Account - RBS default, 652, 653, 654, 641 Cash, 643 Card Payments, 644 Paypal Payments)
+
+
+### H2 Purchase ledger ✅
+- [x] Cin7 checked (read-only, 2026-11-04, PO-19064): the purchase page has **Payments** ("add a payment or refund to the invoice or credit note") and **Credit notes** ("create a new credit note and unstock items"); a bill's payments are Account, Reference, Date paid, Amount with **Use supplier deposit** (615 Supplier Deposits). No aged creditors report in Cin7 (Xero has it)
+- [x] **Supplier credit notes** on a bill (*Supplier credit note* on the bill's page): the supplier's number (else the bill's + `-CR1`), date, quantities per bill line (at most what is not credited yet), extra amounts (e.g. a rebate), reason; settled by paying off the bill (default), a **refund from the supplier** (into a payment account, with a reference), or kept as credit
+- [x] **Send back to the supplier**: the goods leave the order's warehouse (`V31` `PURCHASE_RETURN_OUT`, reference `PURCHASE_RETURN`) **at the cost they came in at**: that PO line's FIFO layers first, then FIFO; not more than received less already sent back
+- [x] **Supplier deposits** (`supplier_credits`): *+ Deposit* on the purchase order (amount, date, payment account, reference), or the rest of an **overpaid bill**; **Use supplier deposit** and **Allocate credit note** on a bill; a manager removes an unused deposit with a reason. Payments to suppliers use the H1 payment accounts, dates, references and voids
+- [x] **Purchase → Aged creditors**: what is owed to each supplier on a day, by days past the bills' due dates, credit notes and deposits, totals, **Export CSV**
+- [x] A purchase order typed with a supplier name now uses that supplier (any case) or creates it, so its bills are on a supplier's ledger (orders made before stay as they are)
+- [x] Tests: `PurchaseLedgerTest` (4) — a vest sent back costs this order's £65.50 not FIFO's £60.00, stock value £311.00, credit note pays off the bill, not more than billed; deposit + overpayment used on the next bills; kept credit note allocated, refund by the supplier; aged creditors; E2E PLEDGER-001
+- [ ] Later: a supplier credit note for a price (no goods back) does not lower the stock's FIFO cost yet (as before E5's open item)
 
 ---
 
@@ -594,6 +605,10 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | POST | `/invoices/{id}/payments/{paymentId}/void` | `{reason}`; MANAGER/ADMIN |
 | GET/POST | `/customers/{id}/credits` · `/customers/{id}/credits/{creditId}/void` | Customer credit; payment on account; remove unused (MANAGER/ADMIN) |
 | GET | `/reports/aged-debtors?asAt=` · `/reports/aged-debtors/csv` | Aged debtors |
+| POST | `/invoices/{id}/supplier-credit-notes` | Supplier credit note on a bill: `{number, date, lines[{invoiceItemId, quantity, returnGoods}], charges, settle, refundAccountId}` (H2) |
+| POST | `/invoices/{id}/use-supplier-credit` · `/invoices/{id}/allocate-supplier-credit-note` | Pay a bill with deposits / a kept credit note |
+| GET/POST | `/suppliers/{id}/credits` · `/suppliers/{id}/credits/{creditId}/void` · `/suppliers/{id}/open-credit-notes` | Supplier deposits |
+| GET | `/reports/aged-creditors?asAt=` · `/reports/aged-creditors/csv` | Aged creditors |
 | GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
 | GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
 | POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |

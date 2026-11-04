@@ -16,6 +16,7 @@ import {
 } from "@/components/DetailParts";
 import PurchaseOrderForm from "./purchase-order-form";
 import BillForm from "./bill-form";
+import SupplierDeposits from "./supplier-deposits";
 
 export const PO_STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -213,6 +214,8 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
             </button>
           )}
         </TrailCard>
+
+        {po.supplierId && po.status !== "CANCELLED" && <SupplierDeposits supplierId={po.supplierId} purchaseOrderId={po.id} />}
 
         <TrailCard title="Supplier">
           <p className="text-gray-800">{po.supplierName}</p>

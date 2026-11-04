@@ -54,7 +54,9 @@ public class CostingService {
                 matchBills(m.getSourceLineId(), billsAsOf);
             }
             case ADJUSTMENT_IN -> open(m, inCost(m), null);
-            default -> consume(m);
+            // Goods back to the supplier leave at the cost they came in at: that PO line's layers first (H2)
+            case PURCHASE_RETURN_OUT -> consume(m, m.getSourceLineId());
+            default -> consume(m, null);
         }
     }
 
@@ -129,9 +131,14 @@ public class CostingService {
 
     // ---- stock out ----
 
-    private void consume(StockMovement m) {
+    private void consume(StockMovement m, Long preferPurchaseOrderLineId) {
         BigDecimal need = m.getQuantity();
-        for (CostLayer layer : layerRepository.findOpen(m.getProduct().getId(), m.getWarehouse().getId())) {
+        List<CostLayer> open = new ArrayList<>(layerRepository.findOpen(m.getProduct().getId(), m.getWarehouse().getId()));
+        if (preferPurchaseOrderLineId != null) {
+            // Stable: the line's own layers (oldest first), then the rest in FIFO order
+            open.sort(Comparator.comparing(l -> !preferPurchaseOrderLineId.equals(l.getPurchaseOrderLineId())));
+        }
+        for (CostLayer layer : open) {
             if (need.signum() <= 0) break;
             BigDecimal take = need.min(layer.getRemaining());
             layer.setRemaining(layer.getRemaining().subtract(take));

@@ -14,6 +14,7 @@ import {
 } from "@/components/DetailParts";
 import CreditNoteForm from "./credit-note-form";
 import PaymentsCard from "./payments-card";
+import SupplierCreditNoteForm from "./supplier-credit-note-form";
 
 export const INVOICE_STATUS_COLOR: Record<InvoiceStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -39,6 +40,8 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
     qc.invalidateQueries({ queryKey: ["sale-order"] });
     qc.invalidateQueries({ queryKey: ["customer-credits"] });
     qc.invalidateQueries({ queryKey: ["open-credit-notes"] });
+    qc.invalidateQueries({ queryKey: ["supplier-credits"] });
+    qc.invalidateQueries({ queryKey: ["supplier-open-credit-notes"] });
     setError("");
   };
   const onFail = (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Request failed");
@@ -47,11 +50,18 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
   const cancelMut = useMutation({ mutationFn: cancelInvoice, onSuccess: onDone, onError: onFail });
   const busy = issueMut.isPending || cancelMut.isPending;
 
+  const credited = (cn: Invoice) => {
+    setCrediting(false);
+    for (const key of ["invoices", "invoice", "sale-order", "purchase-order", "customer-credits", "open-credit-notes",
+      "supplier-credits", "supplier-open-credit-notes", "stock-overview"]) qc.invalidateQueries({ queryKey: [key] });
+    router.push(`/invoices/${cn.id}`);
+  };
+
   if (isLoading || !inv) return <p className="text-gray-400 text-sm">Loading…</p>;
 
   const isCreditNote = inv.kind === "CREDIT_NOTE";
   const balance = Number(inv.totalAmount) - Number(inv.amountPaid);
-  const canCredit = !isCreditNote && inv.type === "SALES" && (inv.status === "ISSUED" || inv.status === "PAID");
+  const canCredit = !isCreditNote && (inv.status === "ISSUED" || inv.status === "PAID");
 
   return (
     <div data-testid={`invoice-page-${inv.id}`}>
@@ -76,7 +86,8 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
               Cancel invoice
             </button>
           )}
-          {canCredit && <button disabled={busy} onClick={() => setCrediting(true)} className={BTN_SECONDARY}>Credit note & restock</button>}
+          {canCredit && <button disabled={busy} onClick={() => setCrediting(true)} className={BTN_SECONDARY}>
+            {inv.type === "SALES" ? "Credit note & restock" : "Supplier credit note"}</button>}
           {inv.status === "DRAFT" && <button disabled={busy} onClick={() => issueMut.mutate(inv.id)} className={BTN_PRIMARY}>Issue invoice</button>}
         </>}
       />
@@ -98,18 +109,10 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
         {crediting && (
-          <Card title="Credit note & restock">
-            <CreditNoteForm invoice={inv} onCancel={() => setCrediting(false)}
-              onDone={cn => {
-                setCrediting(false);
-                qc.invalidateQueries({ queryKey: ["invoices"] });
-                qc.invalidateQueries({ queryKey: ["invoice"] });
-                qc.invalidateQueries({ queryKey: ["sale-order"] });
-    qc.invalidateQueries({ queryKey: ["customer-credits"] });
-    qc.invalidateQueries({ queryKey: ["open-credit-notes"] });
-                qc.invalidateQueries({ queryKey: ["stock-overview"] });
-                router.push(`/invoices/${cn.id}`);
-              }} />
+          <Card title={inv.type === "SALES" ? "Credit note & restock" : "Supplier credit note"}>
+            {inv.type === "SALES"
+              ? <CreditNoteForm invoice={inv} onCancel={() => setCrediting(false)} onDone={credited} />
+              : <SupplierCreditNoteForm bill={inv} onCancel={() => setCrediting(false)} onDone={credited} />}
           </Card>
         )}
 
