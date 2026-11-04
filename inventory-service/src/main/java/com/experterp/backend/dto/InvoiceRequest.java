@@ -21,6 +21,8 @@ public class InvoiceRequest {
     private String partyName;
 
     private Long saleOrderId;
+    // Sales invoices typed by hand: the customer they are for (shown on their statement, G3)
+    private Long customerId;
     private Long purchaseOrderId;
 
     @NotNull(message = "Issue date is required")

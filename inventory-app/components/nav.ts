@@ -8,6 +8,7 @@ export const NAV: NavModule[] = [
     { href: "/sale-orders", label: "Sale Orders" },
     { href: "/invoices",    label: "Invoices" },
     { href: "/customers",   label: "Customers" },
+    { href: "/overdue",     label: "Overdue" },
   ]},
   { key: "purchase", label: "Purchase", icon: "purchase", items: [
     { href: "/purchase-orders", label: "Purchase Orders" },

@@ -86,6 +86,13 @@ public class Invoice {
     @Column
     private String notes;
 
+    // Phase G3: overdue reminders printed for this invoice, and when the last one was
+    @Column(nullable = false)
+    private int reminderCount;
+
+    @Column
+    private LocalDateTime lastReminderAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

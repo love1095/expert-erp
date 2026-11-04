@@ -48,28 +48,48 @@ public class PdfRenderer {
     }
 
     public byte[] render(DocumentModel model) {
+        return renderHtml(html(model), model.number());
+    }
+
+    /** Any other template under {@code templates/documents/}, given its model as {@code d} (statements, reminders: G3). */
+    public String html(String template, Object model) {
+        Context ctx = new Context();
+        ctx.setVariable("d", model);
+        return engine.process(template, ctx);
+    }
+
+    public byte[] render(String template, Object model, String name) {
+        return renderHtml(html(template, model), name);
+    }
+
+    private byte[] renderHtml(String html, String name) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
             PdfRendererBuilder b = new PdfRendererBuilder();
             b.useFastMode();
             b.useFont(() -> new ByteArrayInputStream(regular), "Liberation Sans", 400, FontStyle.NORMAL, true);
             b.useFont(() -> new ByteArrayInputStream(bold), "Liberation Sans", 700, FontStyle.NORMAL, true);
-            b.withHtmlContent(html(model), null);
+            b.withHtmlContent(html, null);
             b.withProducer("Expert ERP");
             b.toStream(out);
             b.run();
         } catch (IOException e) {
-            throw new UncheckedIOException("Could not print " + model.number(), e);
+            throw new UncheckedIOException("Could not print " + name, e);
         }
         return out.toByteArray();
     }
 
     /** Several documents in one PDF, each starting on a new page with its own page numbers. */
     public byte[] renderAll(List<DocumentModel> models) {
-        if (models.size() == 1) return render(models.get(0));
+        return merge(models.stream().map(this::render).toList());
+    }
+
+    /** PDFs one after the other in one file. */
+    public byte[] merge(List<byte[]> pdfs) {
+        if (pdfs.size() == 1) return pdfs.get(0);
         try {
             PDFMergerUtility merger = new PDFMergerUtility();
-            for (DocumentModel m : models) merger.addSource(new RandomAccessReadBuffer(render(m)));
+            for (byte[] pdf : pdfs) merger.addSource(new RandomAccessReadBuffer(pdf));
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             merger.setDestinationStream(out);
             merger.mergeDocuments(IOUtils.createMemoryOnlyStreamCache());

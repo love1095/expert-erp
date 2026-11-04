@@ -982,3 +982,54 @@ export interface CreditStatus {
   held: boolean;
   reasons: string[];
 }
+
+// ---- Statements and overdue reminders (G3) ----
+export interface StatementEntry {
+  date: string;
+  kind: "INVOICE" | "CREDIT_NOTE" | "PAYMENT" | "REFUND";
+  invoiceId: number;
+  number: string;
+  reference?: string | null;
+  dueDate?: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+export interface StatementOpenItem {
+  invoiceId: number;
+  kind: "INVOICE" | "CREDIT_NOTE";
+  number: string;
+  date: string;
+  dueDate?: string | null;
+  total: number;
+  settled: number;
+  open: number;          // credit is negative
+  daysOverdue: number;
+  reminderCount: number;
+  lastReminderAt?: string | null;
+}
+export interface StatementAgeing { current: number; days1to30: number; days31to60: number; days61to90: number; over90: number; total: number }
+export interface Statement {
+  type: "ACTIVITY" | "OUTSTANDING";
+  customerId: number;
+  customerName: string;
+  from?: string | null;
+  to: string;
+  opening?: number | null;
+  entries: StatementEntry[];
+  closing: number;
+  openItems: StatementOpenItem[];
+  ageing: StatementAgeing;
+}
+export interface OverdueCustomer {
+  customerId: number;
+  customerName: string;
+  overdue: number;
+  invoices: number;
+  oldestDue: string;
+  daysOverdue: number;
+  balance: number;
+  nextLevel: number;     // 1 = first reminder, 2 = second, 3 = final notice
+  lastReminderAt?: string | null;
+  onHold: boolean;
+}

@@ -23,7 +23,7 @@ import java.util.Map;
  * Credit control (phase G2, spec §5). A customer is on <b>credit hold</b> when:
  * <ul>
  *   <li>put on hold by hand (with a reason), or</li>
- *   <li>what they owe (issued invoices less payments and unused credit notes) plus their orders not invoiced yet
+ *   <li>what they owe (issued invoices less payments and unused credit notes, see {@link StatementService}) plus their orders not invoiced yet
  *       (confirmed or shipped) is over their credit limit — no limit set means no limit, or</li>
  *   <li>an invoice is past its due date (their payment terms are breached).</li>
  * </ul>
@@ -39,6 +39,7 @@ public class CreditService {
     private final CustomerRepository customerRepository;
     private final AuditService auditService;
     private final JdbcTemplate jdbc;
+    private final StatementService statementService;
 
     public record CreditStatus(Long customerId, BigDecimal creditLimit, BigDecimal balance, BigDecimal notInvoiced,
                                BigDecimal thisOrder, BigDecimal exposure, BigDecimal available, BigDecimal overdue,
@@ -62,20 +63,9 @@ public class CreditService {
     @Transactional(readOnly = true)
     public CreditStatus check(Customer c, BigDecimal orderTotal, Long orderId) {
         Long t = TenantContext.get();
-        BigDecimal invoiced = money(jdbc.queryForObject("""
-                SELECT COALESCE(SUM(i.total_amount - COALESCE(p.paid, 0)), 0) FROM invoices i
-                LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM payments GROUP BY invoice_id) p ON p.invoice_id = i.id
-                WHERE i.tenant_id = ? AND i.customer_id = ? AND i.type = 'SALES' AND i.kind = 'INVOICE' AND i.status IN ('ISSUED', 'PAID')""",
-                BigDecimal.class, t, c.getId()));
-        // Credit notes kept as credit (not applied, not paid back) lower what is owed
-        BigDecimal credit = money(jdbc.queryForObject("""
-                SELECT COALESCE(SUM(i.total_amount - COALESCE(p.paid, 0)), 0) FROM invoices i
-                LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM payments GROUP BY invoice_id) p ON p.invoice_id = i.id
-                WHERE i.tenant_id = ? AND i.customer_id = ? AND i.type = 'SALES' AND i.kind = 'CREDIT_NOTE' AND i.status = 'ISSUED'""",
-                BigDecimal.class, t, c.getId()));
-        // Applied credit notes show as payments on the invoice, so only unused credit is taken off here
-        BigDecimal unusedCredit = credit.max(BigDecimal.ZERO);
-        BigDecimal balance = invoiced.subtract(unusedCredit);
+        // Owed: unpaid invoices less unused credit, from the same ledger as the statements (G3). A credit note that
+        // was partly applied to its invoice only counts what is left of it.
+        BigDecimal balance = statementService.balance(c.getId());
 
         BigDecimal notInvoiced = money(jdbc.queryForObject("""
                 SELECT COALESCE(SUM(x.amount), 0) FROM (

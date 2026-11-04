@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
+    private final com.experterp.backend.repository.CustomerRepository customerRepository;
     private final SaleOrderRepository saleOrderRepository;
     private final OrganisationSettingsService settingsService;
     private final PaymentRepository paymentRepository;
@@ -76,6 +77,11 @@ public class InvoiceService {
         invoice.setPartyName(req.getPartyName());
         invoice.setSaleOrderId(req.getSaleOrderId());
         invoice.setPurchaseOrderId(req.getPurchaseOrderId());
+        if (req.getType() == Invoice.InvoiceType.SALES && req.getCustomerId() != null) {
+            Customer c = customerRepository.findById(req.getCustomerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + req.getCustomerId()));
+            invoice.setCustomerId(c.getId());
+        }
         invoice.setIssueDate(req.getIssueDate());
         invoice.setDueDate(req.getDueDate());
         invoice.setCurrency(req.getCurrency() != null ? req.getCurrency() : "GBP");

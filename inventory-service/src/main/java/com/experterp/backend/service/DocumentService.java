@@ -259,7 +259,7 @@ public class DocumentService {
         }
     }
 
-    private Letterhead company() {
+    Letterhead company() {
         CompanyDetailsService.Printed p = companyDetailsService.printed();
         CompanyDetailsService.Details d = p.details();
         String logo = p.logo() == null ? null
@@ -268,7 +268,7 @@ public class DocumentService {
                 logo, d.documentFooter(), d.bankDetails());
     }
 
-    private Party customerParty(String label, Long customerId, String fallbackName) {
+    Party customerParty(String label, Long customerId, String fallbackName) {
         Customer c = customerId == null ? null : customerRepository.findById(customerId).orElse(null);
         if (c == null) return new Party(label, fallbackName, List.of());
         List<String> out = new ArrayList<>(lines(c.getAddress()));
@@ -344,7 +344,7 @@ public class DocumentService {
         return v == null ? BigDecimal.ZERO : v;
     }
 
-    private static String date(LocalDate d) {
+    static String date(LocalDate d) {
         return d == null ? null : d.format(DATE);
     }
 

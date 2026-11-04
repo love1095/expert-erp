@@ -264,3 +264,20 @@ export const deleteContractPrice = (customerId: number, id: number) => api.delet
 export const getCustomerCredit = (customerId: number) => api.get(`/customers/${customerId}/credit`).then(r => r.data);
 export const setCustomerHold = (customerId: number, hold: boolean, reason?: string) =>
   api.put(`/customers/${customerId}/credit/hold`, { hold, reason }).then(r => r.data);
+
+// ---- Statements and overdue reminders (G3) ----
+export type StatementType = "ACTIVITY" | "OUTSTANDING";
+export interface StatementParams { type: StatementType; from?: string; to?: string }
+export const getStatement = (customerId: number, p: StatementParams) =>
+  api.get(`/customers/${customerId}/statement`, { params: p }).then(r => r.data);
+export const getStatementPdf = (customerId: number, p: StatementParams) =>
+  api.get(`/customers/${customerId}/statement/pdf`, { params: p, responseType: "blob" }).then(r => r.data as Blob);
+export const getStatementsPdf = (ids: number[], p: StatementParams) =>
+  api.get(`/statements/pdf`, { params: { ...p, ids: ids.join(",") }, responseType: "blob" }).then(r => r.data as Blob);
+export const getOverdueCustomers = () => api.get(`/customers/overdue`).then(r => r.data);
+export const getReminder = (customerId: number) => api.get(`/customers/${customerId}/reminder`).then(r => r.data);
+export const getReminderPreviewPdf = (customerId: number) =>
+  api.get(`/customers/${customerId}/reminder/pdf`, { responseType: "blob" }).then(r => r.data as Blob);
+// Prints the reminder and records it on the overdue invoices (the next one is firmer)
+export const sendReminderPdf = (customerId: number) =>
+  api.post(`/customers/${customerId}/reminder`, undefined, { responseType: "blob" }).then(r => r.data as Blob);

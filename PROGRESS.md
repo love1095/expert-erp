@@ -487,7 +487,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ · next G3 statements and reminders, G4 delivery addresses)
+## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ G3 ✅ · next G4 delivery addresses)
 
 ### G1 Price tiers and contract prices ✅
 - [x] **Price tiers** per organisation (`V25` `price_tiers`), numbered like Cin7's PriceTier1..10 and named in Settings → Organisation → **Price tiers** (ADMIN): tiers 1–4 use each product's own price for the tier (Cin7's PriceTier1–4 columns: sell price, trade price, tier 3, tier 4; a product without one gets tier 1), or a **percentage off tier 1**; tiers 5–10 must be a percentage. Seeded *1 Retail* and *2 Contract* (the name the real Cin7 customers use: 191 Contract, 141 Retail) or *Trade*; renaming a tier renames it on its customers; a tier in use cannot be removed
@@ -504,7 +504,19 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Confirming** a held customer's order is refused; a **manager or admin** confirms anyway with a reason (`V27` `credit_override`, shown on the order, audited `CREDIT_OVERRIDE`); bulk *Fill and authorise* stops at held customers; Shopify orders (paid at checkout) are not checked
 - [x] Customer page **Credit** card: limit, owed, on order not invoiced, available, overdue (oldest, days), status; **Put on hold** / **Release** (MANAGER and above, `PUT /customers/{id}/credit/hold`, audited); customers list shows **On hold**
 - [x] Tests: `CreditTest` (3) — £54 owed + £12 on order against £100, a £36 order warns and needs a manager (STAFF refused); an invoice 5 days overdue holds a customer with no limit; hold by hand needs a reason, blocks confirming, release; E2E CREDIT-001
-- [ ] Later: shipping is not stopped for orders confirmed before the hold; overdue reminders come with G3
+- [ ] Later: shipping is not stopped for orders confirmed before the hold (overdue reminders: done in G3)
+
+### G3 Statements and overdue reminders ✅
+- [x] Cin7 checked (read-only, 2026-11-04): two statement templates, *Sale Statement Activity* and *Sale Statement Outstanding*; no aged-debtors report and no overdue reminders (Xero sends them)
+- [x] **Sales ledger per customer** (`StatementService`): issued invoices and credit notes, money received, refunds; a credit note applied to an invoice counts once (as the credit note); drafts and cancelled left out
+- [x] **Activity statement**: a period (default the last three months) with opening balance, each entry and a running balance, closing balance. **Outstanding statement**: what is open on a date (unpaid invoices, unused credit, days overdue). Both with the **ageing** (Current / 1–30 / 31–60 / 61–90 / over 90 days), which adds up to the closing balance
+- [x] On the customer page (**Statement** card: Activity / Outstanding, dates, Print statement) and as PDF (`statement.html`, same letterhead as the other documents); ticked customers in one PDF from the Overdue list
+- [x] **Overdue reminders** that get firmer: *Payment reminder* → *Second payment reminder* → *Final notice*. Preview (nothing recorded) or print and record (MANAGER and above, `V28` `reminder_count` / `last_reminder_at` per invoice, audited `OVERDUE_REMINDER`). Print only until e-mail sending exists
+- [x] **Sale → Overdue** list: customers with overdue invoices, overdue amount, oldest, days, balance, last reminder, next reminder, on hold
+- [x] Fixed (G2): a credit note bigger than what was still due on its invoice had its applied part counted twice in what the customer owes; credit control now uses the statement's balance
+- [x] Sales invoices typed by hand can name their customer (`customerId`), so they show on the statement
+- [x] Tests: `StatementTest` (3) — activity and outstanding agree, opening / running / closing balance, ageing, open items on a past date; partly applied credit note counted once; reminders list only overdue invoices, preview records nothing, 1st → 2nd → final, audited; E2E STATEMENT-001
+- [ ] Local data: Expert Safety has no invoices yet (only customers, products and stock came from Cin7), so statements were checked on test data; e-mailing statements and reminders comes with e-mail sending
 
 ---
 
@@ -544,6 +556,11 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET/POST | `/customers` | List (search, paginated, with order counts) / create customers |
 | GET/PUT/DELETE | `/customers/{id}` | Get / update / delete customer (delete refused if it has orders) |
 | POST | `/customers/import` | Import a Cin7 Core customer CSV (multipart `file`; ADMIN/MANAGER) |
+| GET | `/customers/{id}/statement` | Statement (`type` ACTIVITY / OUTSTANDING, `from`, `to`): ledger entries, open items, ageing (G3) |
+| GET | `/customers/{id}/statement/pdf` · `/statements/pdf?ids=` | Statement as PDF; ticked customers in one PDF |
+| GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
+| GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
+| POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |
 | GET/POST | `/stock-movements` | List / record movement |
 | POST | `/stock-movements/transfer` | Transfer between warehouses |
 | GET  | `/stock-movements/export/csv` | CSV export |

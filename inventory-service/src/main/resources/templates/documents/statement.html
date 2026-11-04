@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!-- Customer statements (Activity, Outstanding) and overdue reminders (phase G3). Filled from StatementDocuments.Print,
+     same letterhead and look as document.html. Rendered by OpenHTMLtoPDF (XHTML, CSS 2.1 + paged media). -->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title th:text="${d.title + ' ' + d.customer.name}">Statement</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 24mm 14mm;
+      @bottom-left { content: element(footer); vertical-align: top; }
+      @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "Liberation Sans"; font-size: 7.5pt; color: #737373; vertical-align: top; padding-top: 3mm; }
+    }
+    body { font-family: "Liberation Sans"; font-size: 9pt; color: #171717; margin: 0; line-height: 1.35; }
+    .footer { position: running(footer); font-size: 7.5pt; color: #737373; border-top: 0.5pt solid #d4d4d4; padding-top: 2.5mm; width: 150mm; }
+    table { border-collapse: collapse; width: 100%; }
+    td, th { vertical-align: top; padding: 0; }
+    .head td { padding-bottom: 6mm; }
+    .logo { max-height: 18mm; max-width: 60mm; margin-bottom: 2mm; }
+    .company-name { font-weight: 700; font-size: 11pt; }
+    .muted { color: #525252; }
+    .small { font-size: 8pt; }
+    .title { text-align: right; }
+    .title h1 { font-size: 20pt; font-weight: 700; margin: 0; letter-spacing: 0.3pt; }
+    .title .number { font-size: 11pt; font-weight: 700; margin-top: 1mm; }
+    .title .bar { border-top: 2pt solid #d42020; width: 22mm; margin: 2mm 0 0 auto; }
+    .stamp { display: inline-block; margin-top: 2mm; padding: 1mm 3mm; border: 1pt solid #d42020; color: #d42020; font-weight: 700; text-transform: uppercase; font-size: 9pt; letter-spacing: 1pt; }
+    .parties td.party { width: 33%; padding-right: 5mm; }
+    .label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #737373; letter-spacing: 0.5pt; margin-bottom: 1mm; }
+    .party-name { font-weight: 700; }
+    .fields { margin: 5mm 0 4mm 0; background-color: #f5f5f5; }
+    .fields td { padding: 2mm 3mm; }
+    .fields .value { font-weight: 700; }
+    .lines { margin-top: 2mm; }
+    .lines th { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #525252; text-align: left; border-bottom: 1pt solid #171717; padding: 1.5mm 1.5mm; }
+    .lines td { padding: 1.8mm 1.5mm; border-bottom: 0.5pt solid #e5e5e5; }
+    .lines tr { page-break-inside: avoid; }
+    .lines { -fs-table-paginate: paginate; }
+    .lines thead { display: table-header-group; }
+    .num, .lines th.num, .vat th.num { text-align: right; white-space: nowrap; }
+    .lines .desc { width: 100%; }
+    .lines td.num, .lines th.num { padding-left: 4mm; }
+    .empty td { color: #737373; font-style: italic; }
+    .code { font-size: 8pt; white-space: nowrap; }
+    .charge td { color: #404040; }
+    .bottom { margin-top: 5mm; page-break-inside: avoid; }
+    .vat th { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #737373; text-align: left; padding: 1mm 2mm 1mm 0; border-bottom: 0.5pt solid #d4d4d4; }
+    .vat td { padding: 1mm 2mm 1mm 0; }
+    .totals td { padding: 1.2mm 0 1.2mm 4mm; }
+    .totals .strong td { font-weight: 700; font-size: 11pt; border-top: 1pt solid #171717; padding-top: 2mm; }
+    .box { margin-top: 5mm; padding: 3mm; border: 0.5pt solid #d4d4d4; page-break-inside: avoid; }
+    .pre { white-space: pre-line; }
+    /* statements and reminders (G3) */
+    .letter p { margin: 0 0 2.5mm 0; }
+    .letter { margin: 1mm 0 4mm 0; }
+    .overdue td { color: #b91c1c; }
+    .ageing { margin-top: 5mm; border: 0.5pt solid #d4d4d4; page-break-inside: avoid; }
+    .ageing td { width: 16.6%; padding: 2mm 3mm; text-align: right; }
+    .ageing .strong { font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="footer">
+    <span th:text="${d.company.name}">Expert Safety Ltd</span>
+    <span th:if="${d.company.companyNumber != null}" th:text="${' · Company no. ' + d.company.companyNumber}"> · Company no.</span>
+    <span th:if="${d.company.vatNumber != null}" th:text="${' · VAT no. ' + d.company.vatNumber}"> · VAT no.</span>
+    <div th:if="${d.company.footer != null}" class="pre" th:text="${d.company.footer}">Terms</div>
+  </div>
+
+  <table class="head">
+    <tr>
+      <td style="width: 60%">
+        <img th:if="${d.company.logoDataUri != null}" class="logo" th:src="${d.company.logoDataUri}" alt="" />
+        <div class="company-name" th:text="${d.company.name}">Expert Safety Ltd</div>
+        <div class="muted" th:each="line : ${d.company.address}" th:text="${line}">Address line</div>
+        <div class="muted small" th:if="${d.company.phone != null or d.company.email != null}">
+          <span th:if="${d.company.phone != null}" th:text="${'Tel ' + d.company.phone}">Tel</span>
+          <span th:if="${d.company.phone != null and d.company.email != null}"> · </span>
+          <span th:if="${d.company.email != null}" th:text="${d.company.email}">email</span>
+        </div>
+        <div class="muted small" th:if="${d.company.website != null}" th:text="${d.company.website}">website</div>
+        <div class="muted small" th:if="${d.company.vatNumber != null}" th:text="${'VAT no. ' + d.company.vatNumber}">VAT no.</div>
+      </td>
+      <td class="title">
+        <h1 th:text="${d.title}">Statement</h1>
+        <div class="number" th:text="${d.date}">01/01/2026</div>
+        <div class="bar"></div>
+        <div th:if="${d.stamp != null}" class="stamp" th:text="${d.stamp}">Draft</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="parties">
+    <tr>
+      <td class="party">
+        <div class="label" th:text="${d.customer.label}">Statement for</div>
+        <div class="party-name" th:text="${d.customer.name}">Customer</div>
+        <div th:each="line : ${d.customer.lines}" th:text="${line}">line</div>
+      </td>
+      <td></td>
+    </tr>
+  </table>
+
+  <table class="fields" th:if="${!d.fields.isEmpty()}">
+    <tr>
+      <td th:each="f : ${d.fields}">
+        <div class="label" th:text="${f.label}">Date</div>
+        <div class="value" th:text="${f.value}">01/01/2026</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="letter" th:if="${!d.letter.isEmpty()}">
+    <p th:each="para : ${d.letter}" th:text="${para}">Dear customer,</p>
+  </div>
+
+  <table class="lines">
+    <thead>
+      <tr th:if="${d.activity}">
+        <th>Date</th><th>Type</th><th>Number</th><th class="desc">Reference</th><th>Due</th>
+        <th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th>
+      </tr>
+      <tr th:unless="${d.activity}">
+        <th>Date</th><th>Type</th><th class="desc">Number</th><th>Due</th><th class="num">Days overdue</th>
+        <th class="num">Amount</th><th class="num">Paid</th><th class="num">Open</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="r : ${d.rows}" th:class="${r.overdue} ? 'overdue' : null">
+        <td class="code" th:text="${r.date}">01/01/2026</td>
+        <td class="code" th:text="${r.type}">Invoice</td>
+        <td th:if="${d.activity}" class="code" th:text="${r.number}">INV-1</td>
+        <td th:if="${d.activity}" class="desc" th:text="${r.reference}">Bank</td>
+        <td th:unless="${d.activity}" class="desc" th:text="${r.number}">INV-1</td>
+        <td class="code" th:text="${r.due}">31/01/2026</td>
+        <td th:unless="${d.activity}" class="num" th:text="${r.days}">5</td>
+        <td class="num" th:text="${r.a}">£1.00</td>
+        <td class="num" th:text="${r.b}"></td>
+        <td class="num" th:text="${r.c}">£1.00</td>
+      </tr>
+      <tr class="empty" th:if="${d.rows.isEmpty() and !d.emptyText.isEmpty()}">
+        <td colspan="8" th:text="${d.emptyText}">Nothing outstanding</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table class="bottom">
+    <tr>
+      <td style="width: 55%"></td>
+      <td>
+        <table class="totals">
+          <tr th:each="t : ${d.totals}" th:class="${t.strong} ? 'strong' : null">
+            <td th:text="${t.label}">Total</td>
+            <td class="num" th:text="${t.value}">£1.20</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <table class="ageing" th:if="${!d.ageing.isEmpty()}">
+    <tr>
+      <td th:each="a : ${d.ageing}" th:class="${a.strong} ? 'strong' : null">
+        <div class="label" th:text="${a.label}">Current</div>
+        <div th:text="${a.value}">£0.00</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="box" th:if="${d.payment != null}">
+    <div class="label">Payment</div>
+    <div class="pre" th:text="${d.payment}">Please pay</div>
+  </div>
+</body>
+</html>
