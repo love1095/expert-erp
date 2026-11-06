@@ -56,6 +56,7 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("*", "/api/ledger/**", ACCOUNTING),
             r("*", "/api/bank/**", ACCOUNTING),
             r("*", "/api/vat/**", ACCOUNTING),
+            r("*", "/api/xero/**", REPORTS_FINANCIAL),
             r("GET", "/api/cutover/**", DATA_IMPORT),
             r("GET", "/api/customers/**", CUSTOMERS, SALE_VIEW),
             r("GET", "/api/customers", CUSTOMERS, SALE_VIEW),

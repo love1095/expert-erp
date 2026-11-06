@@ -3,7 +3,7 @@
 Open items gathered from `PROGRESS.md` (where each one is explained under its step). Tick here and there when done.
 
 ## Needs the owner (an account, a login or a decision)
-- [ ] **Xero developer app** at developer.xero.com: client ID + client secret for the Xero API link
+- [ ] **Xero developer app** at developer.xero.com (phase L is built against a fake Xero): client ID + client secret, redirect URI `https://<server>/finance/xero/callback`; then set APP_XERO_MODE=live, APP_XERO_CLIENT_ID, APP_XERO_CLIENT_SECRET, APP_XERO_REDIRECT_URI
 - [ ] **Xero Demo Company (UK)** in the owner's Xero login: to test the Xero link before cutover (never the real Expert Safety Xero before cutover)
 - [ ] **Purchase charges account**: which Xero account bill carriage / duty go to (407 Import Duty is a placeholder in the local data)
 - [ ] **Cin7 read-only check**: PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data)
@@ -30,6 +30,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## Test later with live systems
 - [ ] **Shopify (live store)**: a price change updates only that product (GLGH-WG-310RP-08 → expect 1 updated); stock push to the real dev store (would set stock for 13,959 linked SKUs); Shopify payouts (money paid into the bank, less fees) not matched to orders yet; Shopify-paid invoices tested with a fake order only
+- [ ] **Xero API link, live test on the Demo Company** (phase L, built against a fake): connect, send each document type, pull a payment back
 - [ ] **Xero, first real import** (Demo Company first): credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines
 
 ## Needs the owner's OK
@@ -47,7 +48,6 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## Build later (deliberately left for now)
 - [ ] Sale / purchase task import, not like Cin7 yet: Auto Pick / Auto Pick + Pack are not separate steps (needs pick lists, warehouse phase); credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
-- [ ] **Xero API link**: contacts, invoices, credit notes, bills, payments both ways, journals, retries — built against a fake Xero, live-tested with the Demo Company
 - [ ] Payments on account (customer credit / supplier deposits) in the Xero files
 - [ ] E-mailing documents, statements and reminders (with the e-mail integration, spec §7)
 - [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product, Stock Value Inventory Aging (phase I)
