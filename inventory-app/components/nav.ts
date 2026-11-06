@@ -33,7 +33,8 @@ export const NAV: NavModule[] = [
     { href: "/reports/profit-by-rep",      label: "Profit by Sales Representatives", perm: "REPORTS_FINANCIAL" },
     { href: "/reports/sales-by-product",   label: "Sales by Product Summary",       perm: "REPORTS_FINANCIAL" },
     { href: "/reports/inventory-movement", label: "Inventory Movement Summary",     perm: "REPORTS_FINANCIAL" },
-    { href: "/accounting-export",          label: "Xero export",                    perm: "REPORTS_FINANCIAL" },
+    { href: "/finance/xero",               label: "Xero",                           perm: "REPORTS_FINANCIAL" },
+    { href: "/accounting-export",          label: "Xero export (CSV)",              perm: "REPORTS_FINANCIAL" },
   ]},
   // Phase K: the ERP's own accounting, like Xero's Accounting menu
   { key: "accounting", label: "Accounting", icon: "accounting", items: [

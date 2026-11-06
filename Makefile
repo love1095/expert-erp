@@ -15,7 +15,7 @@ app:
 
 # Playwright suite (needs `make backend` and `make app`); 2 workers so the machine doesn't freeze
 e2e:
-	cd e2e-tests && E2E_SUPERADMIN_PASSWORD="$$(grep '^APP_SUPERADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test --workers=2 $(ARGS)
+	cd e2e-tests && TZ=UTC E2E_SUPERADMIN_PASSWORD="$$(grep '^APP_SUPERADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test --workers=2 $(ARGS)
 
 up:
 	docker compose up --build

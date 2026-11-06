@@ -24,6 +24,8 @@ export default defineConfig({
   ],
 
   use: {
+    // The server's clock (UTC): "today" in a test is the server's today, also after midnight in Asia
+    timezoneId: 'UTC',
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

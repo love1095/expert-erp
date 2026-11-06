@@ -708,7 +708,7 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 - [x] Tests: `AccountantTest` (2) — the Accountant role and its ticks; a manager stopped in the locked year while the Adviser posts there and records the VAT return, both stopped by the all-users date; trial balance, P&L and general ledger CSV; the year-end pack's eight files and README, a day that is not a year end refused. E2E ACCT-001 passed (CSV and zip download, Accountant role); BANK-001 date fixed (the server's date, not the browser's, after midnight in Asia)
 - [ ] Later: PDF of the statements, Excel (.xlsx) and Google Sheets export, an accountant invited by e-mail (with the e-mail integration), fixed asset register and depreciation, budgets
 
-## Phase L — Xero API link, against a fake Xero (L1 ✅ L2 ✅ L3 ✅ L4 ✅)
+## Phase L — Xero API link, against a fake Xero ✅ (L1 ✅ L2 ✅ L3 ✅ L4 ✅ L5 ✅)
 
 Plan: [`docs/next-phases.md`](docs/next-phases.md) (owner, 2026-11-07). The functional spec §6 asks for *two-way sync with Xero or QuickBooks Online: invoices, bills, payments, stock journals* (Must). Everything is built against a fake Xero; live use needs only the owner's Xero developer app and `APP_XERO_MODE=live`.
 
@@ -741,7 +741,11 @@ Plan: [`docs/next-phases.md`](docs/next-phases.md) (owner, 2026-11-07). The func
 - [x] **Webhooks ready for live** (`POST /api/webhooks/xero`, public, `APP_XERO_WEBHOOK_KEY`): Xero's signature (base64 HMAC-SHA256 of the body) checked — a bad one gets 401 as Xero's intent-to-receive check expects; an INVOICE event for a connected organisation asks for a pull within 30 s
 - [x] Scheduled runs act as "Xero" in the audit log
 - [x] Tests: `XeroPullTest` (2) — £10 paid in Xero recorded on the ERP invoice into 650, listed with its invoice number, not sent back, not recorded twice; a payment made here sent to Xero and not pulled back as new; deleted in Xero → voided here; a Xero-only invoice's payment UNMATCHED, an unknown bank code ERROR; webhook with a good signature asks for a pull, a bad one or no key → 401; another organisation sees nothing
-- [ ] Next: L5 screen (with its e2e test)
+
+### L5 Screen ✅
+- [x] **Finance → Xero** (`/finance/xero`): the connection (fake or live mode shown, status, the Xero organisation, connect, choose among several, disconnect, expired → connect again); **how documents reach Xero** (CSV files or this link; the link only once connected); **the queue**: waiting / failed / sent counts, tabs All · Failed · Waiting · **History**, each item with its tries, next try or sent time, Xero ID or problem, **Retry** on failed items, **Send now**; **payments entered in Xero** with their document, amount, status and reason, **Pull now**; Xero's callback page (`/finance/xero/callback`); changing anything needs the Adviser tick (admins have it); the CSV export renamed "Xero export (CSV)" in the menu
+- [x] E2E XERO-002: connect to the fake Xero from the page, switch to the link, an invoice and its contact sent ("Sent 2, failed 0") and shown in the History, Pull now
+- [x] **Full suites green**: backend 241 tests; e2e 105 tests. The e2e browser and test process now run on UTC (`timezoneId: 'UTC'`, `TZ=UTC` in `make e2e`), the server's clock — four older tests (DSH-001/002, XERO-001, PLEDGER-001) took "today" from the browser and failed after midnight in Asia
 
 ---
 

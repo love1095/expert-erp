@@ -232,6 +232,20 @@ export const getFiledVatReturns = () => api.get("/vat/returns").then(r => r.data
 export const ledgerExport = (name: string, params: object) =>
   api.get(`/ledger/export/${name}`, { params, responseType: "blob" }).then(r => r.data as Blob);
 
+// Phase L: the Xero API link
+export const getXeroConnection = () => api.get("/xero/connection").then(r => r.data);
+export const connectXero = () => api.post("/xero/connection/connect").then(r => r.data as { url: string });
+export const xeroCallback = (code: string, state: string) => api.post("/xero/connection/callback", { code, state }).then(r => r.data);
+export const chooseXeroOrganisation = (xeroTenantId: string) => api.put("/xero/connection/organisation", { xeroTenantId }).then(r => r.data);
+export const disconnectXero = () => api.delete("/xero/connection").then(r => r.data);
+export const getXeroLink = () => api.get("/xero/link").then(r => r.data as { link: "CSV" | "API" });
+export const setXeroLink = (link: "CSV" | "API") => api.put("/xero/link", { link }).then(r => r.data);
+export const getXeroQueue = (status?: string) => api.get("/xero/queue", { params: { status } }).then(r => r.data);
+export const retryXeroItem = (id: number) => api.post(`/xero/queue/${id}/retry`).then(r => r.data);
+export const runXeroQueue = () => api.post("/xero/queue/run").then(r => r.data);
+export const getXeroPayments = () => api.get("/xero/payments").then(r => r.data);
+export const pullXeroPayments = () => api.post("/xero/payments/pull").then(r => r.data);
+
 // Phase J: Cin7's sale / purchase task CSV import (preview with apply=false), its logs, and the go-live check
 export const importTasks = ({ kind, file, options, apply }:
   { kind: "sales" | "purchases"; file: File; options: Record<string, string | number | boolean | undefined>; apply: boolean }) => {

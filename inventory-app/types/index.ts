@@ -1307,3 +1307,19 @@ export interface FiledVatReturn {
   id: number; periodKey: string | null; from: string; to: string; due: string | null; boxes: VatBoxes; how: "MTD" | "MANUAL"; filedAt: string; filedBy: string | null;
   processingDate: string | null; formBundleNumber: string | null; paymentIndicator: string | null; chargeRefNumber: string | null; note: string | null;
 }
+
+// Phase L: the Xero API link
+export interface XeroOrganisation { tenantId: string; tenantName: string; tenantType: string }
+export interface XeroConnection {
+  mode: "fake" | "live"; configured: boolean; status: "NOT_CONNECTED" | "CHOOSE_ORGANISATION" | "CONNECTED" | "EXPIRED";
+  xeroTenantName: string | null; organisations: XeroOrganisation[]; connectedAt: string | null; connectedBy: string | null; lastError: string | null;
+}
+export interface XeroQueueItem {
+  id: number; key: string; kind: string; label: string | null; dependsOn: string | null; xeroId: string | null; status: "PENDING" | "SENT" | "FAILED";
+  attempts: number; lastError: string | null; nextAttemptAt: string; createdAt: string; sentAt: string | null;
+}
+export interface XeroQueue { counts: Record<string, number>; items: XeroQueueItem[] }
+export interface XeroPulledPayment {
+  id: number; xeroPaymentId: string; xeroStatus: string | null; docKey: string | null; number: string | null; erpPaymentId: number | null;
+  amount: number | null; paidOn: string | null; status: "RECORDED" | "VOIDED" | "UNMATCHED" | "ERROR"; message: string | null; pulledAt: string;
+}
