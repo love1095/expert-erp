@@ -543,3 +543,17 @@ export const disableTwoFactor = (code: string) => api.post("/account/two-factor/
 export const getSecuritySettings = () => api.get("/settings/security").then(r => r.data);
 export const setTwoFactorRequired = (twoFactorRequired: boolean) => api.put("/settings/security", { twoFactorRequired }).then(r => r.data);
 export const resetTwoFactor = (userId: number) => api.post(`/settings/users/${userId}/two-factor/reset`);
+
+// Phase P1 / P4: product compliance, files (images, datasheets, declarations, certificate), expiring certificates
+export const getCompliance = (productId: number) => api.get(`/products/${productId}/compliance`).then(r => r.data);
+export const saveCompliance = (productId: number, body: object) => api.put(`/products/${productId}/compliance`, body).then(r => r.data);
+export const getExpiringCertificates = (days: number) => api.get("/products/certificates/expiring", { params: { days } }).then(r => r.data);
+export const getProductFiles = (productId: number) => api.get(`/products/${productId}/files`).then(r => r.data);
+export const uploadProductFile = (productId: number, kind: string, file: File) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post(`/products/${productId}/files`, body, { params: { kind }, headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
+};
+export const getProductFile = (fileId: number) => api.get(`/products/files/${fileId}`, { responseType: "blob" }).then(r => r.data as Blob);
+export const deleteProductFile = (fileId: number) => api.delete(`/products/files/${fileId}`).then(r => r.data);
+export const makeMainImage = (fileId: number) => api.post(`/products/files/${fileId}/main`).then(r => r.data);

@@ -1366,3 +1366,12 @@ export interface CourierQuote { mode: string; cartons: number[]; services: Couri
 export interface CourierShipment { id: number; saleOrderId: number; mode: string; carrier: string; serviceCode: string; serviceName: string; price: number | null;
   consignmentId: string; trackingNumber: string | null; trackingUrl: string | null; parcels: number; status: "BOOKED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
   trackingStatus: string | null; trackingText: string | null; trackedAt: string | null; fulfilmentId: number | null; createdAt: string; createdBy: string | null; cartons: number[] }
+
+// Phase P1 / P4: product compliance and files
+export type ProductFileKind = "IMAGE" | "DATASHEET" | "DECLARATION" | "CERTIFICATE" | "OTHER";
+export interface ProductFile { id: number; productId: number; kind: ProductFileKind; fileName: string; contentType: string; sizeBytes: number; position: number;
+  createdAt: string; createdBy: string | null }
+export interface ProductCompliance { productId: number; standards: string | null; ceMarked: boolean; ukcaMarked: boolean; protectionClass: string | null;
+  certificateNumber: string | null; certificateIssuer: string | null; certificateExpiry: string | null; notes: string | null; certificateFile: ProductFile | null }
+export interface ExpiringCertificate { productId: number; sku: string; name: string; standards: string | null; certificateNumber: string | null;
+  certificateIssuer: string | null; certificateExpiry: string; daysLeft: number; hasFile: boolean }

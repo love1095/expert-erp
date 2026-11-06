@@ -820,6 +820,18 @@ Spec §4 / §7: book shipments, print labels and send tracking from the ERP. Bui
 - [ ] Owner: the couriers and accounts in use, then live clients (or one shipping hub) — TODO
 - [ ] Later: tracking polled on a schedule, collection booking, customs data for non-UK parcels, label printers (ZPL)
 
+## Phase P — Product master gaps (P1 ✅)
+
+Spec §1: what a PPE product needs beyond Cin7's fields.
+
+### P1 Safety compliance per SKU ✅
+- [x] **Compliance per SKU** (`V55`, `ProductComplianceService`): EN / ISO standards, CE marked, UKCA marked, protection class (Category II, S3 SRC…), certificate number, issuing (notified / approved) body, certificate expiry, notes — **never taken from another product of the family**: each size or colour holds its own, because a certificate names the models it covers
+- [x] **The certificate PDF** (or a JPEG / PNG scan) attached to the SKU; a new one replaces the old; files are checked by their bytes, not their name (a renamed file is refused), up to 10 MB, kept in the database with the product (`product_files`, shared with P4)
+- [x] **Certificates expiring** (Inventory → Certificates expiring): within 30 / 60 / 90 / 180 / 365 days and those already expired, soonest first, with the days left and whether the PDF is attached
+- [x] **Product CSV**: the export has Standards, CEMarked, UKCAMarked, ProtectionClass, CertificateNumber, CertificateIssuer, CertificateExpiry after Cin7's columns; the import reads them (columns left out keep what the product has; a date as 2027-03-31 or 31/03/2027, a bad one warned and left)
+- [x] The product page's **Compliance** section (with an expiry badge: green, amber within 60 days, red expired) and **Images and files** section (P4); seeing needs *Product - list*, changing *Product - add / edit*; audit-logged
+- [x] Tests: `ProductComplianceTest` (3) — saved on one glove size, the other size of the family has nothing; the certificate replaced; expiring within 30 days: the expired boot (−5 days) then the glove, not the 90-day one, with / without file; CSV export with the values, import of a new SKU and changed columns (others kept), a bad date warned; files: a fake PDF and a PDF posing as an image refused, the type read from the bytes, images ordered, made main, deleted; another organisation sees nothing. `ProductImportServiceTest` still green. E2E COMPLY-001 (compliance saved, certificate attached, image uploaded, in the expiring report)
+
 ---
 
 ## Cross-cutting (done throughout)

@@ -28,6 +28,7 @@ export const NAV: NavModule[] = [
     { href: "/stock-takes",     label: "Stock take", perm: "PRODUCT_VIEW" },
     { href: "/scan",            label: "Scanner (phone)", perm: "PRODUCT_VIEW" },
     { href: "/stock-history",   label: "History", perm: "PRODUCT_VIEW" },
+    { href: "/certificates",    label: "Certificates expiring", perm: "PRODUCT_VIEW" },
   ]},
   { key: "finance", label: "Finance", icon: "finance", items: [
     { href: "/reports",        label: "Reports" },

@@ -48,7 +48,12 @@ public class ProductImportService {
             "ProductFamilySKU", "ProductFamilyName", "ProductFamilyOption1Name", "ProductFamilyOption1Value",
             "ProductFamilyOption2Name", "ProductFamilyOption2Value", "ProductFamilyOption3Name", "ProductFamilyOption3Value",
             "CommaDelimitedTags", "PurchaseTaxRule", "SaleTaxRule", "HSCode", "CountryOfOrigin",
-            "Description", "ShortDescription", "InternalNote");
+            "Description", "ShortDescription", "InternalNote",
+            // Phase P1: safety compliance, per SKU (not Cin7 columns)
+            "Standards", "CEMarked", "UKCAMarked", "ProtectionClass", "CertificateNumber", "CertificateIssuer", "CertificateExpiry");
+
+    static final List<String> COMPLIANCE = List.of("Standards", "CEMarked", "UKCAMarked", "ProtectionClass", "CertificateNumber", "CertificateIssuer",
+            "CertificateExpiry");
 
     private static final int CHUNK = 500;
     private static final int MAX_WARNINGS = 200;
@@ -61,6 +66,7 @@ public class ProductImportService {
     private final SubscriptionService subscriptionService;
     private final AuditService auditService;
     private final EntityManager em;
+    private final ProductComplianceService compliance;
 
     public record ImportResult(int rows, int created, int updated, int unchanged, int deprecated,
                                int categoriesCreated, int suppliersCreated, List<String> warnings) {}
@@ -100,6 +106,7 @@ public class ProductImportService {
             long newProducts = bySku.keySet().stream().filter(s -> !existingSkus.contains(s)).count();
             checkPlan(existingSkus.size(), newProducts);
 
+            boolean withCompliance = COMPLIANCE.stream().anyMatch(cols::has);
             Lookups lookups = new Lookups();
             int created = 0, updated = 0, unchanged = 0;
             List<String> skus = new ArrayList<>(bySku.keySet());
@@ -107,6 +114,7 @@ public class ProductImportService {
                 List<String> chunk = skus.subList(from, Math.min(from + CHUNK, skus.size()));
                 Map<String, Product> existing = new HashMap<>();
                 productRepository.findBySkuIn(chunk).forEach(p -> existing.put(p.getSku(), p));
+                Map<Long, CSVRecord> complianceRows = new LinkedHashMap<>();
                 for (String sku : chunk) {
                     Product p = existing.get(sku);
                     boolean isNew = p == null;
@@ -125,10 +133,12 @@ public class ProductImportService {
                         p.setUpdatedAt(LocalDateTime.now());
                         updated++;
                     }
+                    if (withCompliance) complianceRows.put(p.getId(), bySku.get(sku));
                 }
                 // Keep the persistence context small
                 em.flush();
                 em.clear();
+                if (withCompliance) applyCompliance(complianceRows, cols, warnings);
             }
 
             int deprecated = 0;
@@ -147,6 +157,41 @@ public class ProductImportService {
             return new ImportResult(rows, created, updated, unchanged, deprecated,
                     lookups.categoriesCreated, lookups.suppliersCreated, warnings);
         }
+    }
+
+    /** The compliance columns present in the file replace those fields; absent columns keep what the product has. */
+    private void applyCompliance(Map<Long, CSVRecord> rows, CsvColumns cols, List<String> warnings) {
+        Map<Long, ProductComplianceService.Compliance> now = compliance.byProduct(rows.keySet());
+        rows.forEach((id, r) -> {
+            ProductComplianceService.Compliance c = now.getOrDefault(id, ProductComplianceService.Compliance.empty(id));
+            java.time.LocalDate expiry = c.certificateExpiry();
+            if (cols.has("CertificateExpiry")) {
+                String v = cols.get(r, "CertificateExpiry");
+                try {
+                    expiry = date(v);
+                } catch (RuntimeException e) {
+                    warn(warnings, cols.get(r, "ProductCode") + ": CertificateExpiry \"" + v + "\" is not a date (use 2027-03-31 or 31/03/2027), left as it was");
+                }
+            }
+            compliance.upsert(id, new ProductComplianceService.Request(
+                    cols.has("Standards") ? cols.get(r, "Standards") : c.standards(),
+                    cols.has("CEMarked") ? yes(cols.get(r, "CEMarked")) : c.ceMarked(),
+                    cols.has("UKCAMarked") ? yes(cols.get(r, "UKCAMarked")) : c.ukcaMarked(),
+                    cols.has("ProtectionClass") ? cols.get(r, "ProtectionClass") : c.protectionClass(),
+                    cols.has("CertificateNumber") ? cols.get(r, "CertificateNumber") : c.certificateNumber(),
+                    cols.has("CertificateIssuer") ? cols.get(r, "CertificateIssuer") : c.certificateIssuer(),
+                    expiry, c.notes()));
+        });
+    }
+
+    private static boolean yes(String v) {
+        return v != null && Set.of("yes", "y", "true", "1").contains(v.trim().toLowerCase(Locale.ROOT));
+    }
+
+    private static java.time.LocalDate date(String v) {
+        if (v == null || v.isBlank()) return null;
+        String t = v.trim();
+        return t.contains("/") ? java.time.LocalDate.parse(t, java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")) : java.time.LocalDate.parse(t);
     }
 
     /** All rows; a damaged file (e.g. cut off inside a quoted description) is the user's to fix, not a server error. */
@@ -170,7 +215,19 @@ public class ProductImportService {
         Slice<Product> slice;
         do {
             slice = productRepository.findForExport(status, PageRequest.of(page++, CHUNK, Sort.by("sku")));
-            for (Product p : slice) printer.printRecord(row(p));
+            Map<Long, ProductComplianceService.Compliance> comp = compliance.byProduct(slice.getContent().stream().map(Product::getId).toList());
+            for (Product p : slice) {
+                List<Object> row = row(p);
+                ProductComplianceService.Compliance c = comp.get(p.getId());
+                row.add(c == null ? "" : nz(c.standards()));
+                row.add(c != null && c.ceMarked() ? "Yes" : "No");
+                row.add(c != null && c.ukcaMarked() ? "Yes" : "No");
+                row.add(c == null ? "" : nz(c.protectionClass()));
+                row.add(c == null ? "" : nz(c.certificateNumber()));
+                row.add(c == null ? "" : nz(c.certificateIssuer()));
+                row.add(c == null || c.certificateExpiry() == null ? "" : c.certificateExpiry().toString());
+                printer.printRecord(row);
+            }
             printer.flush();
             em.clear();
         } while (slice.hasNext());

@@ -12,9 +12,10 @@ import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
 import MoreActions from "@/components/MoreActions";
 import { BackLink, RecordHeader, Card, Field, BTN_PRIMARY, TH, TD } from "@/components/DetailParts";
+import { ComplianceSection, FilesSection } from "./product-compliance";
 
 // Cin7's product sections (left), those the ERP has data for; the rest come later
-const SECTIONS = ["General", "Prices", "Stock", "Suppliers", "Reorder levels", "Movements", "Activity log"] as const;
+const SECTIONS = ["General", "Prices", "Stock", "Suppliers", "Reorder levels", "Compliance", "Images and files", "Movements", "Activity log"] as const;
 type Section = typeof SECTIONS[number];
 
 const qty = (n?: number | null) => (n == null ? "—" : Number(n).toLocaleString());
@@ -75,6 +76,8 @@ export default function ProductView({ productId }: { productId: number }) {
           {section === "Stock" && <StockSection p={p} />}
           {section === "Suppliers" && <Suppliers p={p} />}
           {section === "Reorder levels" && <ReorderLevels p={p} />}
+          {section === "Compliance" && <ComplianceSection productId={p.id} />}
+          {section === "Images and files" && <FilesSection productId={p.id} />}
           {section === "Movements" && <Movements p={p} />}
           {section === "Activity log" && <Activity p={p} />}
         </div>
