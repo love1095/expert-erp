@@ -10,9 +10,9 @@ import { PageHeader, ListToolbar } from "@/components/ListToolbar";
 
 const EMPTY_FORM = { name: "", status: "Active", currency: "GBP", paymentTerm: "", taxNumber: "", website: "", contactName: "", phone: "", email: "", comments: "" };
 
-export default function SuppliersPage() {
+export default function SuppliersPage({ initialSearch = "" }: { initialSearch?: string }) {
   const qc = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [showForm, setShowForm] = useState(false);

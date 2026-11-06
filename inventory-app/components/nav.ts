@@ -25,6 +25,7 @@ export const NAV: NavModule[] = [
     { href: "/stock-history",   label: "History", perm: "PRODUCT_VIEW" },
   ]},
   { key: "finance", label: "Finance", icon: "finance", items: [
+    { href: "/reports",        label: "Reports" },
     { href: "/vat-return",     label: "VAT return", perm: "REPORTS_FINANCIAL" },
     { href: "/aged-debtors",   label: "Aged debtors", perm: "REPORTS_FINANCIAL" },
     { href: "/aged-creditors", label: "Aged creditors", perm: "REPORTS_FINANCIAL" },

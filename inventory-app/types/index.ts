@@ -1186,3 +1186,15 @@ export interface ExportChanged { key: string; number: string; party: string; wha
 // ---- Users & Roles (I1) ----
 export interface PermissionInfo { key: string; group: string; label: string }
 export interface AccessRole { id: number; name: string; permissions: string[]; users: number }
+
+// ---- Global search (I2) ----
+export type SearchKind = "SALE_ORDER" | "INVOICE" | "BILL" | "PURCHASE_ORDER" | "CUSTOMER" | "SUPPLIER" | "PRODUCT";
+export interface SearchHit { kind: SearchKind; id: number; title: string; detail: string }
+
+// ---- Core reports (I3) ----
+export interface CoreReportInfo { key: string; group: string; title: string; description: string; period: boolean }
+export interface CoreReportColumn { key: string; label: string; type: "TEXT" | "DATE" | "NUMBER" | "MONEY" | "PERCENT" | "LINK"; link: string | null }
+export interface CoreReport {
+  key: string; title: string; description: string; from: string | null; to: string | null;
+  columns: CoreReportColumn[]; rows: Record<string, string | number | null>[]; totals: Record<string, number>;
+}

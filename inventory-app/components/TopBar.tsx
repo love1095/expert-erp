@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSubscription } from "@/lib/api";
 import { SubscriptionInfo } from "@/types";
 import { locate, PLATFORM_HOME } from "@/components/nav";
+import GlobalSearch from "@/components/GlobalSearch";
 
 const PLAN_COLOR: Record<string, string> = {
   FREE:       "bg-gray-100 text-gray-600",
@@ -55,7 +56,10 @@ export default function TopBar() {
         </>}
       </nav>
 
-      <div className="ml-auto flex items-center gap-3">
+      {/* Phase I2: search everything (not for the platform admin, who is in no organisation) */}
+      {!superAdmin && user && <div className="flex-1 flex justify-center min-w-0"><GlobalSearch /></div>}
+
+      <div className={`${superAdmin ? "ml-auto " : ""}flex items-center gap-3`}>
         <span className="hidden sm:inline text-sm text-gray-600 font-medium">{superAdmin ? "Expert ERP platform" : user?.tenantName}</span>
         {sub && (
           <Link href="/settings/subscription"

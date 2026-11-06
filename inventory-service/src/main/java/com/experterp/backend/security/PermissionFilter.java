@@ -95,6 +95,9 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("*", "/api/categories/**", PRODUCT_EDIT),
             r("POST", "/api/categories", PRODUCT_EDIT),
             // Reports and the rest (PDFs follow their document's rule above)
+            // Cin7's Sale / Purchase / Inventory reports (I3): the report itself checks its own group
+            r("GET", "/api/reports/core/**", REPORTS_SALE, REPORTS_PURCHASE, REPORTS_INVENTORY),
+            r("GET", "/api/reports/core", REPORTS_SALE, REPORTS_PURCHASE, REPORTS_INVENTORY),
             r("*", "/api/reports/**", REPORTS_FINANCIAL),
             r("*", "/api/accounting/**", REPORTS_FINANCIAL),
             r("*", "/api/dashboard/**", DASHBOARD),

@@ -17,6 +17,9 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Connect the real Expert Safety Xero; switch off Cin7's Xero autosync the same day
 - [ ] Check the sales profit figures against Cin7's for one month once orders are migrated
 
+## To run next time the app is up
+- [ ] E2E REPORT-001 and the full backend + e2e suites for I3 (built without starting the app)
+
 ## Test later with live systems
 - [ ] **Shopify (live store)**: a price change updates only that product (GLGH-WG-310RP-08 → expect 1 updated); stock push to the real dev store (would set stock for 13,959 linked SKUs); Shopify payouts (money paid into the bank, less fees) not matched to orders yet; Shopify-paid invoices tested with a fake order only
 - [ ] **Xero, first real import** (Demo Company first): credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines

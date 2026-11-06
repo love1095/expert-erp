@@ -12,12 +12,12 @@ test.describe('List search', () => {
       const otherOrder = await api.createSaleOrder(warehouses.main, [{ product: helmet, quantity: 1 }], other);
 
       await page.goto('/sale-orders');
-      await page.getByLabel('Search').fill(acme.name);
+      await page.getByLabel('Search', { exact: true }).fill(acme.name);
       await expect(page.getByTestId(`so-row-${acmeOrder.id}`)).toBeVisible();
       await expect(page.getByTestId(`so-row-${otherOrder.id}`)).toHaveCount(0);
       await expect(page.getByText('Displaying 1 - 1 of 1')).toBeVisible();
 
-      await page.getByLabel('Search').fill(otherOrder.orderNumber);
+      await page.getByLabel('Search', { exact: true }).fill(otherOrder.orderNumber);
       await expect(page.getByTestId(`so-row-${otherOrder.id}`)).toBeVisible();
       await expect(page.getByTestId(`so-row-${acmeOrder.id}`)).toHaveCount(0);
 
@@ -34,7 +34,7 @@ test.describe('List search', () => {
       await api.addStock(boots, warehouses.main, 3);
 
       await page.goto('/stock-overview');
-      await page.getByLabel('Search').fill(gloves.sku);
+      await page.getByLabel('Search', { exact: true }).fill(gloves.sku);
       await expect(page.getByTestId(`stock-row-${gloves.id}-${warehouses.main.id}`)).toBeVisible();
       await expect(page.getByTestId(`stock-row-${boots.id}-${warehouses.main.id}`)).toHaveCount(0);
     });

@@ -90,7 +90,7 @@ test('PO-002 a PO takes the supplier\'s terms and purchase VAT, is placed with t
     }
     await expect(page.getByTestId(`po-row-${poId}`)).toContainText(billNo);
     await page.getByRole('tab', { name: 'Accounting' }).click();
-    await page.getByTestId('bills-list').getByLabel('Search').fill(billNo);
+    await page.getByTestId('bills-list').getByLabel('Search', { exact: true }).fill(billNo);
     const billRow = page.locator('[data-testid^="bill-row-"]', { hasText: billNo });
     await expect(billRow).toContainText('Awaiting payment');
     await expect(billRow).toContainText('£80.71');

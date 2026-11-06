@@ -597,7 +597,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [ ] Later: the **Xero API link** (contacts, invoices, bills, payments both ways, journals, retries) — needs a Xero app (client id / secret) from the owner; payments on account (customer credit / supplier deposits) not in the files yet; stock received but not billed is in the ERP's stock value but not on Xero's 631 until the bill comes (as in Cin7)
 
 
-## Phase I — Reports, permissions, search, templates (spec §8) 🔄 (I1 ✅ · next I2 global search)
+## Phase I — Reports, permissions, search, templates (spec §8) 🔄 (I1 ✅ I2 ✅ I3 ✅ · next I4 document templates)
 
 ### I1 Users and roles ✅
 - [x] Cin7 checked (read-only, 2026-11-06, Settings → Users & Roles): users have one **role** (Expert Safety: an Owner and 5 users all on role *FULL*); a role is 256 ticked permissions in groups (Audit, CRM, Dashboard, Financials, Integration, Inventory, Purchase, Reports, Sale, Settings …) with *Full access* / *Read-only access* buttons; cost-related ticks: *Product - Prices*, *Product availability - View stock value*, *Purchase - View prices and totals*, *Sale - View profit margin*, *Sale - Change prices and discounts*, *Sale - Ignore credit limit*, report groups (Financial, Inventory, Purchase, Sale)
@@ -608,6 +608,21 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Platform → Organisations was slow with many organisations (5,801 locally from test runs: 3.5 s a load, and every plan change or switch re-read them all): counts now grouped once and a change reads back one organisation (0.56 s / 0.11 s)
 - [x] Tests: `PermissionTest` (2) — the rules table; Staff gets no cost (JSON null) and a Manager does; a "Sales lead" role with margins but no cost given to the manager changes what they see at once; duplicate / unknown / in-use roles refused; an admin keeps everything; E2E ROLE-001 (staff: no cost price, VAT return 403; a "Buyer" role made in the UI → cost and report visible, sale orders 403)
 - [ ] Later (Cin7 has them): Settings permissions in roles (now admin only), several roles per user, the remaining Cin7 ticks (CRM, manufacturing, integrations…) when those modules exist; bills / invoices amounts are not hidden by *Purchase - View prices and totals* (needed to pay them)
+
+### I2 Global search ✅
+- [x] Cin7 checked (read-only, 2026-11-06): Cin7 Core has **no global search box** (its top bar has *Ask me anything*, Favourites and a **+** quick-create menu; search is inside each list). The spec asks for one, so this goes beyond Cin7
+- [x] **Search box in the top bar** (press **/** to jump to it; arrows, Enter, Esc): sale orders (number, customer, customer reference, Shopify number), invoices and credit notes, bills and supplier credit notes (number, party), purchase orders (number, supplier, supplier reference), customers, suppliers (name, contact, e-mail), products (SKU, name, barcode, supplier code); "contains", any case; up to 6 of each kind, the exact number first; only the kinds the user's role can open (I1); a supplier opens the Suppliers list searched (no supplier page yet)
+- [x] Trigram indexes (`V36`) like products'; on the local data a search takes about 0.1 s
+- [x] Tests: `SearchTest` (1) — each kind by number, name, reference, e-mail, barcode; `%` is not a wildcard; a sales-only role finds no products / bills / suppliers; another organisation finds nothing; E2E SEARCH-001 (not run yet: the app server was stopped for low memory)
+- [ ] Later (Cin7 has it): the **+** quick-create menu and Favourites in the top bar; a supplier record page
+
+### I3 Core reports ✅
+- [x] Cin7 checked (read-only, 2026-11-06, Reports): Purchase reports are Pending Purchase Orders, Purchase Order Details / Summary, Purchase Order vs Invoice, Stock Received Not Invoiced, Purchase Invoice Details / Summary, Purchase Invoices & Credit Notes, Stock Received vs Invoice, Supplier Financial Summary, Product Prices by Supplier, Inventory Suppliers (Sale and Inventory lists seen in H4)
+- [x] **Finance → Reports**, like Cin7's Reports page: every report by group (Sale, Purchase, Inventory, Financial), only those the role allows
+- [x] Six more of Cin7's reports on one report page (period where it has one, search, Grand Total, links to the records, **Export CSV**): **Sales Overview** (each order of the period: customer, rep, status, shipment, ordered, invoiced, credited, paid, due, COGS, profit, gross margin), **Sale Invoices & Credit Notes** (amount, tax, total, paid, due), **Sales Backorder Details** (orders short of stock: backordered, available, on order), **Pending Purchase Orders** (to receive, to invoice, order total), **Stock Received Not Invoiced** (received but not billed, at cost: the stock that is in the ERP's value but not yet in Xero), **Stock Value Inventory Aging** (FIFO value by age of the layers: 0–30, 31–60, 61–90, 91–180, over 180 days, average age)
+- [x] Cin7's report groups as permissions (`V37`): *Sale reports* and *Purchase reports* for Manager and Staff, *Inventory reports* for Manager; COGS / profit / cost columns only with *Sale - View profit margin* / *Purchase - View prices and totals*; the aging report needs *View stock value*
+- [x] Tests: `CoreReportTest` (1) — 3 counted in at £6, 10 bought at £5 received not billed, 2 sold at £10 invoiced (£24) with £10 paid, 15 confirmed with 11 in stock → overview £24 / £10 / £14, COGS £12, profit £8 (40 %); invoices total £24; 4 backordered with 11 available; PO to invoice 10, £50 not invoiced; aging £56 all in 0–30 days; Staff: no profit columns, no aging report. E2E REPORT-001 written, **not run yet** (app not started: Java heavy); full backend suite not run for I3 either (only `CoreReportTest`, `PermissionTest`)
+- [ ] Later: the other Cin7 reports (Purchase Order Details / vs Invoice, Purchase Invoice reports, Supplier Financial Summary, Product Prices by Supplier, Customer Payment Summary, Sales Demand Forecast…); Cin7's pivot layouts (from H4)
 
 ---
 

@@ -355,3 +355,11 @@ export const createAccessRole = (data: { name: string; permissions: string[] }) 
 export const updateAccessRole = (id: number, data: { name: string; permissions: string[] }) => api.put(`/settings/roles/${id}`, data).then(r => r.data);
 export const deleteAccessRole = (id: number) => api.delete(`/settings/roles/${id}`);
 export const assignAccessRole = (userId: number, accessRoleId: number | null) => api.put(`/settings/users/${userId}/access-role`, { accessRoleId });
+
+// ---- Global search (I2) ----
+export const searchEverything = (q: string) => api.get("/search", { params: { q } }).then(r => r.data);
+
+// ---- Core reports (I3) ----
+export const getCoreReports = () => api.get("/reports/core").then(r => r.data);
+export const runCoreReport = (key: string, from?: string, to?: string) =>
+  api.get(`/reports/core/${key}`, { params: { from, to } }).then(r => r.data);

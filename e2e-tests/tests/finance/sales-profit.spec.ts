@@ -17,7 +17,7 @@ test.describe('Sales profit and stock value', () => {
       await page.goto('/reports/sales-by-product');
       await page.getByLabel('Mode').selectOption('thisMonth');
       await page.getByLabel('Show COGS').selectOption('ALL');
-      await page.getByLabel('Search').fill(helmet.sku);
+      await page.getByLabel('Search', { exact: true }).fill(helmet.sku);
       const row = page.getByTestId('profit-table').locator('tbody tr').filter({ hasText: helmet.sku });
       await expect(row).toContainText('£20.00');     // sale
       await expect(row).toContainText('£12.00');     // COGS 2 × £6
@@ -27,7 +27,7 @@ test.describe('Sales profit and stock value', () => {
 
       await page.goto('/reports/inventory-movement');
       await page.getByLabel('Mode').selectOption('thisMonth');
-      await page.getByLabel('Search').fill(helmet.sku);
+      await page.getByLabel('Search', { exact: true }).fill(helmet.sku);
       const stock = page.getByTestId('movement-table').locator('tbody tr').filter({ hasText: helmet.sku });
       await expect(stock).toContainText('£30.00');   // in: 5 × £6
       await expect(stock).toContainText('£18.00');   // on hand: 3 × £6

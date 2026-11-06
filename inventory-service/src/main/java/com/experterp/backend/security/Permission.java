@@ -34,7 +34,10 @@ public enum Permission {
     STOCK_ADJUST("Inventory", "Stock adjustments", true, true),
     STOCK_TRANSFER("Inventory", "Stock transfer", true, true),
     DATA_IMPORT("Inventory", "Import from CSV (products, customers, stock)", true, false),
-    // Reports, dashboard, audit
+    // Reports, dashboard, audit (Cin7's report groups)
+    REPORTS_SALE("Reports", "Sale reports (sales overview, invoices and credit notes, backorders)", true, true),
+    REPORTS_PURCHASE("Reports", "Purchase reports (pending purchase orders, stock received not invoiced)", true, true),
+    REPORTS_INVENTORY("Reports", "Inventory reports (stock value inventory aging)", true, false),
     REPORTS_FINANCIAL("Reports", "Financial reports (VAT return, aged debtors and creditors, sales profit, inventory movement, Xero export)", true, false),
     DASHBOARD("Dashboard", "Dashboard", true, true),
     AUDIT_LOG("Audit", "Audit log - View", true, false);
