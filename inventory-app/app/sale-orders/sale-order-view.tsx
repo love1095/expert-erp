@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import PrintButton from "@/components/PrintButton";
 import EmailButton, { SentEmails } from "@/components/EmailButton";
+import WarehouseCard from "./warehouse-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import Link from "next/link";
@@ -383,6 +384,8 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
               ))}
             </TrailCard>
           )}
+          {mode === "view" && (order.status === "CONFIRMED" || order.status === "COMPLETED") &&
+            <WarehouseCard orderId={order.id} onShipped={() => qc.invalidateQueries({ queryKey: ["sale-order", order.id] })} />}
           {mode === "view" && <SentEmails docKey={`SO:${order.id}`} />}
         </aside>
 

@@ -232,6 +232,19 @@ export const getFiledVatReturns = () => api.get("/vat/returns").then(r => r.data
 export const ledgerExport = (name: string, params: object) =>
   api.get(`/ledger/export/${name}`, { params, responseType: "blob" }).then(r => r.data as Blob);
 
+// Phase N2 / N3: pick, pack and ship
+export const getPickLists = (status?: string) => api.get("/warehouse/pick-lists", { params: { status } }).then(r => r.data);
+export const getPickList = (id: number) => api.get(`/warehouse/pick-lists/${id}`).then(r => r.data);
+export const createPickList = (orderIds: number[]) => api.post("/warehouse/pick-lists", { orderIds }).then(r => r.data);
+export const confirmPickList = (id: number, picked?: { lineId: number; picked: number }[]) => api.post(`/warehouse/pick-lists/${id}/confirm`, picked ?? null).then(r => r.data);
+export const scanPick = (id: number, code: string) => api.post(`/warehouse/pick-lists/${id}/scan`, { code }).then(r => r.data);
+export const cancelPickList = (id: number) => api.post(`/warehouse/pick-lists/${id}/cancel`).then(r => r.data);
+export const getPickListPdf = (id: number) => api.get(`/warehouse/pick-lists/${id}/pdf`, { responseType: "blob" }).then(r => r.data as Blob);
+export const getOrderWarehouse = (id: number) => api.get(`/warehouse/orders/${id}`).then(r => r.data);
+export const packOrder = (id: number, cartons?: object[]) => api.post(`/warehouse/orders/${id}/pack`, cartons ?? null).then(r => r.data);
+export const shipPacked = (id: number, carrier?: string, trackingNumber?: string) => api.post(`/warehouse/orders/${id}/ship`, { carrier, trackingNumber }).then(r => r.data);
+export const getDespatchNote = (id: number) => api.get(`/warehouse/orders/${id}/despatch-note`, { responseType: "blob" }).then(r => r.data as Blob);
+
 // Phase N1: bins
 export const getBins = (warehouseId: number) => api.get("/bins", { params: { warehouseId } }).then(r => r.data);
 export const saveBin = (id: number | null, body: object) => (id ? api.put(`/bins/${id}`, body) : api.post("/bins", body)).then(r => r.data);

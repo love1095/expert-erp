@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- Phase N3: a despatch note — what is in each carton of an order, and where it goes. Filled from PickPackService.DespatchPrint. -->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title th:text="${d.title}">Despatch note</title>
+  <style>
+    @page { size: A4; margin: 14mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "Liberation Sans"; font-size: 7.5pt; color: #737373; } }
+    body { font-family: "Liberation Sans"; font-size: 9pt; color: #171717; margin: 0; }
+    h1 { font-size: 18pt; margin: 0; }
+    .muted { color: #525252; }
+    .label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #737373; margin-top: 4mm; }
+    table { border-collapse: collapse; width: 100%; margin-top: 2mm; }
+    th { text-align: left; font-size: 7.5pt; text-transform: uppercase; color: #737373; border-bottom: 1pt solid #a3a3a3; padding: 1.5mm 1mm; }
+    td { border-bottom: 0.5pt solid #e5e5e5; padding: 1.5mm 1mm; }
+    .num { text-align: right; }
+    .carton { margin-top: 5mm; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1 th:text="${d.title}">Despatch note SO-1</h1>
+  <div class="muted" th:text="${d.company}">Company</div>
+  <div class="label">Deliver to</div>
+  <div th:each="line : ${d.deliverTo}" th:text="${line}">Address</div>
+  <div class="label" th:if="${d.reference != null}">Your reference</div>
+  <div th:if="${d.reference != null}" th:text="${d.reference}">PO-1</div>
+  <div th:each="p : ${d.packages}">
+    <div class="carton" th:text="${p.title}">Carton 1 of 2 · 3.2 kg · 40 × 30 × 20 cm</div>
+    <table>
+      <thead><tr><th>Product</th><th>Description</th><th class="num">Qty</th></tr></thead>
+      <tbody><tr th:each="l : ${p.lines}"><td th:text="${l.sku}">SKU</td><td th:text="${l.name}">Name</td><td class="num" th:text="${l.quantity}">1</td></tr></tbody>
+    </table>
+  </div>
+</body>
+</html>

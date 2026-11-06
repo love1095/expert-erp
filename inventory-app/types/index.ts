@@ -1338,3 +1338,13 @@ export interface MailBulkResult { customerId: number; customer: string; status: 
 export interface Bin { id: number; warehouseId: number; code: string; walkOrder: number; active: boolean; units: number; products: number }
 export interface BinStock { binId: number; code: string; walkOrder: number; quantity: number }
 export interface ProductBins { productId: number; warehouseId: number; warehouseStock: number; unbinned: number; defaultBinId: number | null; bins: BinStock[] }
+
+// Phase N2 / N3: pick, pack and ship
+export interface PickLine { id: number; saleOrderId: number; orderNumber: string; saleOrderLineId: number; productId: number; sku: string; name: string;
+  barcode: string | null; binId: number | null; bin: string | null; walkOrder: number; quantity: number; picked: number }
+export interface PickList { id: number; number: string; warehouseId: number; warehouse: string; status: "OPEN" | "PICKED" | "CANCELLED"; orders: string[];
+  lines: PickLine[]; createdAt: string; createdBy: string | null; pickedAt: string | null; pickedBy: string | null }
+export interface OrderLineState { saleOrderLineId: number; sku: string; name: string; ordered: number; allocated: number; picked: number; packed: number; shipped: number }
+export interface WarehousePackage { id: number; number: number; weightKg: number | null; lengthCm: number | null; widthCm: number | null; heightCm: number | null;
+  status: "PACKED" | "SHIPPED"; fulfilmentId: number | null; lines: { sale_order_line_id: number; sku: string; name: string; quantity: number }[] }
+export interface OrderWarehouse { saleOrderId: number; orderNumber: string; stage: string; lines: OrderLineState[]; packages: WarehousePackage[] }

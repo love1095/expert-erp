@@ -99,6 +99,9 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("POST", "/api/stock/import", DATA_IMPORT),
             // Phase N1: bins — seeing them with the products, changing them with stock transfers, importing with data import
             r("POST", "/api/bins/import", DATA_IMPORT),
+            // Phase N2 / N3: pick, pack and ship are part of selling (Cin7: Sale - fulfilment)
+            r("GET", "/api/warehouse/**", SALE_VIEW),
+            r("*", "/api/warehouse/**", SALE_EDIT),
             r("GET", "/api/bins/**", PRODUCT_VIEW),
             r("GET", "/api/bins", PRODUCT_VIEW),
             r("*", "/api/bins/**", STOCK_TRANSFER),

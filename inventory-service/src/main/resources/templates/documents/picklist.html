@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- Phase N2: a pick list (one order or a wave), in bin walk order, with boxes to tick. Filled from PickPackService.PickPrint. -->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title th:text="${d.title}">Pick list</title>
+  <style>
+    @page { size: A4; margin: 14mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "Liberation Sans"; font-size: 7.5pt; color: #737373; } }
+    body { font-family: "Liberation Sans"; font-size: 9pt; color: #171717; margin: 0; }
+    h1 { font-size: 18pt; margin: 0 0 1mm 0; }
+    .muted { color: #525252; }
+    table { border-collapse: collapse; width: 100%; margin-top: 5mm; }
+    th { text-align: left; font-size: 7.5pt; text-transform: uppercase; color: #737373; border-bottom: 1pt solid #a3a3a3; padding: 1.5mm 1mm; }
+    td { border-bottom: 0.5pt solid #e5e5e5; padding: 2mm 1mm; vertical-align: top; }
+    .bin { font-weight: 700; font-size: 11pt; }
+    .num { text-align: right; }
+    .tick { width: 8mm; height: 5mm; border: 0.8pt solid #525252; display: inline-block; }
+  </style>
+</head>
+<body>
+  <h1 th:text="${d.title}">Pick list PL-1</h1>
+  <div class="muted" th:text="${d.subtitle}">Main warehouse · 3 orders · 07/11/2026</div>
+  <table>
+    <thead><tr><th>Bin</th><th>Product</th><th>Order</th><th class="num">Qty</th><th>Picked</th></tr></thead>
+    <tbody>
+      <tr th:each="l : ${d.lines}">
+        <td class="bin" th:text="${l.bin}">A-01</td>
+        <td><b th:text="${l.sku}">SKU</b><br /><span class="muted" th:text="${l.name}">Name</span></td>
+        <td th:text="${l.order}">SO-1</td>
+        <td class="num" th:text="${l.quantity}">2</td>
+        <td><span class="tick"></span></td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

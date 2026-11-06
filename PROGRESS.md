@@ -766,7 +766,7 @@ Spec §7 (Must): quotes, invoices, credit notes, statements, overdue reminders a
 - [x] Tests: `MailTest` (2) — no sender address refused; SMTP password encrypted; quote (QUOTE template, the customer's default contact, £24 with VAT, kept in the fake outbox, a real PDF attached), order, invoice (due date), credit note, the invoice's own log; purchase order to the supplier's e-mail, a supplier without one refused clearly, a typed address checked and used with the user's own subject; statements to two customers, one without an address listed; overdue reminders: the first sent and counted on the invoice, the next would be the second; templates with an unknown placeholder, reset; staff cannot send reminders or edit templates; another organisation sees nothing. E2E MAIL-001 (settings, invoice e-mailed from its page, outbox, invoice's log); statements and customers e2e green
 - [ ] Owner: the SMTP account or mail provider and the sender address; OK to add the mail library for live sending (TODO)
 
-## Phase N — Warehouse (N1 ✅)
+## Phase N — Warehouse (N1 ✅ N2 ✅ N3 ✅)
 
 Spec §4: pick, pack and ship in the ERP so the warehouse does not need Cin7. Cin7 checked read-only on 2026-11-07 (sale SO-66097, Fulfillment #1): **Pick** (product, batch / serial, expiry, unit, quantity, location — Cin7 writes a bin as "location: bin"; Expert Safety's lines show only "Expert Warehouse", so no bins are used today) → status *To pack*; **Pack** (product, location, quantity, **Package #**) → *To ship*; **Ship** (ship date, carrier, tracking number, tracking URL, package #), with Undo. Cin7's Availability export has a **Bin** column.
 
@@ -776,7 +776,20 @@ Spec §4: pick, pack and ship in the ERP so the warehouse does not need Cin7. Ci
 - [x] **Bin to bin** moves (or into / out of no bin), never more than a bin holds; **opening bins from Cin7's Availability export** (rows with a Bin: the bin made if new, set to OnHand, capped at what the warehouse has, preview first)
 - [x] **Inventory → Bins**: the warehouse's bins in walk order with units and products, add, reorder, (in)activate, delete; a product's stock per bin, its default bin, moves; the Cin7 import. Seeing needs *Product - list*, changing *Stock transfer*, importing *Data import*
 - [x] Tests: `BinTest` (2) — walk order and duplicate codes; unbinned stock, then the default bin receiving; a move and one too large; 6 leaving take the 4 unbinned then 2 from the last bin; inactive / delete rules; Cin7 bins import (preview writes nothing, new bins, capped at the warehouse's stock, unknown SKU warned); another organisation sees nothing
-- [ ] Next: N2 pick lists, N3 pack and ship, N4 mobile warehouse screen, N5 adjustments and stock takes
+
+### N2 Pick lists ✅
+- [x] **Pick lists** (`V52`, `PickPackService`) for one order or a **wave** of orders of one warehouse: each line's quantity allocated and not yet picked (nor on an open list), **taken from its bins in walk order** (what open lists have not promised), the rest from unbinned stock; lines **sorted by the walk**, then SKU; **printable PDF** (bin, SKU, product, order, quantity, a box to tick)
+- [x] **Confirming** a pick takes the quantities out of their bins (into the packing area); a short pick leaves the rest for a new list; cancel an open list; picked by hand or by **scanning** (N4): a barcode or SKU counts on the next line of that product, a product not on the list is refused ("wrong product"), never more than to pick; confirm uses what was scanned, or everything when nothing was
+- [x] **Sale → Pick & pack**: open orders to tick into a wave, the pick lists (to pick / picked / cancelled) with their PDF; a pick list page with a big scan box (a handheld scanner types the code and Enter), lines turning green when picked, Confirm / Cancel / Print
+### N3 Pack and ship ✅
+- [x] **Cartons** per order (Cin7's Package #) with weight and size: no more of a line than picked and not yet packed (none given: everything picked, in one carton); a **despatch note PDF** (deliver-to, reference, each carton's contents)
+- [x] **Ship** the packed cartons: one shipment through the existing fulfilment (part shipments and backorders as D2; invoice on shipment, Shopify fulfilment as before) with carrier and tracking number; the cartons marked shipped with their shipment
+- [x] The order's **warehouse stage** beside its fulfilment status: Authorised → Picking → Picked → Packed → Shipped (what is left to ship decides); a **Warehouse card** on the sale order: stage, picked / packed / shipped per line, cartons, make pick list, pack into a carton, ship cartons, despatch note
+- [x] Cin7's **Auto Pick** / **Auto Pick + Pack** on the sale task import (J): the imported order arrives picked or packed (not enough stock: an error, or backordered when that is ticked)
+- [x] Pick / pack / ship need the sale permissions (*Sale - list* to see, *Sale - add / edit* to act)
+- [x] Tests: `PickPackTest` (3) — a wave over two orders in walk order (A-01, A-01, B-01, then no bin), PICKING, nothing more to pick while on the list, the PDF; picked: out of the bins, PICKED; packing more than picked refused, two cartons, PACKED, despatch note; shipped with tracking: SHIPPED, stock down, the other order's picked stock waiting unbinned; part stock (5 of 8) picked, packed, shipped, 3 backordered, stage back to Authorised; scanning: wrong product, barcode, SKU in any case, picked in full; Auto Pick + Pack on import → PACKED; another organisation sees nothing. E2E PICK-001 (pick list from Pick & pack, scanning with a wrong product refused, confirm, pack and ship from the order)
+- [ ] Later: undo a pick (put back into its bins), choose bins by hand on the pick list, carton labels (with the couriers, phase O)
+- [ ] Next: N4 mobile receiving and counting, N5 adjustments and stock takes
 
 ---
 

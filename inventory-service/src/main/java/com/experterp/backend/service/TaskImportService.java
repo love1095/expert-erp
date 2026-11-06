@@ -70,6 +70,7 @@ public class TaskImportService {
     private final TaxService taxService;
     private final AuditService auditService;
     private final LedgerPeriodService periodService;
+    private final PickPackService pickPack;
     private final AccountingExportService accountingExportService;
     private final JdbcTemplate jdbc;
 
@@ -372,7 +373,17 @@ public class TaskImportService {
         boolean shippedNow = false;
         switch (o.fulfilment()) {
             case NO_PICKING -> { }
-            case AUTO_PICK, AUTO_PICK_PACK -> warnings.add(t.number + ": picking and packing are not separate steps here; the order is left to ship");
+            // Phase N3: Cin7's Auto Pick (picked, ready to pack) and Auto Pick + Pack (packed in one carton, ready to ship)
+            case AUTO_PICK, AUTO_PICK_PACK -> {
+                try {
+                    PickPackService.PickList pl = pickPack.create(List.of(so.getId()));
+                    pickPack.confirm(pl.id(), null);
+                    if (o.fulfilment() == Fulfilment.AUTO_PICK_PACK) pickPack.pack(so.getId(), null);
+                } catch (IllegalStateException e) {
+                    if (!o.backorder()) throw new IllegalArgumentException("nothing in stock to pick (tick 'Set order backordered on low stock level' to import it backordered)");
+                    warnings.add(t.number + ": not enough stock to pick, imported backordered");
+                }
+            }
             case AUTO_PICK_PACK_SHIP -> {
                 boolean shortOfStock = allocationService.forOrders(List.of(so.getId())).values().stream()
                         .anyMatch(a -> a.backordered().signum() > 0);

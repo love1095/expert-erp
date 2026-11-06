@@ -7,6 +7,7 @@ export const NAV: NavModule[] = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard", href: "/" },
   { key: "sale", label: "Sale", icon: "sale", items: [
     { href: "/sale-orders", label: "Sale Orders", perm: "SALE_VIEW" },
+    { href: "/picking",     label: "Pick & pack", perm: "SALE_VIEW" },
     { href: "/invoices",    label: "Invoices" },
     { href: "/customers",   label: "Customers", perm: "CUSTOMERS" },
     { href: "/overdue",     label: "Overdue", perm: "CUSTOMERS" },

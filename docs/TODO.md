@@ -50,7 +50,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Bank rules, cash coding, minor adjustments on a match, bank reconciliation summary report, QIF (Xero has them; K3 does not yet)
 
 ## Build later (deliberately left for now)
-- [ ] Sale / purchase task import, not like Cin7 yet: Auto Pick / Auto Pick + Pack are not separate steps (needs pick lists, warehouse phase); credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
+- [ ] Sale / purchase task import, not like Cin7 yet: credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
 - [ ] Payments on account (customer credit / supplier deposits) in the Xero files and the Xero API link (Xero overpayments / prepayments)
 - [ ] Xero API link: a document changed after it was sent (Xero has no edit once paid): today it is listed by the CSV export's "changed after export" check, to correct in Xero by hand
 - [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product, Stock Value Inventory Aging (phase I)
