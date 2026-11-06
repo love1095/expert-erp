@@ -97,6 +97,12 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("*", "/api/products/**", PRODUCT_EDIT),
             r("*", "/api/products", PRODUCT_EDIT),
             r("POST", "/api/stock/import", DATA_IMPORT),
+            // Phase N1: bins — seeing them with the products, changing them with stock transfers, importing with data import
+            r("POST", "/api/bins/import", DATA_IMPORT),
+            r("GET", "/api/bins/**", PRODUCT_VIEW),
+            r("GET", "/api/bins", PRODUCT_VIEW),
+            r("*", "/api/bins/**", STOCK_TRANSFER),
+            r("*", "/api/bins", STOCK_TRANSFER),
             r("POST", "/api/stock-movements/transfer", STOCK_TRANSFER),
             r("GET", "/api/stock-movements/**", PRODUCT_VIEW),
             r("GET", "/api/stock-movements", PRODUCT_VIEW),

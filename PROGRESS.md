@@ -766,6 +766,18 @@ Spec §7 (Must): quotes, invoices, credit notes, statements, overdue reminders a
 - [x] Tests: `MailTest` (2) — no sender address refused; SMTP password encrypted; quote (QUOTE template, the customer's default contact, £24 with VAT, kept in the fake outbox, a real PDF attached), order, invoice (due date), credit note, the invoice's own log; purchase order to the supplier's e-mail, a supplier without one refused clearly, a typed address checked and used with the user's own subject; statements to two customers, one without an address listed; overdue reminders: the first sent and counted on the invoice, the next would be the second; templates with an unknown placeholder, reset; staff cannot send reminders or edit templates; another organisation sees nothing. E2E MAIL-001 (settings, invoice e-mailed from its page, outbox, invoice's log); statements and customers e2e green
 - [ ] Owner: the SMTP account or mail provider and the sender address; OK to add the mail library for live sending (TODO)
 
+## Phase N — Warehouse (N1 ✅)
+
+Spec §4: pick, pack and ship in the ERP so the warehouse does not need Cin7. Cin7 checked read-only on 2026-11-07 (sale SO-66097, Fulfillment #1): **Pick** (product, batch / serial, expiry, unit, quantity, location — Cin7 writes a bin as "location: bin"; Expert Safety's lines show only "Expert Warehouse", so no bins are used today) → status *To pack*; **Pack** (product, location, quantity, **Package #**) → *To ship*; **Ship** (ship date, carrier, tracking number, tracking URL, package #), with Undo. Cin7's Availability export has a **Bin** column.
+
+### N1 Locations and bins ✅
+- [x] **Bins** per warehouse (`V51`, `BinService`): code, **walk order** (the order a picker walks; new bins go last), active / inactive (not while holding stock), delete only if never used; a **default bin per product** per warehouse
+- [x] **Stock per bin** as a ledger of its own (`bin_movements`), never changing a warehouse's stock — what no bin holds is *unbinned*: stock **coming in** (receipt, return, transfer, adjustment) goes into the product's default bin; stock **leaving** is taken from the unbinned stock first, then the bins, last in the walk first (picking, N2, takes it out of its bins before it ships); bins never hold more than the warehouse has
+- [x] **Bin to bin** moves (or into / out of no bin), never more than a bin holds; **opening bins from Cin7's Availability export** (rows with a Bin: the bin made if new, set to OnHand, capped at what the warehouse has, preview first)
+- [x] **Inventory → Bins**: the warehouse's bins in walk order with units and products, add, reorder, (in)activate, delete; a product's stock per bin, its default bin, moves; the Cin7 import. Seeing needs *Product - list*, changing *Stock transfer*, importing *Data import*
+- [x] Tests: `BinTest` (2) — walk order and duplicate codes; unbinned stock, then the default bin receiving; a move and one too large; 6 leaving take the 4 unbinned then 2 from the last bin; inactive / delete rules; Cin7 bins import (preview writes nothing, new bins, capped at the warehouse's stock, unknown SKU warned); another organisation sees nothing
+- [ ] Next: N2 pick lists, N3 pack and ship, N4 mobile warehouse screen, N5 adjustments and stock takes
+
 ---
 
 ## Cross-cutting (done throughout)

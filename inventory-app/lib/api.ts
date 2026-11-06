@@ -232,6 +232,19 @@ export const getFiledVatReturns = () => api.get("/vat/returns").then(r => r.data
 export const ledgerExport = (name: string, params: object) =>
   api.get(`/ledger/export/${name}`, { params, responseType: "blob" }).then(r => r.data as Blob);
 
+// Phase N1: bins
+export const getBins = (warehouseId: number) => api.get("/bins", { params: { warehouseId } }).then(r => r.data);
+export const saveBin = (id: number | null, body: object) => (id ? api.put(`/bins/${id}`, body) : api.post("/bins", body)).then(r => r.data);
+export const deleteBin = (id: number) => api.delete(`/bins/${id}`).then(r => r.data);
+export const getProductBins = (productId: number, warehouseId: number) => api.get("/bins/stock", { params: { productId, warehouseId } }).then(r => r.data);
+export const setDefaultBin = (productId: number, warehouseId: number, binId: number | null) => api.put("/bins/default", { productId, warehouseId, binId }).then(r => r.data);
+export const moveBinStock = (body: object) => api.post("/bins/move", body).then(r => r.data);
+export const importBins = (file: File, warehouseId: number, apply: boolean) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post("/bins/import", body, { params: { warehouseId, apply }, headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
+};
+
 // Phase M: e-mail
 export interface MailRequest { kind: string; id: number; statementType?: string; from?: string; to?: string; recipient?: string; cc?: string; subject?: string; body?: string }
 export const getMailSettings = () => api.get("/mail/settings").then(r => r.data);

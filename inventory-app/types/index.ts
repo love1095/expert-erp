@@ -1333,3 +1333,8 @@ export interface MailSettings { mode: "fake" | "live"; fromName: string | null; 
   smtpPort: number | null; smtpUsername: string | null; smtpPasswordSet: boolean; smtpStartTls: boolean }
 export interface MailTemplate { docType: string; subject: string; body: string; custom: boolean }
 export interface MailBulkResult { customerId: number; customer: string; status: "KEPT" | "SENT" | "FAILED" | "SKIPPED"; message: string | null }
+
+// Phase N1: bins
+export interface Bin { id: number; warehouseId: number; code: string; walkOrder: number; active: boolean; units: number; products: number }
+export interface BinStock { binId: number; code: string; walkOrder: number; quantity: number }
+export interface ProductBins { productId: number; warehouseId: number; warehouseStock: number; unbinned: number; defaultBinId: number | null; bins: BinStock[] }

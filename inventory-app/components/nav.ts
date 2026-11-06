@@ -20,6 +20,7 @@ export const NAV: NavModule[] = [
     { href: "/stock-overview",  label: "Stock Overview", perm: "PRODUCT_VIEW" },
     { href: "/products",        label: "Products", perm: "PRODUCT_VIEW" },
     { href: "/warehouses",      label: "Warehouses" },
+    { href: "/bins",            label: "Bins", perm: "PRODUCT_VIEW" },
     { href: "/stock-movements", label: "Movements Log", perm: "PRODUCT_VIEW" },
     { href: "/stock-transfer",  label: "Transfer", perm: "STOCK_TRANSFER" },
     { href: "/stock-history",   label: "History", perm: "PRODUCT_VIEW" },
