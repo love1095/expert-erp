@@ -11,7 +11,11 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Couriers** and courier accounts in use today (phase I / warehouse)
 - [ ] **Financial year start** as an organisation setting (1 December assumed, seen in Cin7)
 
-## Decide at cutover (phase J)
+## Decide at cutover (phase J) — runbook: [`cutover.md`](cutover.md)
+- [ ] **Production server**: where it runs, domain, HTTPS; cron `infra/backup.sh` + an off-site copy of `backups/`; `infra/monitor.sh` (or an uptime service) on `/api/health`
+- [ ] **Rehearsal** of the whole move on a copy, Go-live check all green, before the real weekend
+- [ ] Fill Cin7's sale / purchase task templates with Expert Safety's open orders, unpaid invoices and bills (from Cin7's lists / reports); untick *Export imported tasks to Xero* for what Cin7 has already sent
+- [ ] Switch Shopify from Cin7 to the ERP the same day (never both on)
 - [ ] **Xero export start date**: the day the ERP takes over from Cin7, after the opening stock import (local import of 30/10/2026, £99,818.37, would double Xero's stock if exported)
 - [ ] Sale order / purchase order / invoice number series = Cin7's next numbers
 - [ ] Connect the real Expert Safety Xero; switch off Cin7's Xero autosync the same day
@@ -19,7 +23,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## To run next time the app is up
 - [x] E2E REPORT-001 (passed 2026-11-06 after rebuilding the backend; the running container was an older build)
-- [ ] The full backend + e2e suites for I3, I4 and I5 (built without starting the app); E2E TEMPLATE-001, TWOFA-001
+- [x] E2E TEMPLATE-001, TWOFA-001, CUTOVER-001 (passed 2026-11-06 after rebuilding the backend; TWOFA-001 fixed: it signed in again from a fresh browser)
+- [ ] The full backend + e2e suites for I3, I4, I5 and J (built without starting the app)
 - [ ] Expert Safety: make its Cin7 templates here (Invoice - Account Client / Cash Sale, Delivery Note, Pick List…) with its bank details and terms
 
 ## Test later with live systems
@@ -36,6 +41,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Choose an Open Banking provider for live bank feeds (cost per connection), or statement import only
 
 ## Build later (deliberately left for now)
+- [ ] Sale / purchase task import, not like Cin7 yet: Auto Pick / Auto Pick + Pack are not separate steps (needs pick lists, warehouse phase); credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
 - [ ] **Xero API link**: contacts, invoices, credit notes, bills, payments both ways, journals, retries — built against a fake Xero, live-tested with the Demo Company
 - [ ] Payments on account (customer credit / supplier deposits) in the Xero files
 - [ ] E-mailing documents, statements and reminders (with the e-mail integration, spec §7)

@@ -1206,3 +1206,18 @@ export interface DocumentTemplate {
   showLogo: boolean; showPrices: boolean; showSku: boolean; showDiscount: boolean; showVatSummary: boolean;
   introText: string | null; paymentText: string | null; footerText: string | null; emailSubject: string | null;
 }
+
+// Phase J: Cin7 sale / purchase task import and the go-live check
+export interface TaskImportDoc {
+  number: string; party: string; orderNumber: string | null; invoiceNumber: string | null; creditNoteNumber: string | null; lines: number;
+  total: number; paid: number; date: string;
+}
+export interface TaskImportResult {
+  applied: boolean; kind: "SALES" | "PURCHASES"; documents: number; total: number; paid: number; newParties: string[];
+  docs: TaskImportDoc[]; errors: string[]; warnings: string[];
+}
+export interface ImportLog {
+  id: number; kind: string; fileName: string | null; options: string; documents: number; total: number; createdAt: string; createdBy: string;
+}
+export interface CutoverFigure { key: string; group: string; label: string; value: number; money: boolean; cin7: string }
+export interface CutoverCheck { asAt: string; figures: CutoverFigure[]; warnings: string[] }

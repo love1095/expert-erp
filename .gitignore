@@ -22,3 +22,4 @@ node_modules/
 # Tool working files and local test output
 .work-files/
 inventory-service/test-results/
+backups/

@@ -312,6 +312,44 @@ public class AccountingExportService {
         return new Export(batchId, zip, filename(batchId, end));
     }
 
+    /**
+     * Phase J: Cin7's "Export imported tasks to Xero" unticked. The imported documents and their payments are recorded as
+     * exported in a batch of their own (no file to send) so no export sends them; undoing that batch makes them exportable.
+     */
+    @Transactional
+    public void markNotToExport(Collection<Long> invoiceIds, String note) {
+        if (invoiceIds.isEmpty()) return;
+        Long t = TenantContext.get();
+        Long[] ids = invoiceIds.toArray(Long[]::new);
+        List<Object[]> docs = jdbc.query("""
+                SELECT id, issue_date, total_amount, type, kind FROM invoices
+                 WHERE tenant_id = ? AND id = ANY(?) AND status <> 'DRAFT' AND status <> 'CANCELLED'""",
+                (rs, n) -> new Object[]{rs.getLong(1), rs.getDate(2), rs.getBigDecimal(3), rs.getString(4), rs.getString(5)}, t, ids);
+        List<Object[]> pays = jdbc.query("""
+                SELECT p.id, p.paid_at::date, p.amount FROM payments p JOIN invoices i ON i.id = p.invoice_id
+                 WHERE i.tenant_id = ? AND i.id = ANY(?)""",
+                (rs, n) -> new Object[]{rs.getLong(1), rs.getDate(2), rs.getBigDecimal(3)}, t, ids);
+        if (docs.isEmpty() && pays.isEmpty()) return;
+        int invoices = 0, creditNotes = 0, bills = 0, supplierCredits = 0;
+        for (Object[] d : docs) {
+            boolean credit = "CREDIT_NOTE".equals(d[4]);
+            if ("SALES".equals(d[3])) { if (credit) creditNotes++; else invoices++; }
+            else if (credit) supplierCredits++; else bills++;
+        }
+        byte[] readme = zip(Map.of("README.txt", ("Not exported: " + note + "\r\nThese documents were imported with "
+                + "'Export imported tasks to Xero' unticked (the accounting package has them already).\r\n").getBytes(StandardCharsets.UTF_8)));
+        Long batchId = jdbc.queryForObject("""
+                INSERT INTO accounting_export_batches (tenant_id, package, created_by, invoices, credit_notes, bills, supplier_credits, journals, payments, file)
+                VALUES (?, 'NOT_EXPORTED', ?, ?, ?, ?, ?, 0, ?, ?) RETURNING id""", Long.class, t, auditService.currentActorName(),
+                invoices, creditNotes, bills, supplierCredits, pays.size(), readme);
+        List<Object[]> rows = new ArrayList<>();
+        docs.forEach(d -> rows.add(new Object[]{t, batchId, "DOC:" + d[0], d[1], money((BigDecimal) d[2])}));
+        pays.forEach(p -> rows.add(new Object[]{t, batchId, "PAY:" + p[0], p[1], money((BigDecimal) p[2])}));
+        jdbc.batchUpdate("INSERT INTO accounting_exported (tenant_id, batch_id, doc_key, doc_date, amount) VALUES (?, ?, ?, ?, ?) "
+                + "ON CONFLICT (tenant_id, doc_key) DO NOTHING", rows);
+        auditService.log("ACCOUNTING", batchId, "NOT_EXPORTED", Map.of("documents", docs.size(), "payments", pays.size(), "note", note));
+    }
+
     private static String filename(Long batchId, LocalDate day) {
         return "Xero_export_" + day + "_" + batchId + ".zip";
     }

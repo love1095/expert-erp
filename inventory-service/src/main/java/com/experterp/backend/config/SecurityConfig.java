@@ -46,6 +46,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/webhooks/shopify").permitAll()
                 // Spring forwards unhandled exceptions to /error; securing it turned every 500 into a 403
                 .requestMatchers("/error").permitAll()
+                // Phase J: for uptime monitoring (no data, just whether the app and its database answer)
+                .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .anyRequest().authenticated()

@@ -41,20 +41,21 @@ test.describe('Two-step sign-in', () => {
       expect((await anon.get('/api/auth/me', { headers: { Authorization: `Bearer ${res.challenge}` } })).status()).toBe(401);
       await anon.dispose();
 
-      // Signing in on the page: password, then the code
-      await ctx.clearCookies();
-      await page.evaluate(() => localStorage.clear());
-      await page.goto('/login');
-      await page.getByLabel('Username').fill(session.user.username);
-      await page.getByLabel('Password').fill(session.password);
-      await page.getByRole('button', { name: 'Sign in' }).click();
-      await expect(page.getByTestId('two-factor')).toBeVisible();
-      await page.getByLabel('Code').fill('000000');
-      await page.getByRole('button', { name: 'Continue' }).click();
-      await expect(page.getByRole('alert')).toContainText('not right');
-      await page.getByLabel('Code').fill(totp(secret, 1));
-      await page.getByRole('button', { name: 'Continue' }).click();
-      await expect(page).toHaveURL(/\/$/);
+      // Signing in on the page: password, then the code (a fresh browser: logInAs puts the token back on every page load)
       await ctx.close();
+      const fresh = await browser.newContext();
+      const page2 = await fresh.newPage();
+      await page2.goto('/login');
+      await page2.getByLabel('Username').fill(session.user.username);
+      await page2.getByLabel('Password').fill(session.password);
+      await page2.getByRole('button', { name: 'Sign in' }).click();
+      await expect(page2.getByTestId('two-factor')).toBeVisible();
+      await page2.getByLabel('Code').fill('000000');
+      await page2.getByRole('button', { name: 'Continue' }).click();
+      await expect(page2.getByTestId('two-factor').getByRole('alert')).toContainText('not right');
+      await page2.getByLabel('Code').fill(totp(secret, 1));
+      await page2.getByRole('button', { name: 'Continue' }).click();
+      await expect(page2).toHaveURL(/\/$/);
+      await fresh.close();
     });
 });

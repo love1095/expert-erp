@@ -163,6 +163,22 @@ export const cancelInvoice  = (id: number) => api.post(`/invoices/${id}/cancel`)
 export const payInvoice     = (id: number, data: unknown) => api.post(`/invoices/${id}/pay`, data).then(r => r.data);
 
 // Cin7 stock file → stock in one warehouse set to the file's OnHand; apply=false only previews
+// Phase J: Cin7's sale / purchase task CSV import (preview with apply=false), its logs, and the go-live check
+export const importTasks = ({ kind, file, options, apply }:
+  { kind: "sales" | "purchases"; file: File; options: Record<string, string | number | boolean | undefined>; apply: boolean }) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post(`/import/${kind}`, body, {
+    params: { ...options, apply },
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 5 * 60 * 1000,
+  }).then(r => r.data);
+};
+export const getImportLogs = () => api.get("/import/logs").then(r => r.data);
+export const getImportTemplate = (kind: "sales" | "purchases") =>
+  api.get(`/import/${kind}/template`, { responseType: "blob" }).then(r => r.data as Blob);
+export const getCutoverCheck = () => api.get("/cutover/check").then(r => r.data);
+
 export const importStock = ({ file, warehouseId, apply }: { file: File; warehouseId: number; apply: boolean }) => {
   const body = new FormData();
   body.append("file", file);

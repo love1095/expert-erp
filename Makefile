@@ -1,4 +1,4 @@
-.PHONY: up down logs backend app e2e tunnel tunnel-down
+.PHONY: up down logs backend app e2e tunnel tunnel-down backup restore-check
 
 # Backend in the background (rebuilt from the current code); returns once the API answers on :8080
 backend:
@@ -40,3 +40,10 @@ tunnel:
 
 tunnel-down:
 	docker compose --profile shopify-dev stop tunnel webhook-gateway
+
+# Phase J: database backup into ./backups (cron it daily on the server); restore the newest into a spare database to prove it works
+backup:
+	infra/backup.sh
+
+restore-check:
+	infra/restore.sh "$$(ls -t backups/erp-*.dump | head -1)"

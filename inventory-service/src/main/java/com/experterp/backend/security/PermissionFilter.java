@@ -50,6 +50,9 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("*", "/api/customers/*/contract-prices", CUSTOMER_PRICES),
             r("POST", "/api/customers/*/credits/*/void", SALE_VOID),
             r("POST", "/api/customers/import", DATA_IMPORT),
+            // Phase J: Cin7 sale / purchase task import and the go-live check
+            r("*", "/api/import/**", DATA_IMPORT),
+            r("GET", "/api/cutover/**", DATA_IMPORT),
             r("GET", "/api/customers/**", CUSTOMERS, SALE_VIEW),
             r("GET", "/api/customers", CUSTOMERS, SALE_VIEW),
             r("*", "/api/customers/**", CUSTOMERS),

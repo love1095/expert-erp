@@ -33,7 +33,7 @@ public enum Permission {
     STOCK_VALUE("Inventory", "Product availability - View stock value", true, false),
     STOCK_ADJUST("Inventory", "Stock adjustments", true, true),
     STOCK_TRANSFER("Inventory", "Stock transfer", true, true),
-    DATA_IMPORT("Inventory", "Import from CSV (products, customers, stock)", true, false),
+    DATA_IMPORT("Inventory", "Import from CSV (products, customers, stock, sales, purchases)", true, false),
     // Reports, dashboard, audit (Cin7's report groups)
     REPORTS_SALE("Reports", "Sale reports (sales overview, invoices and credit notes, backorders)", true, true),
     REPORTS_PURCHASE("Reports", "Purchase reports (pending purchase orders, stock received not invoiced)", true, true),
