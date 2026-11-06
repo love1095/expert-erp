@@ -37,6 +37,7 @@ export const NAV: NavModule[] = [
   ]},
   // Phase K: the ERP's own accounting, like Xero's Accounting menu
   { key: "accounting", label: "Accounting", icon: "accounting", items: [
+    { href: "/accounting/bank",                 label: "Bank accounts",        perm: "ACCOUNTING" },
     { href: "/accounting/chart",                label: "Chart of accounts",    perm: "ACCOUNTING" },
     { href: "/accounting/manual-journals",      label: "Manual journals",      perm: "ACCOUNTING" },
     { href: "/accounting/profit-and-loss",      label: "Profit and loss",      perm: "ACCOUNTING" },

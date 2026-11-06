@@ -38,13 +38,15 @@ public class LedgerService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2);
     private static final long LOCK_BASE = 7_300_000_000L;
-    private static final long SYNC_EVERY_MS = 1_000;
+    // Always up to date before a read (a void a moment after a sync must show); see TODO for speed on large books
+    private static final long SYNC_EVERY_MS = 0;
 
     private final JdbcTemplate jdbc;
     private final ChartOfAccountsService chart;
     private final AccountingExportService exportService;
     private final AuditService auditService;
     private final LedgerPeriodService periodService;
+    private final ReconciliationGuard reconciliationGuard;
     private final Map<Long, Long> lastSync = new ConcurrentHashMap<>();
 
     // ---- settings ----
@@ -111,6 +113,7 @@ public class LedgerService {
         documents(s, start, expected);
         payments(s, start, expected);
         credits(s, start, expected);
+        bankTransactions(s, start, expected);
         stock(s, start, expected);
         postedManualJournals(expected);
         opening(s, expected);
@@ -285,27 +288,65 @@ public class LedgerService {
     private void credits(Settings s, LocalDate start, Map<String, Expected> out) {
         String defaultBank = defaultBank(s);
         jdbc.query("""
-                SELECT cc.id, cc.received_on, c.name, cc.amount, pa.code, cc.method FROM customer_credits cc
+                SELECT cc.id, cc.received_on, c.name, cc.amount, pa.code, cc.method, cc.reference FROM customer_credits cc
                   LEFT JOIN customers c ON c.id = cc.customer_id LEFT JOIN payment_accounts pa ON pa.id = cc.payment_account_id
                  WHERE cc.tenant_id = ? AND cc.received_on >= ?""", rs -> {
             if (isCreditMethod(rs.getString(6))) return;
             BigDecimal a = money(nz(rs.getBigDecimal(4)));
             String bank = rs.getString(5) != null ? rs.getString(5) : defaultBank, party = rs.getString(3);
             String narration = "Customer credit received from " + party;
-            out.put("CC:" + rs.getLong(1), new Expected("CC:" + rs.getLong(1), "CREDIT", rs.getDate(2).toLocalDate(), null, narration,
+            out.put("CC:" + rs.getLong(1), new Expected("CC:" + rs.getLong(1), "CREDIT", rs.getDate(2).toLocalDate(), rs.getString(7), narration,
                     List.of(new Line(bank, a, narration, party, null), new Line(s.customerCredit(), a.negate(), narration, party, null))));
         }, TenantContext.get(), Date.valueOf(start));
         jdbc.query("""
-                SELECT sc.id, sc.paid_on, s.name, sc.amount, pa.code, sc.method FROM supplier_credits sc
+                SELECT sc.id, sc.paid_on, s.name, sc.amount, pa.code, sc.method, sc.reference FROM supplier_credits sc
                   LEFT JOIN suppliers s ON s.id = sc.supplier_id LEFT JOIN payment_accounts pa ON pa.id = sc.payment_account_id
                  WHERE sc.tenant_id = ? AND sc.paid_on >= ?""", rs -> {
             if (isCreditMethod(rs.getString(6))) return;
             BigDecimal a = money(nz(rs.getBigDecimal(4)));
             String bank = rs.getString(5) != null ? rs.getString(5) : defaultBank, party = rs.getString(3);
             String narration = "Supplier deposit paid to " + party;
-            out.put("SC:" + rs.getLong(1), new Expected("SC:" + rs.getLong(1), "CREDIT", rs.getDate(2).toLocalDate(), null, narration,
+            out.put("SC:" + rs.getLong(1), new Expected("SC:" + rs.getLong(1), "CREDIT", rs.getDate(2).toLocalDate(), rs.getString(7), narration,
                     List.of(new Line(s.supplierDeposits(), a, narration, party, null), new Line(bank, a.negate(), narration, party, null))));
         }, TenantContext.get(), Date.valueOf(start));
+    }
+
+    // Spend money, receive money and transfers (K3): bank against the lines' accounts and VAT; transfers bank to bank
+    private void bankTransactions(Settings s, LocalDate start, Map<String, Expected> out) {
+        Long t = TenantContext.get();
+        Map<Long, List<Object[]>> lines = new HashMap<>();
+        jdbc.query("""
+                SELECT l.bank_transaction_id, l.account_code, l.description, l.net, l.tax_name, l.tax_amount FROM bank_transaction_lines l
+                  JOIN bank_transactions b ON b.id = l.bank_transaction_id WHERE b.tenant_id = ? AND b.status = 'ACTIVE' ORDER BY l.id""",
+                rs -> { lines.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(new Object[]{rs.getString(2), rs.getString(3),
+                        rs.getBigDecimal(4), rs.getString(5), rs.getBigDecimal(6)}); }, t);
+        jdbc.query("""
+                SELECT id, kind, txn_date, account_code, to_account_code, contact, reference, total FROM bank_transactions
+                 WHERE tenant_id = ? AND status = 'ACTIVE' AND txn_date >= ?""", rs -> {
+            long id = rs.getLong(1);
+            String kind = rs.getString(2), bank = rs.getString(4), contact = rs.getString(6), ref = rs.getString(7);
+            BigDecimal total = money(rs.getBigDecimal(8));
+            List<Line> out2 = new ArrayList<>();
+            String narration;
+            if ("TRANSFER".equals(kind)) {
+                narration = "Bank transfer from " + bank + " to " + rs.getString(5) + (ref == null ? "" : " — " + ref);
+                out2.add(new Line(rs.getString(5), total, narration, null, null));
+                out2.add(new Line(bank, total.negate(), narration, null, null));
+            } else {
+                boolean spend = "SPEND".equals(kind);
+                int sign = spend ? 1 : -1;     // spend: debit the costs and VAT, credit the bank
+                narration = (spend ? "Spend money" : "Receive money") + (contact == null ? "" : (spend ? " to " : " from ") + contact) + (ref == null ? "" : " — " + ref);
+                BigDecimal vat = BigDecimal.ZERO;
+                for (Object[] l : lines.getOrDefault(id, List.of())) {
+                    out2.add(new Line((String) l[0], money((BigDecimal) l[2]).multiply(BigDecimal.valueOf(sign)), (String) l[1], contact, (String) l[3]));
+                    vat = vat.add(nz((BigDecimal) l[4]));
+                }
+                if (vat.signum() != 0) out2.add(new Line(s.vat(), money(vat).multiply(BigDecimal.valueOf(sign)), "VAT on " + narration, contact, null));
+                out2.add(new Line(bank, total.multiply(BigDecimal.valueOf(-sign)), narration, contact, null));
+                balance(out2, s, narration);
+            }
+            out.put("BT:" + id, new Expected("BT:" + id, "BANK", rs.getDate(3).toLocalDate(), ref, narration, out2));
+        }, t, Date.valueOf(start));
     }
 
     // Stock at FIFO cost: the Xero export's journals, so both agree
@@ -455,6 +496,7 @@ public class LedgerService {
             return;
         }
         if ("VOIDED".equals(status)) throw new IllegalStateException("Already voided");
+        reconciliationGuard.requireNotReconciled("MJ:" + id);
         periodService.check(manualDate(id), "a manual journal");
         jdbc.update("UPDATE manual_journals SET status = 'VOIDED', voided_at = now(), voided_by = ? WHERE id = ?", auditService.currentActorName(), id);
         auditService.log("MANUAL_JOURNAL", id, "VOID", Map.of());

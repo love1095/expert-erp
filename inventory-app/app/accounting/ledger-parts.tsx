@@ -14,9 +14,10 @@ export const errorOf = (e: unknown, fallback = "Something went wrong") =>
 /** Where a journal comes from, linked to the document when there is one (Xero's "Source"). */
 export function SourceLink({ sourceKey, sourceType, reference }: { sourceKey: string; sourceType: string; reference: string | null }) {
   const label = ({ INVOICE: "Invoice", CREDIT_NOTE: "Credit note", BILL: "Bill", SUPPLIER_CREDIT: "Supplier credit", PAYMENT: "Payment",
-    CREDIT: "Credit / deposit", STOCK: "Stock", MANUAL: "Manual journal", OPENING: "Conversion balances" } as Record<string, string>)[sourceType] ?? sourceType;
+    CREDIT: "Credit / deposit", BANK: "Bank transaction", STOCK: "Stock", MANUAL: "Manual journal", OPENING: "Conversion balances" } as Record<string, string>)[sourceType] ?? sourceType;
   const [kind, id] = sourceKey.split(":");
-  const href = kind === "DOC" ? `/invoices/${id}` : kind === "MJ" ? "/accounting/manual-journals" : kind === "OPENING" ? "/accounting/settings" : null;
+  const href = kind === "DOC" ? `/invoices/${id}` : kind === "MJ" ? "/accounting/manual-journals" : kind === "OPENING" ? "/accounting/settings"
+    : kind === "BT" ? "/accounting/bank" : null;
   const text = reference ? `${label} ${reference}` : label;
   return href ? <Link href={href} className="text-brand-600 hover:underline">{text}</Link> : <span>{text}</span>;
 }

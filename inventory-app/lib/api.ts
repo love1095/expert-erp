@@ -197,6 +197,25 @@ export const getProfitAndLoss = (params: { from: string; to: string; compare: nu
 export const getBalanceSheet = (params: { date: string; compare: number; step: string }) =>
   api.get("/ledger/balance-sheet", { params }).then(r => r.data);
 
+// Phase K3: bank accounts, statements, reconciliation, spend / receive money
+export const getBankAccounts = () => api.get("/bank/accounts").then(r => r.data);
+export const importBankStatement = (code: string, file: File, apply: boolean) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post(`/bank/accounts/${encodeURIComponent(code)}/statements`, body, { params: { apply }, headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
+};
+export const getBankLines = (code: string, status: "UNRECONCILED" | "RECONCILED") =>
+  api.get(`/bank/accounts/${encodeURIComponent(code)}/lines`, { params: { status } }).then(r => r.data);
+export const getBankUnmatched = (code: string) => api.get(`/bank/accounts/${encodeURIComponent(code)}/unmatched`).then(r => r.data);
+export const matchBankLine = (id: number, sourceKeys: string[]) => api.post(`/bank/lines/${id}/match`, { sourceKeys }).then(r => r.data);
+export const createForBankLine = (id: number, body: object) => api.post(`/bank/lines/${id}/create`, body).then(r => r.data);
+export const transferBankLine = (id: number, accountCode: string) => api.post(`/bank/lines/${id}/transfer`, { accountCode }).then(r => r.data);
+export const unreconcileBankLine = (id: number) => api.post(`/bank/lines/${id}/unreconcile`).then(r => r.data);
+export const deleteBankLine = (id: number) => api.delete(`/bank/lines/${id}`).then(r => r.data);
+export const getBankTransactions = (account?: string) => api.get("/bank/transactions", { params: { account } }).then(r => r.data);
+export const createBankTransaction = (body: object) => api.post("/bank/transactions", body).then(r => r.data);
+export const voidBankTransaction = (id: number) => api.post(`/bank/transactions/${id}/void`).then(r => r.data);
+
 // Phase J: Cin7's sale / purchase task CSV import (preview with apply=false), its logs, and the go-live check
 export const importTasks = ({ kind, file, options, apply }:
   { kind: "sales" | "purchases"; file: File; options: Record<string, string | number | boolean | undefined>; apply: boolean }) => {

@@ -41,7 +41,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Have an accountant review the ledger design (accounts posted per document) before building
 - [ ] Run K alongside Xero for a few months at Expert Safety; move off Xero at a year end once the figures match
 - [ ] HMRC Making Tax Digital: register as a software developer, pass the sandbox tests
-- [ ] Choose an Open Banking provider for live bank feeds (cost per connection), or statement import only
+- [ ] Choose an Open Banking provider for live bank feeds (cost per connection); meanwhile statements are imported (CSV / OFX, K3)
+- [ ] Bank rules, cash coding, minor adjustments on a match, bank reconciliation summary report, QIF (Xero has them; K3 does not yet)
 
 ## Build later (deliberately left for now)
 - [ ] Sale / purchase task import, not like Cin7 yet: Auto Pick / Auto Pick + Pack are not separate steps (needs pick lists, warehouse phase); credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)

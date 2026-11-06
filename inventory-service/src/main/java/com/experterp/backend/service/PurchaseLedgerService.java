@@ -43,6 +43,7 @@ public class PurchaseLedgerService {
     private final TaxService taxService;
     private final AuditService auditService;
     private final LedgerPeriodService periodService;
+    private final ReconciliationGuard reconciliationGuard;
     private final JdbcTemplate jdbc;
 
     // ---- supplier credit notes ----
@@ -292,6 +293,7 @@ public class PurchaseLedgerService {
     public void voidCredit(Long supplierId, Long creditId, String reason) {
         SalesLedgerService.requireManager();
         if (reason == null || reason.isBlank()) throw new IllegalArgumentException("Say why the deposit is removed");
+        reconciliationGuard.requireNotReconciled("SC:" + creditId);
         SupplierCredit c = creditRepository.findById(creditId).filter(x -> x.getSupplierId().equals(supplierId))
                 .orElseThrow(() -> new ResourceNotFoundException("Supplier credit not found: " + creditId));
         if (paymentRepository.sumUsedFromSupplierCredit(c.getId()).signum() > 0) {

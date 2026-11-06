@@ -37,6 +37,7 @@ public class SalesLedgerService {
     private final StatementService statementService;
     private final AuditService auditService;
     private final LedgerPeriodService periodService;
+    private final ReconciliationGuard reconciliationGuard;
 
     // ---- payment accounts (Settings) ----
 
@@ -201,6 +202,7 @@ public class SalesLedgerService {
             throw new IllegalStateException("Shopify payments follow Shopify: refund the order there");
         }
         periodService.check(p.getPaidAt().toLocalDate(), "the payment");
+        reconciliationGuard.requireNotReconciled("PAY:" + p.getId());
         VoidedPayment v = new VoidedPayment();
         v.setPaymentId(p.getId());
         v.setInvoiceId(inv.getId());
@@ -239,6 +241,7 @@ public class SalesLedgerService {
     public void voidCredit(Long customerId, Long creditId, String reason) {
         requireManager();
         if (reason == null || reason.isBlank()) throw new IllegalArgumentException("Say why the credit is removed");
+        reconciliationGuard.requireNotReconciled("CC:" + creditId);
         CustomerCredit c = creditRepository.findById(creditId).filter(x -> x.getCustomerId().equals(customerId))
                 .orElseThrow(() -> new ResourceNotFoundException("Customer credit not found: " + creditId));
         if (paymentRepository.sumUsedFromCustomerCredit(c.getId()).signum() > 0) {

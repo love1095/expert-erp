@@ -19,6 +19,9 @@ const MAPPING: [keyof LedgerSettings, string][] = [
   ["historical", "Historical adjustment (conversion balances)"],
 ];
 
+// The forms take the saved values once (they are loaded before the forms show) and keep their own state after a
+// save, so the "Saved" message stays
+
 /**
  * Phase K1: the ledger's settings — Xero's conversion date and conversion balances (Advanced → Conversion balances)
  * and the accounts each posting goes to.
@@ -32,9 +35,9 @@ export default function LedgerSettingsPage() {
   return (
     <div className="p-6 max-w-5xl space-y-6">
       <PageHeader title="Ledger settings" />
-      <PeriodsForm key={JSON.stringify(periods)} initial={periods} />
-      <SettingsForm key={JSON.stringify(settings)} initial={settings} accounts={accounts} />
-      <BalancesForm key={JSON.stringify(opening)} initial={opening} accounts={accounts} />
+      <PeriodsForm initial={periods} />
+      <SettingsForm initial={settings} accounts={accounts} />
+      <BalancesForm initial={opening} accounts={accounts} />
     </div>
   );
 }

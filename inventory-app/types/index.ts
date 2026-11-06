@@ -1271,3 +1271,25 @@ export interface BalanceSheet {
   columns: StatementColumn[]; assets: StatementSection[]; totalAssets: StatementTotal; liabilities: StatementSection[];
   totalLiabilities: StatementTotal; netAssets: StatementTotal; equity: StatementSection; warnings: string[];
 }
+
+// Phase K3: bank reconciliation
+export interface BankAccountCard {
+  code: string; name: string; ledgerBalance: number; statementBalance: number | null; statementDate: string | null;
+  toReconcile: number; unreconciledStatement: number; unmatchedLedger: number;
+}
+export interface BankParsedLine { date: string; amount: number; payee: string | null; reference: string | null; description: string | null; balance: number | null; duplicate: boolean }
+export interface BankImportResult {
+  applied: boolean; format: string; lines: number; duplicates: number; moneyIn: number; moneyOut: number; from: string | null; to: string | null;
+  preview: BankParsedLine[]; warnings: string[];
+}
+export interface BankItem { sourceKey: string; sourceType: string; date: string | null; amount: number; reference: string | null; narration: string; contact: string | null }
+export interface BankSuggestion { item: BankItem; score: number }
+export interface BankStatementLine {
+  id: number; date: string; amount: number; payee: string | null; reference: string | null; description: string | null; balance: number | null;
+  status: "UNRECONCILED" | "RECONCILED"; suggestions: BankSuggestion[]; matched: BankItem[]; reconciledAt: string | null; reconciledBy: string | null;
+}
+export interface BankTransactionLine { accountCode: string; description: string | null; net: number; taxRule: string | null; tax: number }
+export interface BankTransaction {
+  id: number; kind: "SPEND" | "RECEIVE" | "TRANSFER"; date: string; accountCode: string; toAccountCode: string | null; contact: string | null;
+  reference: string | null; total: number; status: "ACTIVE" | "VOIDED"; reconciled: boolean; lines: BankTransactionLine[];
+}
