@@ -1348,3 +1348,14 @@ export interface OrderLineState { saleOrderLineId: number; sku: string; name: st
 export interface WarehousePackage { id: number; number: number; weightKg: number | null; lengthCm: number | null; widthCm: number | null; heightCm: number | null;
   status: "PACKED" | "SHIPPED"; fulfilmentId: number | null; lines: { sale_order_line_id: number; sku: string; name: string; quantity: number }[] }
 export interface OrderWarehouse { saleOrderId: number; orderNumber: string; stage: string; lines: OrderLineState[]; packages: WarehousePackage[] }
+
+// Phase N5: stock adjustments with reasons and approval; stock takes
+export interface StockAdjustment { id: number; productId: number; sku: string; productName: string; warehouseId: number; warehouse: string; binId: number | null;
+  bin: string | null; quantity: number; reasonCode: string; note: string | null; unitCost: number; value: number; status: "PENDING" | "POSTED" | "REJECTED";
+  movementId: number | null; requestedBy: string | null; requestedAt: string; decidedBy: string | null; decidedAt: string | null; decisionNote: string | null }
+export interface StockTakeLine { id: number; productId: number; sku: string; name: string; barcode: string | null; binId: number | null; bin: string | null;
+  walkOrder: number | null; expected: number; counted: number | null; variance: number | null; unitCost: number | null; varianceValue: number | null }
+export interface StockTake { id: number; reference: string; warehouseId: number; warehouse: string; scope: "FULL" | "PARTIAL"; note: string | null;
+  status: "COUNTING" | "POSTED" | "CANCELLED"; createdAt: string; createdBy: string | null; postedAt: string | null; postedBy: string | null;
+  lineCount: number; countedLines: number; varianceValue: number; lines: StockTakeLine[] }
+export interface FoundProduct { id: number; sku: string; name: string; barcode: string | null }

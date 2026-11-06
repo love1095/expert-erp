@@ -24,6 +24,9 @@ export const NAV: NavModule[] = [
     { href: "/bins",            label: "Bins", perm: "PRODUCT_VIEW" },
     { href: "/stock-movements", label: "Movements Log", perm: "PRODUCT_VIEW" },
     { href: "/stock-transfer",  label: "Transfer", perm: "STOCK_TRANSFER" },
+    { href: "/stock-adjustments", label: "Adjustments", perm: "PRODUCT_VIEW" },
+    { href: "/stock-takes",     label: "Stock take", perm: "PRODUCT_VIEW" },
+    { href: "/scan",            label: "Scanner (phone)", perm: "PRODUCT_VIEW" },
     { href: "/stock-history",   label: "History", perm: "PRODUCT_VIEW" },
   ]},
   { key: "finance", label: "Finance", icon: "finance", items: [

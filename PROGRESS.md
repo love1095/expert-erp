@@ -766,7 +766,7 @@ Spec §7 (Must): quotes, invoices, credit notes, statements, overdue reminders a
 - [x] Tests: `MailTest` (2) — no sender address refused; SMTP password encrypted; quote (QUOTE template, the customer's default contact, £24 with VAT, kept in the fake outbox, a real PDF attached), order, invoice (due date), credit note, the invoice's own log; purchase order to the supplier's e-mail, a supplier without one refused clearly, a typed address checked and used with the user's own subject; statements to two customers, one without an address listed; overdue reminders: the first sent and counted on the invoice, the next would be the second; templates with an unknown placeholder, reset; staff cannot send reminders or edit templates; another organisation sees nothing. E2E MAIL-001 (settings, invoice e-mailed from its page, outbox, invoice's log); statements and customers e2e green
 - [ ] Owner: the SMTP account or mail provider and the sender address; OK to add the mail library for live sending (TODO)
 
-## Phase N — Warehouse (N1 ✅ N2 ✅ N3 ✅)
+## Phase N — Warehouse ✅ (N1 ✅ N2 ✅ N3 ✅ N4 ✅ N5 ✅)
 
 Spec §4: pick, pack and ship in the ERP so the warehouse does not need Cin7. Cin7 checked read-only on 2026-11-07 (sale SO-66097, Fulfillment #1): **Pick** (product, batch / serial, expiry, unit, quantity, location — Cin7 writes a bin as "location: bin"; Expert Safety's lines show only "Expert Warehouse", so no bins are used today) → status *To pack*; **Pack** (product, location, quantity, **Package #**) → *To ship*; **Ship** (ship date, carrier, tracking number, tracking URL, package #), with Undo. Cin7's Availability export has a **Bin** column.
 
@@ -789,7 +789,22 @@ Spec §4: pick, pack and ship in the ERP so the warehouse does not need Cin7. Ci
 - [x] Pick / pack / ship need the sale permissions (*Sale - list* to see, *Sale - add / edit* to act)
 - [x] Tests: `PickPackTest` (3) — a wave over two orders in walk order (A-01, A-01, B-01, then no bin), PICKING, nothing more to pick while on the list, the PDF; picked: out of the bins, PICKED; packing more than picked refused, two cartons, PACKED, despatch note; shipped with tracking: SHIPPED, stock down, the other order's picked stock waiting unbinned; part stock (5 of 8) picked, packed, shipped, 3 backordered, stage back to Authorised; scanning: wrong product, barcode, SKU in any case, picked in full; Auto Pick + Pack on import → PACKED; another organisation sees nothing. E2E PICK-001 (pick list from Pick & pack, scanning with a wrong product refused, confirm, pack and ship from the order)
 - [ ] Later: undo a pick (put back into its bins), choose bins by hand on the pick list, carton labels (with the couriers, phase O)
-- [ ] Next: N4 mobile receiving and counting, N5 adjustments and stock takes
+
+### N4 Mobile warehouse screen ✅
+- [x] **Inventory → Scanner (phone)** (`/scan`): big Pick / Receive / Count buttons and one scan box; a handheld scanner acting as a keyboard types the code and Enter, matched by **barcode or SKU** (any case)
+- [x] **Pick**: the open pick lists, each opening its scan page (N2); **Receive**: an ordered purchase order, scan what arrived (a product not on the order refused), "Receive n scanned" books one receipt through the existing receiving (idempotent, over-deliveries flagged as before); **Count**: the stock takes being counted, scanned per bin
+- [x] Camera scanning not built: it needs a library (TODO, needs the owner's OK)
+
+### N5 Stock adjustments and stock takes ✅
+- [x] **Adjustment reasons** (`V53`, `StockAdjustmentService`): damage, write-off, sample, found, theft / lost, other (and *stock take* for counts), kept on the movement (`stock_movements.reason_code`); valued at the product's **FIFO cost** in that warehouse (else its cost price); from or into a **bin** (found stock goes straight into the bin it was found in); never below zero, in the warehouse or the bin
+- [x] **Approval over a set value**: an organisation's approval value (empty = none); an adjustment worth more waits *Waiting for approval* without moving stock; a manager or admin **approves** (posted then, the stock checked again) or **rejects**; staff cannot approve or change the value
+- [x] **Stock takes** (`StockTakeService`) for a whole warehouse (everything it holds and every product with a bin there), a **category** or **chosen products**; starting **freezes** what each bin (and the unbinned stock) should hold, at its cost; one stock take per warehouse at a time
+- [x] **Counting** on screen (type a line's count) or by **scanner** with the bin being counted; a product or bin not on the list gets a line (expected what is there now); the **variance** and its value per line and in total as you go; lines not counted are left alone
+- [x] **Posting** (a manager): each variance (count − frozen) becomes a *stock take* adjustment without the approval step, outs first; stock that moved while counting (a shipment) is **warned about**; nothing taken below what is there now; cancel instead
+- [x] Journals follow the existing Xero mapping (adjustment in: Dr inventory / Cr stock discrepancy; out the other way, at FIFO cost), in the ledger and the export
+- [x] **Inventory → Adjustments** (new adjustment, the approval value, waiting adjustments with Approve / Reject, the history) and **Inventory → Stock take** (start, the list with counted lines and variance value, a stock take's page with the scan box, Post / Cancel). Seeing needs *Product - list*, adjusting and counting *Stock adjustments*, approving and posting a manager or admin; all audit-logged
+- [x] Tests: `StockCountTest` (3) — unknown reason, below zero in the warehouse and in a bin refused; damage posted from a bin at FIFO cost with its reason and its journal (£8); found stock into another bin; over £50 waits, under posts, staff cannot approve or set the value, a manager approves, a posted one cannot be rejected; a full stock take freezes per bin, a second one refused; barcode and SKU scans, typed counts, a new bin line; variance value £20; posting by staff refused, by a manager: 3 adjustments, a warning for the boot shipped while counting, stock and bins right; a partial take with nothing counted changes nothing; cancel; another organisation sees nothing. E2E COUNT-001 (approval value, posted and waiting adjustments, approve; a stock take started for one product, scanned on the phone page, posted)
+- [ ] Later: camera scanning (library), a printed count sheet, recounts of single lines, batches and serials in counts (with phase P)
 
 ---
 

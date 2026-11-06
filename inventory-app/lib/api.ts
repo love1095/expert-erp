@@ -245,6 +245,22 @@ export const packOrder = (id: number, cartons?: object[]) => api.post(`/warehous
 export const shipPacked = (id: number, carrier?: string, trackingNumber?: string) => api.post(`/warehouse/orders/${id}/ship`, { carrier, trackingNumber }).then(r => r.data);
 export const getDespatchNote = (id: number) => api.get(`/warehouse/orders/${id}/despatch-note`, { responseType: "blob" }).then(r => r.data as Blob);
 
+// Phase N5: adjustments with reasons and approval; stock takes. N4: product by a scanned code
+export const getAdjustmentSettings = () => api.get("/stock-adjustments/settings").then(r => r.data);
+export const saveAdjustmentSettings = (approvalValue: number | null) => api.put("/stock-adjustments/settings", { approvalValue }).then(r => r.data);
+export const getAdjustments = (status?: string) => api.get("/stock-adjustments", { params: { status } }).then(r => r.data);
+export const createAdjustment = (body: { productId: number; warehouseId: number; binId?: number | null; quantity: number; reasonCode: string; note?: string }) =>
+  api.post("/stock-adjustments", body).then(r => r.data);
+export const decideAdjustment = (id: number, approve: boolean, note?: string) => api.post(`/stock-adjustments/${id}/${approve ? "approve" : "reject"}`, { note }).then(r => r.data);
+export const getStockTakes = (status?: string) => api.get("/stock-takes", { params: { status } }).then(r => r.data);
+export const getStockTake = (id: number) => api.get(`/stock-takes/${id}`).then(r => r.data);
+export const startStockTake = (body: { warehouseId: number; productIds?: number[]; categoryId?: number | null; note?: string }) => api.post("/stock-takes", body).then(r => r.data);
+export const countStockTakeLine = (id: number, lineId: number, counted: number | null) => api.put(`/stock-takes/${id}/lines/${lineId}`, { counted }).then(r => r.data);
+export const scanStockTake = (id: number, code: string, binId?: number | null, quantity?: number) => api.post(`/stock-takes/${id}/scan`, { code, binId, quantity }).then(r => r.data);
+export const postStockTake = (id: number) => api.post(`/stock-takes/${id}/post`).then(r => r.data);
+export const cancelStockTake = (id: number) => api.post(`/stock-takes/${id}/cancel`).then(r => r.data);
+export const lookupProduct = (code: string) => api.get("/stock-takes/lookup", { params: { code } }).then(r => r.data);
+
 // Phase N1: bins
 export const getBins = (warehouseId: number) => api.get("/bins", { params: { warehouseId } }).then(r => r.data);
 export const saveBin = (id: number | null, body: object) => (id ? api.put(`/bins/${id}`, body) : api.post("/bins", body)).then(r => r.data);
