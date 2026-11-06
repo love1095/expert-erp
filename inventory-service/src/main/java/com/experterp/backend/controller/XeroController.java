@@ -17,6 +17,20 @@ public class XeroController {
     private final XeroConnectionService connection;
     private final com.experterp.backend.integration.xero.XeroSyncService sync;
     private final com.experterp.backend.service.AccountingExportService export;
+    private final com.experterp.backend.integration.xero.XeroPaymentPuller puller;
+
+    // ---- payments from Xero (L4) ----
+
+    @GetMapping("/payments")
+    public java.util.List<com.experterp.backend.integration.xero.XeroPaymentPuller.Pulled> pulled(@RequestParam(defaultValue = "100") int limit) {
+        return puller.pulled(limit);
+    }
+
+    @PostMapping("/payments/pull")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    public com.experterp.backend.integration.xero.XeroPaymentPuller.PullResult pull() {
+        return puller.pull();
+    }
 
     /** CSV (files) or API (this link): one way to Xero at a time (L3). */
     @GetMapping("/link")

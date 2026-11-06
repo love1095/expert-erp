@@ -44,6 +44,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 // Shopify webhooks carry no login; ShopifyWebhookService checks their HMAC signature
                 .requestMatchers(HttpMethod.POST, "/api/webhooks/shopify").permitAll()
+                // Phase L4: Xero's webhooks, checked by their signature
+                .requestMatchers(HttpMethod.POST, "/api/webhooks/xero").permitAll()
                 // Spring forwards unhandled exceptions to /error; securing it turned every 500 into a 403
                 .requestMatchers("/error").permitAll()
                 // Phase J: for uptime monitoring (no data, just whether the app and its database answer)

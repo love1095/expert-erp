@@ -708,7 +708,7 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 - [x] Tests: `AccountantTest` (2) — the Accountant role and its ticks; a manager stopped in the locked year while the Adviser posts there and records the VAT return, both stopped by the all-users date; trial balance, P&L and general ledger CSV; the year-end pack's eight files and README, a day that is not a year end refused. E2E ACCT-001 passed (CSV and zip download, Accountant role); BANK-001 date fixed (the server's date, not the browser's, after midnight in Asia)
 - [ ] Later: PDF of the statements, Excel (.xlsx) and Google Sheets export, an accountant invited by e-mail (with the e-mail integration), fixed asset register and depreciation, budgets
 
-## Phase L — Xero API link, against a fake Xero (L1 ✅ L2 ✅ L3 ✅)
+## Phase L — Xero API link, against a fake Xero (L1 ✅ L2 ✅ L3 ✅ L4 ✅)
 
 Plan: [`docs/next-phases.md`](docs/next-phases.md) (owner, 2026-11-07). The functional spec §6 asks for *two-way sync with Xero or QuickBooks Online: invoices, bills, payments, stock journals* (Must). Everything is built against a fake Xero; live use needs only the owner's Xero developer app and `APP_XERO_MODE=live`.
 
@@ -733,7 +733,15 @@ Plan: [`docs/next-phases.md`](docs/next-phases.md) (owner, 2026-11-07). The func
 - [x] **Payments and refunds** (`XeroPaymentSender`) on the right Xero document, into the payment account's bank code (or the default payment account); **allocations** of credit notes; **COGS / stock journals** (`XeroJournalSender`) as manual journals, as the CSV file's
 - [x] **One record with the CSV export** (`V48`): `accounting_exported` rows without a file batch, marked CSV or API; an item sent by the API is never put in a CSV file, an item in a CSV file is never sent by the API (counted as in Xero; a later payment finds its document in Xero by number — `findInvoiceByNumber` / `findCreditNoteByNumber`); **one way at a time** per organisation (`accounting_settings.xero_link`, `GET/PUT /api/xero/link`): on API the CSV export is refused, on CSV the queue sends nothing
 - [x] Tests: `XeroSendTest` (2) — a stock count, a bill paid, a sale shipped, invoiced, part paid and credited: on the CSV link nothing sent; on the API (after a 429) two contacts, the invoice (£24, account 200, OUTPUT2, SKU description), the bill (631, INPUT2, PAID), the credit note applied (allocation), two payments into 650, COGS and stock journals; recorded as sent by the API; CSV export refused on the API link and "nothing new" on the CSV link; a second run sends nothing; an invoice first exported by CSV (imported into Xero) is not sent again and its later payment is matched by number; another organisation sees nothing. `XeroSyncTest` updated (a missing document fails saying so), `AccountingExportTest`, `XeroClientTest`, `LedgerTest`, `TaskImportTest` green
-- [ ] Next: L4 payments from Xero, L5 screen (with its e2e test)
+
+### L4 Payments from Xero ✅
+- [x] **Pulled back** (`XeroPaymentPuller`, `V49`): every 5 minutes (`APP_XERO_PULL_EVERY`) with Xero's If-Modified-Since, and on demand (`POST /api/xero/payments/pull`); each payment entered in Xero is recorded against its ERP invoice, bill or credit note (refund) — found through the queue's mapping, else by number — into the payment account with the same code, reference "Xero: …", dated as in Xero
+- [x] **Never sent back**: recorded as already in Xero (queue item SENT with Xero's PaymentID, one record with the CSV export); payments the ERP sent itself are skipped; a payment already pulled is not recorded twice
+- [x] A payment **deleted in Xero** voids the one recorded here; a payment whose document is not found is listed **UNMATCHED**; one that cannot be recorded (e.g. Xero's bank code is not a payment account here) is listed **ERROR** with the reason (`GET /api/xero/payments`)
+- [x] **Webhooks ready for live** (`POST /api/webhooks/xero`, public, `APP_XERO_WEBHOOK_KEY`): Xero's signature (base64 HMAC-SHA256 of the body) checked — a bad one gets 401 as Xero's intent-to-receive check expects; an INVOICE event for a connected organisation asks for a pull within 30 s
+- [x] Scheduled runs act as "Xero" in the audit log
+- [x] Tests: `XeroPullTest` (2) — £10 paid in Xero recorded on the ERP invoice into 650, listed with its invoice number, not sent back, not recorded twice; a payment made here sent to Xero and not pulled back as new; deleted in Xero → voided here; a Xero-only invoice's payment UNMATCHED, an unknown bank code ERROR; webhook with a good signature asks for a pull, a bad one or no key → 401; another organisation sees nothing
+- [ ] Next: L5 screen (with its e2e test)
 
 ---
 

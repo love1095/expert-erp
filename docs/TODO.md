@@ -4,6 +4,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## Needs the owner (an account, a login or a decision)
 - [ ] **Xero developer app** at developer.xero.com (phase L is built against a fake Xero): client ID + client secret, redirect URI `https://<server>/finance/xero/callback`; then set APP_XERO_MODE=live, APP_XERO_CLIENT_ID, APP_XERO_CLIENT_SECRET, APP_XERO_REDIRECT_URI
+- [ ] **Xero webhook key** (from the Xero developer app, Webhooks: delivery URL `https://<server>/api/webhooks/xero`, events Invoices) → APP_XERO_WEBHOOK_KEY; without it payments from Xero are still polled every 5 minutes
 - [ ] **Xero Demo Company (UK)** in the owner's Xero login: to test the Xero link before cutover (never the real Expert Safety Xero before cutover)
 - [ ] **Purchase charges account**: which Xero account bill carriage / duty go to (407 Import Duty is a placeholder in the local data)
 - [ ] **Cin7 read-only check**: PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data)
