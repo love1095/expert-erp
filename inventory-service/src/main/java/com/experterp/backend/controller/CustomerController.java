@@ -44,7 +44,7 @@ public class CustomerController {
 
     // Cin7 Core's customer files (type = CUSTOMERS, ADDRESSES, CONTACTS, CUSTOM_PRICES; a file of another type is refused)
     @PostMapping(value = "/import", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATA_IMPORT')")
     public CustomerImportService.ImportResult importCsv(@RequestParam("file") MultipartFile file,
                                                         @RequestParam(required = false) CustomerImportService.Kind type) throws IOException {
         if (file.isEmpty()) throw new IllegalArgumentException("The file is empty");

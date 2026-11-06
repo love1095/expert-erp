@@ -56,7 +56,7 @@ public class ProductController {
 
     // Cin7 Core InventoryList CSV; creates or updates products by SKU
     @PostMapping(value = "/import", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATA_IMPORT')")
     public ProductImportService.ImportResult importCsv(@RequestParam("file") MultipartFile file,
                                                        @RequestParam(defaultValue = "false") boolean deprecateMissing) throws IOException {
         if (file.isEmpty()) throw new IllegalArgumentException("The file is empty");
@@ -88,7 +88,7 @@ public class ProductController {
 
     // Cin7's More actions → Delete deprecated products (those without history)
     @PostMapping("/delete-deprecated")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATA_IMPORT')")
     public ProductService.DeleteDeprecatedResult deleteDeprecated() {
         return productService.deleteDeprecated();
     }

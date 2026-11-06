@@ -33,7 +33,7 @@ public class SaleOrderResponse {
     private BigDecimal taxTotal;
     private BigDecimal total;
     // FIFO cost of everything shipped on the order (order page only); null until something ships
-    private BigDecimal costOfGoods;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.SALE_PROFIT) private BigDecimal costOfGoods;
     private List<Charge> charges;
     // A reserving order (confirmed, or imported from Shopify) the stock on hand cannot cover in full
     private boolean backordered;
@@ -93,9 +93,9 @@ public class SaleOrderResponse {
         private BigDecimal taxAmount;
         private BigDecimal totalAmount;
         // Over the FIFO cost of what has shipped (and the product's cost price for the rest); null without a cost
-        private BigDecimal marginPercent;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.SALE_PROFIT) private BigDecimal marginPercent;
         // FIFO cost of the units shipped (less those returned to stock); null until something ships
-        private BigDecimal costOfGoods;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.SALE_PROFIT) private BigDecimal costOfGoods;
         // Reserving orders only (null otherwise): of the quantity still to ship, what the stock on hand covers
         // (first confirmed, first served) and what is short
         private BigDecimal allocatedQuantity;

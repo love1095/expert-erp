@@ -68,7 +68,7 @@ public class StatementController {
 
     // Prints the reminder and records it on the overdue invoices: the next one is firmer
     @PostMapping("/customers/{id}/reminder")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUSTOMER_CREDIT')")
     public ResponseEntity<byte[]> sendReminder(@PathVariable Long id) {
         return pdf(statementDocuments.reminder(id, true));
     }

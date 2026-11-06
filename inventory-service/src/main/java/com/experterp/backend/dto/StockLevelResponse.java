@@ -22,7 +22,7 @@ public class StockLevelResponse {
     private boolean lowStock; // true when stock <= minStock (and minStock is set)
     // Like Cin7's availability: on hand × the product's cost price; what ordered POs still bring in here, and the
     // earliest required-by date among them
-    private BigDecimal stockValue;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.STOCK_VALUE) private BigDecimal stockValue;
     private BigDecimal onOrder = BigDecimal.ZERO;
     private java.time.LocalDate nextDelivery;
 }

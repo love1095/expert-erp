@@ -21,7 +21,7 @@ public class CreditController {
     }
 
     @PutMapping("/hold")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUSTOMER_CREDIT')")
     public CreditService.CreditStatus hold(@PathVariable Long id, @RequestBody HoldRequest req) {
         return creditService.setHold(id, req.hold(), req.reason());
     }

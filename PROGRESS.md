@@ -596,6 +596,19 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [ ] **Purchase charges account**: confirm which Xero account bill carriage / duty go to (407 Import Duty is a guess)
 - [ ] Later: the **Xero API link** (contacts, invoices, bills, payments both ways, journals, retries) — needs a Xero app (client id / secret) from the owner; payments on account (customer credit / supplier deposits) not in the files yet; stock received but not billed is in the ERP's stock value but not on Xero's 631 until the bill comes (as in Cin7)
 
+
+## Phase I — Reports, permissions, search, templates (spec §8) 🔄 (I1 ✅ · next I2 global search)
+
+### I1 Users and roles ✅
+- [x] Cin7 checked (read-only, 2026-11-06, Settings → Users & Roles): users have one **role** (Expert Safety: an Owner and 5 users all on role *FULL*); a role is 256 ticked permissions in groups (Audit, CRM, Dashboard, Financials, Integration, Inventory, Purchase, Reports, Sale, Settings …) with *Full access* / *Read-only access* buttons; cost-related ticks: *Product - Prices*, *Product availability - View stock value*, *Purchase - View prices and totals*, *Sale - View profit margin*, *Sale - Change prices and discounts*, *Sale - Ignore credit limit*, report groups (Financial, Inventory, Purchase, Sale)
+- [x] **Roles per organisation** (`V35` `access_roles`, names unique in any case): 23 permissions in Cin7's words for our modules (Sale, Purchase, Inventory, Reports, Dashboard, Audit); every organisation starts with **Manager** (all ticks) and **Staff** (no cost price, stock value, profit margin, credit limit / hold, contract prices, imports, financial reports, audit log); **admins have everything** (Cin7's owner); a user with no role keeps the defaults of their old Manager / Staff role, so nothing changed for existing users
+- [x] **Admin → Users**: an *Access* column to give each user a role; **Roles** below like Cin7's: add / rename / remove (not while given to someone), ticks grouped by module, *Full access* / *Read-only access* buttons; all audited
+- [x] **Enforced on the server**: one rules table (method + path → permissions, first match wins) checks every request (403 naming the missing permission); imports, credit hold, reminders, contract prices, financial reports and the Xero export use the permission instead of the old Manager role; the credit limit override is *Sale - Ignore credit limit*; Application Keys use their role's defaults; permissions are read on every request, so a role change applies at once
+- [x] **Cost hidden** without the tick (sent as empty, not zero): product cost price (*Product - Prices: cost price*; such a user cannot change it either), stock value / cost layers / movement costs (*View stock value*), margins and cost of goods on sale orders (*Sale - View profit margin*), purchase order prices and totals (*Purchase - View prices and totals*); menus show only what the role allows
+- [x] Platform → Organisations was slow with many organisations (5,801 locally from test runs: 3.5 s a load, and every plan change or switch re-read them all): counts now grouped once and a change reads back one organisation (0.56 s / 0.11 s)
+- [x] Tests: `PermissionTest` (2) — the rules table; Staff gets no cost (JSON null) and a Manager does; a "Sales lead" role with margins but no cost given to the manager changes what they see at once; duplicate / unknown / in-use roles refused; an admin keeps everything; E2E ROLE-001 (staff: no cost price, VAT return 403; a "Buyer" role made in the UI → cost and report visible, sale orders 403)
+- [ ] Later (Cin7 has them): Settings permissions in roles (now admin only), several roles per user, the remaining Cin7 ticks (CRM, manufacturing, integrations…) when those modules exist; bills / invoices amounts are not hidden by *Purchase - View prices and totals* (needed to pay them)
+
 ---
 
 ## Cross-cutting (done throughout)
@@ -653,6 +666,9 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET/PUT | `/accounting/settings` | Account mapping and export start date (H5; PUT ADMIN) |
 | GET/POST | `/accounting/export/pending` · `/accounting/export` | What is ready; make the Xero zip (H5, MANAGER+) |
 | GET/POST | `/accounting/exports` · `/{id}/file` · `/{id}/undo` · `/accounting/export/changed` | Export history, download again, undo, changed after export (H5) |
+| GET | `/settings/permissions` · `/settings/roles` | Permission list; roles with ticks and user counts (I1, ADMIN) |
+| POST/PUT/DELETE | `/settings/roles` · `/settings/roles/{id}` | Add, change, remove a role (I1, ADMIN) |
+| PUT | `/settings/users/{id}/access-role` | Give a user a role (`accessRoleId`, null = default) (I1, ADMIN) |
 | GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
 | GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
 | POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |

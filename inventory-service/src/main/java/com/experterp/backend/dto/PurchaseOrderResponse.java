@@ -39,13 +39,13 @@ public class PurchaseOrderResponse {
     // Only on a single order
     private List<Receipt> receipts;
     // Totals like Cin7: order lines, additional costs, and both together, before tax / tax
-    private BigDecimal linesNet;
-    private BigDecimal linesTax;
-    private BigDecimal costsNet;
-    private BigDecimal costsTax;
-    private BigDecimal subtotal;
-    private BigDecimal taxTotal;
-    private BigDecimal total;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal linesNet;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal linesTax;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal costsNet;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal costsTax;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal subtotal;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal taxTotal;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal total;
 
     @Data
     public static class Line {
@@ -56,14 +56,14 @@ public class PurchaseOrderResponse {
         private String unit;
         private String supplierSku;
         private BigDecimal quantity;
-        private BigDecimal unitCost;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal unitCost;
         private BigDecimal discountPercent;
         private String taxName;
         private BigDecimal taxRate;
         private boolean taxOverridden;
-        private BigDecimal netAmount;
-        private BigDecimal taxAmount;
-        private BigDecimal totalAmount;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal netAmount;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal taxAmount;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal totalAmount;
         private BigDecimal receivedQuantity;
         private BigDecimal billedQuantity;
         private BigDecimal closedShortQuantity;
@@ -111,12 +111,12 @@ public class PurchaseOrderResponse {
         private String description;
         private String reference;
         private BigDecimal quantity;
-        private BigDecimal unitPrice;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal unitPrice;
         private BigDecimal discountPercent;
         private String taxName;
         private BigDecimal taxRate;
-        private BigDecimal netAmount;
-        private BigDecimal taxAmount;
-        private BigDecimal totalAmount;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal netAmount;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal taxAmount;
+        @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal totalAmount;
     }
 }

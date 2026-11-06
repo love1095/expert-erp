@@ -30,6 +30,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final ApiKeyAuthFilter apiKeyAuthFilter;
+    private final com.experterp.backend.security.PermissionFilter permissionFilter;
     private final UserDetailsServiceImpl userDetailsService;
 
     @Bean
@@ -52,7 +53,9 @@ public class SecurityConfig {
             .userDetailsService(userDetailsService)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             // Account ID + Application Key (other systems calling the API), checked before a login token
-            .addFilterBefore(apiKeyAuthFilter, JwtAuthFilter.class);
+            .addFilterBefore(apiKeyAuthFilter, JwtAuthFilter.class)
+            // Phase I1: each request against the user's role permissions
+            .addFilterAfter(permissionFilter, JwtAuthFilter.class);
         return http.build();
     }
 

@@ -9,6 +9,8 @@ export interface AuthUser {
   tenantId: number;
   tenantName: string;
   tenantSlug: string;
+  // Phase I1: what the user\'s role allows (from /auth/me); missing on old stored sessions until reloaded
+  permissions?: string[];
 }
 
 export const authStorage = {

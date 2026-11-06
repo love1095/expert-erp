@@ -347,3 +347,11 @@ export const runAccountingExport = () => api.post("/accounting/export", null, { 
   .then(r => ({ blob: r.data as Blob, filename: /filename="([^"]+)"/.exec(String(r.headers["content-disposition"] ?? ""))?.[1] ?? "Xero_export.zip" }));
 export const getAccountingExportFile = (id: number) => api.get(`/accounting/exports/${id}/file`, { responseType: "blob" }).then(r => r.data as Blob);
 export const undoAccountingExport = (id: number) => api.post(`/accounting/exports/${id}/undo`).then(r => r.data);
+
+// ---- Users & Roles (I1) ----
+export const getPermissionCatalogue = () => api.get("/settings/permissions").then(r => r.data);
+export const getAccessRoles = () => api.get("/settings/roles").then(r => r.data);
+export const createAccessRole = (data: { name: string; permissions: string[] }) => api.post("/settings/roles", data).then(r => r.data);
+export const updateAccessRole = (id: number, data: { name: string; permissions: string[] }) => api.put(`/settings/roles/${id}`, data).then(r => r.data);
+export const deleteAccessRole = (id: number) => api.delete(`/settings/roles/${id}`);
+export const assignAccessRole = (userId: number, accessRoleId: number | null) => api.put(`/settings/users/${userId}/access-role`, { accessRoleId });

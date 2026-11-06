@@ -35,13 +35,13 @@ public class PricingController {
 
     @PostMapping("/customers/{id}/contract-prices")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUSTOMER_PRICES')")
     public PricingService.ContractPriceView addContractPrice(@PathVariable Long id, @RequestBody PricingService.ContractPriceRequest req) {
         return pricingService.addContractPrice(id, req);
     }
 
     @PutMapping("/customers/{id}/contract-prices/{priceId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUSTOMER_PRICES')")
     public PricingService.ContractPriceView updateContractPrice(@PathVariable Long id, @PathVariable Long priceId,
                                                                @RequestBody PricingService.ContractPriceRequest req) {
         return pricingService.updateContractPrice(id, priceId, req);

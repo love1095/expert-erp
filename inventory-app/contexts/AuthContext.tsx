@@ -9,6 +9,8 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Phase I1: whether the user's role has this permission (admins have all) */
+  can: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,8 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = authStorage.getUser();
     const token  = authStorage.getToken();
     if (stored && token) {
+      // Permissions are read fresh on every load: an admin may have changed the user's role
       api.get("/auth/me")
-        .then(() => setUser(stored))
+        .then(({ data }) => { const u = { ...stored, permissions: data.permissions ?? [] }; authStorage.setUser(u); setUser(u); })
         .finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
@@ -36,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: data.userId, username: data.username, email: data.email, role: data.role,
       tenantId: data.tenantId, tenantName: data.tenantName, tenantSlug: data.tenantSlug,
     };
+    try { u.permissions = (await api.get("/auth/me")).data.permissions ?? []; } catch { u.permissions = []; }
     authStorage.setUser(u);
     setUser(u);
   }, []);
@@ -45,8 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const can = useCallback((permission: string) =>
+    user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || (user?.permissions ?? []).includes(permission), [user]);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, can }}>
       {children}
     </AuthContext.Provider>
   );

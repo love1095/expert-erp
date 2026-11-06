@@ -210,7 +210,9 @@ function StockSection({ p }: { p: Product }) {
         </table>
       )}
     </Card>
-    <Card title={`Cost layers (FIFO): ${money(s.stockValue)}`} flush testId="product-cost-layers">
+{/* Phase I1: only with "View stock value" */}
+    {s.costLayers != null && (
+        <Card title={`Cost layers (FIFO): ${money(s.stockValue)}`} flush testId="product-cost-layers">
       {s.costLayers.length === 0 ? <p className="p-4 text-sm text-gray-400">No stock left to cost</p> : (
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -237,6 +239,7 @@ function StockSection({ p }: { p: Product }) {
         </table>
       )}
     </Card>
+    )}
   </>;
 }
 

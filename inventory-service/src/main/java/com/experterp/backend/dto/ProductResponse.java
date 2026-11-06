@@ -24,7 +24,7 @@ public class ProductResponse {
     private boolean sellable;
     private String brand;
     private String barcode;
-    private BigDecimal costPrice;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PRODUCT_COST) private BigDecimal costPrice;
     private BigDecimal sellPrice;
     private BigDecimal tradePrice;
     private BigDecimal minStock;

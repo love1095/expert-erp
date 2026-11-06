@@ -25,7 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAuthority('PERM_REPORTS_FINANCIAL')")
 public class ProfitReportController {
 
     private final SalesProfitService salesProfitService;

@@ -1182,3 +1182,7 @@ export interface ExportBatch {
   journals: number; payments: number; undoneAt: string | null; undoneBy: string | null;
 }
 export interface ExportChanged { key: string; number: string; party: string; what: string; date: string }
+
+// ---- Users & Roles (I1) ----
+export interface PermissionInfo { key: string; group: string; label: string }
+export interface AccessRole { id: number; name: string; permissions: string[]; users: number }

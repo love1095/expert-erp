@@ -27,7 +27,7 @@ public record DashboardResponse(
             long warehouses,
             long customers,
             // What is left in the FIFO cost layers (stock without a cost counts as 0)
-            BigDecimal stockValue,
+            @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.STOCK_VALUE) BigDecimal stockValue,
             // Products whose stock + quantity on order is at or below their minimum (the reorder list, Cin7's rule)
             long productsToReorder,
             // CONFIRMED orders still waiting to ship (fully or partly)
@@ -68,7 +68,7 @@ public record DashboardResponse(
                               // The product's reorder quantity, or else what brings it back to its minimum
                               BigDecimal suggestedQuantity,
                               // Its default supplier (null = none), their code for it, and its cost (supplier price, else cost price)
-                              Long supplierId, String supplierSku, BigDecimal unitCost, String unit) {}
+                              Long supplierId, String supplierSku, @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) BigDecimal unitCost, String unit) {}
 
     // Reorder screen: suppliers with products to reorder (supplierId null = products without a supplier)
     public record ReorderSupplier(Long supplierId, String supplierName, long products) {}

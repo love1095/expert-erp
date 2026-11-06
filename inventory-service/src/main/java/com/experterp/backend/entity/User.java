@@ -31,6 +31,10 @@ public class User {
     @Column(name = "tenant_id")
     private Long tenantId;
 
+    // Phase I1: the organisation's role giving this user's permissions; none = the defaults of the role above
+    @Column(name = "access_role_id")
+    private Long accessRoleId;
+
     @Column(nullable = false)
     private boolean active = true;
 

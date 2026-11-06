@@ -55,13 +55,21 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         ApiKeyPrincipal p = principal.get();
         TenantContext.set(p.tenantId());
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                p, null, List.of(new SimpleGrantedAuthority("ROLE_" + p.role().name()))));
+                p, null, authorities(p.role())));
         try {
             chain.doFilter(request, response);
         } finally {
             TenantContext.clear();
             SecurityContextHolder.clearContext();
         }
+    }
+
+    // An Application Key works with its role's default permissions (phase I1)
+    private static List<SimpleGrantedAuthority> authorities(com.experterp.backend.entity.User.Role role) {
+        List<SimpleGrantedAuthority> a = new java.util.ArrayList<>();
+        a.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
+        Permission.defaultsFor(role).forEach(p -> a.add(new SimpleGrantedAuthority(p.authority())));
+        return a;
     }
 
     private static void reject(HttpServletResponse response, int status, String message) throws IOException {

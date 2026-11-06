@@ -881,11 +881,8 @@ public class SaleOrderService {
         return r;
     }
 
+    // Cin7: "Sale - Ignore credit limit" (phase I1); jobs run without a user and may
     private static boolean isManager() {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        // Jobs run without a user
-        if (auth == null || "anonymousUser".equals(auth.getPrincipal())) return true;
-        return auth.getAuthorities().stream().map(a -> a.getAuthority())
-                .anyMatch(a -> a.equals("ROLE_MANAGER") || a.equals("ROLE_ADMIN") || a.equals("ROLE_SUPER_ADMIN"));
+        return com.experterp.backend.security.Permission.current(com.experterp.backend.security.Permission.SALE_IGNORE_CREDIT_LIMIT);
     }
 }

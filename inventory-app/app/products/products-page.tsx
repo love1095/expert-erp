@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getProductsPage, getProduct, createProduct, updateProduct, deleteProduct, getCategories, importProducts, exportProducts,
@@ -48,6 +50,9 @@ const STATUS_BADGE: Record<Product["status"], string> = {
 
 export default function ProductsPage() {
   const qc = useQueryClient();
+  // Phase I1: cost price only for roles with "Product - Prices: cost price"
+  const { can } = useAuth();
+  const seeCost = can("PRODUCT_COST");
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   // Like Cin7: active products by default
@@ -301,7 +306,7 @@ export default function ProductsPage() {
               <option value="DEPRECATED">Deprecated (hidden, not sent to Shopify)</option>
             </select>
           </div>
-          {NUMBER_FIELDS.map(({ label, key, placeholder }) => (
+          {NUMBER_FIELDS.filter(f => seeCost || f.key !== "costPrice").map(({ label, key, placeholder }) => (
             <div key={key}>
               <label htmlFor={`products-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
               <input id={`products-${key}`} type="number" step="any" min={0} value={form[key]} placeholder={placeholder}
@@ -373,7 +378,7 @@ export default function ProductsPage() {
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">
-              <ListHead cols={["SKU", "Name", "Brand", "Category", "Unit", "Status", "Cost price", "Selling price", "Stock"]}
+              <ListHead cols={["SKU", "Name", "Brand", "Category", "Unit", "Status", ...(seeCost ? ["Cost price"] : []), "Selling price", "Stock"]}
                 right={["Cost price", "Selling price", "Stock"]}
                 lead={<th className="w-8"><TickBox checked={selection.allTicked} onChange={selection.toggleAll} label="Select all products on this page" /></th>} />
               <tbody className="divide-y divide-gray-100">
@@ -405,7 +410,7 @@ export default function ProductsPage() {
                         {p.status === "ACTIVE" ? "Active" : "Deprecated"}
                       </span>
                     </td>
-                    <td className="num text-gray-600">{formatGBP(p.costPrice)}</td>
+                    {seeCost && <td className="num text-gray-600">{formatGBP(p.costPrice)}</td>}
                     <td className="num text-gray-900">{formatGBP(p.sellPrice)}</td>
                     <td className="num">
                       <span className={`font-semibold ${Number(p.totalStock) <= 0 ? "text-red-600" : "text-emerald-700"}`}>

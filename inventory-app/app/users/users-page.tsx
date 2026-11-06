@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUsersPage, addUser } from "@/lib/api";
+import { getUsersPage, addUser, getAccessRoles, assignAccessRole } from "@/lib/api";
+import RolesCard from "./roles-card";
+import { AccessRole } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { ClientDate } from "@/components/ClientDate";
 import { Page } from "@/types";
@@ -47,6 +49,12 @@ export default function UsersPage() {
   });
 
   const isAdmin = me?.role === "ADMIN" || me?.role === "SUPER_ADMIN";
+  const { data: roles = [] } = useQuery<AccessRole[]>({ queryKey: ["access-roles"], queryFn: getAccessRoles, enabled: isAdmin });
+  const assign = useMutation({
+    mutationFn: ({ userId, roleId }: { userId: number; roleId: number | null }) => assignAccessRole(userId, roleId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-page"] }); qc.invalidateQueries({ queryKey: ["access-roles"] }); },
+    onError: (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Could not change the role"),
+  });
 
   return (
     <div>
@@ -109,14 +117,14 @@ export default function UsersPage() {
             <table className="list-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {["Username", "Email", "Role", "Status", "Created"].map(h => (
+                  {["Username", "Email", "Role", "Access", "Status", "Created"].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {users.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No users found</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No users found</td></tr>
                 )}
                 {users.map((u: any) => (
                   <tr key={u.id} className={`hover:bg-gray-50 ${u.username === me?.username ? "bg-brand-50/40" : ""}`}>
@@ -130,6 +138,16 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
+                      {u.role === "ADMIN" || u.role === "SUPER_ADMIN" ? <span className="text-xs text-gray-500">Everything (admin)</span>
+                        : isAdmin ? (
+                          <select aria-label={`Access role of ${u.username}`} className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white"
+                            value={u.accessRoleId ?? ""} onChange={e => assign.mutate({ userId: u.id, roleId: e.target.value ? Number(e.target.value) : null })}>
+                            <option value="">Default for {u.role === "MANAGER" ? "Manager" : "Staff"}</option>
+                            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                        ) : <span className="text-xs text-gray-500">{roles.find(r => r.id === u.accessRoleId)?.name ?? "Default"}</span>}
+                    </td>
+                    <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${u.active ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
                         {u.active ? "Active" : "Inactive"}
                       </span>
@@ -141,6 +159,7 @@ export default function UsersPage() {
             </table>
           </div>
           <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onPageChange={setPage} />
+          {isAdmin && <RolesCard />}
         </>
       )}
     </div>

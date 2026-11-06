@@ -43,15 +43,22 @@ public class PlatformService {
     /** All organisations, newest first, read across organisations with plain SQL (not tenant-filtered). */
     @Transactional(readOnly = true)
     public List<Organisation> organisations() {
+        return organisations(null);
+    }
+
+    // One organisation (tenantId) or all; counts by grouping once, not three sub-queries per organisation
+    private List<Organisation> organisations(Long tenantId) {
         return jdbc.query("""
                 SELECT t.id, t.name, t.slug, t.active, t.created_at,
                        p.tier, p.display_name, p.monthly_price, s.status, s.end_date,
-                       (SELECT count(*) FROM users u WHERE u.tenant_id = t.id) AS users,
-                       (SELECT count(*) FROM products x WHERE x.tenant_id = t.id) AS products,
-                       (SELECT count(*) FROM warehouses w WHERE w.tenant_id = t.id) AS warehouses
+                       COALESCE(u.n, 0) AS users, COALESCE(x.n, 0) AS products, COALESCE(w.n, 0) AS warehouses
                 FROM tenants t
                 LEFT JOIN subscriptions s ON s.tenant_id = t.id
                 LEFT JOIN plans p ON p.id = s.plan_id
+                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM users WHERE ?::bigint IS NULL OR tenant_id = ? GROUP BY tenant_id) u ON u.tenant_id = t.id
+                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM products WHERE ?::bigint IS NULL OR tenant_id = ? GROUP BY tenant_id) x ON x.tenant_id = t.id
+                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM warehouses WHERE ?::bigint IS NULL OR tenant_id = ? GROUP BY tenant_id) w ON w.tenant_id = t.id
+                WHERE ?::bigint IS NULL OR t.id = ?
                 ORDER BY t.created_at DESC, t.id DESC""", (rs, i) -> new Organisation(
                 rs.getLong("id"), rs.getString("name"), rs.getString("slug"), rs.getBoolean("active"),
                 toLocal(rs.getTimestamp("created_at")),
@@ -60,7 +67,8 @@ public class PlatformService {
                 Optional.ofNullable(rs.getBigDecimal("monthly_price")).orElse(BigDecimal.ZERO),
                 Optional.ofNullable(rs.getString("status")).orElse("ACTIVE"),
                 toLocal(rs.getTimestamp("end_date")),
-                rs.getLong("users"), rs.getLong("products"), rs.getLong("warehouses")));
+                rs.getLong("users"), rs.getLong("products"), rs.getLong("warehouses")),
+                tenantId, tenantId, tenantId, tenantId, tenantId, tenantId, tenantId, tenantId);
     }
 
     /** Gives an organisation a plan (and status / end date); written to that organisation's audit log. */
@@ -111,7 +119,7 @@ public class PlatformService {
     }
 
     private Organisation organisation(Long tenantId) {
-        return organisations().stream().filter(o -> o.id().equals(tenantId)).findFirst()
+        return organisations(tenantId).stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Organisation not found: " + tenantId));
     }
 

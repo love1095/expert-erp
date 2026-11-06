@@ -75,7 +75,9 @@ public class AuthController {
                 "id", user.getId(),
                 "username", user.getUsername(),
                 "email", entity.getEmail() != null ? entity.getEmail() : "",
-                "role", user.getRole().name()
+                "role", user.getRole().name(),
+                // Phase I1: what the user's role allows, for the pages to show only that
+                "permissions", user.getPermissions().stream().map(Enum::name).sorted().toList()
         ));
     }
 
@@ -156,12 +158,16 @@ public class AuthController {
             @RequestParam(defaultValue = "20") int size) {
         var pageable = PageRequest.of(page, size, Sort.by("username"));
         return userRepository.findByTenantId(current.getTenantId(), pageable)
-                .map(u -> Map.<String, Object>of(
-                        "id", u.getId(),
-                        "username", u.getUsername(),
-                        "email", u.getEmail() != null ? u.getEmail() : "",
-                        "role", u.getRole().name(),
-                        "active", u.isActive(),
-                        "createdAt", u.getCreatedAt()));
+                .map(u -> {
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("id", u.getId());
+                    m.put("username", u.getUsername());
+                    m.put("email", u.getEmail() != null ? u.getEmail() : "");
+                    m.put("role", u.getRole().name());
+                    m.put("accessRoleId", u.getAccessRoleId());
+                    m.put("active", u.isActive());
+                    m.put("createdAt", u.getCreatedAt());
+                    return m;
+                });
     }
 }

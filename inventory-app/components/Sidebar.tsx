@@ -20,7 +20,7 @@ function save(key: string, value: unknown) {
 export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const nav = navFor(user?.role);
+  const nav = navFor(user?.role, user?.permissions);
   const current = locate(pathname).module?.key;
 
   // Open modules (remembered); going to a page opens its module

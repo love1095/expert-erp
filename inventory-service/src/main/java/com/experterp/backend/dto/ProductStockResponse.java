@@ -7,7 +7,7 @@ import java.util.List;
 /** A product's stock page (Cin7's Stock tab): per warehouse, and what is on open purchase orders. */
 public record ProductStockResponse(List<Warehouse> warehouses, List<OpenOrder> onOrder,
                                    BigDecimal onHand, BigDecimal reserved, BigDecimal available, BigDecimal onOrderTotal,
-                                   List<CostLayer> costLayers, BigDecimal stockValue) {
+                                   @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.STOCK_VALUE) List<CostLayer> costLayers, @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.STOCK_VALUE) BigDecimal stockValue) {
 
     // A FIFO cost layer still holding stock (oldest first per warehouse): where it came from, what is left, its unit cost
     // now and when it came in (they differ after a supplier bill at another price than the PO)

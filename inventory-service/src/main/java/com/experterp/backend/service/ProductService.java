@@ -243,7 +243,10 @@ public class ProductService {
         p.setSellable(req.getSellable() == null || req.getSellable());
         p.setBrand(req.getBrand());
         p.setBarcode(req.getBarcode());
-        p.setCostPrice(req.getCostPrice());
+        // Phase I1: someone who may not see the cost price cannot change it (their form has no cost to send back)
+        if (com.experterp.backend.security.Permission.current(com.experterp.backend.security.Permission.PRODUCT_COST)) {
+            p.setCostPrice(req.getCostPrice());
+        }
         p.setSellPrice(req.getSellPrice());
         p.setTradePrice(req.getTradePrice());
         p.setMinStock(req.getMinStock());

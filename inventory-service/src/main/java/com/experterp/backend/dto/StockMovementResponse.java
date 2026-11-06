@@ -23,6 +23,6 @@ public class StockMovementResponse {
     private String referenceId;
     private String notes;
     // Stock in: the cost of one unit its FIFO layer opened at
-    private BigDecimal unitCost;
+    @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.STOCK_VALUE) private BigDecimal unitCost;
     private LocalDateTime createdAt;
 }

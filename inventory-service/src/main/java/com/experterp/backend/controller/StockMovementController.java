@@ -70,7 +70,7 @@ public class StockMovementController {
     // Cin7 stock file (Inventory → Availability → Export): stock in one warehouse set to the file's OnHand.
     // apply=false previews the changes without writing anything.
     @PostMapping(value = "/api/stock/import", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATA_IMPORT')")
     public StockImportService.ImportResult importStock(@RequestParam("file") MultipartFile file,
                                                        @RequestParam Long warehouseId,
                                                        @RequestParam(defaultValue = "false") boolean apply) throws IOException {
