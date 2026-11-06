@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUsersPage, addUser, getAccessRoles, assignAccessRole } from "@/lib/api";
+import { getUsersPage, addUser, getAccessRoles, assignAccessRole, getSecuritySettings, setTwoFactorRequired, resetTwoFactor } from "@/lib/api";
 import RolesCard from "./roles-card";
 import { AccessRole } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +50,18 @@ export default function UsersPage() {
 
   const isAdmin = me?.role === "ADMIN" || me?.role === "SUPER_ADMIN";
   const { data: roles = [] } = useQuery<AccessRole[]>({ queryKey: ["access-roles"], queryFn: getAccessRoles, enabled: isAdmin });
+  // Phase I5: the organisation's two-step sign-in requirement, and resetting someone's (lost phone)
+  const { data: security } = useQuery<{ twoFactorRequired: boolean }>({ queryKey: ["security-settings"], queryFn: getSecuritySettings, enabled: isAdmin });
+  const require2fa = useMutation({
+    mutationFn: setTwoFactorRequired,
+    onSuccess: s => qc.setQueryData(["security-settings"], s),
+    onError: (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Could not change it"),
+  });
+  const reset2fa = useMutation({
+    mutationFn: resetTwoFactor,
+    onSuccess: () => setError(""),
+    onError: (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Could not reset it"),
+  });
   const assign = useMutation({
     mutationFn: ({ userId, roleId }: { userId: number; roleId: number | null }) => assignAccessRole(userId, roleId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-page"] }); qc.invalidateQueries({ queryKey: ["access-roles"] }); },
@@ -111,6 +123,13 @@ export default function UsersPage() {
         </form>
       )}
 
+      {isAdmin && security && (
+        <label className="flex items-center gap-2 mb-4 text-sm bg-white border border-gray-200 rounded-xl px-4 py-3" data-testid="require-two-factor">
+          <input type="checkbox" checked={security.twoFactorRequired} disabled={require2fa.isPending}
+            onChange={e => { if (!e.target.checked || confirm("Require two-step sign-in? Everyone without it sets it up at their next sign-in.")) require2fa.mutate(e.target.checked); }} />
+          <span><b>Two-step sign-in required</b> for everyone in {me?.tenantName} (a code from an authenticator app after the password)</span>
+        </label>
+      )}
       {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
@@ -152,7 +171,15 @@ export default function UsersPage() {
                         {u.active ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={u.createdAt} /></td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      <ClientDate iso={u.createdAt} />
+                      {isAdmin && u.username !== me?.username && (
+                        <button type="button" className="ml-3 text-xs text-red-600 hover:underline"
+                          onClick={() => { if (confirm(`Reset two-step sign-in for ${u.username}? Use it when they lost their phone.`)) reset2fa.mutate(u.id); }}>
+                          Reset two-step sign-in
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

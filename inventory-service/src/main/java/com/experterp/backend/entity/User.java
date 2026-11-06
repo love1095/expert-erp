@@ -35,6 +35,25 @@ public class User {
     @Column(name = "access_role_id")
     private Long accessRoleId;
 
+    // Phase I5: two-step sign-in (authenticator app); the secret is encrypted
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    @Column(name = "totp_enabled", nullable = false)
+    private boolean totpEnabled;
+
+    @Column(name = "totp_last_step")
+    private Long totpLastStep;
+
+    @Column(name = "totp_failed", nullable = false)
+    private int totpFailed;
+
+    @Column(name = "totp_locked_until")
+    private LocalDateTime totpLockedUntil;
+
+    @Column(name = "totp_recovery")
+    private String totpRecovery;
+
     @Column(nullable = false)
     private boolean active = true;
 

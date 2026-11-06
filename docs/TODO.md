@@ -19,12 +19,15 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## To run next time the app is up
 - [x] E2E REPORT-001 (passed 2026-11-06 after rebuilding the backend; the running container was an older build)
-- [ ] The full backend + e2e suites for I3 and I4 (built without starting the app); E2E TEMPLATE-001
+- [ ] The full backend + e2e suites for I3, I4 and I5 (built without starting the app); E2E TEMPLATE-001, TWOFA-001
 - [ ] Expert Safety: make its Cin7 templates here (Invoice - Account Client / Cash Sale, Delivery Note, Pick List…) with its bank details and terms
 
 ## Test later with live systems
 - [ ] **Shopify (live store)**: a price change updates only that product (GLGH-WG-310RP-08 → expect 1 updated); stock push to the real dev store (would set stock for 13,959 linked SKUs); Shopify payouts (money paid into the bank, less fees) not matched to orders yet; Shopify-paid invoices tested with a fake order only
 - [ ] **Xero, first real import** (Demo Company first): credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines
+
+## Needs the owner's OK
+- [ ] Add a QR code library (e.g. the npm package `qrcode`) so two-step sign-in setup shows a QR code; meanwhile the setup key and phone link work
 
 ## Phase K — ERP accounting (after cutover)
 - [ ] Have an accountant review the ledger design (accounts posted per document) before building

@@ -369,3 +369,13 @@ export const getDocumentTemplates = () => api.get("/settings/document-templates"
 export const saveDocumentTemplate = (t: { id?: number | null }) =>
   (t.id ? api.put(`/settings/document-templates/${t.id}`, t) : api.post("/settings/document-templates", t)).then(r => r.data);
 export const deleteDocumentTemplate = (id: number) => api.delete(`/settings/document-templates/${id}`);
+
+// ---- Two-step sign-in (I5) ----
+export const getTwoFactorStatus = () => api.get("/account/two-factor").then(r => r.data);
+export const startTwoFactor = () => api.post("/account/two-factor/start").then(r => r.data);
+export const confirmTwoFactor = (code: string) => api.post("/account/two-factor/confirm", { code }).then(r => r.data);
+export const newRecoveryCodes = (code: string) => api.post("/account/two-factor/recovery-codes", { code }).then(r => r.data);
+export const disableTwoFactor = (code: string) => api.post("/account/two-factor/disable", { code });
+export const getSecuritySettings = () => api.get("/settings/security").then(r => r.data);
+export const setTwoFactorRequired = (twoFactorRequired: boolean) => api.put("/settings/security", { twoFactorRequired }).then(r => r.data);
+export const resetTwoFactor = (userId: number) => api.post(`/settings/users/${userId}/two-factor/reset`);

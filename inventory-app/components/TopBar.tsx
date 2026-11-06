@@ -78,6 +78,8 @@ export default function TopBar() {
           </button>
           {menu && (
             <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-50 text-sm">
+              <Link href="/account" onClick={() => setMenu(false)}
+                className="block px-3 py-2 text-gray-700 hover:bg-gray-50">My account</Link>
               {!superAdmin && <Link href="/settings/organisation" onClick={() => setMenu(false)}
                 className="block px-3 py-2 text-gray-700 hover:bg-gray-50">Organisation settings</Link>}
               <button type="button" onClick={logout}

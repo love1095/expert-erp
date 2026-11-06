@@ -27,6 +27,10 @@ public class Tenant {
     @Column(nullable = false)
     private boolean active = true;
 
+    // Phase I5: everyone in the organisation signs in with an authenticator code (Cin7: two-factor authentication required)
+    @Column(name = "two_factor_required", nullable = false)
+    private boolean twoFactorRequired;
+
     // Identifies the organisation to the API (with an Application Key), like Cin7's Account ID; made by the database
     @Column(name = "account_id", nullable = false, unique = true, insertable = false, updatable = false)
     @org.hibernate.annotations.Generated

@@ -60,6 +60,36 @@ public class JwtUtil {
                 .compact();
     }
 
+    // ---- two-step sign-in (I5) ----
+
+    static final String CHALLENGE_CLAIM = "mfa";
+    static final long CHALLENGE_MILLIS = 5 * 60 * 1000;
+
+    /**
+     * A short-lived token proving the password was right, for the second step only ({@code purpose}: CODE or
+     * SETUP). It is never a session: {@link #isTokenValid} refuses any token with this claim.
+     */
+    public String generateChallengeToken(String username, String purpose) {
+        return Jwts.builder()
+                .claim(CHALLENGE_CLAIM, purpose)
+                .subject(username)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + CHALLENGE_MILLIS))
+                .signWith(key)
+                .compact();
+    }
+
+    /** The username of a valid, unexpired challenge for this purpose, or null. */
+    public String challengeUsername(String token, String purpose) {
+        try {
+            Claims c = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+            if (!purpose.equals(c.get(CHALLENGE_CLAIM)) || c.getExpiration().before(new Date())) return null;
+            return c.getSubject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -73,6 +103,8 @@ public class JwtUtil {
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
             String username = extractUsername(token);
+            // A second-step challenge is not a session
+            if (extractClaim(token, c -> c.get(CHALLENGE_CLAIM)) != null) return false;
             return username.equals(userDetails.getUsername()) && !isExpired(token);
         } catch (Exception e) {
             return false;

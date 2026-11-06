@@ -29,7 +29,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     // Account administration: never with a key
     static final List<String> PEOPLE_ONLY = List.of("/api/auth/", "/api/users", "/api/subscription", "/api/settings/",
-            "/api/tenants", "/api/integrations/", "/api/costing/");
+            "/api/tenants", "/api/integrations/", "/api/costing/", "/api/account/");
 
     private final ApiKeyService apiKeyService;
 

@@ -597,7 +597,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [ ] Later: the **Xero API link** (contacts, invoices, bills, payments both ways, journals, retries) — needs a Xero app (client id / secret) from the owner; payments on account (customer credit / supplier deposits) not in the files yet; stock received but not billed is in the ERP's stock value but not on Xero's 631 until the bill comes (as in Cin7)
 
 
-## Phase I — Reports, permissions, search, templates (spec §8) 🔄 (I1 ✅ I2 ✅ I3 ✅ I4 ✅ · next I5 two-step sign-in)
+## Phase I — Reports, permissions, search, templates (spec §8) ✅ (I1 ✅ I2 ✅ I3 ✅ I4 ✅ I5 ✅)
 
 ### I1 Users and roles ✅
 - [x] Cin7 checked (read-only, 2026-11-06, Settings → Users & Roles): users have one **role** (Expert Safety: an Owner and 5 users all on role *FULL*); a role is 256 ticked permissions in groups (Audit, CRM, Dashboard, Financials, Integration, Inventory, Purchase, Reports, Sale, Settings …) with *Full access* / *Read-only access* buttons; cost-related ticks: *Product - Prices*, *Product availability - View stock value*, *Purchase - View prices and totals*, *Sale - View profit margin*, *Sale - Change prices and discounts*, *Sale - Ignore credit limit*, report groups (Financial, Inventory, Purchase, Sale)
@@ -631,6 +631,14 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] **Not like Cin7 (noted):** no Word mail-merge upload: turning Word files into PDF needs LibreOffice on the server (heavy and fragile), and a template written by an organisation would run on the shared server; templates are layout settings on the ERP's own layout instead
 - [x] Tests: `DocumentTest` (+1, 7 in all) — a "Delivery Note" default prints without prices or carriage and with its own title and text; "Invoice - Cash Sale" prints its payment text and footer instead of the bank details; a template of another type, a duplicate name and a bad colour are refused; removing the default makes the other one default. E2E TEMPLATE-001 written, **not run yet** (app not started)
 - [ ] Later: picking a template for ticked rows in the lists (the API takes `template`); templates for statements / reminders, receiving notes, pick lists per warehouse, box and product labels; e-mail subject and body used when e-mailing comes (spec §7)
+
+### I5 Two-step sign-in ✅
+- [x] Cin7 checked (read-only, 2026-11-06): Settings → General → Security settings has *Password change frequency* (Never) and *Session timeout* (12 hours); User profile has **Reset two-factor authentication**, **Add a passkey**, a per-organisation **Two-factor authentication required** column (N/A for Expert Safety) and a **login history**
+- [x] **Authenticator-app codes** (TOTP, RFC 6238: 6 digits, 30 s, one step of clock drift) per user (`V39`): **My account** (account menu) → *Turn on two-step sign-in*: a setup key to type into the app (or open on the phone), confirmed with a first code; **8 one-time recovery codes** shown once (only their SHA-256 kept), renewable with a code; turn off with a code. The secret is stored encrypted (`SecretCipher`)
+- [x] **Sign-in**: a right password gives only a 5-minute **challenge** (signed, never accepted as a session); the session comes after the code or a recovery code; a code works once; **5 wrong codes lock the step for 15 minutes**; all audited (on, off, recovery code used, locked, reset)
+- [x] **Admin → Users**: *Two-step sign-in required* for the whole organisation (Cin7's column): anyone without it sets it up at their next sign-in (key, first code, recovery codes) and cannot turn it off; **Reset two-step sign-in** for someone who lost their phone (Cin7's reset)
+- [x] Tests: `TotpTest` (2: RFC 6238 test vectors, drift, format), `TwoFactorTest` (2) — the password alone gives no session; wrong / reused codes refused; recovery code once; lock after 5; admin reset; required → set up at sign-in, secret kept encrypted, cannot be turned off; E2E TWOFA-001 written, **not run yet** (app not started)
+- [ ] Later: a **QR code** on the setup screen (needs a QR library: to add with the owner's OK; the key and the phone link work meanwhile); passkeys, login history page, session timeout and password change frequency settings (Cin7 has them; sessions last 24 h here); sessions open when the requirement is switched on last until they expire
 
 ---
 
