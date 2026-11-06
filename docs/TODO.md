@@ -48,7 +48,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## Build later (deliberately left for now)
 - [ ] Sale / purchase task import, not like Cin7 yet: Auto Pick / Auto Pick + Pack are not separate steps (needs pick lists, warehouse phase); credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
-- [ ] Payments on account (customer credit / supplier deposits) in the Xero files
+- [ ] Payments on account (customer credit / supplier deposits) in the Xero files and the Xero API link (Xero overpayments / prepayments)
+- [ ] Xero API link: a document changed after it was sent (Xero has no edit once paid): today it is listed by the CSV export's "changed after export" check, to correct in Xero by hand
 - [ ] E-mailing documents, statements and reminders (with the e-mail integration, spec §7)
 - [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product, Stock Value Inventory Aging (phase I)
 - [ ] Roles (I1 done): Settings permissions inside roles (now admin only), several roles per user, Cin7's other ticks when those modules exist

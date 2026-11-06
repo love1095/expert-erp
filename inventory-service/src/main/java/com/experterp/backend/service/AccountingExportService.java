@@ -67,6 +67,51 @@ public class AccountingExportService {
 
     public record Export(Long batchId, byte[] zip, String filename) {}
 
+    // ---- the Xero API link (L3): one way on at a time, one shared record ----
+
+    /** CSV (files, the default) or API (the Xero link sends everything). */
+    @Transactional(readOnly = true)
+    public String xeroLink() {
+        List<String> r = jdbc.queryForList("SELECT xero_link FROM accounting_settings WHERE tenant_id = ?", String.class, TenantContext.get());
+        return r.isEmpty() ? "CSV" : r.get(0);
+    }
+
+    @Transactional
+    public String setXeroLink(String link) {
+        if (!"CSV".equals(link) && !"API".equals(link)) throw new IllegalArgumentException("CSV or API");
+        jdbc.update("INSERT INTO accounting_settings (tenant_id) VALUES (?) ON CONFLICT (tenant_id) DO NOTHING", TenantContext.get());
+        jdbc.update("UPDATE accounting_settings SET xero_link = ?, updated_at = now(), updated_by = ? WHERE tenant_id = ?", link, auditService.currentActorName(), TenantContext.get());
+        auditService.log("ACCOUNTING", null, "XERO_LINK", Map.of("link", link));
+        return link;
+    }
+
+    /** Whether Xero has this item already (exported in a CSV file or sent by the API). */
+    @Transactional(readOnly = true)
+    public boolean isExported(String key) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM accounting_exported WHERE tenant_id = ? AND doc_key = ?)",
+                Boolean.class, TenantContext.get(), key));
+    }
+
+    /** Recorded as in Xero, sent by the API (no file batch): never put in a CSV file afterwards. */
+    @Transactional
+    public void recordSentByApi(String key, LocalDate date, BigDecimal amount) {
+        jdbc.update("INSERT INTO accounting_exported (tenant_id, batch_id, doc_key, doc_date, amount, via) VALUES (?, NULL, ?, ?, ?, 'API') ON CONFLICT (tenant_id, doc_key) DO NOTHING",
+                TenantContext.get(), key, Date.valueOf(date == null ? LocalDate.now() : date), amount == null ? BigDecimal.ZERO : money(amount));
+    }
+
+    /** One stock journal by its key (JNL:…:date), worked out as the CSV export does. */
+    @Transactional(readOnly = true)
+    public Optional<Journal> journal(String key) {
+        Settings s = settings();
+        LocalDate d;
+        try {
+            d = LocalDate.parse(key.substring(key.lastIndexOf(':') + 1));
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+        return journals(s, d, d, Set.of()).stream().filter(j -> j.key().equals(key)).findFirst();
+    }
+
     // ---- settings ----
 
     @Transactional(readOnly = true)
@@ -129,18 +174,18 @@ public class AccountingExportService {
 
     // ---- what is ready ----
 
-    private record DocLine(long invoiceId, String type, String kind, String number, String reference, LocalDate date, LocalDate due,
+    /** One line of an invoice / bill / credit note as it is exported (also sent by the Xero API link, L3). */
+    public record DocLine(long invoiceId, String type, String kind, String number, String reference, LocalDate date, LocalDate due,
                            String party, boolean stock, String sku, String description, BigDecimal qty, BigDecimal unitPrice,
                            BigDecimal discount, BigDecimal net, String taxName, BigDecimal tax, BigDecimal total) {}
 
     /** A stock journal at FIFO cost (also posted by the general ledger, phase K1). */
-    record Journal(String key, LocalDate date, String narration, String debit, String credit, BigDecimal amount) {}
+    public record Journal(String key, LocalDate date, String narration, String debit, String credit, BigDecimal amount) {}
 
     private record PaymentRow(String key, LocalDate date, String side, String number, String party, BigDecimal amount,
                               String method, String account, String reference) {}
 
-    private List<DocLine> documentLines(LocalDate start, LocalDate end, Set<String> exported) {
-        return jdbc.query("""
+    private static final String DOC_LINES = """
                 SELECT i.id, i.type, i.kind, i.invoice_number, so.order_number, i.issue_date, i.due_date,
                        COALESCE(c.name, s.name, i.party_name), p.product_type, p.sku, COALESCE(it.description, p.name),
                        it.quantity, it.unit_price, it.discount_percent, it.total_price, it.tax_name, it.tax_amount, i.total_amount
@@ -150,8 +195,25 @@ public class AccountingExportService {
                 LEFT JOIN customers c ON c.id = i.customer_id
                 LEFT JOIN suppliers s ON s.id = i.supplier_id
                 LEFT JOIN sale_orders so ON so.id = i.sale_order_id
-                WHERE i.tenant_id = ? AND i.status IN ('ISSUED', 'PAID') AND i.issue_date BETWEEN ? AND ?
-                ORDER BY i.issue_date, i.id, it.id""", (rs, n) -> new DocLine(rs.getLong(1), rs.getString(2), rs.getString(3),
+                WHERE i.tenant_id = ? AND i.status IN ('ISSUED', 'PAID') AND """;
+
+    /** The lines of one issued document, as the CSV export takes them (the Xero API link, L3). */
+    @Transactional(readOnly = true)
+    public List<DocLine> documentLines(long invoiceId) {
+        return jdbc.query(DOC_LINES + " i.id = ? ORDER BY it.id", this::docLine, TenantContext.get(), invoiceId);
+    }
+
+    private DocLine docLine(java.sql.ResultSet rs, int n) throws java.sql.SQLException {
+        return new DocLine(rs.getLong(1), rs.getString(2), rs.getString(3),
+                rs.getString(4), rs.getString(5), rs.getDate(6).toLocalDate(),
+                rs.getDate(7) == null ? rs.getDate(6).toLocalDate() : rs.getDate(7).toLocalDate(), nn(rs.getString(8)),
+                "STOCK".equals(rs.getString(9)), rs.getString(10), nn(rs.getString(11)), nz(rs.getBigDecimal(12)),
+                nz(rs.getBigDecimal(13)), nz(rs.getBigDecimal(14)), nz(rs.getBigDecimal(15)), rs.getString(16),
+                nz(rs.getBigDecimal(17)), nz(rs.getBigDecimal(18)));
+    }
+
+    private List<DocLine> documentLines(LocalDate start, LocalDate end, Set<String> exported) {
+        return jdbc.query(DOC_LINES + " i.issue_date BETWEEN ? AND ? ORDER BY i.issue_date, i.id, it.id", (rs, n) -> new DocLine(rs.getLong(1), rs.getString(2), rs.getString(3),
                 rs.getString(4), rs.getString(5), rs.getDate(6).toLocalDate(),
                 rs.getDate(7) == null ? rs.getDate(6).toLocalDate() : rs.getDate(7).toLocalDate(), nn(rs.getString(8)),
                 "STOCK".equals(rs.getString(9)), rs.getString(10), nn(rs.getString(11)), nz(rs.getBigDecimal(12)),
@@ -274,6 +336,7 @@ public class AccountingExportService {
         Settings s = settings();
         List<String> missing = missing(s);
         if (!missing.isEmpty()) throw new IllegalStateException("Set up the export first: " + String.join(", ", missing));
+        if ("API".equals(xeroLink())) throw new IllegalStateException("This organisation sends to Xero through the API link (Finance → Xero): no CSV files");
         Long t = TenantContext.get();
         // One export at a time per organisation
         jdbc.queryForList("SELECT tenant_id FROM accounting_settings WHERE tenant_id = ? FOR UPDATE", t);
@@ -509,7 +572,8 @@ public class AccountingExportService {
         }
     }
 
-    private static String description(DocLine l) {
+    /** A line's description as exported (SKU: name). */
+    public static String description(DocLine l) {
         String d = l.description().isBlank() ? (l.sku() != null ? l.sku() : "Item") : l.description();
         return d.length() > 4000 ? d.substring(0, 4000) : d;
     }

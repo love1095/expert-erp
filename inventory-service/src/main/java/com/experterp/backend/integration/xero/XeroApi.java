@@ -89,4 +89,9 @@ public final class XeroApi {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy.class)
     public record Allocation(DocRef invoice, BigDecimal amount, String date) {}
+
+    /** One of the organisation's tax rates (GET TaxRates): matched by name to the ERP's VAT rates. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy.class)
+    public record TaxRate(String name, String taxType, BigDecimal effectiveRate, String status) {}
 }

@@ -31,8 +31,16 @@ public class XeroContactSender implements XeroItemSender {
     @Override
     public Set<String> kinds() { return Set.of("CONTACT"); }
 
+    /** A document's party with no customer / supplier record (e.g. an old import): the name only. */
+    public static String nameKey(String name) { return "CONTACT:NAME:" + name.trim(); }
+
     @Override
     public String send(Session session, XeroSyncService.Item item) {
+        if (item.key().startsWith("CONTACT:NAME:")) {
+            String name = item.key().substring("CONTACT:NAME:".length());
+            return xero.findContactByName(session, name).map(Contact::contactID)
+                    .orElseGet(() -> xero.saveContact(session, new Contact(null, name, null, null, null, null, null)).contactID());
+        }
         String[] k = item.key().split(":");
         boolean customer = "CUSTOMER".equals(k[1]);
         Long id = Long.valueOf(k[2]);

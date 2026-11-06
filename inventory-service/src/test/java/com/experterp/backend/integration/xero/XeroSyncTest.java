@@ -41,6 +41,7 @@ class XeroSyncTest {
     @Autowired CustomerRepository customerRepository;
     @Autowired TenantRepository tenantRepository;
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.experterp.backend.service.AccountingExportService export;
 
     Long tenantId;
     String org;
@@ -52,6 +53,7 @@ class XeroSyncTest {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("admin", null,
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         org = connect();
+        export.setXeroLink("API");                       // the queue only sends for organisations on the API link (L3)
     }
 
     @AfterEach
@@ -145,10 +147,11 @@ class XeroSyncTest {
         sync.enqueue(XeroContactSender.customerKey(b.getId()), "CONTACT", "Bolton", null);
         assertThat(sync.process().sent()).isEqualTo(2);
 
-        // Nothing sends this kind yet (L3): failed, saying so
-        sync.enqueue("DOC:999", "INVOICE", "Invoice INV-1", null);
+        // A document that is not issued (any more): failed, saying so, for a person
+        sync.enqueue("DOC:999999", "INVOICE", "Invoice INV-1", null);
         sync.process();
-        assertThat(item("DOC:999").lastError()).contains("Nothing here sends INVOICE");
+        assertThat(item("DOC:999999").status()).isEqualTo("FAILED");
+        assertThat(item("DOC:999999").lastError()).contains("no longer issued");
 
         // Another organisation sees none of it
         Long other = tenant();

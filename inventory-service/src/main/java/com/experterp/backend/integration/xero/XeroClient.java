@@ -53,6 +53,15 @@ public interface XeroClient {
 
     ManualJournal saveManualJournal(Session s, ManualJournal journal);
 
+    /** The organisation's tax rates (to turn the ERP's VAT rate names into Xero's TaxType codes). */
+    List<TaxRate> taxRates(Session s);
+
+    /** An invoice or bill by its number (ACCPAY: the supplier's number), e.g. one sent earlier in a CSV file. */
+    java.util.Optional<Invoice> findInvoiceByNumber(Session s, String type, String number);
+
+    /** A credit note by its number, e.g. one sent earlier in a CSV file. */
+    java.util.Optional<CreditNote> findCreditNoteByNumber(Session s, String type, String number);
+
     /** Payments made or changed in Xero since a moment (L4: pulled back into the ERP). */
     List<Payment> payments(Session s, OffsetDateTime modifiedSince);
 }

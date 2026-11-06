@@ -139,6 +139,25 @@ public class HttpXeroClient implements XeroClient {
     }
 
     @Override
+    public List<TaxRate> taxRates(Session s) {
+        return json.convertValue(send(api(s, "TaxRates").GET()).path("TaxRates"), new TypeReference<List<TaxRate>>() {});
+    }
+
+    @Override
+    public Optional<Invoice> findInvoiceByNumber(Session s, String type, String number) {
+        String where = enc("Type==\"" + type + "\"&&InvoiceNumber==\"" + number.replace("\"", "\\\"") + "\"&&Status!=\"VOIDED\"");
+        JsonNode first = send(api(s, "Invoices?where=" + where).GET()).path("Invoices").path(0);
+        return first.isMissingNode() ? Optional.empty() : Optional.of(json.convertValue(first, Invoice.class));
+    }
+
+    @Override
+    public Optional<CreditNote> findCreditNoteByNumber(Session s, String type, String number) {
+        String where = enc("Type==\"" + type + "\"&&CreditNoteNumber==\"" + number.replace("\"", "\\\"") + "\"");
+        JsonNode first = send(api(s, "CreditNotes?where=" + where).GET()).path("CreditNotes").path(0);
+        return first.isMissingNode() ? Optional.empty() : Optional.of(json.convertValue(first, CreditNote.class));
+    }
+
+    @Override
     public List<Payment> payments(Session s, OffsetDateTime modifiedSince) {
         HttpRequest.Builder b = api(s, "Payments").GET();
         if (modifiedSince != null) b.header("If-Modified-Since", modifiedSince.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));

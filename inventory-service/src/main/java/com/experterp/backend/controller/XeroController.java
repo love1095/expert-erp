@@ -16,6 +16,19 @@ public class XeroController {
 
     private final XeroConnectionService connection;
     private final com.experterp.backend.integration.xero.XeroSyncService sync;
+    private final com.experterp.backend.service.AccountingExportService export;
+
+    /** CSV (files) or API (this link): one way to Xero at a time (L3). */
+    @GetMapping("/link")
+    public Map<String, String> link() {
+        return Map.of("link", export.xeroLink());
+    }
+
+    @PutMapping("/link")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    public Map<String, String> setLink(@RequestBody Map<String, String> body) {
+        return Map.of("link", export.setXeroLink(body.get("link")));
+    }
 
     @GetMapping("/connection")
     public XeroConnectionService.Status status() {

@@ -318,6 +318,39 @@ public class FakeXeroClient implements XeroClient {
         return saved;
     }
 
+    /** Xero's UK tax rates (names as Xero shows them, as in the CSV templates). */
+    static final List<TaxRate> UK_TAX_RATES = List.of(
+            new TaxRate("20% (VAT on Income)", "OUTPUT2", new BigDecimal("20"), "ACTIVE"),
+            new TaxRate("20% (VAT on Expenses)", "INPUT2", new BigDecimal("20"), "ACTIVE"),
+            new TaxRate("5% (VAT on Income)", "RROUTPUT", new BigDecimal("5"), "ACTIVE"),
+            new TaxRate("5% (VAT on Expenses)", "RRINPUT", new BigDecimal("5"), "ACTIVE"),
+            new TaxRate("Zero Rated Income", "ZERORATEDOUTPUT", BigDecimal.ZERO, "ACTIVE"),
+            new TaxRate("Zero Rated Expenses", "ZERORATEDINPUT", BigDecimal.ZERO, "ACTIVE"),
+            new TaxRate("Exempt Income", "EXEMPTOUTPUT", BigDecimal.ZERO, "ACTIVE"),
+            new TaxRate("Exempt Expenses", "EXEMPTINPUT", BigDecimal.ZERO, "ACTIVE"),
+            new TaxRate("No VAT", "NONE", BigDecimal.ZERO, "ACTIVE"),
+            new TaxRate("20% (Reverse Charge)", "REVERSECHARGES", new BigDecimal("20"), "ACTIVE"),
+            new TaxRate("EC Acquisitions (20%)", "ECACQUISITIONS", new BigDecimal("20"), "ACTIVE"),
+            new TaxRate("Full VAT", "GSTONIMPORTS", new BigDecimal("100"), "ACTIVE"));
+
+    @Override
+    public List<TaxRate> taxRates(Session s) {
+        call(s, "TaxRates");
+        return UK_TAX_RATES;
+    }
+
+    @Override
+    public Optional<Invoice> findInvoiceByNumber(Session s, String type, String number) {
+        Org o = call(s, "Invoices?where");
+        return o.invoices.values().stream().filter(i -> i.type().equals(type) && number.equals(i.invoiceNumber()) && !"VOIDED".equals(i.status())).findFirst();
+    }
+
+    @Override
+    public Optional<CreditNote> findCreditNoteByNumber(Session s, String type, String number) {
+        Org o = call(s, "CreditNotes?where");
+        return o.creditNotes.values().stream().filter(c -> c.type().equals(type) && number.equals(c.creditNoteNumber())).findFirst();
+    }
+
     @Override
     public List<Payment> payments(Session s, OffsetDateTime modifiedSince) {
         Org o = call(s, "Payments");

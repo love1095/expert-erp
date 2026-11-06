@@ -41,12 +41,17 @@ public class XeroSyncService {
     private final TransactionTemplate tx;
     private final Map<String, XeroItemSender> senders = new HashMap<>();
     private final Map<Long, ReentrantLock> locks = new ConcurrentHashMap<>();
+    private final XeroEnqueuer enqueuer;
+    private final com.experterp.backend.service.AccountingExportService export;
 
     public XeroSyncService(JdbcTemplate jdbc, XeroConnectionService connection, AuditService auditService,
-                           PlatformTransactionManager txManager, List<XeroItemSender> senders) {
+                           PlatformTransactionManager txManager, List<XeroItemSender> senders, XeroEnqueuer enqueuer,
+                           com.experterp.backend.service.AccountingExportService export) {
         this.jdbc = jdbc;
         this.connection = connection;
         this.auditService = auditService;
+        this.enqueuer = enqueuer;
+        this.export = export;
         this.tx = new TransactionTemplate(txManager);
         senders.forEach(s -> s.kinds().forEach(k -> this.senders.put(k, s)));
     }
@@ -103,9 +108,10 @@ public class XeroSyncService {
 
     /** Every organisation with something due (the background timer). */
     public int processAll() {
+        // Organisations sending to Xero by the API and connected (what is new is queued at each run)
         List<Long> tenants = jdbc.queryForList("""
-                SELECT DISTINCT i.tenant_id FROM xero_sync_items i JOIN xero_connections c ON c.tenant_id = i.tenant_id
-                 WHERE i.status = 'PENDING' AND i.next_attempt_at <= now() AND c.status = 'CONNECTED'""", Long.class);
+                SELECT c.tenant_id FROM xero_connections c JOIN accounting_settings s ON s.tenant_id = c.tenant_id
+                 WHERE c.status = 'CONNECTED' AND s.xero_link = 'API'""", Long.class);
         int sent = 0;
         for (Long t : tenants) {
             Long previous = TenantContext.get();
@@ -127,6 +133,9 @@ public class XeroSyncService {
         ReentrantLock lock = locks.computeIfAbsent(t, k -> new ReentrantLock());
         if (!lock.tryLock()) return new RunResult(0, 0, 0);
         try {
+            // The CSV export is this organisation's way to Xero: the queue sends nothing (L3: one way at a time)
+            if (!"API".equals(export.xeroLink())) return new RunResult(0, 0, 0);
+            tx.executeWithoutResult(st -> enqueuer.feed());
             int sent = 0, failed = 0, waiting = 0;
             Session[] session = {null};
             for (int pass = 0; pass < ORDER.size(); pass++) {
@@ -154,13 +163,22 @@ public class XeroSyncService {
                 SELECT * FROM xero_sync_items WHERE tenant_id = ? AND id = ? AND status = 'PENDING' AND next_attempt_at <= now() FOR UPDATE SKIP LOCKED""", t, id);
         if (rows.isEmpty()) return "SKIPPED";
         Map<String, Object> r = rows.get(0);
+        String key = (String) r.get("item_key");
+        // Exported in a CSV file meanwhile (before the switch to the API): Xero has it, nothing to send
+        if (!key.startsWith("CONTACT:") && !key.startsWith("ALLOC:") && export.isExported(key)) {
+            jdbc.update("UPDATE xero_sync_items SET status = 'SENT', last_error = 'In Xero already (CSV export)', sent_at = now(), updated_at = now() WHERE id = ?", id);
+            return "SENT";
+        }
         String dep = (String) r.get("depends_on");
         if (dep != null) {
-            List<String> st = jdbc.queryForList("SELECT status FROM xero_sync_items WHERE tenant_id = ? AND item_key = ?", String.class, t, dep);
-            if (st.isEmpty() || !"SENT".equals(st.get(0))) {
-                jdbc.update("UPDATE xero_sync_items SET last_error = ?, updated_at = now() WHERE id = ?",
-                        "Waiting for " + dep + (st.isEmpty() ? " (not queued)" : st.get(0).equals("FAILED") ? " (failed)" : ""), id);
-                return "WAITING";
+            for (String d : dep.split(",")) {
+                List<String> st = jdbc.queryForList("SELECT status FROM xero_sync_items WHERE tenant_id = ? AND item_key = ?", String.class, t, d);
+                boolean met = (!st.isEmpty() && "SENT".equals(st.get(0))) || (!d.startsWith("CONTACT:") && export.isExported(d));
+                if (!met) {
+                    jdbc.update("UPDATE xero_sync_items SET last_error = ?, updated_at = now() WHERE id = ?",
+                            "Waiting for " + d + (st.isEmpty() ? " (not queued)" : st.get(0).equals("FAILED") ? " (failed)" : ""), id);
+                    return "WAITING";
+                }
             }
         }
         Item item = new Item(id, (String) r.get("item_key"), (String) r.get("kind"), (String) r.get("label"), dep, null, "PENDING",
@@ -174,6 +192,11 @@ public class XeroSyncService {
                 jdbc.update("""
                         UPDATE xero_sync_items SET status = 'SENT', xero_id = ?, attempts = attempts + 1, last_error = NULL, sent_at = now(), updated_at = now()
                          WHERE id = ?""", xeroId, id);
+                // One record with the CSV export: a document sent here is never put in a CSV file
+                if (key.startsWith("DOC:") || key.startsWith("PAY:") || key.startsWith("JNL:")) {
+                    java.sql.Date d = (java.sql.Date) r.get("doc_date");
+                    export.recordSentByApi(key, d == null ? null : d.toLocalDate(), (java.math.BigDecimal) r.get("amount"));
+                }
                 return "SENT";
             } catch (XeroException e) {
                 if (e.kind() == XeroException.Kind.UNAUTHORIZED && tries == 0) continue;   // refresh the token, try once more
