@@ -35,6 +35,15 @@ export const NAV: NavModule[] = [
     { href: "/reports/inventory-movement", label: "Inventory Movement Summary",     perm: "REPORTS_FINANCIAL" },
     { href: "/accounting-export",          label: "Xero export",                    perm: "REPORTS_FINANCIAL" },
   ]},
+  // Phase K: the ERP's own accounting, like Xero's Accounting menu
+  { key: "accounting", label: "Accounting", icon: "accounting", items: [
+    { href: "/accounting/chart",                label: "Chart of accounts",    perm: "ACCOUNTING" },
+    { href: "/accounting/manual-journals",      label: "Manual journals",      perm: "ACCOUNTING" },
+    { href: "/accounting/trial-balance",        label: "Trial balance",        perm: "ACCOUNTING" },
+    { href: "/accounting/account-transactions", label: "Account transactions", perm: "ACCOUNTING" },
+    { href: "/accounting/journals",             label: "Journal report",       perm: "ACCOUNTING" },
+    { href: "/accounting/settings",             label: "Ledger settings",      perm: "ACCOUNTING" },
+  ]},
   { key: "admin", label: "Admin", icon: "admin", items: [
     { href: "/users",     label: "Users" },
     { href: "/audit-log", label: "Audit Log", perm: "AUDIT_LOG" },

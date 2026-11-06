@@ -39,6 +39,8 @@ public enum Permission {
     REPORTS_PURCHASE("Reports", "Purchase reports (pending purchase orders, stock received not invoiced)", true, true),
     REPORTS_INVENTORY("Reports", "Inventory reports (stock value inventory aging)", true, false),
     REPORTS_FINANCIAL("Reports", "Financial reports (VAT return, aged debtors and creditors, sales profit, inventory movement, Xero export)", true, false),
+    // Phase K: the ERP's own accounting (like Xero)
+    ACCOUNTING("Accounting", "Accounting - Chart of accounts, manual journals, trial balance and ledger reports", true, false),
     DASHBOARD("Dashboard", "Dashboard", true, true),
     AUDIT_LOG("Audit", "Audit log - View", true, false);
 

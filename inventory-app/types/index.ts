@@ -1221,3 +1221,38 @@ export interface ImportLog {
 }
 export interface CutoverFigure { key: string; group: string; label: string; value: number; money: boolean; cin7: string }
 export interface CutoverCheck { asAt: string; figures: CutoverFigure[]; warnings: string[] }
+
+// Phase K1: the general ledger
+export type AccountClass = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
+export interface LedgerAccount {
+  id: number; code: string; name: string; type: string; accountClass: AccountClass; typeLabel: string;
+  taxType: string | null; description: string | null; archived: boolean; used: boolean;
+}
+export interface LedgerAccountType { type: string; label: string; accountClass: AccountClass }
+export interface LedgerSettings {
+  conversionDate: string | null; revenue: string; inventory: string; cogs: string; discrepancy: string; purchaseCharges: string;
+  customerCredit: string; supplierDeposits: string; receivable: string; payable: string; vat: string; retainedEarnings: string;
+  suspense: string; rounding: string; historical: string;
+}
+export interface OpeningBalance { accountCode: string; debit: number | null; credit: number | null }
+export interface OpeningBalances { conversionDate: string | null; balances: OpeningBalance[]; debits: number; credits: number; historicalAdjustment: number }
+export interface ManualLine { accountCode: string; description: string | null; debit: number | null; credit: number | null }
+export interface ManualJournal {
+  id: number; date: string; narration: string; status: "DRAFT" | "POSTED" | "VOIDED"; total: number; lines: ManualLine[];
+  createdAt: string; createdBy: string | null; voidedAt: string | null; voidedBy: string | null;
+}
+export interface TrialBalanceRow { code: string; name: string; type: string; accountClass: AccountClass; debit: number | null; credit: number | null }
+export interface TrialBalance { asAt: string; rows: TrialBalanceRow[]; debits: number; credits: number; warnings: string[] }
+export interface LedgerTransaction {
+  date: string; journalNumber: number; sourceType: string; sourceKey: string; reference: string | null; narration: string;
+  description: string | null; contact: string | null; debit: number | null; credit: number | null; balance: number;
+}
+export interface AccountTransactions {
+  code: string; name: string; type: string; from: string; to: string; opening: number; rows: LedgerTransaction[];
+  debits: number; credits: number; closing: number;
+}
+export interface JournalLine { account: string; amount: number; description: string | null; contact: string | null; taxName: string | null }
+export interface LedgerJournal {
+  number: number; date: string; sourceType: string; sourceKey: string; reference: string | null; narration: string;
+  reversal: boolean; createdAt: string; lines: JournalLine[];
+}

@@ -133,7 +133,8 @@ public class AccountingExportService {
                            String party, boolean stock, String sku, String description, BigDecimal qty, BigDecimal unitPrice,
                            BigDecimal discount, BigDecimal net, String taxName, BigDecimal tax, BigDecimal total) {}
 
-    private record Journal(String key, LocalDate date, String narration, String debit, String credit, BigDecimal amount) {}
+    /** A stock journal at FIFO cost (also posted by the general ledger, phase K1). */
+    record Journal(String key, LocalDate date, String narration, String debit, String credit, BigDecimal amount) {}
 
     private record PaymentRow(String key, LocalDate date, String side, String number, String party, BigDecimal amount,
                               String method, String account, String reference) {}
@@ -159,7 +160,7 @@ public class AccountingExportService {
                 .stream().filter(l -> !exported.contains("DOC:" + l.invoiceId())).toList();
     }
 
-    private List<Journal> journals(Settings s, LocalDate start, LocalDate end, Set<String> exported) {
+    List<Journal> journals(Settings s, LocalDate start, LocalDate end, Set<String> exported) {
         Long t = TenantContext.get();
         Timestamp from = Timestamp.valueOf(start.atStartOfDay()), to = Timestamp.valueOf(end.plusDays(1).atStartOfDay());
         Map<String, Journal> byKey = new LinkedHashMap<>();

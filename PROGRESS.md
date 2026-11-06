@@ -655,6 +655,22 @@ The functions for moving an organisation from Cin7 Core; the move itself (Expert
 - [x] Tests: `TaskImportTest` (5) — an open order keeps Cin7's number, reference and date, preview writes nothing, the same file is refused the second time; an unpaid invoice already shipped keeps its number and dates, discount and charge, £10 paid into 650, no stock moved, recorded as already in Xero; Cin7's rules: a new customer created with its shipping address and contact, Auto Pick + Pack + Ship ships, credit note CR with its own number refunded into 650 on its date, short of stock an error unless backordered is ticked; errors (future date, unknown SKU, wrong Total, credit note without Authorised + shipped, unknown RecordType) stop the whole file; open PO, a bill with Received rows, CreditLines + Unstock sending 2 back (stock 10 + 4 − 2), new supplier created; go-live check figures; Cin7 date formats. `PermissionTest` green. E2E CUTOVER-001 passed (2026-11-06)
 - [ ] At cutover (owner): run [`docs/cutover.md`](docs/cutover.md) — rehearsal, then the weekend; production server, HTTPS, off-site backup copy
 
+## Phase K — ERP accounting, like Xero (K1 ✅)
+
+The ERP's own books, so it can be sold all-in-one; the Xero export / link stays for organisations that keep Xero. Reference: Xero (Expert Safety's chart of accounts read from Cin7's copy of it, read-only, 2026-11-06: Xero's UK standard chart plus 650–654 banks, 615 Supplier Deposits, 631 Inventory Control, 802 Customer Credits).
+
+### K1 Chart of accounts, general ledger, manual journals, trial balance ✅
+- [x] **Accounting → Chart of accounts** (`V41`, `ChartOfAccountsService`): Xero's account types and classes, tabs All / Assets / Liabilities / Equity / Expenses / Revenue / Archive; add, edit, archive, delete (an account with transactions keeps its code and can only be archived, as Xero); a new organisation gets **Xero's standard UK chart** plus the accounts the ERP posts to (631, 615, 802, 495) and its payment accounts as **bank accounts**; **import of Xero's chart export** (preview, added / updated by code)
+- [x] **General ledger** (`LedgerService`): every document posts a **balanced journal** with the Xero export's account mapping (H5), so ledger and export agree — invoices / credit notes (receivable, revenue, VAT), bills / supplier credits (inventory for stock lines, purchase charges for the rest, VAT, payable), payments (the payment account's bank against receivable / payable; customer credit and supplier deposits used), customer credit received and supplier deposits paid, stock at FIFO cost (COGS on shipment / return, adjustments, bill price differences: the export's own journals), manual journals, conversion balances; pennies to Rounding
+- [x] **Never edited**: before the ledger is read it is brought up to date — for each source what it should post is compared with what it posted, and a difference posts a **reversal plus the new journal** (an edited, cancelled or voided document, a voided payment, a deleted credit); nothing changed, nothing posted
+- [x] **Accounting → Manual journals**: narration, date, lines (account, description, debit or credit), debits must equal credits; Draft / Posted / Voided; a posted journal is voided (reversed), not edited
+- [x] **Accounting → Ledger settings**: Xero's **conversion date** (nothing dated before it is posted) and **conversion balances** (dated the day before; the difference to 840 Historical Adjustment, as Xero); the account each posting goes to (H5's mapping plus receivable, payable, VAT, retained earnings, suspense, rounding, historical)
+- [x] **Reports**: **Trial balance** (as at a day, by class, debits = credits), **Account transactions** (opening, lines with source links, running balance, closing), **Journal report** (every journal with its lines, reversals marked)
+- [x] Permission **Accounting** (managers by default); chart, settings and conversion balances: admins
+- [x] Checked on Expert Safety's local data: the trial balance balances (£98,040.87), 0.04 s
+- [x] Tests: `LedgerTest` (4) — stock count, bill, bill paid, sale shipped (COGS 2 × £6 FIFO), invoice overpaid (£6 customer credit): trial balance balanced and each account right (610 and 800 nil, 631 £98, 310 £12, 200 −£20, 802 −£6, VAT, bank), the payment account a bank account, a second sync posts nothing, account transactions; manual journal unbalanced / unknown account refused, a draft posts nothing, posted shows, cannot be changed, void reverses; a conversion date reverses what is before it, conversion balances with the difference in 840; Xero chart import (added, updated, unchanged, unknown type). `AccountingExportTest`, `PermissionTest`, `TaskImportTest` green. E2E LEDGER-001 passed
+- [ ] Next: K2 Profit & Loss, Balance Sheet (current year earnings, retained earnings), lock date, year end; K3 bank statement import and reconciliation; K4 VAT return from the ledger and Making Tax Digital; K5 accountant access and exports
+
 ---
 
 ## Cross-cutting (done throughout)
@@ -757,6 +773,10 @@ The functions for moving an organisation from Cin7 Core; the move itself (Expert
 | GET  | `/import/logs`, `/import/{sales,purchases}/template` | Imports done / Cin7's template headings (DATA_IMPORT) |
 | GET  | `/cutover/check` | Go-live check: the figures to compare with Cin7's (DATA_IMPORT) |
 | GET  | `/health` | Public uptime check: app and database (200 / 503) |
+| GET/POST/PUT/DELETE | `/ledger/accounts` | Chart of accounts (POST/PUT/DELETE: ADMIN); `/ledger/accounts/import` Xero chart file (`apply=false` previews) |
+| GET/PUT | `/ledger/settings`, `/ledger/opening-balances` | Conversion date, account mapping, conversion balances (PUT: ADMIN) |
+| GET/POST/PUT | `/ledger/manual-journals` | Manual journals; `/{id}/post`, `/{id}/void` (a draft is deleted) |
+| GET  | `/ledger/trial-balance`, `/ledger/account-transactions`, `/ledger/journals` | Ledger reports (ACCOUNTING) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | Every organisation with its plan and usage (SUPER_ADMIN) |

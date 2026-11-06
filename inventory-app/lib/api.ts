@@ -163,6 +163,32 @@ export const cancelInvoice  = (id: number) => api.post(`/invoices/${id}/cancel`)
 export const payInvoice     = (id: number, data: unknown) => api.post(`/invoices/${id}/pay`, data).then(r => r.data);
 
 // Cin7 stock file → stock in one warehouse set to the file's OnHand; apply=false only previews
+// Phase K1: chart of accounts, general ledger, manual journals, conversion balances, ledger reports
+export const getLedgerAccounts = (archived = false) => api.get("/ledger/accounts", { params: { archived } }).then(r => r.data);
+export const getLedgerAccountTypes = () => api.get("/ledger/account-types").then(r => r.data);
+export const saveLedgerAccount = (id: number | null, body: object) =>
+  (id ? api.put(`/ledger/accounts/${id}`, body) : api.post("/ledger/accounts", body)).then(r => r.data);
+export const deleteLedgerAccount = (id: number) => api.delete(`/ledger/accounts/${id}`).then(r => r.data);
+export const importLedgerAccounts = (file: File, apply: boolean) => {
+  const body = new FormData();
+  body.append("file", file);
+  return api.post("/ledger/accounts/import", body, { params: { apply }, headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
+};
+export const getLedgerSettings = () => api.get("/ledger/settings").then(r => r.data);
+export const saveLedgerSettings = (body: object) => api.put("/ledger/settings", body).then(r => r.data);
+export const getOpeningBalances = () => api.get("/ledger/opening-balances").then(r => r.data);
+export const saveOpeningBalances = (body: object[]) => api.put("/ledger/opening-balances", body).then(r => r.data);
+export const getManualJournals = (status?: string) => api.get("/ledger/manual-journals", { params: { status } }).then(r => r.data);
+export const saveManualJournal = (id: number | null, body: object) =>
+  (id ? api.put(`/ledger/manual-journals/${id}`, body) : api.post("/ledger/manual-journals", body)).then(r => r.data);
+export const postManualJournal = (id: number) => api.post(`/ledger/manual-journals/${id}/post`).then(r => r.data);
+export const voidManualJournal = (id: number) => api.post(`/ledger/manual-journals/${id}/void`).then(r => r.data);
+export const getTrialBalance = (date: string) => api.get("/ledger/trial-balance", { params: { date } }).then(r => r.data);
+export const getAccountTransactions = (account: string, from: string, to: string) =>
+  api.get("/ledger/account-transactions", { params: { account, from, to } }).then(r => r.data);
+export const getJournalReport = (params: { from?: string; to?: string; source?: string }) =>
+  api.get("/ledger/journals", { params }).then(r => r.data);
+
 // Phase J: Cin7's sale / purchase task CSV import (preview with apply=false), its logs, and the go-live check
 export const importTasks = ({ kind, file, options, apply }:
   { kind: "sales" | "purchases"; file: File; options: Record<string, string | number | boolean | undefined>; apply: boolean }) => {

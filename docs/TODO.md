@@ -24,7 +24,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 ## To run next time the app is up
 - [x] E2E REPORT-001 (passed 2026-11-06 after rebuilding the backend; the running container was an older build)
 - [x] E2E TEMPLATE-001, TWOFA-001, CUTOVER-001 (passed 2026-11-06 after rebuilding the backend; TWOFA-001 fixed: it signed in again from a fresh browser)
-- [ ] The full backend + e2e suites for I3, I4, I5 and J (built without starting the app)
+- [x] The full e2e suite for I3, I4, I5 and J (99 passed with 2 workers, 2026-11-06)
+- [ ] The full backend test suite for I3, I4, I5 and J (built without starting the app)
 - [ ] Expert Safety: make its Cin7 templates here (Invoice - Account Client / Cash Sale, Delivery Note, Pick List…) with its bank details and terms
 
 ## Test later with live systems
@@ -35,6 +36,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Add a QR code library (e.g. the npm package `qrcode`) so two-step sign-in setup shows a QR code; meanwhile the setup key and phone link work
 
 ## Phase K — ERP accounting (after cutover)
+- [ ] Expert Safety: import its chart from Xero (Chart of accounts → Export) and set the conversion date + conversion balances from Xero's trial balance on the day it switches (until then the ledger also holds the local opening stock import, posted Dr 631 / Cr 310 by Cin7's mapping of adjustments to COGS)
+- [ ] Ledger speed on large organisations: it is brought up to date by recomputing every source before each read (fine on today's data, 0.04 s); post on each change instead if it gets slow
 - [ ] Have an accountant review the ledger design (accounts posted per document) before building
 - [ ] Run K alongside Xero for a few months at Expert Safety; move off Xero at a year end once the figures match
 - [ ] HMRC Making Tax Digital: register as a software developer, pass the sandbox tests
