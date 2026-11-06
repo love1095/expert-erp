@@ -9,6 +9,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Purchase charges account**: which Xero account bill carriage / duty go to (407 Import Duty is a placeholder in the local data)
 - [ ] **Cin7 read-only check**: PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data)
 - [ ] **Customer contacts import**: CustomerContacts_11_4_2026.csv is built but not run — load it?
+- [ ] **E-mail**: the SMTP account or mail provider (e.g. Microsoft 365, Google Workspace, SendGrid) and the sender address (e.g. accounts@expertsafety.co.uk) → Settings → E-mail, then APP_MAIL_MODE=live
 - [ ] **Couriers** and courier accounts in use today (phase I / warehouse)
 - [ ] **Financial year end**: now a setting (Accounting → Ledger settings, 31 March by default) — set Expert Safety to 30 November (1 December start seen in Cin7) once the owner confirms
 
@@ -35,6 +36,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Xero, first real import** (Demo Company first): credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines
 
 ## Needs the owner's OK
+- [ ] **Mail library** for live e-mail (phase M): `spring-boot-starter-mail` (Jakarta Mail / Angus Mail) so `SmtpMailSender` can send by SMTP; until then e-mails are kept in the outbox (fake mode)
 - [ ] Add a QR code library (e.g. the npm package `qrcode`) so two-step sign-in setup shows a QR code; meanwhile the setup key and phone link work
 
 ## Phase K — ERP accounting (after cutover)
@@ -51,7 +53,6 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Sale / purchase task import, not like Cin7 yet: Auto Pick / Auto Pick + Pack are not separate steps (needs pick lists, warehouse phase); credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
 - [ ] Payments on account (customer credit / supplier deposits) in the Xero files and the Xero API link (Xero overpayments / prepayments)
 - [ ] Xero API link: a document changed after it was sent (Xero has no edit once paid): today it is listed by the CSV export's "changed after export" check, to correct in Xero by hand
-- [ ] E-mailing documents, statements and reminders (with the e-mail integration, spec §7)
 - [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product, Stock Value Inventory Aging (phase I)
 - [ ] Roles (I1 done): Settings permissions inside roles (now admin only), several roles per user, Cin7's other ticks when those modules exist
 - [ ] Expert Safety's real users: set their roles at cutover (in Cin7 all 5 are on FULL)

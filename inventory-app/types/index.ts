@@ -1323,3 +1323,13 @@ export interface XeroPulledPayment {
   id: number; xeroPaymentId: string; xeroStatus: string | null; docKey: string | null; number: string | null; erpPaymentId: number | null;
   amount: number | null; paidOn: string | null; status: "RECORDED" | "VOIDED" | "UNMATCHED" | "ERROR"; message: string | null; pulledAt: string;
 }
+
+// Phase M: e-mail
+export interface MailDraft { docType: string; docKey: string; docLabel: string; to: string | null; cc: string | null; subject: string; body: string;
+  attachmentName: string; missingRecipient: string | null }
+export interface SentMail { id: number; docType: string; docKey: string; docLabel: string | null; to: string; cc: string | null; subject: string; body: string;
+  attachmentName: string | null; mode: "fake" | "live"; status: "KEPT" | "SENT" | "FAILED"; error: string | null; createdAt: string; createdBy: string | null }
+export interface MailSettings { mode: "fake" | "live"; fromName: string | null; fromAddress: string | null; replyTo: string | null; smtpHost: string | null;
+  smtpPort: number | null; smtpUsername: string | null; smtpPasswordSet: boolean; smtpStartTls: boolean }
+export interface MailTemplate { docType: string; subject: string; body: string; custom: boolean }
+export interface MailBulkResult { customerId: number; customer: string; status: "KEPT" | "SENT" | "FAILED" | "SKIPPED"; message: string | null }

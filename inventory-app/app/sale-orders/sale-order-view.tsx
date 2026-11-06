@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import PrintButton from "@/components/PrintButton";
+import EmailButton, { SentEmails } from "@/components/EmailButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import Link from "next/link";
@@ -239,6 +240,8 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
             <PrintButton kind="sale-orders" id={order.id} fileName={`${order.orderNumber}.pdf`}
               docType={order.status === "QUOTE" || order.status === "REJECTED" ? "QUOTE" : "SALES_ORDER"}
               label={order.status === "QUOTE" || order.status === "REJECTED" ? "Print quote" : "Print"} />
+            {order.status !== "CANCELLED" && order.status !== "REJECTED" &&
+              <EmailButton request={{ kind: "SALE_ORDER", id: order.id }} docKey={`SO:${order.id}`} label={order.status === "QUOTE" ? "E-mail quote" : "E-mail"} />}
             {order.status === "QUOTE" && (
               <>
                 <button disabled={busy} onClick={() => { if (confirm("Reject this quote?")) rejectMutation.mutate(order.id); }} className={BTN_SECONDARY}>
@@ -380,6 +383,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
               ))}
             </TrailCard>
           )}
+          {mode === "view" && <SentEmails docKey={`SO:${order.id}`} />}
         </aside>
 
         {/* Main: the order itself */}

@@ -57,6 +57,9 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("*", "/api/bank/**", ACCOUNTING),
             r("*", "/api/vat/**", ACCOUNTING),
             r("*", "/api/xero/**", REPORTS_FINANCIAL),
+            // Phase M: sending is checked per document (sale, purchase, customer); reading the outbox needs one of them
+            r("GET", "/api/mail/outbox/**", SALE_VIEW, PURCHASE_VIEW, CUSTOMERS),
+            r("GET", "/api/mail/outbox", SALE_VIEW, PURCHASE_VIEW, CUSTOMERS),
             r("GET", "/api/cutover/**", DATA_IMPORT),
             r("GET", "/api/customers/**", CUSTOMERS, SALE_VIEW),
             r("GET", "/api/customers", CUSTOMERS, SALE_VIEW),

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PrintButton from "@/components/PrintButton";
+import EmailButton, { SentEmails } from "@/components/EmailButton";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPurchaseOrder, receivePurchaseLines, cancelPurchaseOrder, orderPurchaseOrder, closeShortPurchaseOrder, getWarehouses } from "@/lib/api";
@@ -138,6 +139,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
         }
         actions={!busyMode && <>
           <PrintButton kind="purchase-orders" id={po.id} fileName={`${po.orderNumber}.pdf`} docType="PURCHASE_ORDER" />
+          {po.status !== "CANCELLED" && <EmailButton request={{ kind: "PURCHASE_ORDER", id: po.id }} docKey={`PO:${po.id}`} />}
           {canBill && <button disabled={busy} onClick={() => { setError(""); setBilling(true); }} className={BTN_SECONDARY}>Enter bill</button>}
           {open && <>
           {anyReceived ? (
@@ -398,6 +400,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
             </tbody>
           </table>
         </div>
+        <SentEmails docKey={`PO:${po.id}`} />
       </RecordLayout>
     </div>
   );

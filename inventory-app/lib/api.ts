@@ -232,6 +232,21 @@ export const getFiledVatReturns = () => api.get("/vat/returns").then(r => r.data
 export const ledgerExport = (name: string, params: object) =>
   api.get(`/ledger/export/${name}`, { params, responseType: "blob" }).then(r => r.data as Blob);
 
+// Phase M: e-mail
+export interface MailRequest { kind: string; id: number; statementType?: string; from?: string; to?: string; recipient?: string; cc?: string; subject?: string; body?: string }
+export const getMailSettings = () => api.get("/mail/settings").then(r => r.data);
+export const saveMailSettings = (body: object) => api.put("/mail/settings", body).then(r => r.data);
+export const getMailTemplates = () => api.get("/mail/templates").then(r => r.data);
+export const saveMailTemplate = (type: string, subject: string, body: string) => api.put(`/mail/templates/${type}`, { subject, body }).then(r => r.data);
+export const resetMailTemplate = (type: string) => api.delete(`/mail/templates/${type}`).then(r => r.data);
+export const previewMail = (req: MailRequest) => api.post("/mail/preview", req).then(r => r.data);
+export const sendMail = (req: MailRequest) => api.post("/mail/send", req).then(r => r.data);
+export const mailStatements = (customerIds: number[], type: string, from?: string, to?: string) =>
+  api.post("/mail/statements", { customerIds, type, from, to }).then(r => r.data);
+export const mailReminders = (customerIds?: number[]) => api.post("/mail/reminders", { customerIds }).then(r => r.data);
+export const getOutbox = (docKey?: string) => api.get("/mail/outbox", { params: { docKey } }).then(r => r.data);
+export const getOutboxAttachment = (id: number) => api.get(`/mail/outbox/${id}/attachment`, { responseType: "blob" }).then(r => r.data as Blob);
+
 // Phase L: the Xero API link
 export const getXeroConnection = () => api.get("/xero/connection").then(r => r.data);
 export const connectXero = () => api.post("/xero/connection/connect").then(r => r.data as { url: string });

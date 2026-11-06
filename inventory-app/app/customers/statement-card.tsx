@@ -9,6 +9,7 @@ import { formatGBP } from "@/lib/currency";
 import { ClientDate } from "@/components/ClientDate";
 import { BTN_SECONDARY, Card } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
+import EmailButton, { SentEmails } from "@/components/EmailButton";
 import { useAuth } from "@/contexts/AuthContext";
 
 // yyyy-mm-dd in local time
@@ -91,6 +92,8 @@ export default function StatementCard({ customer }: { customer: Customer }) {
           onClick={() => run("statement", () => getStatementPdf(customer.id, params), `Statement-${customer.id}.pdf`)}>
           {busy === "statement" ? "Preparing…" : "Print statement"}
         </button>
+        <EmailButton label="E-mail statement" docKey={`CUST:${customer.id}`}
+          request={{ kind: "STATEMENT", id: customer.id, statementType: type, from: type === "ACTIVITY" ? from : undefined, to }} />
       </div>
 
       {isError && <p className="text-sm text-red-600">Could not load the statement</p>}
@@ -115,10 +118,13 @@ export default function StatementCard({ customer }: { customer: Customer }) {
                 {busy === "send" ? "Preparing…" : `Print ${REMINDER_LABEL[reminder.level].toLowerCase()}`}
               </button>
             )}
+            {canRemind && <EmailButton label={`E-mail ${REMINDER_LABEL[reminder.level].toLowerCase()}`} docKey={`CUST:${customer.id}`}
+              request={{ kind: "REMINDER", id: customer.id }} onSent={recorded} />}
           </span>
         </div>
       )}
       {error && <p role="alert" className="text-sm text-red-600 mt-2">{error}</p>}
+      <div className="mt-4"><SentEmails docKey={`CUST:${customer.id}`} /></div>
     </Card>
   );
 }

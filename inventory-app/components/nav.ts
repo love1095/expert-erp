@@ -58,6 +58,7 @@ export const NAV: NavModule[] = [
     { href: "/settings/subscription", label: "Subscription" },
     { href: "/settings/integrations", label: "Integrations" },
     { href: "/settings/templates",    label: "Document templates" },
+    { href: "/settings/email",        label: "E-mail" },
     { href: "/settings/data-import",  label: "Import sales & purchases", perm: "DATA_IMPORT" },
     { href: "/settings/go-live",      label: "Go-live check", perm: "DATA_IMPORT" },
   ]},

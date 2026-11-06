@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getOverdueCustomers, getStatementsPdf, sendReminderPdf, getReminderPreviewPdf, StatementType } from "@/lib/api";
-import { OverdueCustomer } from "@/types";
+import { getOverdueCustomers, getStatementsPdf, sendReminderPdf, getReminderPreviewPdf, mailReminders, mailStatements, StatementType } from "@/lib/api";
+import { MailBulkResult, OverdueCustomer } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { ClientDate } from "@/components/ClientDate";
 import { PageHeader } from "@/components/ListToolbar";
@@ -27,6 +27,20 @@ export default function OverduePage() {
   const [busy, setBusy] = useState<string>("");
   const [error, setError] = useState("");
   const total = rows.reduce((s, r) => s + Number(r.overdue), 0);
+  const [mailed, setMailed] = useState<MailBulkResult[] | null>(null);
+  // Phase M3: statements and the next reminders by e-mail to the ticked customers (all overdue customers when none ticked)
+  const mailAll = async (what: "statements" | "reminders") => {
+    setError("");
+    setBusy(what);
+    try {
+      const r: MailBulkResult[] = what === "reminders" ? await mailReminders(ticked.length ? ticked : undefined)
+        : await mailStatements(ticked.length ? ticked : rows.map(x => x.customerId), type, type === "ACTIVITY" ? defaultFrom() : undefined, isoDay(new Date()));
+      setMailed(r);
+      qc.invalidateQueries({ queryKey: ["overdue-customers"] });
+    } catch (e) {
+      setError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "The e-mails could not be made");
+    } finally { setBusy(""); }
+  };
 
   const run = async (key: string, load: () => Promise<Blob>, file: string, after?: () => void) => {
     setError("");
@@ -49,8 +63,20 @@ export default function OverduePage() {
             ? { type, from: defaultFrom(), to: isoDay(new Date()) } : { type }), "statements.pdf")}>
           {busy === "statements" ? "Preparing…" : `Print statements${ticked.length ? ` (${ticked.length})` : ""}`}
         </button>
+        <button type="button" className={BTN_SECONDARY} disabled={rows.length === 0 || busy !== ""} onClick={() => mailAll("statements")}>
+          {busy === "statements" ? "Sending…" : `E-mail statements${ticked.length ? ` (${ticked.length})` : ""}`}
+        </button>
+        {canRemind && <button type="button" className={BTN_SECONDARY} disabled={rows.length === 0 || busy !== ""} onClick={() => mailAll("reminders")} data-testid="mail-reminders">
+          {busy === "reminders" ? "Sending…" : `E-mail reminders${ticked.length ? ` (${ticked.length})` : ""}`}
+        </button>}
       </PageHeader>
       {error && <p role="alert" className="mb-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
+      {mailed && (
+        <div className="mb-3 text-sm bg-gray-50 rounded px-3 py-2" data-testid="mailed">
+          <p>{mailed.filter(m => m.status !== "SKIPPED" && m.status !== "FAILED").length} e-mailed, {mailed.filter(m => m.status === "SKIPPED" || m.status === "FAILED").length} not</p>
+          <ul className="text-xs text-amber-800">{mailed.filter(m => m.message).map(m => <li key={m.customerId}>{m.customer}: {m.message}</li>)}</ul>
+        </div>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
         <table className="w-full text-sm" data-testid="overdue-table">

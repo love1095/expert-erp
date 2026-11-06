@@ -747,6 +747,25 @@ Plan: [`docs/next-phases.md`](docs/next-phases.md) (owner, 2026-11-07). The func
 - [x] E2E XERO-002: connect to the fake Xero from the page, switch to the link, an invoice and its contact sent ("Sent 2, failed 0") and shown in the History, Pull now
 - [x] **Full suites green**: backend 241 tests; e2e 105 tests. The e2e browser and test process now run on UTC (`timezoneId: 'UTC'`, `TZ=UTC` in `make e2e`), the server's clock — four older tests (DSH-001/002, XERO-001, PLEDGER-001) took "today" from the browser and failed after midnight in Asia
 
+## Phase M — E-mail ✅ (M1 ✅ M2 ✅ M3 ✅ M4 ✅)
+
+Spec §7 (Must): quotes, invoices, credit notes, statements, overdue reminders and purchase orders e-mailed from the ERP; built against a fake sender (`APP_MAIL_MODE=fake`, the default).
+
+### M1 Sending layer ✅
+- [x] `MailSender` (`integration/mail`): `FakeMailSender` keeps every e-mail in the outbox without sending (default); `SmtpMailSender` (`APP_MAIL_MODE=live`) is the live one — **SMTP needs a mail library (spring-boot-starter-mail / Jakarta Mail), not added without the owner's OK**: until then it refuses clearly and the e-mail stays in the outbox marked "Not sent"
+- [x] **Settings → E-mail** (`V50`, `mail_settings`): sender name and address (checked), reply-to, SMTP host, port, username, **password stored encrypted** (only replaced when a new one is typed), STARTTLS; admins only
+### M2 Templates ✅
+- [x] Editable **subject and text per document type** (quote, sales order, invoice, credit note, statement, 1st / 2nd reminder, final notice, purchase order, tracking for phase O), standard wording until the organisation writes its own, back to standard in one click; **placeholders** {{customer}}, {{supplier}}, {{number}}, {{amount}}, {{amount_due}}, {{due_date}}, {{date}}, {{reference}}, {{order_number}}, {{invoices}}, {{balance}}, {{company}} ({{carrier}}, {{tracking}} for O) — an unknown one is left showing, so a typo is seen
+- [x] The **PDF attached** is the document's own (I4 templates; G3 statement and reminder layouts)
+### M3 Actions ✅
+- [x] **E-mail** next to Print on quotes and orders, invoices and credit notes (issued), purchase orders; on the customer's statement card (statement, next reminder): a dialog with To (the customer's default contact, else the first with an e-mail; the supplier's e-mail), Cc, subject and text from the template, all editable, then Send; a missing address says who has none and where to add it, an address that is not one is refused
+- [x] **Overdue → E-mail statements / E-mail reminders** for the ticked customers (reminders: every overdue customer when none ticked): G3's levels (1st, 2nd, final notice), a reminder **counted on its invoices only once the e-mail has gone**; customers without an address are listed, not stopped on
+- [x] Permissions per document: sales documents need *Sale - add / edit*, purchase orders *Purchase - add / edit*, statements *Customers*, reminders *Customer credit*; settings and templates admins
+### M4 Log ✅
+- [x] **Outbox** (Settings → E-mail): every e-mail, when, about what, to whom, subject, status (kept in test mode / sent / not sent and why), the text and the PDF as sent; each document shows **its e-mails** (who sent what, when, to whom) — invoice, order, purchase order, customer
+- [x] Tests: `MailTest` (2) — no sender address refused; SMTP password encrypted; quote (QUOTE template, the customer's default contact, £24 with VAT, kept in the fake outbox, a real PDF attached), order, invoice (due date), credit note, the invoice's own log; purchase order to the supplier's e-mail, a supplier without one refused clearly, a typed address checked and used with the user's own subject; statements to two customers, one without an address listed; overdue reminders: the first sent and counted on the invoice, the next would be the second; templates with an unknown placeholder, reset; staff cannot send reminders or edit templates; another organisation sees nothing. E2E MAIL-001 (settings, invoice e-mailed from its page, outbox, invoice's log); statements and customers e2e green
+- [ ] Owner: the SMTP account or mail provider and the sender address; OK to add the mail library for live sending (TODO)
+
 ---
 
 ## Cross-cutting (done throughout)
@@ -863,6 +882,9 @@ Plan: [`docs/next-phases.md`](docs/next-phases.md) (owner, 2026-11-07). The func
 | GET/PUT/POST/DELETE | `/vat/mtd`, `/vat/mtd/vrn`, `/vat/mtd/connect`, `/vat/mtd/callback` | Making Tax Digital connection (changes: ADMIN) |
 | POST | `/vat/mtd/obligations`, `/vat/mtd/submit` | HMRC's VAT periods; submit a return (ADMIN, declaration) |
 | GET/POST | `/vat/review`, `/vat/returns`, `/vat/returns/manual` | Review a period; returns filed; record one filed elsewhere (ADVISER) |
+| GET/PUT/DELETE | `/mail/settings`, `/mail/templates/{type}` | E-mail settings and templates (changes: ADMIN) |
+| POST | `/mail/preview`, `/mail/send`, `/mail/statements`, `/mail/reminders` | Compose / send one e-mail; bulk statements; overdue reminders |
+| GET  | `/mail/outbox` (`docKey`), `/mail/outbox/{id}/attachment` | The outbox and each document's e-mails |
 | GET  | `/ledger/export/{trial-balance,profit-and-loss,balance-sheet,account-transactions,general-ledger}.csv`, `/ledger/export/year-end` | CSV exports and the year-end pack zip (ACCOUNTING) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |

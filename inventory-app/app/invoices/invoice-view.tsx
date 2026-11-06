@@ -2,6 +2,7 @@
 
 import { Clip } from "@/components/ListToolbar";
 import PrintButton from "@/components/PrintButton";
+import EmailButton, { SentEmails } from "@/components/EmailButton";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -82,6 +83,8 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
         actions={!crediting && <>
           {inv.type === "SALES" && <PrintButton kind="invoices" id={inv.id} fileName={`${inv.invoiceNumber}.pdf`}
             docType={isCreditNote ? "CREDIT_NOTE" : "INVOICE"} />}
+          {inv.type === "SALES" && inv.status !== "DRAFT" && inv.status !== "CANCELLED" &&
+            <EmailButton request={{ kind: isCreditNote ? "CREDIT_NOTE" : "INVOICE", id: inv.id }} docKey={`DOC:${inv.id}`} />}
           {(inv.status === "DRAFT" || inv.status === "ISSUED") && !isCreditNote && (
             <button disabled={busy} onClick={() => { if (confirm(`Cancel ${inv.invoiceNumber}?`)) cancelMut.mutate(inv.id); }} className={BTN_DANGER}>
               Cancel invoice
@@ -188,6 +191,7 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
             </>}
           </dl>
         </div>
+        {inv.type === "SALES" && <SentEmails docKey={`DOC:${inv.id}`} />}
       </RecordLayout>
     </div>
   );
