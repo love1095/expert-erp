@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY } from "@/components/DetailParts";
-import { INPUT, errorOf } from "../ledger-parts";
+import { ExportButton, INPUT, errorOf } from "../ledger-parts";
 
 // Which account each kind of posting goes to (Xero export mapping of phase H5, plus the ledger's own)
 const MAPPING: [keyof LedgerSettings, string][] = [
@@ -36,6 +36,7 @@ export default function LedgerSettingsPage() {
     <div className="p-6 max-w-5xl space-y-6">
       <PageHeader title="Ledger settings" />
       <PeriodsForm initial={periods} />
+      <YearEndPack periods={periods} />
       <SettingsForm initial={settings} accounts={accounts} />
       <BalancesForm initial={opening} accounts={accounts} />
     </div>
@@ -43,8 +44,9 @@ export default function LedgerSettingsPage() {
 }
 
 function SettingsForm({ initial, accounts }: { initial: LedgerSettings; accounts: LedgerAccount[] }) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  // Xero's Adviser (K5): the accountant, and admins
+  const { can } = useAuth();
+  const isAdmin = can("ADVISER");
   const qc = useQueryClient();
   const [s, setS] = useState<LedgerSettings>(initial);
   const [msg, setMsg] = useState("");
@@ -81,8 +83,9 @@ function SettingsForm({ initial, accounts }: { initial: LedgerSettings; accounts
 }
 
 function BalancesForm({ initial, accounts }: { initial: OpeningBalances; accounts: LedgerAccount[] }) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  // Xero's Adviser (K5): the accountant, and admins
+  const { can } = useAuth();
+  const isAdmin = can("ADVISER");
   const qc = useQueryClient();
   const [rows, setRows] = useState(() => [...initial.balances.map(b => ({ code: b.accountCode, debit: b.debit ? String(b.debit) : "", credit: b.credit ? String(b.credit) : "" })),
     { code: "", debit: "", credit: "" }]);
@@ -136,8 +139,9 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 /** Phase K2: Xero's Financial settings — financial year end and the two lock dates. */
 function PeriodsForm({ initial }: { initial: LedgerPeriods }) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  // Xero's Adviser (K5): the accountant, and admins
+  const { can } = useAuth();
+  const isAdmin = can("ADVISER");
   const qc = useQueryClient();
   const [p, setP] = useState<LedgerPeriods>(initial);
   const [msg, setMsg] = useState("");
@@ -172,6 +176,28 @@ function PeriodsForm({ initial }: { initial: LedgerPeriods }) {
       </div>
       {isAdmin && <div className="flex items-center gap-3"><button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save financial settings</button>
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}</div>}
+    </section>
+  );
+}
+
+/** Phase K5: everything the accountant asks for at the year end, in one zip. */
+function YearEndPack({ periods }: { periods: LedgerPeriods }) {
+  const now = new Date();
+  // The last year end passed
+  let end = new Date(Date.UTC(now.getFullYear(), periods.yearEndMonth - 1, 1));
+  end = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), Math.min(periods.yearEndDay, new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate())));
+  if (end >= now) end = new Date(Date.UTC(end.getUTCFullYear() - 1, end.getUTCMonth(), Math.min(periods.yearEndDay, new Date(Date.UTC(end.getUTCFullYear() - 1, end.getUTCMonth() + 1, 0)).getUTCDate())));
+  const [yearEnd, setYearEnd] = useState(end.toISOString().slice(0, 10));
+  return (
+    <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-2" data-testid="year-end-pack">
+      <h2 className="font-semibold">Year-end pack for the accountant</h2>
+      <p className="text-xs text-gray-500">Profit and loss and balance sheet with the year before, trial balance, every journal line of the year, aged debtors and
+        creditors, the VAT returns filed and the chart of accounts, as CSV files in one zip. Give your accountant a login with the <b>Accountant</b> role
+        (Admin → Users) to work in the books themselves.</p>
+      <div className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-1">Year ending <input aria-label="Year ending" type="date" className={INPUT} value={yearEnd} onChange={e => setYearEnd(e.target.value)} /></label>
+        <ExportButton name="year-end" params={{ yearEnd }} filename={`Year-end pack ${yearEnd}.zip`} label="Download the year-end pack" />
+      </div>
     </section>
   );
 }

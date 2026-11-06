@@ -24,8 +24,9 @@ const BOXES: [keyof VatBoxes, string][] = [
  * period's nine boxes, submit with the legal declaration (or record a return filed elsewhere), and the returns filed.
  */
 export default function VatReturnsPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  // Xero's Adviser (K5): the accountant, and admins
+  const { can } = useAuth();
+  const isAdmin = can("ADVISER");
   const { data: status } = useQuery<MtdStatus>({ queryKey: ["mtd-status"], queryFn: getMtdStatus });
   const [period, setPeriod] = useState<{ from: string; to: string; periodKey?: string; due?: string } | null>(null);
   return (

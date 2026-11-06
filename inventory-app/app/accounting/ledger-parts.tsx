@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { formatGBP } from "@/lib/currency";
+import { ledgerExport } from "@/lib/api";
+import { download } from "@/app/reports/report-parts";
 
 export const INPUT = "border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white";
 export const CLASS_LABEL: Record<string, string> = { ASSET: "Assets", LIABILITY: "Liabilities", EQUITY: "Equity", REVENUE: "Revenue", EXPENSE: "Expenses" };
@@ -70,5 +73,21 @@ export function CompareControls({ compare, step, onCompare, onStep }: { compare:
         <option value="MONTH">Months</option><option value="QUARTER">Quarters</option><option value="YEAR">Years</option>
       </select>
     </>
+  );
+}
+
+/** Phase K5: a report's CSV export (opens in Excel). */
+export function ExportButton({ name, params, filename, label = "Export CSV" }: { name: string; params: object; filename: string; label?: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button type="button" disabled={busy} className="border border-gray-300 bg-white text-gray-700 px-3 py-1.5 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={async () => {
+          setBusy(true); setError("");
+          try { await download(ledgerExport(name, params), filename); } catch (e) { setError(errorOf(e, "Export failed")); } finally { setBusy(false); }
+        }}>{busy ? "Exporting…" : label}</button>
+      {error && <span role="alert" className="text-xs text-red-700">{error}</span>}
+    </span>
   );
 }

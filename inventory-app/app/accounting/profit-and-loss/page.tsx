@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getProfitAndLoss } from "@/lib/api";
 import { ProfitAndLoss } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
-import { CompareControls, INPUT, StatementSectionRows, StatementTotalRow, errorOf, today } from "../ledger-parts";
+import { CompareControls, ExportButton, INPUT, StatementSectionRows, StatementTotalRow, errorOf, today } from "../ledger-parts";
 
 const monthStart = () => `${today().slice(0, 7)}-01`;
 
@@ -25,6 +25,7 @@ export default function ProfitAndLossPage() {
         <input aria-label="From" type="date" className={INPUT} value={from} onChange={e => setFrom(e.target.value)} />
         <input aria-label="To" type="date" className={INPUT} value={to} onChange={e => setTo(e.target.value)} />
         <CompareControls compare={compare} step={step} onCompare={setCompare} onStep={setStep} />
+        <ExportButton name="profit-and-loss.csv" params={{ from, to, compare, step }} filename={`Profit and loss ${from} to ${to}.csv`} />
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{errorOf(error)}</p>}
       {isLoading || !data ? (!error && <p className="text-sm text-gray-500">Loading…</p>) : (

@@ -6,7 +6,7 @@ import { getAccountTransactions, getLedgerAccounts } from "@/lib/api";
 import { AccountTransactions, LedgerAccount } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
-import { INPUT, SourceLink, errorOf, money, today } from "../ledger-parts";
+import { ExportButton, INPUT, SourceLink, errorOf, money, today } from "../ledger-parts";
 
 /** Phase K1: Xero's Account Transactions — one account's lines in a period with the balance before, running and after. */
 export default function AccountTransactionsPage({ initialAccount, initialFrom, initialTo }: { initialAccount: string; initialFrom: string; initialTo: string }) {
@@ -28,6 +28,7 @@ export default function AccountTransactionsPage({ initialAccount, initialFrom, i
         </select>
         <input aria-label="From" type="date" className={INPUT} value={from} onChange={e => setFrom(e.target.value)} />
         <input aria-label="To" type="date" className={INPUT} value={to} onChange={e => setTo(e.target.value)} />
+        {account && <ExportButton name="account-transactions.csv" params={{ account, from, to }} filename={`Account ${account} ${from} to ${to}.csv`} />}
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{errorOf(error)}</p>}
       {account && (isLoading || !data ? <p className="text-sm text-gray-500">Loading…</p> : (

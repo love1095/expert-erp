@@ -26,25 +26,25 @@ public class MtdVatController {
     }
 
     @PutMapping("/mtd/vrn")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public MtdVatService.Status vrn(@RequestBody Map<String, String> body) {
         return mtd.setVrn(body.get("vrn"));
     }
 
     @PostMapping("/mtd/connect")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public Map<String, String> connect() {
         return Map.of("url", mtd.connect());
     }
 
     @PostMapping("/mtd/callback")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public MtdVatService.Status callback(@RequestBody Map<String, String> body) {
         return mtd.callback(body.get("code"), body.get("state"));
     }
 
     @DeleteMapping("/mtd")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public MtdVatService.Status disconnect() {
         return mtd.disconnect();
     }
@@ -65,7 +65,7 @@ public class MtdVatController {
     public record SubmitRequest(String periodKey, LocalDate from, LocalDate to, LocalDate due, boolean declaration, MtdVatService.ClientInfo client) {}
 
     @PostMapping("/mtd/submit")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public MtdVatService.Filed submit(@RequestBody SubmitRequest req, HttpServletRequest http) {
         return mtd.submit(req.periodKey(), req.from(), req.to(), req.due(), req.declaration(), withAddress(req.client(), http));
     }
@@ -73,7 +73,7 @@ public class MtdVatController {
     public record ManualRequest(LocalDate from, LocalDate to, String note) {}
 
     @PostMapping("/returns/manual")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public MtdVatService.Filed recordManual(@RequestBody ManualRequest req) {
         return mtd.recordManual(req.from(), req.to(), req.note());
     }

@@ -228,6 +228,10 @@ export const submitVatReturn = (body: object) => api.post("/vat/mtd/submit", bod
 export const recordVatReturn = (body: object) => api.post("/vat/returns/manual", body).then(r => r.data);
 export const getFiledVatReturns = () => api.get("/vat/returns").then(r => r.data);
 
+// Phase K5: exports for the accountant (CSV that opens in Excel) and the year-end pack
+export const ledgerExport = (name: string, params: object) =>
+  api.get(`/ledger/export/${name}`, { params, responseType: "blob" }).then(r => r.data as Blob);
+
 // Phase J: Cin7's sale / purchase task CSV import (preview with apply=false), its logs, and the go-live check
 export const importTasks = ({ kind, file, options, apply }:
   { kind: "sales" | "purchases"; file: File; options: Record<string, string | number | boolean | undefined>; apply: boolean }) => {

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getJournalReport, getLedgerAccounts } from "@/lib/api";
 import { LedgerAccount, LedgerJournal } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
-import { INPUT, SourceLink, money, today } from "../ledger-parts";
+import { ExportButton, INPUT, SourceLink, money, today } from "../ledger-parts";
 
 /** Phase K1: Xero's Journal Report — every journal posted (newest first), reversals marked, with its lines. */
 export default function JournalsPage() {
@@ -21,6 +21,7 @@ export default function JournalsPage() {
       <div className="flex gap-2 text-sm">
         <input aria-label="From" type="date" className={INPUT} value={from} onChange={e => setFrom(e.target.value)} />
         <input aria-label="To" type="date" className={INPUT} value={to} onChange={e => setTo(e.target.value)} />
+        <ExportButton name="general-ledger.csv" params={{ from, to }} filename={`General ledger ${from} to ${to}.csv`} label="Export general ledger (CSV)" />
       </div>
       {isLoading ? <p className="text-sm text-gray-500">Loading…</p> : journals.length === 0 ? <p className="text-sm text-gray-400">No journals in this period</p> : (
         <div className="space-y-3" data-testid="journal-report">

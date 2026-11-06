@@ -322,8 +322,8 @@ public class MtdVatService {
 
     private static void requireAdviser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean ok = auth != null && auth.getAuthorities().stream().anyMatch(a -> Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN").contains(a.getAuthority()));
-        if (!ok) throw new org.springframework.security.access.AccessDeniedException("Only an admin can file a VAT return");
+        boolean ok = auth != null && auth.getAuthorities().stream().anyMatch(a -> Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "PERM_ADVISER").contains(a.getAuthority()));
+        if (!ok) throw new org.springframework.security.access.AccessDeniedException("Only an adviser (the accountant) or an admin can file a VAT return");
     }
 
     private static String enc(String s) {

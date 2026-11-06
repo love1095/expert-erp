@@ -7,7 +7,7 @@ import { getTrialBalance } from "@/lib/api";
 import { TrialBalance } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
-import { CLASS_LABEL, INPUT, money, errorOf, today } from "../ledger-parts";
+import { CLASS_LABEL, ExportButton, INPUT, money, errorOf, today } from "../ledger-parts";
 
 /** Phase K1: Xero's Trial Balance — each account's balance on a day, debits and credits, grouped by class. */
 export default function TrialBalancePage() {
@@ -19,6 +19,7 @@ export default function TrialBalancePage() {
     <div className="p-6 max-w-5xl space-y-4">
       <PageHeader title="Trial balance" />
       <label className="flex items-center gap-2 text-sm">As at <input aria-label="As at" type="date" className={INPUT} value={date} onChange={e => setDate(e.target.value)} /></label>
+      <ExportButton name="trial-balance.csv" params={{ date }} filename={`Trial balance ${date}.csv`} />
       {error && <p role="alert" className="text-sm text-red-700">{errorOf(error)}</p>}
       {isLoading || !data ? <p className="text-sm text-gray-500">Loading…</p> : (
         <>

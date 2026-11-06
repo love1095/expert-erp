@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getBalanceSheet } from "@/lib/api";
 import { BalanceSheet } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
-import { CompareControls, INPUT, StatementSectionRows, StatementTotalRow, errorOf, today } from "../ledger-parts";
+import { CompareControls, ExportButton, INPUT, StatementSectionRows, StatementTotalRow, errorOf, today } from "../ledger-parts";
 
 /**
  * Phase K2: Xero's Balance Sheet — assets, liabilities, net assets and equity, where Current Year Earnings and
@@ -25,6 +25,7 @@ export default function BalanceSheetPage() {
       <div className="flex flex-wrap gap-2 items-center text-sm">
         <label className="flex items-center gap-1">As at <input aria-label="As at" type="date" className={INPUT} value={date} onChange={e => setDate(e.target.value)} /></label>
         <CompareControls compare={compare} step={step} onCompare={setCompare} onStep={setStep} />
+        <ExportButton name="balance-sheet.csv" params={{ date, compare, step }} filename={`Balance sheet ${date}.csv`} />
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{errorOf(error)}</p>}
       {isLoading || !data ? (!error && <p className="text-sm text-gray-500">Loading…</p>) : (<>

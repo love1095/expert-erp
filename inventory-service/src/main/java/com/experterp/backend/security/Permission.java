@@ -41,6 +41,8 @@ public enum Permission {
     REPORTS_FINANCIAL("Reports", "Financial reports (VAT return, aged debtors and creditors, sales profit, inventory movement, Xero export)", true, false),
     // Phase K: the ERP's own accounting (like Xero)
     ACCOUNTING("Accounting", "Accounting - Chart of accounts, manual journals, trial balance and ledger reports", true, false),
+    // Xero's Adviser: the accountant's rights (K5)
+    ADVISER("Accounting", "Accounting - Adviser: chart of accounts, ledger settings and lock dates, work up to the all-users lock date, file VAT returns", false, false),
     DASHBOARD("Dashboard", "Dashboard", true, true),
     AUDIT_LOG("Audit", "Audit log - View", true, false);
 

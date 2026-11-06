@@ -24,6 +24,7 @@ public class LedgerController {
     private final LedgerService ledger;
     private final com.experterp.backend.service.LedgerPeriodService periods;
     private final com.experterp.backend.service.FinancialReportService reports;
+    private final com.experterp.backend.service.LedgerExportService exports;
 
     // ---- chart of accounts ----
 
@@ -34,25 +35,25 @@ public class LedgerController {
     }
 
     @PostMapping("/accounts")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public ChartOfAccountsService.Account addAccount(@RequestBody ChartOfAccountsService.AccountRequest req) {
         return chart.save(null, req);
     }
 
     @PutMapping("/accounts/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public ChartOfAccountsService.Account updateAccount(@PathVariable Long id, @RequestBody ChartOfAccountsService.AccountRequest req) {
         return chart.save(id, req);
     }
 
     @DeleteMapping("/accounts/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public void deleteAccount(@PathVariable Long id) {
         chart.delete(id);
     }
 
     @PostMapping(value = "/accounts/import", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public ChartOfAccountsService.ImportResult importAccounts(@RequestParam("file") MultipartFile file,
                                                              @RequestParam(defaultValue = "false") boolean apply) throws IOException {
         if (file.isEmpty()) throw new IllegalArgumentException("The file is empty");
@@ -75,7 +76,7 @@ public class LedgerController {
     }
 
     @PutMapping("/settings")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public LedgerService.Settings updateSettings(@RequestBody LedgerService.Settings s) {
         return ledger.updateSettings(s);
     }
@@ -86,7 +87,7 @@ public class LedgerController {
     }
 
     @PutMapping("/opening-balances")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public LedgerService.Opening saveOpening(@RequestBody List<LedgerService.OpeningBalance> balances) {
         return ledger.saveOpening(balances);
     }
@@ -127,7 +128,7 @@ public class LedgerController {
     }
 
     @PutMapping("/periods")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public com.experterp.backend.service.LedgerPeriodService.Periods updatePeriods(@RequestBody com.experterp.backend.service.LedgerPeriodService.Periods p) {
         return periods.update(p);
     }
@@ -168,5 +169,50 @@ public class LedgerController {
                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                                     @RequestParam(required = false) String source) {
         return ledger.journalReport(from, to, source);
+    }
+
+    // ---- exports (K5): CSV that opens in Excel, and the accountant's year-end pack ----
+
+    @GetMapping("/export/trial-balance.csv")
+    public org.springframework.http.ResponseEntity<byte[]> exportTrialBalance(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return file(exports.trialBalanceCsv(date), "Trial balance " + (date == null ? LocalDate.now() : date) + ".csv", "text/csv");
+    }
+
+    @GetMapping("/export/profit-and-loss.csv")
+    public org.springframework.http.ResponseEntity<byte[]> exportProfitAndLoss(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "0") int compare, @RequestParam(defaultValue = "MONTH") com.experterp.backend.service.FinancialReportService.Step step) {
+        return file(exports.profitAndLossCsv(from, to, compare, step), "Profit and loss " + from + " to " + to + ".csv", "text/csv");
+    }
+
+    @GetMapping("/export/balance-sheet.csv")
+    public org.springframework.http.ResponseEntity<byte[]> exportBalanceSheet(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "0") int compare, @RequestParam(defaultValue = "MONTH") com.experterp.backend.service.FinancialReportService.Step step) {
+        return file(exports.balanceSheetCsv(date, compare, step), "Balance sheet " + (date == null ? LocalDate.now() : date) + ".csv", "text/csv");
+    }
+
+    @GetMapping("/export/account-transactions.csv")
+    public org.springframework.http.ResponseEntity<byte[]> exportAccountTransactions(@RequestParam String account,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return file(exports.accountTransactionsCsv(account, from, to), "Account " + account + " " + from + " to " + to + ".csv", "text/csv");
+    }
+
+    @GetMapping("/export/general-ledger.csv")
+    public org.springframework.http.ResponseEntity<byte[]> exportGeneralLedger(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return file(exports.generalLedgerCsv(from, to), "General ledger " + from + " to " + to + ".csv", "text/csv");
+    }
+
+    @GetMapping("/export/year-end")
+    public org.springframework.http.ResponseEntity<byte[]> yearEndPack(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate yearEnd) {
+        com.experterp.backend.service.LedgerExportService.Pack p = exports.yearEndPack(yearEnd);
+        return file(p.zip(), p.filename(), "application/zip");
+    }
+
+    private static org.springframework.http.ResponseEntity<byte[]> file(byte[] body, String name, String type) {
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", org.springframework.http.ContentDisposition.attachment().filename(name, java.nio.charset.StandardCharsets.UTF_8).build().toString())
+                .contentType(org.springframework.http.MediaType.parseMediaType(type)).body(body);
     }
 }

@@ -18,8 +18,9 @@ interface Form { id: number | null; code: string; name: string; type: string; ta
  * add / edit / archive / delete, and import of Xero's chart export.
  */
 export default function ChartPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  // Xero's Adviser (K5): the accountant, and admins
+  const { can } = useAuth();
+  const isAdmin = can("ADVISER");
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("ALL");
   const [search, setSearch] = useState("");

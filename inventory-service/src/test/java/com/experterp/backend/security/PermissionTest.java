@@ -79,7 +79,9 @@ class PermissionTest {
     void staffSeeNoCostAndAManagerDoesUnlessTheirRoleSaysOtherwise() throws Exception {
         assertThat(Permission.defaultsFor(User.Role.STAFF)).contains(SALE_EDIT, PURCHASE_PRICES)
                 .doesNotContain(PRODUCT_COST, STOCK_VALUE, SALE_PROFIT, REPORTS_FINANCIAL);
-        assertThat(Permission.defaultsFor(User.Role.MANAGER)).containsAll(List.of(Permission.values()));
+        // Managers have every tick but Adviser (the accountant's, K5, as Xero's Adviser role)
+        assertThat(Permission.defaultsFor(User.Role.MANAGER)).containsAll(java.util.Arrays.stream(Permission.values())
+                .filter(p -> p != Permission.ADVISER).toList()).doesNotContain(Permission.ADVISER);
 
         ProductResponse product = new ProductResponse();
         product.setCostPrice(new BigDecimal("6.00"));
@@ -97,7 +99,7 @@ class PermissionTest {
 
         // An admin makes a role "Sales lead": sales with margins, no product cost; the manager is given it
         signIn(user("admin2-" + id, User.Role.ADMIN));
-        assertThat(roles.roles()).extracting(AccessRoleService.Role::name).containsExactly("Manager", "Staff");
+        assertThat(roles.roles()).extracting(AccessRoleService.Role::name).containsExactly("Accountant", "Manager", "Staff");
         AccessRoleService.Role lead = roles.create(new AccessRoleService.RoleRequest("Sales lead",
                 List.of("SALE_VIEW", "SALE_EDIT", "SALE_PROFIT", "CUSTOMERS", "PRODUCT_VIEW")));
         roles.assign(manager.getId(), lead.id());

@@ -6,7 +6,8 @@ test.describe('Bank reconciliation', () => {
     { tag: ['@P1', '@accounting'] }, async ({ page, api }) => {
       const d = new Date();
       const iso = d.toISOString().slice(0, 10);
-      const uk = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      // The server's date (UTC), not the browser's: after midnight in Asia they differ
+      const uk = `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
       const spend = await api.http.post('/api/bank/transactions', { data: { kind: 'SPEND', date: iso, accountCode: '090', contact: 'Viking',
         reference: 'INV-9', taxInclusive: true, lines: [{ accountCode: '461', description: 'Paper', amount: 60 }] } });
       expect(spend.ok()).toBe(true);

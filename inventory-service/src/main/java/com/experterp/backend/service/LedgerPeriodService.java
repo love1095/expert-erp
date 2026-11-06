@@ -101,7 +101,7 @@ public class LedgerPeriodService {
 
     private static boolean adviser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null && auth.getAuthorities().stream().anyMatch(a -> Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN").contains(a.getAuthority()));
+        return auth != null && auth.getAuthorities().stream().anyMatch(a -> Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "PERM_ADVISER").contains(a.getAuthority()));
     }
 
     private static Date d(LocalDate v) {

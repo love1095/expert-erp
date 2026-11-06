@@ -45,13 +45,19 @@ public class AccessRoleService {
                 rs.getString(2), Permission.parse(rs.getString(3)).stream().map(Enum::name).toList(), rs.getInt(4)), t);
     }
 
-    // The two roles every organisation starts with: the old Manager and Staff defaults
+    // The roles every organisation starts with: the old Manager and Staff defaults, and (K5) the accountant
     private void ensureDefaults(Long t) {
         Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM access_roles WHERE tenant_id = ?", Integer.class, t);
         if (n != null && n > 0) return;
-        jdbc.update("INSERT INTO access_roles (tenant_id, name, permissions) VALUES (?, 'Manager', ?), (?, 'Staff', ?) ON CONFLICT DO NOTHING",
-                t, csv(Permission.defaultsFor(User.Role.MANAGER)), t, csv(Permission.defaultsFor(User.Role.STAFF)));
+        jdbc.update("INSERT INTO access_roles (tenant_id, name, permissions) VALUES (?, 'Manager', ?), (?, 'Staff', ?), (?, 'Accountant', ?) ON CONFLICT DO NOTHING",
+                t, csv(Permission.defaultsFor(User.Role.MANAGER)), t, csv(Permission.defaultsFor(User.Role.STAFF)), t, csv(ACCOUNTANT));
     }
+
+    /** Xero's Adviser for the accountant: the books, the reports, everything else to look at only. */
+    public static final java.util.Set<Permission> ACCOUNTANT = java.util.EnumSet.of(Permission.ACCOUNTING, Permission.ADVISER,
+            Permission.REPORTS_FINANCIAL, Permission.REPORTS_SALE, Permission.REPORTS_PURCHASE, Permission.REPORTS_INVENTORY,
+            Permission.SALE_VIEW, Permission.SALE_PROFIT, Permission.PURCHASE_VIEW, Permission.PURCHASE_PRICES, Permission.PRODUCT_VIEW,
+            Permission.PRODUCT_COST, Permission.STOCK_VALUE, Permission.DASHBOARD, Permission.AUDIT_LOG);
 
     @Transactional
     public Role create(RoleRequest req) {

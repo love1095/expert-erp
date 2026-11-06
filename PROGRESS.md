@@ -655,7 +655,7 @@ The functions for moving an organisation from Cin7 Core; the move itself (Expert
 - [x] Tests: `TaskImportTest` (5) — an open order keeps Cin7's number, reference and date, preview writes nothing, the same file is refused the second time; an unpaid invoice already shipped keeps its number and dates, discount and charge, £10 paid into 650, no stock moved, recorded as already in Xero; Cin7's rules: a new customer created with its shipping address and contact, Auto Pick + Pack + Ship ships, credit note CR with its own number refunded into 650 on its date, short of stock an error unless backordered is ticked; errors (future date, unknown SKU, wrong Total, credit note without Authorised + shipped, unknown RecordType) stop the whole file; open PO, a bill with Received rows, CreditLines + Unstock sending 2 back (stock 10 + 4 − 2), new supplier created; go-live check figures; Cin7 date formats. `PermissionTest` green. E2E CUTOVER-001 passed (2026-11-06)
 - [ ] At cutover (owner): run [`docs/cutover.md`](docs/cutover.md) — rehearsal, then the weekend; production server, HTTPS, off-site backup copy
 
-## Phase K — ERP accounting, like Xero (K1 ✅ K2 ✅ K3 ✅ K4 ✅)
+## Phase K — ERP accounting, like Xero ✅ (K1 ✅ K2 ✅ K3 ✅ K4 ✅ K5 ✅)
 
 The ERP's own books, so it can be sold all-in-one; the Xero export / link stays for organisations that keep Xero. Reference: Xero (Expert Safety's chart of accounts read from Cin7's copy of it, read-only, 2026-11-06: Xero's UK standard chart plus 650–654 banks, 615 Supplier Deposits, 631 Inventory Control, 802 Customer Credits).
 
@@ -699,7 +699,14 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 - [x] Tests: `VatFilingTest` (2, against a fake HMRC) — boxes from receive / spend money with 20 % VAT (1 £20, 4 £10, 5 £10, 6 £100, 7 £50), ledger check agrees; VAT number rules; connect with the state checked, tokens encrypted; obligations; declaration required, managers refused, submission values and fraud headers, receipt kept, books locked, no second filing; a return recorded as filed elsewhere, future periods refused; an expired token refreshed. `VatReturnTest` green. E2E VAT-001 passed; finance e2e (incl. VAT-RETURN) green
 - [ ] Owner: register on HMRC's Developer Hub, test in the sandbox, then apply for production (HMRC checks the fraud headers) — see TODO
 - [ ] Later: HMRC's liabilities and payments, viewing a submitted return from HMRC, cash accounting and flat rate schemes, VAT rates on manual journals
-- [ ] Next: K5 accountant access and exports
+
+### K5 The accountant: Adviser rights, exports, year-end pack ✅
+- [x] **Adviser** permission (Xero's Adviser role): the chart of accounts, ledger settings, conversion balances and lock dates; works up to the *all users* lock date while others stop at the *all users except advisers* date; files VAT returns (MTD or recorded). Admins have it; replaces "admins are the advisers" of K2 / K4
+- [x] **Accountant** starting role (`V45` for organisations with roles already; new organisations get it with Manager and Staff): Accounting + Adviser, every report, and everything else to look at only (sales, purchases, products, costs, stock value, dashboard, audit log) — give the accountant a login with it (Admin → Users)
+- [x] **Exports** (`LedgerExportService`), CSV that opens in Excel (with a byte order mark for £): trial balance, profit and loss and balance sheet (with their comparison columns), account transactions, and the **general ledger** (every journal line in a period with account name and type, VAT rate, reversals) — an Export button on each report
+- [x] **Year-end pack** (Ledger settings): one zip for the financial year ending on a day — P&L with the year before, balance sheet with the year end before, trial balance, the year's general ledger, aged debtors and creditors at the year end, VAT returns filed in the year, the chart of accounts in Xero's import headings, and a README with the lock dates
+- [x] Tests: `AccountantTest` (2) — the Accountant role and its ticks; a manager stopped in the locked year while the Adviser posts there and records the VAT return, both stopped by the all-users date; trial balance, P&L and general ledger CSV; the year-end pack's eight files and README, a day that is not a year end refused. E2E ACCT-001 passed (CSV and zip download, Accountant role); BANK-001 date fixed (the server's date, not the browser's, after midnight in Asia)
+- [ ] Later: PDF of the statements, Excel (.xlsx) and Google Sheets export, an accountant invited by e-mail (with the e-mail integration), fixed asset register and depreciation, budgets
 
 ---
 
@@ -816,7 +823,8 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 | GET/POST | `/bank/transactions`; POST `/bank/transactions/{id}/void` | Spend / receive money and transfers |
 | GET/PUT/POST/DELETE | `/vat/mtd`, `/vat/mtd/vrn`, `/vat/mtd/connect`, `/vat/mtd/callback` | Making Tax Digital connection (changes: ADMIN) |
 | POST | `/vat/mtd/obligations`, `/vat/mtd/submit` | HMRC's VAT periods; submit a return (ADMIN, declaration) |
-| GET/POST | `/vat/review`, `/vat/returns`, `/vat/returns/manual` | Review a period; returns filed; record one filed elsewhere (ADMIN) |
+| GET/POST | `/vat/review`, `/vat/returns`, `/vat/returns/manual` | Review a period; returns filed; record one filed elsewhere (ADVISER) |
+| GET  | `/ledger/export/{trial-balance,profit-and-loss,balance-sheet,account-transactions,general-ledger}.csv`, `/ledger/export/year-end` | CSV exports and the year-end pack zip (ACCOUNTING) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | Every organisation with its plan and usage (SUPER_ADMIN) |
