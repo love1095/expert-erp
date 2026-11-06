@@ -140,6 +140,7 @@ public class SaleOrderResponse {
         private String notes;
         private String trackingCompany;
         private String trackingNumber;
+        private String trackingUrl;
         // Shopify orders only: PENDING / SYNCED / FAILED, with the error or a note
         private Fulfilment.SyncStatus syncStatus;
         private String syncMessage;

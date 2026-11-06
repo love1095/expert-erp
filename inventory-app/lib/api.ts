@@ -242,7 +242,15 @@ export const cancelPickList = (id: number) => api.post(`/warehouse/pick-lists/${
 export const getPickListPdf = (id: number) => api.get(`/warehouse/pick-lists/${id}/pdf`, { responseType: "blob" }).then(r => r.data as Blob);
 export const getOrderWarehouse = (id: number) => api.get(`/warehouse/orders/${id}`).then(r => r.data);
 export const packOrder = (id: number, cartons?: object[]) => api.post(`/warehouse/orders/${id}/pack`, cartons ?? null).then(r => r.data);
-export const shipPacked = (id: number, carrier?: string, trackingNumber?: string) => api.post(`/warehouse/orders/${id}/ship`, { carrier, trackingNumber }).then(r => r.data);
+export const shipPacked = (id: number, carrier?: string, trackingNumber?: string, emailCustomer?: boolean) =>
+  api.post(`/warehouse/orders/${id}/ship`, { carrier, trackingNumber, emailCustomer }).then(r => r.data as { order: unknown; email: string | null });
+// Phase O: couriers
+export const getCourierServices = (orderId: number) => api.get(`/warehouse/orders/${orderId}/courier/services`).then(r => r.data);
+export const getCourierShipments = (orderId: number) => api.get(`/warehouse/orders/${orderId}/courier`).then(r => r.data);
+export const bookCourier = (orderId: number, serviceCode: string) => api.post(`/warehouse/orders/${orderId}/courier`, { serviceCode }).then(r => r.data);
+export const getCourierLabel = (id: number) => api.get(`/warehouse/courier/${id}/label`, { responseType: "blob" }).then(r => r.data as Blob);
+export const trackCourier = (id: number) => api.post(`/warehouse/courier/${id}/track`).then(r => r.data);
+export const cancelCourier = (id: number) => api.post(`/warehouse/courier/${id}/cancel`).then(r => r.data);
 export const getDespatchNote = (id: number) => api.get(`/warehouse/orders/${id}/despatch-note`, { responseType: "blob" }).then(r => r.data as Blob);
 
 // Phase N5: adjustments with reasons and approval; stock takes. N4: product by a scanned code

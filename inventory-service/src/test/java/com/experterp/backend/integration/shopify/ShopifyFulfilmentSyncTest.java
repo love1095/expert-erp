@@ -108,13 +108,16 @@ class ShopifyFulfilmentSyncTest {
     void eachShipmentBecomesAShopifyFulfillmentWithTracking() {
         SaleOrderResponse so = shopifyOrder(3, 2);
 
-        SaleOrderResponse afterFirst = saleOrderService.fulfill(so.getId(), shipment("Royal Mail", "RM123GB", line(so, 0, 2)));
+        FulfilmentRequest first = shipment("Royal Mail", "RM123GB", line(so, 0, 2));
+        first.setTrackingUrl("https://tracking.example.test/RM123GB");                       // a courier booking's link (phase O)
+        SaleOrderResponse afterFirst = saleOrderService.fulfill(so.getId(), first);
 
         assertThat(fulfillmentsCreated).hasSize(1);
         JsonNode sent = fulfillmentsCreated.get(0);
         assertThat(sent.path("notifyCustomer").asBoolean()).isTrue();
         assertThat(sent.path("trackingInfo").path("number").asText()).isEqualTo("RM123GB");
         assertThat(sent.path("trackingInfo").path("company").asText()).isEqualTo("Royal Mail");
+        assertThat(sent.path("trackingInfo").path("url").asText()).isEqualTo("https://tracking.example.test/RM123GB");
         JsonNode byFo = sent.path("lineItemsByFulfillmentOrder").get(0);
         assertThat(byFo.path("fulfillmentOrderId").asText()).isEqualTo("gid://shopify/FulfillmentOrder/500");
         assertThat(byFo.path("fulfillmentOrderLineItems").get(0).path("id").asText()).isEqualTo("gid://shopify/FulfillmentOrderLineItem/1110");

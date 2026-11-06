@@ -11,7 +11,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Customer contacts import**: CustomerContacts_11_4_2026.csv is built but not run — load it?
 - [ ] **E-mail**: the SMTP account or mail provider (e.g. Microsoft 365, Google Workspace, SendGrid) and the sender address (e.g. accounts@expertsafety.co.uk) → Settings → E-mail, then APP_MAIL_MODE=live
 - [ ] **Stock adjustment approval value** (phase N5): above what value an adjustment needs a manager (Inventory → Adjustments → Change; empty today = none)
-- [ ] **Couriers** and courier accounts in use today (phase I / warehouse)
+- [ ] **Couriers** and courier accounts in use today (phase O is built against a fake courier): e.g. Royal Mail Click & Drop, DPD, Parcelforce, Evri, or one shipping hub (ShipStation, Sendcloud…); with the accounts and API keys the live clients are built, then APP_COURIER_MODE=live
 - [ ] **Financial year end**: now a setting (Accounting → Ledger settings, 31 March by default) — set Expert Safety to 30 November (1 December start seen in Cin7) once the owner confirms
 
 ## Decide at cutover (phase J) — runbook: [`cutover.md`](cutover.md)
@@ -34,6 +34,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 ## Test later with live systems
 - [ ] **Shopify (live store)**: a price change updates only that product (GLGH-WG-310RP-08 → expect 1 updated); stock push to the real dev store (would set stock for 13,959 linked SKUs); Shopify payouts (money paid into the bank, less fees) not matched to orders yet; Shopify-paid invoices tested with a fake order only
 - [ ] **Xero API link, live test on the Demo Company** (phase L, built against a fake): connect, send each document type, pull a payment back
+- [ ] **Couriers, live**: once built for the owner's couriers — book a real parcel, print its label on the warehouse printer, cancel one, follow tracking
 - [ ] **Xero, first real import** (Demo Company first): credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines
 
 ## Needs the owner's OK

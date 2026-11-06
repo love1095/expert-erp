@@ -263,9 +263,21 @@ public class PickPackService {
         Map<Long, BigDecimal> qty = new LinkedHashMap<>();
         jdbc.query("SELECT sale_order_line_id, SUM(quantity) FROM package_lines WHERE package_id = ANY(?::bigint[]) GROUP BY sale_order_line_id",
                 rs -> { qty.put(rs.getLong(1), rs.getBigDecimal(2)); }, (Object) open.toArray(Long[]::new));
+        Long[] cartons = open.toArray(Long[]::new);
+        // Phase O: cartons booked with a courier ship with its tracking (unless other tracking is typed)
+        String url = null;
+        List<Map<String, Object>> booked = jdbc.queryForList("""
+                SELECT carrier, service_name, tracking_number, tracking_url FROM courier_shipments WHERE tenant_id = ? AND sale_order_id = ? AND status = 'BOOKED'
+                   AND id IN (SELECT courier_shipment_id FROM packages WHERE id = ANY(?::bigint[])) ORDER BY id DESC LIMIT 1""", t, orderId, cartons);
+        if (!booked.isEmpty() && (carrier == null || carrier.isBlank()) && (trackingNumber == null || trackingNumber.isBlank())) {
+            carrier = (String) booked.get(0).get("service_name");
+            trackingNumber = (String) booked.get(0).get("tracking_number");
+            url = (String) booked.get(0).get("tracking_url");
+        }
         FulfilmentRequest req = new FulfilmentRequest();
-        req.setTrackingCompany(carrier);
+        req.setTrackingCompany(carrier == null ? null : carrier.length() > 100 ? carrier.substring(0, 100) : carrier);
         req.setTrackingNumber(trackingNumber);
+        req.setTrackingUrl(url);
         req.setNotes("Cartons " + open.size());
         req.setLines(qty.entrySet().stream().map(e -> {
             FulfilmentRequest.Line l = new FulfilmentRequest.Line();
@@ -276,8 +288,19 @@ public class PickPackService {
         saleOrderService.fulfill(orderId, req);
         List<Fulfilment> f = fulfilments.findBySaleOrderIdOrderByCreatedAtAsc(orderId);
         Long fid = f.isEmpty() ? null : f.get(f.size() - 1).getId();
-        jdbc.update("UPDATE packages SET status = 'SHIPPED', fulfilment_id = ? WHERE id = ANY(?::bigint[])", fid, (Object) open.toArray(Long[]::new));
+        jdbc.update("UPDATE packages SET status = 'SHIPPED', fulfilment_id = ? WHERE id = ANY(?::bigint[])", fid, (Object) cartons);
+        jdbc.update("""
+                UPDATE courier_shipments SET status = 'SHIPPED', fulfilment_id = ? WHERE tenant_id = ? AND status = 'BOOKED'
+                   AND id IN (SELECT courier_shipment_id FROM packages WHERE id = ANY(?::bigint[]))""", fid, t, cartons);
         return order(orderId);
+    }
+
+    /** The order's latest shipment (fulfilment) id. */
+    @Transactional(readOnly = true)
+    public Long lastShipment(Long orderId) {
+        List<Fulfilment> f = fulfilments.findBySaleOrderIdOrderByCreatedAtAsc(orderId);
+        if (f.isEmpty()) throw new IllegalStateException("Nothing shipped yet");
+        return f.get(f.size() - 1).getId();
     }
 
     public record DespatchPrint(String title, String company, List<String> deliverTo, String reference, List<Map<String, Object>> packages) {}

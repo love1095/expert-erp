@@ -22,6 +22,9 @@ public class FulfilmentRequest {
     private String trackingCompany;
     @Size(max = 255)
     private String trackingNumber;
+    // Phase O: the courier's tracking page (a booked courier shipment)
+    @Size(max = 500)
+    private String trackingUrl;
 
     // Empty or missing = ship everything still remaining
     @Valid

@@ -304,6 +304,24 @@ public class MailService {
                             auditService.log("CUSTOMER", r.id(), "OVERDUE_REMINDER", Map.of("level", rem.level(), "by", "e-mail", "overdue", rem.overdue()));
                         });
             }
+            case "TRACKING" -> {
+                // Phase O: a shipment's tracking to the customer (r.id() = the shipment); shown in the order's e-mails
+                require(Permission.SALE_EDIT);
+                Map<String, Object> f = jdbc.queryForList("""
+                        SELECT f.tracking_company, f.tracking_number, f.tracking_url, so.id AS order_id, so.order_number, so.customer_id, so.customer_name
+                          FROM fulfilments f JOIN sale_orders so ON so.id = f.sale_order_id WHERE f.tenant_id = ? AND f.id = ?""", TenantContext.get(), r.id())
+                        .stream().findFirst().orElseThrow(() -> new IllegalArgumentException("Shipment not found"));
+                if (f.get("tracking_number") == null) throw new IllegalStateException("This shipment has no tracking number to send");
+                v.put("customer", (String) f.get("customer_name"));
+                v.put("order_number", (String) f.get("order_number"));
+                v.put("number", (String) f.get("order_number"));
+                v.put("carrier", f.get("tracking_company") == null ? "our courier" : (String) f.get("tracking_company"));
+                v.put("tracking", (String) f.get("tracking_number"));
+                v.put("tracking_url", f.get("tracking_url") == null ? "" : (String) f.get("tracking_url"));
+                Long customerId = f.get("customer_id") == null ? null : ((Number) f.get("customer_id")).longValue();
+                yield composed(DocType.TRACKING, "SO:" + f.get("order_id"), "Tracking " + f.get("order_number"), customerEmail(customerId),
+                        (String) f.get("customer_name"), v, null, null);
+            }
             default -> throw new IllegalArgumentException("Nothing to e-mail for \"" + r.kind() + "\"");
         };
     }
@@ -314,7 +332,7 @@ public class MailService {
         String missing = (party == null ? "The customer" : party) + " has no e-mail address: add one to "
                 + (type == DocType.PURCHASE_ORDER ? "the supplier" : "a contact of the customer") + ", or type it here";
         return new Composed(new Draft(type, key, label, to, null, fill(t.subject(), values), fill(t.body(), values),
-                label.replace(' ', '-') + ".pdf", to == null ? missing : null), pdf, after);
+                pdf == null ? null : label.replace(' ', '-') + ".pdf", to == null ? missing : null), pdf == null ? () -> null : pdf, after);
     }
 
     // ---- log and outbox (M4) ----
@@ -411,5 +429,5 @@ public class MailService {
             DocType.PURCHASE_ORDER, new String[]{"Purchase order {{number}} from {{company}}",
                     "Dear {{supplier}},\n\nPlease find attached our purchase order {{number}}. Please confirm the delivery date.\n\nKind regards,\n{{company}}"},
             DocType.TRACKING, new String[]{"Your order {{order_number}} is on its way",
-                    "Dear {{customer}},\n\nYour order {{order_number}} has been sent with {{carrier}}. Tracking number: {{tracking}}.\n\nKind regards,\n{{company}}"});
+                    "Dear {{customer}},\n\nYour order {{order_number}} has been sent with {{carrier}}. Tracking number: {{tracking}}.\nTrack it here: {{tracking_url}}\n\nKind regards,\n{{company}}"});
 }

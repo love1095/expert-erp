@@ -1359,3 +1359,10 @@ export interface StockTake { id: number; reference: string; warehouseId: number;
   status: "COUNTING" | "POSTED" | "CANCELLED"; createdAt: string; createdBy: string | null; postedAt: string | null; postedBy: string | null;
   lineCount: number; countedLines: number; varianceValue: number; lines: StockTakeLine[] }
 export interface FoundProduct { id: number; sku: string; name: string; barcode: string | null }
+
+// Phase O: couriers
+export interface CourierService { carrier: string; serviceCode: string; name: string; price: number; days: number }
+export interface CourierQuote { mode: string; cartons: number[]; services: CourierService[] }
+export interface CourierShipment { id: number; saleOrderId: number; mode: string; carrier: string; serviceCode: string; serviceName: string; price: number | null;
+  consignmentId: string; trackingNumber: string | null; trackingUrl: string | null; parcels: number; status: "BOOKED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+  trackingStatus: string | null; trackingText: string | null; trackedAt: string | null; fulfilmentId: number | null; createdAt: string; createdBy: string | null; cartons: number[] }

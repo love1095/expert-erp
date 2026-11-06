@@ -333,6 +333,7 @@ public class SaleOrderService {
         f.setNotes(req != null ? req.getNotes() : null);
         f.setTrackingCompany(req != null ? blankToNull(req.getTrackingCompany()) : null);
         f.setTrackingNumber(req != null ? blankToNull(req.getTrackingNumber()) : null);
+        f.setTrackingUrl(req != null ? blankToNull(req.getTrackingUrl()) : null);
         f.setCreatedBy(auditService.currentActorName());
         // Shopify orders: the shipment is sent to Shopify once this transaction has committed
         if (so.getSource() == SaleOrder.Source.SHOPIFY) f.setExternalSyncStatus(Fulfilment.SyncStatus.PENDING);
@@ -687,6 +688,7 @@ public class SaleOrderService {
             e.setNotes(f.getNotes());
             e.setTrackingCompany(f.getTrackingCompany());
             e.setTrackingNumber(f.getTrackingNumber());
+            e.setTrackingUrl(f.getTrackingUrl());
             e.setSyncStatus(f.getExternalSyncStatus());
             e.setSyncMessage(f.getExternalSyncMessage());
             e.setCreatedBy(f.getCreatedBy());

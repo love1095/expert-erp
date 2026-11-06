@@ -93,7 +93,7 @@ function TemplateForm({ t, disabled, onDone }: { t: MailTemplate; disabled: bool
         <input aria-label="Template subject" className={INPUT} disabled={disabled} value={subject} onChange={e => setSubject(e.target.value)} /></label>
       <label className="block text-sm"><span className="text-xs text-gray-600">Message</span>
         <textarea aria-label="Template message" rows={10} className={INPUT} disabled={disabled} value={body} onChange={e => setBody(e.target.value)} /></label>
-      <p className="text-xs text-gray-500">Placeholders: {"{{customer}} {{supplier}} {{number}} {{amount}} {{amount_due}} {{due_date}} {{date}} {{reference}} {{order_number}} {{invoices}} {{balance}} {{company}} {{carrier}} {{tracking}}"}</p>
+      <p className="text-xs text-gray-500">Placeholders: {"{{customer}} {{supplier}} {{number}} {{amount}} {{amount_due}} {{due_date}} {{date}} {{reference}} {{order_number}} {{invoices}} {{balance}} {{company}} {{carrier}} {{tracking}} {{tracking_url}}"}</p>
       {!disabled && <div className="flex items-center gap-2">
         <button className={BTN_PRIMARY} onClick={() => save.mutate()}>Save</button>
         {t.custom && <button className={BTN_SECONDARY} onClick={() => reset.mutate()}>Use the standard wording</button>}

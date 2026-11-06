@@ -44,6 +44,10 @@ public class Fulfilment {
     @Column
     private String trackingNumber;
 
+    // Phase O: the courier's tracking page
+    @Column(length = 500)
+    private String trackingUrl;
+
     // Sending this shipment to the order's source system (Shopify); null when the order has none
     @Enumerated(EnumType.STRING)
     @Column(length = 20)

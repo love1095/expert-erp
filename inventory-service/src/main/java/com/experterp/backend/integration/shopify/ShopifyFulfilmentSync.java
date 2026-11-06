@@ -169,6 +169,7 @@ public class ShopifyFulfilmentSync {
             Map<String, Object> tracking = new LinkedHashMap<>();
             if (shipment.trackingNumber() != null) tracking.put("number", shipment.trackingNumber());
             if (shipment.trackingCompany() != null) tracking.put("company", shipment.trackingCompany());
+            if (shipment.trackingUrl() != null) tracking.put("url", shipment.trackingUrl());
             fulfillment.put("trackingInfo", tracking);
         }
 
@@ -215,7 +216,7 @@ public class ShopifyFulfilmentSync {
 
     private record ShippedLine(String externalLineId, long quantity, String label) {}
 
-    private record Shipment(Long fulfilmentId, String orderExternalId, String trackingCompany, String trackingNumber,
+    private record Shipment(Long fulfilmentId, String orderExternalId, String trackingCompany, String trackingNumber, String trackingUrl,
                             List<ShippedLine> lines) {}
 
     private Shipment load(Long fulfilmentId) {
@@ -234,6 +235,6 @@ public class ShopifyFulfilmentSync {
             }
             lines.add(new ShippedLine(fl.getSaleOrderLine().getExternalLineId(), qty.longValueExact(), label));
         }
-        return new Shipment(f.getId(), f.getSaleOrder().getExternalId(), f.getTrackingCompany(), f.getTrackingNumber(), lines);
+        return new Shipment(f.getId(), f.getSaleOrder().getExternalId(), f.getTrackingCompany(), f.getTrackingNumber(), f.getTrackingUrl(), lines);
     }
 }

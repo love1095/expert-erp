@@ -1,6 +1,7 @@
 package com.experterp.backend.controller;
 
 import com.experterp.backend.service.DocumentService;
+import com.experterp.backend.service.MailService;
 import com.experterp.backend.service.PickPackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class PickPackController {
 
     private final PickPackService pickPack;
+    private final MailService mail;
 
     @GetMapping("/pick-lists")
     public List<PickPackService.PickList> pickLists(@RequestParam(required = false) String status) {
@@ -68,9 +70,28 @@ public class PickPackController {
         return pickPack.pack(id, cartons);
     }
 
+    public record Ship(String carrier, String trackingNumber, Boolean emailCustomer) {}
+
+    public record Shipped(PickPackService.OrderWarehouse order, String email) {}
+
+    /**
+     * Ships the packed cartons (with the courier booking's tracking when booked); then, when asked, e-mails the
+     * tracking to the customer — after the shipment is saved, so a missing e-mail address never stops the shipping.
+     */
     @PostMapping("/orders/{id}/ship")
-    public PickPackService.OrderWarehouse ship(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
-        return pickPack.ship(id, body == null ? null : body.get("carrier"), body == null ? null : body.get("trackingNumber"));
+    public Shipped ship(@PathVariable Long id, @RequestBody(required = false) Ship body) {
+        PickPackService.OrderWarehouse w = pickPack.ship(id, body == null ? null : body.carrier(), body == null ? null : body.trackingNumber());
+        String email = null;
+        if (body != null && Boolean.TRUE.equals(body.emailCustomer())) {
+            Long fulfilment = pickPack.lastShipment(id);
+            try {
+                MailService.Sent s = mail.send(new MailService.Request("TRACKING", fulfilment));
+                email = "Tracking e-mailed to " + s.to();
+            } catch (RuntimeException e) {
+                email = "Tracking not e-mailed: " + e.getMessage();
+            }
+        }
+        return new Shipped(w, email);
     }
 
     @GetMapping("/orders/{id}/despatch-note")
