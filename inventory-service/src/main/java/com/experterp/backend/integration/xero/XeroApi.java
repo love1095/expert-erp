@@ -16,8 +16,19 @@ public final class XeroApi {
 
     private XeroApi() {}
 
-    /** Who and where: the access token and the Xero organisation (the xero-tenant-id header). */
-    public record Session(String accessToken, String xeroTenantId) {}
+    /**
+     * Who and where: the access token and the Xero organisation (the xero-tenant-id header); idempotencyKey (L2): sent as
+     * Xero's Idempotency-Key, so a call repeated after a crash gets Xero's first answer instead of a duplicate.
+     */
+    public record Session(String accessToken, String xeroTenantId, String idempotencyKey) {
+        public Session(String accessToken, String xeroTenantId) {
+            this(accessToken, xeroTenantId, null);
+        }
+
+        public Session withKey(String key) {
+            return new Session(accessToken, xeroTenantId, key);
+        }
+    }
 
     public record Tokens(String accessToken, String refreshToken, long expiresInSeconds) {}
 

@@ -91,6 +91,14 @@ public class HttpXeroClient implements XeroClient {
     }
 
     @Override
+    public Optional<Contact> findContactByName(Session s, String name) {
+        String where = enc("Name==\"" + name.replace("\"", "\\\"") + "\"");
+        JsonNode n = send(api(s, "Contacts?where=" + where).GET());
+        JsonNode first = n.path("Contacts").path(0);
+        return first.isMissingNode() ? Optional.empty() : Optional.of(json.convertValue(first, Contact.class));
+    }
+
+    @Override
     public Contact saveContact(Session s, Contact c) {
         return one(post(s, "Contacts", Map.of("Contacts", List.of(c))), "Contacts", Contact.class);
     }
@@ -149,8 +157,11 @@ public class HttpXeroClient implements XeroClient {
     }
 
     private HttpRequest.Builder api(Session s, String endpoint) {
-        return HttpRequest.newBuilder(URI.create(apiUrl + "/api.xro/2.0/" + endpoint)).timeout(Duration.ofSeconds(30))
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(apiUrl + "/api.xro/2.0/" + endpoint)).timeout(Duration.ofSeconds(30))
                 .header("Authorization", "Bearer " + s.accessToken()).header("xero-tenant-id", s.xeroTenantId()).header("Accept", "application/json");
+        // Xero's idempotency: a repeated POST / PUT with the same key gets the first answer
+        if (s.idempotencyKey() != null) b.header("Idempotency-Key", s.idempotencyKey());
+        return b;
     }
 
     private <T> T one(JsonNode n, String list, Class<T> type) {

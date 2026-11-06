@@ -27,6 +27,9 @@ public interface XeroClient {
     /** The Xero organisations the user gave access to. */
     List<Organisation> connections(String accessToken);
 
+    /** An existing contact with exactly this name (Xero's names are unique), to link instead of creating a second. */
+    java.util.Optional<Contact> findContactByName(Session s, String name);
+
     /** Creates a contact (no ContactID) or updates one. */
     Contact saveContact(Session s, Contact contact);
 

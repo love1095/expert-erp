@@ -15,6 +15,7 @@ import java.util.Map;
 public class XeroController {
 
     private final XeroConnectionService connection;
+    private final com.experterp.backend.integration.xero.XeroSyncService sync;
 
     @GetMapping("/connection")
     public XeroConnectionService.Status status() {
@@ -43,5 +44,25 @@ public class XeroController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
     public XeroConnectionService.Status disconnect() {
         return connection.disconnect();
+    }
+
+    // ---- the sync queue (L2) ----
+
+    @GetMapping("/queue")
+    public Map<String, Object> queue(@RequestParam(required = false) String status, @RequestParam(defaultValue = "200") int limit) {
+        return Map.of("counts", sync.counts(), "items", sync.items(status, limit));
+    }
+
+    @PostMapping("/queue/{id}/retry")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    public void retry(@PathVariable Long id) {
+        sync.retry(id);
+    }
+
+    /** Sends what is due now instead of waiting for the background run. */
+    @PostMapping("/queue/run")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    public com.experterp.backend.integration.xero.XeroSyncService.RunResult run() {
+        return sync.process();
     }
 }

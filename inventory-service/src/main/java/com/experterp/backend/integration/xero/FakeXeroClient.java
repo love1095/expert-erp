@@ -36,6 +36,8 @@ public class FakeXeroClient implements XeroClient {
         public final Map<String, ManualJournal> journals = new ConcurrentHashMap<>();
         public final List<Allocation> allocations = Collections.synchronizedList(new ArrayList<>());
         final Deque<Failure> failures = new ArrayDeque<>();
+        /** Answers already given per Idempotency-Key: a repeat gets the same answer and changes nothing. */
+        final Map<String, Object> answers = new ConcurrentHashMap<>();
         /** Every API call made (endpoint names), to check nothing was sent twice. */
         public final List<String> calls = Collections.synchronizedList(new ArrayList<>());
 
@@ -139,9 +141,29 @@ public class FakeXeroClient implements XeroClient {
         return o;
     }
 
+    @SuppressWarnings("unchecked")
+    private <T> T once(Session s, Org o, java.util.function.Supplier<T> work) {
+        if (s.idempotencyKey() == null) return work.get();
+        Object seen = o.answers.get(s.idempotencyKey());
+        if (seen != null) return (T) seen;
+        T answer = work.get();
+        o.answers.put(s.idempotencyKey(), answer);
+        return answer;
+    }
+
+    @Override
+    public Optional<Contact> findContactByName(Session s, String name) {
+        Org o = call(s, "Contacts?where");
+        return o.contacts.values().stream().filter(c -> c.name().equalsIgnoreCase(name)).findFirst();
+    }
+
     @Override
     public Contact saveContact(Session s, Contact c) {
         Org o = call(s, "Contacts");
+        return once(s, o, () -> doSaveContact(o, c));
+    }
+
+    private Contact doSaveContact(Org o, Contact c) {
         if (c.name() == null || c.name().isBlank()) throw new XeroException(XeroException.Kind.VALIDATION, 400, "The contact name must be specified");
         // Xero: contact names are unique within an organisation
         boolean taken = o.contacts.values().stream().anyMatch(x -> x.name().equalsIgnoreCase(c.name()) && !x.contactID().equals(c.contactID()));
@@ -155,6 +177,10 @@ public class FakeXeroClient implements XeroClient {
     @Override
     public Invoice saveInvoice(Session s, Invoice i) {
         Org o = call(s, "Invoices");
+        return once(s, o, () -> doSaveInvoice(o, i));
+    }
+
+    private Invoice doSaveInvoice(Org o, Invoice i) {
         requireContact(o, i.contact());
         if (!Set.of("ACCREC", "ACCPAY").contains(i.type())) throw new XeroException(XeroException.Kind.VALIDATION, 400, "Type must be ACCREC or ACCPAY");
         if (i.lineItems() == null || i.lineItems().isEmpty()) throw new XeroException(XeroException.Kind.VALIDATION, 400, "At least one line item must be specified");
@@ -190,6 +216,10 @@ public class FakeXeroClient implements XeroClient {
     @Override
     public CreditNote saveCreditNote(Session s, CreditNote c) {
         Org o = call(s, "CreditNotes");
+        return once(s, o, () -> doSaveCreditNote(o, c));
+    }
+
+    private CreditNote doSaveCreditNote(Org o, CreditNote c) {
         requireContact(o, c.contact());
         if (!Set.of("ACCRECCREDIT", "ACCPAYCREDIT").contains(c.type())) throw new XeroException(XeroException.Kind.VALIDATION, 400, "Type must be ACCRECCREDIT or ACCPAYCREDIT");
         if (c.lineItems() == null || c.lineItems().isEmpty()) throw new XeroException(XeroException.Kind.VALIDATION, 400, "At least one line item must be specified");
@@ -205,6 +235,10 @@ public class FakeXeroClient implements XeroClient {
     @Override
     public Allocation allocate(Session s, String creditNoteId, Allocation a) {
         Org o = call(s, "Allocations");
+        return once(s, o, () -> doAllocate(o, creditNoteId, a));
+    }
+
+    private Allocation doAllocate(Org o, String creditNoteId, Allocation a) {
         CreditNote cn = o.creditNotes.get(creditNoteId);
         Invoice inv = a.invoice() == null ? null : o.invoices.get(a.invoice().invoiceID());
         if (cn == null || inv == null) throw new XeroException(XeroException.Kind.NOT_FOUND, 404, "The resource you're looking for cannot be found");
@@ -222,7 +256,8 @@ public class FakeXeroClient implements XeroClient {
 
     @Override
     public Payment createPayment(Session s, Payment p) {
-        return pay(call(s, "Payments"), p);
+        Org o = call(s, "Payments");
+        return once(s, o, () -> pay(o, p));
     }
 
     private Payment pay(Org o, Payment p) {
@@ -270,6 +305,10 @@ public class FakeXeroClient implements XeroClient {
     @Override
     public ManualJournal saveManualJournal(Session s, ManualJournal j) {
         Org o = call(s, "ManualJournals");
+        return once(s, o, () -> doSaveJournal(o, j));
+    }
+
+    private ManualJournal doSaveJournal(Org o, ManualJournal j) {
         if (j.journalLines() == null || j.journalLines().size() < 2) throw new XeroException(XeroException.Kind.VALIDATION, 400, "A journal needs at least two lines");
         BigDecimal sum = j.journalLines().stream().map(JournalLine::lineAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         if (sum.signum() != 0) throw new XeroException(XeroException.Kind.VALIDATION, 400, "The total debits must equal the total credits");
