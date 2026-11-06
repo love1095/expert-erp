@@ -44,6 +44,7 @@ public class LedgerService {
     private final ChartOfAccountsService chart;
     private final AccountingExportService exportService;
     private final AuditService auditService;
+    private final LedgerPeriodService periodService;
     private final Map<Long, Long> lastSync = new ConcurrentHashMap<>();
 
     // ---- settings ----
@@ -159,6 +160,16 @@ public class LedgerService {
                 journalRows.add(new Object[]{++number, e.date(), e.sourceType(), key, e.reference(), e.narration(), false});
                 journalLines.add(e.lines());
                 postedCount++;
+            }
+        }
+        LocalDate hardLock = periodService.periods().hardLockDate();
+        if (hardLock != null) {
+            for (Object[] j : journalRows) {
+                LocalDate d = (LocalDate) j[1];
+                if (!d.isAfter(hardLock)) {
+                    j[1] = hardLock.plusDays(1);
+                    j[5] = cut(j[5] + " (dated " + d + ", in the locked period)", 500);
+                }
             }
         }
         write(t, journalRows, journalLines);
@@ -379,6 +390,7 @@ public class LedgerService {
     public ManualJournal saveManual(Long id, ManualJournalRequest req) {
         Long t = TenantContext.get();
         if (req.date() == null) throw new IllegalArgumentException("The date is required");
+        periodService.check(req.date(), "a manual journal");
         chart.loadStandardChart();
         if (req.narration() == null || req.narration().isBlank()) throw new IllegalArgumentException("The narration is required");
         List<ManualLine> lines = req.lines() == null ? List.of() : req.lines().stream()
@@ -423,6 +435,7 @@ public class LedgerService {
 
     @Transactional
     public void post(Long id) {
+        periodService.check(manualDate(id), "a manual journal");
         int n = jdbc.update("UPDATE manual_journals SET status = 'POSTED', posted_at = now() WHERE tenant_id = ? AND id = ? AND status = 'DRAFT'",
                 TenantContext.get(), id);
         if (n == 0) throw new IllegalStateException("Only a draft can be posted");
@@ -442,9 +455,15 @@ public class LedgerService {
             return;
         }
         if ("VOIDED".equals(status)) throw new IllegalStateException("Already voided");
+        periodService.check(manualDate(id), "a manual journal");
         jdbc.update("UPDATE manual_journals SET status = 'VOIDED', voided_at = now(), voided_by = ? WHERE id = ?", auditService.currentActorName(), id);
         auditService.log("MANUAL_JOURNAL", id, "VOID", Map.of());
         sync(true);
+    }
+
+    private LocalDate manualDate(Long id) {
+        return jdbc.query("SELECT journal_date FROM manual_journals WHERE tenant_id = ? AND id = ?",
+                rs -> rs.next() ? rs.getDate(1).toLocalDate() : null, TenantContext.get(), id);
     }
 
     // ---- conversion balances ----
@@ -467,6 +486,7 @@ public class LedgerService {
     @Transactional
     public Opening saveOpening(List<OpeningBalance> balances) {
         if (settings().conversionDate() == null) throw new IllegalStateException("Set the conversion date first");
+        periodService.check(settings().conversionDate().minusDays(1), "the conversion balances");
         chart.loadStandardChart();
         Long t = TenantContext.get();
         Map<String, ChartOfAccountsService.Account> accounts = chart.byCode();

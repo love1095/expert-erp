@@ -9,7 +9,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Cin7 read-only check**: PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data)
 - [ ] **Customer contacts import**: CustomerContacts_11_4_2026.csv is built but not run — load it?
 - [ ] **Couriers** and courier accounts in use today (phase I / warehouse)
-- [ ] **Financial year start** as an organisation setting (1 December assumed, seen in Cin7)
+- [ ] **Financial year end**: now a setting (Accounting → Ledger settings, 31 March by default) — set Expert Safety to 30 November (1 December start seen in Cin7) once the owner confirms
 
 ## Decide at cutover (phase J) — runbook: [`cutover.md`](cutover.md)
 - [ ] **Production server**: where it runs, domain, HTTPS; cron `infra/backup.sh` + an off-site copy of `backups/`; `infra/monitor.sh` (or an uptime service) on `/api/health`

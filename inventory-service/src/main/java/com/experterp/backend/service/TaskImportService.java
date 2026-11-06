@@ -69,6 +69,7 @@ public class TaskImportService {
     private final PaymentAccountRepository paymentAccountRepository;
     private final TaxService taxService;
     private final AuditService auditService;
+    private final LedgerPeriodService periodService;
     private final AccountingExportService accountingExportService;
     private final JdbcTemplate jdbc;
 
@@ -275,6 +276,7 @@ public class TaskImportService {
         CSVRecord h = t.header.r();
         LocalDate date = pastDate(invoiceDate(c, h), "InvoiceDate");
         if (date == null) date = LocalDate.now();
+        periodService.check(date, "InvoiceDate");
         boolean taxInclusive = bool(c.get(h, "TaxInclusive"));
         String note = "Imported from " + source(fileName);
         List<Row> credits = t.of(Type.CREDIT_LINE), creditCharges = t.of(Type.CREDIT_CHARGE), refunds = t.of(Type.REFUND), payments = t.of(Type.PAYMENT);
@@ -520,6 +522,7 @@ public class TaskImportService {
         CSVRecord h = t.header.r();
         LocalDate date = pastDate(invoiceDate(c, h), "InvoiceDate");
         if (date == null) date = LocalDate.now();
+        periodService.check(date, "InvoiceDate");
         boolean taxInclusive = bool(c.get(h, "TaxInclusive"));
         String note = "Imported from " + source(fileName);
         List<Row> credits = t.of(Type.CREDIT_LINE), creditCharges = t.of(Type.CREDIT_CHARGE), refunds = t.of(Type.REFUND),

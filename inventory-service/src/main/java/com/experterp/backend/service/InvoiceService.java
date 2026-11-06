@@ -38,6 +38,7 @@ public class InvoiceService {
     private final com.experterp.backend.repository.VoidedPaymentRepository voidedPaymentRepository;
     private final ProductRepository productRepository;
     private final AuditService auditService;
+    private final LedgerPeriodService periodService;
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final TaxService taxService;
     private final CostingService costingService;
@@ -305,6 +306,7 @@ public class InvoiceService {
         inv.setTaxTotal(tax);
         inv.setTotalAmount(net.add(tax));
         LocalDate issued = req.getIssueDate() != null ? req.getIssueDate() : LocalDate.now();
+        periodService.check(issued, "a bill");
         inv.setIssueDate(issued);
         inv.setDueDate(req.getDueDate() != null ? req.getDueDate() : PaymentTerms.dueDate(po.getPaymentTerm(), issued));
         if (!req.isDraft()) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
@@ -389,6 +391,7 @@ public class InvoiceService {
         if (inv.getStatus() == Invoice.InvoiceStatus.CANCELLED) {
             throw new IllegalStateException("The invoice is already cancelled");
         }
+        if (inv.getStatus() != Invoice.InvoiceStatus.DRAFT) periodService.check(inv.getIssueDate(), inv.getInvoiceNumber());
         if (inv.getItems().stream().anyMatch(i -> i.getCreditedQuantity().signum() > 0)) {
             throw new IllegalStateException(inv.getInvoiceNumber() + " has credit notes and cannot be cancelled");
         }
@@ -439,6 +442,7 @@ public class InvoiceService {
         }
         LocalDate day = req.getPaidOn() != null ? req.getPaidOn() : LocalDate.now();
         if (day.isAfter(LocalDate.now())) throw new IllegalArgumentException("A payment cannot be dated in the future");
+        periodService.check(day, "a payment");
         PaymentAccount account = paymentAccount(req.getAccountId());
         Payment.PaymentMethod method = req.getMethod() != null ? req.getMethod() : account != null ? account.getKind().method() : null;
         if (method == null) throw new IllegalArgumentException("Choose the payment account (or how it was paid)");

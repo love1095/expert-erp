@@ -189,6 +189,14 @@ export const getAccountTransactions = (account: string, from: string, to: string
 export const getJournalReport = (params: { from?: string; to?: string; source?: string }) =>
   api.get("/ledger/journals", { params }).then(r => r.data);
 
+// Phase K2: Profit and Loss, Balance Sheet, financial year end and lock dates
+export const getLedgerPeriods = () => api.get("/ledger/periods").then(r => r.data);
+export const saveLedgerPeriods = (body: object) => api.put("/ledger/periods", body).then(r => r.data);
+export const getProfitAndLoss = (params: { from: string; to: string; compare: number; step: string }) =>
+  api.get("/ledger/profit-and-loss", { params }).then(r => r.data);
+export const getBalanceSheet = (params: { date: string; compare: number; step: string }) =>
+  api.get("/ledger/balance-sheet", { params }).then(r => r.data);
+
 // Phase J: Cin7's sale / purchase task CSV import (preview with apply=false), its logs, and the go-live check
 export const importTasks = ({ kind, file, options, apply }:
   { kind: "sales" | "purchases"; file: File; options: Record<string, string | number | boolean | undefined>; apply: boolean }) => {

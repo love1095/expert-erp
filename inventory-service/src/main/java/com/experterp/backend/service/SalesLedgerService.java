@@ -36,6 +36,7 @@ public class SalesLedgerService {
     private final InvoiceService invoiceService;
     private final StatementService statementService;
     private final AuditService auditService;
+    private final LedgerPeriodService periodService;
 
     // ---- payment accounts (Settings) ----
 
@@ -123,6 +124,7 @@ public class SalesLedgerService {
         Customer c = customer(customerId);
         if (req.amount() == null || req.amount().compareTo(PENNY) < 0) throw new IllegalArgumentException("Give the amount received");
         LocalDate day = req.receivedOn() != null ? req.receivedOn() : LocalDate.now();
+        periodService.check(day, "customer credit");
         if (day.isAfter(LocalDate.now())) throw new IllegalArgumentException("A payment cannot be dated in the future");
         PaymentAccount account = invoiceService.paymentAccount(req.accountId());
         Payment.PaymentMethod method = req.method() != null ? req.method() : account != null ? account.getKind().method() : null;
@@ -198,6 +200,7 @@ public class SalesLedgerService {
         if (p.getMethod() == Payment.PaymentMethod.SHOPIFY) {
             throw new IllegalStateException("Shopify payments follow Shopify: refund the order there");
         }
+        periodService.check(p.getPaidAt().toLocalDate(), "the payment");
         VoidedPayment v = new VoidedPayment();
         v.setPaymentId(p.getId());
         v.setInvoiceId(inv.getId());

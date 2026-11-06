@@ -655,7 +655,7 @@ The functions for moving an organisation from Cin7 Core; the move itself (Expert
 - [x] Tests: `TaskImportTest` (5) — an open order keeps Cin7's number, reference and date, preview writes nothing, the same file is refused the second time; an unpaid invoice already shipped keeps its number and dates, discount and charge, £10 paid into 650, no stock moved, recorded as already in Xero; Cin7's rules: a new customer created with its shipping address and contact, Auto Pick + Pack + Ship ships, credit note CR with its own number refunded into 650 on its date, short of stock an error unless backordered is ticked; errors (future date, unknown SKU, wrong Total, credit note without Authorised + shipped, unknown RecordType) stop the whole file; open PO, a bill with Received rows, CreditLines + Unstock sending 2 back (stock 10 + 4 − 2), new supplier created; go-live check figures; Cin7 date formats. `PermissionTest` green. E2E CUTOVER-001 passed (2026-11-06)
 - [ ] At cutover (owner): run [`docs/cutover.md`](docs/cutover.md) — rehearsal, then the weekend; production server, HTTPS, off-site backup copy
 
-## Phase K — ERP accounting, like Xero (K1 ✅)
+## Phase K — ERP accounting, like Xero (K1 ✅ K2 ✅)
 
 The ERP's own books, so it can be sold all-in-one; the Xero export / link stays for organisations that keep Xero. Reference: Xero (Expert Safety's chart of accounts read from Cin7's copy of it, read-only, 2026-11-06: Xero's UK standard chart plus 650–654 banks, 615 Supplier Deposits, 631 Inventory Control, 802 Customer Credits).
 
@@ -669,7 +669,16 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 - [x] Permission **Accounting** (managers by default); chart, settings and conversion balances: admins
 - [x] Checked on Expert Safety's local data: the trial balance balances (£98,040.87), 0.04 s
 - [x] Tests: `LedgerTest` (4) — stock count, bill, bill paid, sale shipped (COGS 2 × £6 FIFO), invoice overpaid (£6 customer credit): trial balance balanced and each account right (610 and 800 nil, 631 £98, 310 £12, 200 −£20, 802 −£6, VAT, bank), the payment account a bank account, a second sync posts nothing, account transactions; manual journal unbalanced / unknown account refused, a draft posts nothing, posted shows, cannot be changed, void reverses; a conversion date reverses what is before it, conversion balances with the difference in 840; Xero chart import (added, updated, unchanged, unknown type). `AccountingExportTest`, `PermissionTest`, `TaskImportTest` green. E2E LEDGER-001 passed
-- [ ] Next: K2 Profit & Loss, Balance Sheet (current year earnings, retained earnings), lock date, year end; K3 bank statement import and reconciliation; K4 VAT return from the ledger and Making Tax Digital; K5 accountant access and exports
+
+### K2 Profit and loss, balance sheet, financial year end, lock dates ✅
+- [x] **Accounting → Profit and loss** (`FinancialReportService`): Xero's layout — Trading Income, Cost of Sales, **Gross Profit**, Other Income, Operating Expenses, **Net Profit**; any period; **compare** with up to 11 earlier months, quarters or years (a whole month stays a whole month); each account links to its transactions
+- [x] **Accounting → Balance sheet**: Bank, Current Assets, Fixed Assets, Non-current Assets, Total Assets; Current and Non-current Liabilities; **Net Assets**; Equity with **Current Year Earnings** (profit since the start of the financial year) and **Retained Earnings** (the years before plus the retained earnings account) — as Xero, **no closing journal**: the year's profit rolls into retained earnings by itself at the year end; comparison columns; a warning if equity ≠ net assets
+- [x] **Ledger settings → Financial year end** (`V42`, `LedgerPeriodService`; 31 March when not set, Xero's UK default; a month-end year end stays on the month end in leap years) and Xero's **two lock dates**: *for all users except advisers* and *for all users* (advisers = admins until accountant access, K5); the second must be on or before the first, neither in the future
+- [x] **Locked periods**: nothing dated on or before the lock is entered, changed or voided — payments and their voids, bills, invoice cancellations, supplier credit notes, customer credit, supplier deposits, manual journals (save, post, void), conversion balances, sale / purchase task imports; and if a document behind the lock changes anyway, the ledger posts the correction **on the day after the all-users lock**, so filed figures never move
+- [x] Checked on Expert Safety's local data: balance sheet balances (net assets = equity = £98,040.87)
+- [x] Tests: `FinancialReportTest` (3) — P&L with a month comparison, last year's P&L; balance sheet with current year earnings £300, retained earnings £700, owner's funds, comparison a year back, rollover after the year end; year start for a 30 November and a 28 February year end (leap year); lock dates: rules, a manager stopped and an admin not, all users stopped, a change behind the lock posted on 1 March with February unchanged. `LedgerTest`, `SalesLedgerTest`, `PurchaseLedgerTest`, `TaskImportTest`, `AccountingExportTest` green. E2E LEDGER-002 passed
+- [ ] Later: P&L / balance sheet export (PDF, Excel), tracking categories, budgets, cash-basis reports
+- [ ] Next: K3 bank statement import and reconciliation; K4 VAT return from the ledger and Making Tax Digital; K5 accountant access and exports
 
 ---
 
@@ -777,6 +786,8 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 | GET/PUT | `/ledger/settings`, `/ledger/opening-balances` | Conversion date, account mapping, conversion balances (PUT: ADMIN) |
 | GET/POST/PUT | `/ledger/manual-journals` | Manual journals; `/{id}/post`, `/{id}/void` (a draft is deleted) |
 | GET  | `/ledger/trial-balance`, `/ledger/account-transactions`, `/ledger/journals` | Ledger reports (ACCOUNTING) |
+| GET  | `/ledger/profit-and-loss`, `/ledger/balance-sheet` | Financial statements (`compare`, `step` MONTH / QUARTER / YEAR) |
+| GET/PUT | `/ledger/periods` | Financial year end and lock dates (PUT: ADMIN) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | Every organisation with its plan and usage (SUPER_ADMIN) |

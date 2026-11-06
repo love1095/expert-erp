@@ -1256,3 +1256,18 @@ export interface LedgerJournal {
   number: number; date: string; sourceType: string; sourceKey: string; reference: string | null; narration: string;
   reversal: boolean; createdAt: string; lines: JournalLine[];
 }
+
+// Phase K2: financial statements
+export interface LedgerPeriods { yearEndDay: number; yearEndMonth: number; lockDate: string | null; hardLockDate: string | null }
+export interface StatementColumn { label: string; from: string | null; to: string }
+export interface StatementRow { code: string | null; name: string; values: number[] }
+export interface StatementSection { title: string; rows: StatementRow[]; totals: number[] }
+export interface StatementTotal { title: string; values: number[] }
+export interface ProfitAndLoss {
+  columns: StatementColumn[]; tradingIncome: StatementSection; costOfSales: StatementSection; grossProfit: StatementTotal;
+  otherIncome: StatementSection; operatingExpenses: StatementSection; netProfit: StatementTotal;
+}
+export interface BalanceSheet {
+  columns: StatementColumn[]; assets: StatementSection[]; totalAssets: StatementTotal; liabilities: StatementSection[];
+  totalLiabilities: StatementTotal; netAssets: StatementTotal; equity: StatementSection; warnings: string[];
+}

@@ -22,6 +22,8 @@ public class LedgerController {
 
     private final ChartOfAccountsService chart;
     private final LedgerService ledger;
+    private final com.experterp.backend.service.LedgerPeriodService periods;
+    private final com.experterp.backend.service.FinancialReportService reports;
 
     // ---- chart of accounts ----
 
@@ -117,7 +119,37 @@ public class LedgerController {
         ledger.voidOrDelete(id);
     }
 
+    // ---- financial year and lock dates (K2) ----
+
+    @GetMapping("/periods")
+    public com.experterp.backend.service.LedgerPeriodService.Periods periods() {
+        return periods.periods();
+    }
+
+    @PutMapping("/periods")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public com.experterp.backend.service.LedgerPeriodService.Periods updatePeriods(@RequestBody com.experterp.backend.service.LedgerPeriodService.Periods p) {
+        return periods.update(p);
+    }
+
     // ---- reports ----
+
+    @GetMapping("/profit-and-loss")
+    public com.experterp.backend.service.FinancialReportService.ProfitAndLoss profitAndLoss(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "0") int compare,
+            @RequestParam(defaultValue = "MONTH") com.experterp.backend.service.FinancialReportService.Step step) {
+        return reports.profitAndLoss(from, to, compare, step);
+    }
+
+    @GetMapping("/balance-sheet")
+    public com.experterp.backend.service.FinancialReportService.BalanceSheet balanceSheet(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "0") int compare,
+            @RequestParam(defaultValue = "MONTH") com.experterp.backend.service.FinancialReportService.Step step) {
+        return reports.balanceSheet(date, compare, step);
+    }
 
     @GetMapping("/trial-balance")
     public LedgerService.TrialBalance trialBalance(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

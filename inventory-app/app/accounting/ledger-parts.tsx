@@ -20,3 +20,54 @@ export function SourceLink({ sourceKey, sourceType, reference }: { sourceKey: st
   const text = reference ? `${label} ${reference}` : label;
   return href ? <Link href={href} className="text-brand-600 hover:underline">{text}</Link> : <span>{text}</span>;
 }
+
+/** A Xero-style statement: sections of accounts (linked to their transactions) with a total, and total lines. */
+export function StatementSectionRows({ section, from, to, totalLabel }: {
+  section: { title: string; rows: { code: string | null; name: string; values: number[] }[]; totals: number[] };
+  from: string; to: string; totalLabel?: string;
+}) {
+  if (section.rows.length === 0) return null;
+  return (
+    <tbody>
+      <tr><td colSpan={section.totals.length + 1} className="px-4 pt-4 pb-1 font-semibold text-gray-800">{section.title}</td></tr>
+      {section.rows.map(r => (
+        <tr key={(r.code ?? "") + r.name} className="border-t border-gray-100">
+          <td className="px-4 py-1">
+            {r.code ? <Link className="text-brand-700 hover:underline" href={`/accounting/account-transactions?account=${encodeURIComponent(r.code)}&from=${from}&to=${to}`}>{r.name}</Link> : r.name}
+          </td>
+          {r.values.map((v, i) => <td key={i} className="text-right tabular-nums px-4">{formatGBP(v)}</td>)}
+        </tr>
+      ))}
+      <tr className="border-t border-gray-300 font-medium">
+        <td className="px-4 py-1">{totalLabel ?? `Total ${section.title}`}</td>
+        {section.totals.map((v, i) => <td key={i} className="text-right tabular-nums px-4">{formatGBP(v)}</td>)}
+      </tr>
+    </tbody>
+  );
+}
+
+export function StatementTotalRow({ total, strong }: { total: { title: string; values: number[] }; strong?: boolean }) {
+  return (
+    <tbody>
+      <tr className={`border-t-2 border-gray-300 ${strong ? "font-bold" : "font-semibold"}`} data-testid={`total-${total.title.replace(/\s+/g, "-").toLowerCase()}`}>
+        <td className="px-4 py-2">{total.title}</td>
+        {total.values.map((v, i) => <td key={i} className="text-right tabular-nums px-4">{formatGBP(v)}</td>)}
+      </tr>
+    </tbody>
+  );
+}
+
+export function CompareControls({ compare, step, onCompare, onStep }: { compare: number; step: string; onCompare: (n: number) => void; onStep: (s: string) => void }) {
+  return (
+    <>
+      <label className="flex items-center gap-1">Compare with
+        <select aria-label="Compare with" className={INPUT} value={compare} onChange={e => onCompare(Number(e.target.value))}>
+          {[0, 1, 2, 3, 4, 5, 11].map(n => <option key={n} value={n}>{n === 0 ? "None" : n}</option>)}
+        </select>
+      </label>
+      <select aria-label="Period" className={INPUT} value={step} disabled={compare === 0} onChange={e => onStep(e.target.value)}>
+        <option value="MONTH">Months</option><option value="QUARTER">Quarters</option><option value="YEAR">Years</option>
+      </select>
+    </>
+  );
+}

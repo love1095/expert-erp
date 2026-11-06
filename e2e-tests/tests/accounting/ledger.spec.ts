@@ -37,4 +37,30 @@ test.describe('General ledger', () => {
       await page.goto('/accounting/trial-balance');
       await expect(page.getByTestId('tb-400')).toHaveCount(0);
     });
+
+  test('LEDGER-002 a sale journal shows as net profit and as current year earnings; a lock date stops a journal in the locked month',
+    { tag: ['@P1', '@accounting'] }, async ({ page, api }) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const res = await api.http.post('/api/ledger/manual-journals', { data: { date: today, narration: 'Cash sale', post: true, lines: [
+        { accountCode: '090', debit: 500 }, { accountCode: '200', credit: 500 }] } });
+      expect(res.ok()).toBe(true);
+
+      await page.goto('/accounting/profit-and-loss');
+      await expect(page.getByTestId('profit-and-loss')).toContainText('Sales');
+      await expect(page.getByTestId('total-net-profit')).toContainText('£500.00');
+
+      await page.goto('/accounting/balance-sheet');
+      await expect(page.getByTestId('total-net-assets')).toContainText('£500.00');
+      await expect(page.getByTestId('balance-sheet')).toContainText('Current Year Earnings');
+
+      await page.goto('/accounting/settings');
+      await page.getByLabel('Lock date for all users', { exact: true }).fill(today);
+      await page.getByLabel('Lock date for all users except advisers').fill(today);
+      await page.getByRole('button', { name: 'Save financial settings' }).click();
+      await expect(page.getByTestId('ledger-periods').getByRole('status')).toHaveText('Saved');
+      const locked = await api.http.post('/api/ledger/manual-journals', { data: { date: today, narration: 'Too late', post: true, lines: [
+        { accountCode: '090', debit: 1 }, { accountCode: '200', credit: 1 }] } });
+      expect(locked.ok()).toBe(false);
+      expect((await locked.json()).error).toContain('locked');
+    });
 });

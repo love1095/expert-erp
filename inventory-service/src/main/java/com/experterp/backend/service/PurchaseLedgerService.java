@@ -42,6 +42,7 @@ public class PurchaseLedgerService {
     private final InvoiceService invoiceService;
     private final TaxService taxService;
     private final AuditService auditService;
+    private final LedgerPeriodService periodService;
     private final JdbcTemplate jdbc;
 
     // ---- supplier credit notes ----
@@ -70,6 +71,7 @@ public class PurchaseLedgerService {
         List<CreditCharge> charges = req.charges() == null ? List.of() : req.charges();
         if (lines.isEmpty() && charges.isEmpty()) throw new IllegalArgumentException("Credit at least one line or amount");
         LocalDate date = req.date() != null ? req.date() : LocalDate.now();
+        periodService.check(date, "a supplier credit note");
         if (date.isAfter(LocalDate.now())) throw new IllegalArgumentException("A credit note cannot be dated in the future");
 
         Invoice cn = new Invoice();
@@ -219,6 +221,7 @@ public class PurchaseLedgerService {
         Supplier s = supplier(supplierId);
         if (req.amount() == null || req.amount().compareTo(PENNY) < 0) throw new IllegalArgumentException("Give the amount paid");
         LocalDate day = req.paidOn() != null ? req.paidOn() : LocalDate.now();
+        periodService.check(day, "a supplier deposit");
         if (day.isAfter(LocalDate.now())) throw new IllegalArgumentException("A payment cannot be dated in the future");
         PaymentAccount account = invoiceService.paymentAccount(req.accountId());
         if (req.purchaseOrderId() != null) {

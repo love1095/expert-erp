@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getLedgerAccounts, getLedgerSettings, getOpeningBalances, saveLedgerSettings, saveOpeningBalances } from "@/lib/api";
-import { LedgerAccount, LedgerSettings, OpeningBalances } from "@/types";
+import { getLedgerAccounts, getLedgerPeriods, getLedgerSettings, getOpeningBalances, saveLedgerPeriods, saveLedgerSettings, saveOpeningBalances } from "@/lib/api";
+import { LedgerAccount, LedgerPeriods, LedgerSettings, OpeningBalances } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
@@ -27,10 +27,12 @@ export default function LedgerSettingsPage() {
   const { data: settings } = useQuery<LedgerSettings>({ queryKey: ["ledger-settings"], queryFn: getLedgerSettings });
   const { data: opening } = useQuery<OpeningBalances>({ queryKey: ["opening-balances"], queryFn: getOpeningBalances });
   const { data: accounts = [] } = useQuery<LedgerAccount[]>({ queryKey: ["ledger-accounts", false], queryFn: () => getLedgerAccounts(false) });
-  if (!settings || !opening) return <div className="p-6 text-sm text-gray-500">Loading…</div>;
+  const { data: periods } = useQuery<LedgerPeriods>({ queryKey: ["ledger-periods"], queryFn: getLedgerPeriods });
+  if (!settings || !opening || !periods) return <div className="p-6 text-sm text-gray-500">Loading…</div>;
   return (
     <div className="p-6 max-w-5xl space-y-6">
       <PageHeader title="Ledger settings" />
+      <PeriodsForm key={JSON.stringify(periods)} initial={periods} />
       <SettingsForm key={JSON.stringify(settings)} initial={settings} accounts={accounts} />
       <BalancesForm key={JSON.stringify(opening)} initial={opening} accounts={accounts} />
     </div>
@@ -123,6 +125,50 @@ function BalancesForm({ initial, accounts }: { initial: OpeningBalances; account
         {isAdmin && <div className="flex items-center gap-3"><button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save balances</button>
           {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}</div>}
       </>)}
+    </section>
+  );
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** Phase K2: Xero's Financial settings — financial year end and the two lock dates. */
+function PeriodsForm({ initial }: { initial: LedgerPeriods }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const qc = useQueryClient();
+  const [p, setP] = useState<LedgerPeriods>(initial);
+  const [msg, setMsg] = useState("");
+  const save = useMutation({
+    mutationFn: () => saveLedgerPeriods({ ...p, lockDate: p.lockDate || null, hardLockDate: p.hardLockDate || null }),
+    onSuccess: () => { setMsg("Saved"); qc.invalidateQueries({ queryKey: ["ledger-periods"] }); },
+    onError: e => setMsg(errorOf(e)),
+  });
+  return (
+    <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-4" data-testid="ledger-periods">
+      <div>
+        <h2 className="font-semibold">Financial year end</h2>
+        <p className="text-xs text-gray-500">At each year end the year&apos;s profit moves to retained earnings by itself on the balance sheet (no closing journal, as in Xero).</p>
+        <div className="flex gap-2 mt-2">
+          <select aria-label="Year end day" className={INPUT} disabled={!isAdmin} value={p.yearEndDay} onChange={e => setP({ ...p, yearEndDay: Number(e.target.value) })}>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select aria-label="Year end month" className={INPUT} disabled={!isAdmin} value={p.yearEndMonth} onChange={e => setP({ ...p, yearEndMonth: Number(e.target.value) })}>
+            {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <h2 className="font-semibold">Lock dates</h2>
+        <p className="text-xs text-gray-500">Nothing dated on or before a lock date can be entered, changed or voided — for example once a VAT return or the year&apos;s accounts are filed.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 text-sm">
+          <label className="flex flex-col gap-1"><span className="text-gray-700">Lock date for all users except advisers (admins)</span>
+            <input aria-label="Lock date for all users except advisers" type="date" className={INPUT} disabled={!isAdmin} value={p.lockDate ?? ""} onChange={e => setP({ ...p, lockDate: e.target.value })} /></label>
+          <label className="flex flex-col gap-1"><span className="text-gray-700">Lock date for all users</span>
+            <input aria-label="Lock date for all users" type="date" className={INPUT} disabled={!isAdmin} value={p.hardLockDate ?? ""} onChange={e => setP({ ...p, hardLockDate: e.target.value })} /></label>
+        </div>
+      </div>
+      {isAdmin && <div className="flex items-center gap-3"><button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save financial settings</button>
+        {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}</div>}
     </section>
   );
 }
