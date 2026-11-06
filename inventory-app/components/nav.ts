@@ -35,6 +35,7 @@ export const NAV: NavModule[] = [
     { href: "/reports/profit-by-rep",      label: "Profit by Sales Representatives", roles: MANAGERS },
     { href: "/reports/sales-by-product",   label: "Sales by Product Summary",       roles: MANAGERS },
     { href: "/reports/inventory-movement", label: "Inventory Movement Summary",     roles: MANAGERS },
+    { href: "/accounting-export",          label: "Xero export",                    roles: MANAGERS },
   ]},
   { key: "admin", label: "Admin", icon: "admin", items: [
     { href: "/users",     label: "Users" },

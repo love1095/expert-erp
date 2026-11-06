@@ -17,7 +17,7 @@ The spec's phase 1 ("Replace Cin7 Core") sets the order: build a module before t
 | E ✅ | Purchasing (spec §3) — E1 ✅ E2 ✅ E3 ✅ E4 ✅ E5 ✅ | Authorise, part / over / short receipts, supplier bills with three-way match, reorder suggestions → bulk POs, landed cost | Dashboard 6.3 |
 | F ✅ | Shopify 7.4–7.6 — 7.5 ✅ 7.4 ✅ 7.6 ✅ | Cancellations and refunds, retries and monitoring, stock push | The integration that "cannot fail" |
 | G 🔄 | Customers and pricing (spec §5) — G1 ✅ G2 ✅ G3 ✅ G4 ✅ | Price tiers, contract prices, credit hold, statements | |
-| H 🔄 | Finance and accounting (spec §6) — H1 ✅ H2 ✅ H3 ✅ H4 ✅ | Sales / purchase ledgers, aged debtors and creditors, VAT report, FIFO COGS, accounting export queue: CSV first, then Xero / QuickBooks / Sage adapters | Spec phase 1 complete |
+| H ✅ | Finance and accounting (spec §6) — H1 ✅ H2 ✅ H3 ✅ H4 ✅ H5 ✅ (Xero CSV; API link later) | Sales / purchase ledgers, aged debtors and creditors, VAT report, FIFO COGS, accounting export queue: CSV first, then Xero / QuickBooks / Sage adapters | Spec phase 1 complete |
 | I | Reports, permissions, search, templates (spec §8) | Core reports, cost prices hidden from non-owner roles, global search, document templates, 2FA | |
 | J | Cutover | Open orders and balances, reconciliation, backups, monitoring, rollback plan | Switch off Cin7 |
 

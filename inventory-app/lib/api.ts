@@ -336,3 +336,14 @@ export type InventoryMovementParams = { from: string; to: string; warehouseId?: 
 export const getInventoryMovement = (params: InventoryMovementParams) => api.get("/reports/inventory-movement", { params }).then(r => r.data);
 export const getInventoryMovementCsv = (params: InventoryMovementParams) =>
   api.get("/reports/inventory-movement/csv", { params, responseType: "blob" }).then(r => r.data as Blob);
+
+// ---- Accounting export, Xero CSV (H5) ----
+export const getAccountingSettings = () => api.get("/accounting/settings").then(r => r.data);
+export const updateAccountingSettings = (data: unknown) => api.put("/accounting/settings", data).then(r => r.data);
+export const getAccountingPending = () => api.get("/accounting/export/pending").then(r => r.data);
+export const getAccountingChanged = () => api.get("/accounting/export/changed").then(r => r.data);
+export const getAccountingExports = () => api.get("/accounting/exports").then(r => r.data);
+export const runAccountingExport = () => api.post("/accounting/export", null, { responseType: "blob" })
+  .then(r => ({ blob: r.data as Blob, filename: /filename="([^"]+)"/.exec(String(r.headers["content-disposition"] ?? ""))?.[1] ?? "Xero_export.zip" }));
+export const getAccountingExportFile = (id: number) => api.get(`/accounting/exports/${id}/file`, { responseType: "blob" }).then(r => r.data as Blob);
+export const undoAccountingExport = (id: number) => api.post(`/accounting/exports/${id}/undo`).then(r => r.data);

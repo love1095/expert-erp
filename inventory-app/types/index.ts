@@ -1168,3 +1168,17 @@ export interface InventoryMovementRow {
   outQuantity: number; outValue: number; closingQuantity: number; unitCost: number | null; closingValue: number;
 }
 export interface InventoryMovementReport { from: string; to: string; rows: InventoryMovementRow[]; totals: { openingValue: number; inValue: number; outValue: number; closingValue: number } }
+
+// ---- Accounting export (H5) ----
+export interface AccountingSettings {
+  exportStartDate: string | null; revenueAccount: string | null; inventoryAccount: string | null; cogsAccount: string | null;
+  discrepancyAccount: string | null; purchaseChargesAccount: string | null; customerCreditAccount: string | null; supplierDepositsAccount: string | null;
+}
+export type ExportKind = "INVOICE" | "CREDIT_NOTE" | "BILL" | "SUPPLIER_CREDIT" | "JOURNAL" | "PAYMENT";
+export interface ExportItem { key: string; kind: ExportKind; date: string; number: string; party: string; amount: number }
+export interface ExportPending { startDate: string | null; missing: string[]; items: ExportItem[]; counts: Partial<Record<ExportKind, number>> }
+export interface ExportBatch {
+  id: number; createdAt: string; createdBy: string; invoices: number; creditNotes: number; bills: number; supplierCredits: number;
+  journals: number; payments: number; undoneAt: string | null; undoneBy: string | null;
+}
+export interface ExportChanged { key: string; number: string; party: string; what: string; date: string }

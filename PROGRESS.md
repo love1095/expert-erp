@@ -532,7 +532,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ H2 ✅ H3 ✅ H4 ✅ · next H5 Xero export, CSV first)
+## Phase H — Finance and accounting (spec §6) ✅ (H1 ✅ H2 ✅ H3 ✅ H4 ✅ H5 ✅ CSV; the Xero API link is next)
 
 ### H1 Sales ledger ✅
 - [x] Cin7 checked (read-only, 2026-11-04): an invoice's **Payments** are Account (e.g. *650: Current Account - RBS*), Reference, Date paid, Amount, with *Use customer credit*, *Allocate credit note* and a **Customer credit** section; the chart of accounts is **loaded from Xero** (accounting package = Xero): bank 650 / 652 / 653 / 654, 641 Cash, 643 Card Payments, 644 Paypal Payments, 802 Customer Credits
@@ -579,6 +579,22 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [ ] Later (not like Cin7 yet): drag-and-drop pivot, more fields (paid, due, ship by, customer reference, location, tags, brand), saved layouts — phase I reports. Per-user report permissions like Cin7 (now by role) — phase I
 - [ ] Later: a return without a credit note (goods back, no money) lowers COGS within the dates but is on no document for *All COGS*; Sales Overview, Customer Orders by Product and Stock Value Inventory Aging not built
 - [ ] Local data has few sales (Cin7's sales history is not imported); check the profit figures against Cin7's for a month once orders are migrated (phase J)
+
+### H5 Accounting export: Xero CSV ✅
+- [x] Cin7 checked (read-only, 2026-11-06, Integrations → Xero, Chart of accounts, Account mapping): the chart of accounts and tax rules come **from Xero** (so our tax rule names are Xero's tax types); Cin7 exports contacts, items, authorised invoices, credit notes (not allocated), payments / refunds, prepayments, and **manual journals for COGS and stock adjustments**; one Xero document per Cin7 one (no consolidation), autosync every 2 hours (its status showed *Sync failed*). Account mapping: Inventory control 631, COGS 310, Tax liability 820, Customer credit 802, In-transit 633, Inventory discrepancy 310, Default revenue 200, Supplier deposits 615
+- [x] **Finance → Xero export** (managers and admins): **account mapping** like Cin7's (`V34` `accounting_settings`, admins edit) and an **export start date**: nothing dated before it is exported (Xero already has what Cin7 sent: set it to the cutover day, after the opening stock import)
+- [x] **Ready to export**: counts and the list of invoices, credit notes, bills, supplier credit notes, journals and payments not exported yet; **Export for Xero** makes a zip of Xero's import files and records each item as exported (`accounting_exported`, one row per document / journal / payment, never twice):
+  - `SalesInvoices.csv` (Xero's template: contact, number, order number as reference, dates dd/mm/yyyy, item code, quantity, unit amount, discount %, revenue account, tax type = our tax rule name, tax amount); credit notes are the documents with negative lines
+  - `Bills.csv`: stock lines on the inventory account (perpetual stock, like Cin7), charges on the purchase charges account; supplier credit notes negative
+  - `ManualJournals.csv`, one journal per stock transaction and day like Cin7: shipment Dr COGS / Cr inventory at FIFO cost, restocked return the other way, stock adjustments against the discrepancy account, a bill's price difference on goods already sold Dr COGS / Cr inventory; each journal balances
+  - `Payments.csv`: payments and refunds with account code and reference, to match in Xero (Xero has no payment import); allocations (credit notes, customer / supplier credit) left out
+- [x] **Exports** history: download a batch again, **Undo** a batch Xero did not import (its items become ready again); **Changed after export**: documents cancelled or payments voided since, to put right in Xero by hand
+- [x] Local data: Expert Safety's Cin7 mapping entered (631, 310, 310, 200, 802, 615; purchase charges 407 Import Duty as a placeholder); a test export from 01/10/2026 was made and undone, the start date left empty
+- [x] Tests: `AccountingExportTest` (2) — nothing before setup; stock counted in, Portwest bill with carriage, sale + payment + credit note → files hold the invoice on 200, the credit note at −£10 / −£2 VAT, bill lines on 631 and 407, three balanced journals (£30 to 495, COGS £24, return £6), the £20 payment with its reference; nothing twice, re-download, undo and export again, a voided payment flagged; E2E XERO-001
+- [ ] **To check on the first real import into Xero**: credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines
+- [ ] **Decide at cutover (phase J)**: the export start date. The local opening stock import of 30/10/2026 (£99,818.37) is a stock adjustment: exported, it would double the stock Xero already has from Cin7
+- [ ] **Purchase charges account**: confirm which Xero account bill carriage / duty go to (407 Import Duty is a guess)
+- [ ] Later: the **Xero API link** (contacts, invoices, bills, payments both ways, journals, retries) — needs a Xero app (client id / secret) from the owner; payments on account (customer credit / supplier deposits) not in the files yet; stock received but not billed is in the ERP's stock value but not on Xero's 631 until the bill comes (as in Cin7)
 
 ---
 
@@ -634,6 +650,9 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET | `/reports/vat-return?from=&to=` · `/reports/vat-return/csv` | VAT return: nine boxes, by rate, documents (H3) |
 | GET | `/reports/sales-profit?from=&to=&cogs=WITHIN_DATES\|ALL&groupBy=` · `/csv` | Sales profit: CUSTOMER, ORDER, REP, REP_CUSTOMER, REP_ORDER, PRODUCT (H4, MANAGER+) |
 | GET | `/reports/inventory-movement?from=&to=&warehouseId=&categoryId=` · `/csv` | Inventory movement summary at FIFO value (H4, MANAGER+) |
+| GET/PUT | `/accounting/settings` | Account mapping and export start date (H5; PUT ADMIN) |
+| GET/POST | `/accounting/export/pending` · `/accounting/export` | What is ready; make the Xero zip (H5, MANAGER+) |
+| GET/POST | `/accounting/exports` · `/{id}/file` · `/{id}/undo` · `/accounting/export/changed` | Export history, download again, undo, changed after export (H5) |
 | GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
 | GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
 | POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |
