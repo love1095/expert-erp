@@ -40,7 +40,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Ledger speed on large organisations: it is brought up to date by recomputing every source before each read (fine on today's data, 0.04 s); post on each change instead if it gets slow
 - [ ] Have an accountant review the ledger design (accounts posted per document) before building
 - [ ] Run K alongside Xero for a few months at Expert Safety; move off Xero at a year end once the figures match
-- [ ] HMRC Making Tax Digital: register as a software developer, pass the sandbox tests
+- [ ] HMRC Making Tax Digital (built, K4): register on HMRC's Developer Hub, create an application subscribed to the VAT (MTD) API, set APP_HMRC_CLIENT_ID / _CLIENT_SECRET / _REDIRECT_URI (https://<server>/accounting/vat/callback) / _VENDOR_PUBLIC_IP; test with a sandbox test user; then apply for production credentials (HMRC checks the fraud prevention headers) and set APP_HMRC_BASE_URL=https://api.service.hmrc.gov.uk
+- [ ] Expert Safety: record the VAT returns already filed from Xero (Accounting → VAT returns → Mark as filed) so the periods are locked here too
 - [ ] Choose an Open Banking provider for live bank feeds (cost per connection); meanwhile statements are imported (CSV / OFX, K3)
 - [ ] Bank rules, cash coding, minor adjustments on a match, bank reconciliation summary report, QIF (Xero has them; K3 does not yet)
 

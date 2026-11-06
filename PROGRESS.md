@@ -655,7 +655,7 @@ The functions for moving an organisation from Cin7 Core; the move itself (Expert
 - [x] Tests: `TaskImportTest` (5) — an open order keeps Cin7's number, reference and date, preview writes nothing, the same file is refused the second time; an unpaid invoice already shipped keeps its number and dates, discount and charge, £10 paid into 650, no stock moved, recorded as already in Xero; Cin7's rules: a new customer created with its shipping address and contact, Auto Pick + Pack + Ship ships, credit note CR with its own number refunded into 650 on its date, short of stock an error unless backordered is ticked; errors (future date, unknown SKU, wrong Total, credit note without Authorised + shipped, unknown RecordType) stop the whole file; open PO, a bill with Received rows, CreditLines + Unstock sending 2 back (stock 10 + 4 − 2), new supplier created; go-live check figures; Cin7 date formats. `PermissionTest` green. E2E CUTOVER-001 passed (2026-11-06)
 - [ ] At cutover (owner): run [`docs/cutover.md`](docs/cutover.md) — rehearsal, then the weekend; production server, HTTPS, off-site backup copy
 
-## Phase K — ERP accounting, like Xero (K1 ✅ K2 ✅ K3 ✅)
+## Phase K — ERP accounting, like Xero (K1 ✅ K2 ✅ K3 ✅ K4 ✅)
 
 The ERP's own books, so it can be sold all-in-one; the Xero export / link stays for organisations that keep Xero. Reference: Xero (Expert Safety's chart of accounts read from Cin7's copy of it, read-only, 2026-11-06: Xero's UK standard chart plus 650–654 banks, 615 Supplier Deposits, 631 Inventory Control, 802 Customer Credits).
 
@@ -688,7 +688,18 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 - [x] The ledger is now brought up to date before **every** read (a payment voided a moment after a sync shows at once); customer credit and deposit references carried to the ledger
 - [x] Tests: `BankTest` (3) — CSV with Paid in / Paid out and balance: preview writes nothing, import, duplicates skipped and refused; the £120 customer credit suggested and matched, a wrong total refused; bank charges created on 404; transfer to the deposit account; ledger and statement balances; a reconciled credit cannot be voided until unreconciled; spend money £60 with 20 % VAT (£50 + £10), a bank account refused as a line, void reverses; OFX read; bank amount and date formats. `LedgerTest`, `FinancialReportTest`, `SalesLedgerTest`, `PurchaseLedgerTest` green. E2E BANK-001 passed; LEDGER-002's "Saved" message fixed (the settings forms no longer reset after saving)
 - [ ] Later (in Xero, not here yet): bank rules (fill Create from the payee), live bank feeds (Open Banking provider), cash coding, a minor-adjustment line when a match is pennies out, the bank reconciliation summary report, QIF files
-- [ ] Next: K4 VAT return from the ledger and Making Tax Digital; K5 accountant access and exports
+
+### K4 VAT returns and Making Tax Digital ✅
+- [x] The VAT return (H3) now takes **spend / receive money** with a VAT rate (purchases / sales side, by its VAT type), as Xero's does; each document carries its source (invoice / bill, or bank transaction)
+- [x] **Accounting → VAT returns** (`V44`, `MtdVatService`): review any period in **HMRC's nine boxes**, with a check against the ledger (how the VAT account moved in the period; a warning when it differs, e.g. VAT payments or journals posted to 820) and warnings for a period not ended, already filed or locked
+- [x] **Making Tax Digital** (`HmrcClient` / `HttpHmrcClient`, HMRC VAT API 1.0): the VAT number; **Connect to HMRC** (OAuth 2.0, the business grants read:vat and write:vat at HMRC; the answer only accepted with our state; tokens kept encrypted, refreshed when expired); **VAT periods at HMRC** (obligations); **Submit** with HMRC's **legal declaration** ticked (admins only), the boxes sent as HMRC asks (1–5 pounds and pence, 6–9 whole pounds, finalised); HMRC's refusals shown with its code
+- [x] **HMRC fraud prevention headers** on every call (WEB_APP_VIA_SERVER): browser user agent, device id, Do Not Track, screens, window size, time zone from the browser; public IP and port as our server sees them; user id; two-step sign-in (TOTP) when the user has it on; vendor product, version, public IP and forwarded
+- [x] **Filed returns** kept as sent (boxes, HMRC receipt: form bundle, charge reference, payment indicator); a return filed another way (e.g. from Xero before the switch) **recorded** the same way; a period cannot be filed twice (overlapping dates refused); filing **locks the books** to the period end (as Xero suggests)
+- [x] Sandbox by default (`APP_HMRC_BASE_URL`); credentials `APP_HMRC_CLIENT_ID`, `APP_HMRC_CLIENT_SECRET`, `APP_HMRC_REDIRECT_URI` (…/accounting/vat/callback), `APP_HMRC_VENDOR_PUBLIC_IP`; without them the page says so and returns can still be reviewed and recorded
+- [x] Tests: `VatFilingTest` (2, against a fake HMRC) — boxes from receive / spend money with 20 % VAT (1 £20, 4 £10, 5 £10, 6 £100, 7 £50), ledger check agrees; VAT number rules; connect with the state checked, tokens encrypted; obligations; declaration required, managers refused, submission values and fraud headers, receipt kept, books locked, no second filing; a return recorded as filed elsewhere, future periods refused; an expired token refreshed. `VatReturnTest` green. E2E VAT-001 passed; finance e2e (incl. VAT-RETURN) green
+- [ ] Owner: register on HMRC's Developer Hub, test in the sandbox, then apply for production (HMRC checks the fraud headers) — see TODO
+- [ ] Later: HMRC's liabilities and payments, viewing a submitted return from HMRC, cash accounting and flat rate schemes, VAT rates on manual journals
+- [ ] Next: K5 accountant access and exports
 
 ---
 
@@ -803,6 +814,9 @@ The ERP's own books, so it can be sold all-in-one; the Xero export / link stays 
 | GET  | `/bank/accounts/{code}/lines`, `/bank/accounts/{code}/unmatched` | Statement lines (`status`) with suggestions / ledger items not reconciled |
 | POST | `/bank/lines/{id}/match`, `/create`, `/transfer`, `/unreconcile`; DELETE `/bank/lines/{id}` | Reconcile a statement line |
 | GET/POST | `/bank/transactions`; POST `/bank/transactions/{id}/void` | Spend / receive money and transfers |
+| GET/PUT/POST/DELETE | `/vat/mtd`, `/vat/mtd/vrn`, `/vat/mtd/connect`, `/vat/mtd/callback` | Making Tax Digital connection (changes: ADMIN) |
+| POST | `/vat/mtd/obligations`, `/vat/mtd/submit` | HMRC's VAT periods; submit a return (ADMIN, declaration) |
+| GET/POST | `/vat/review`, `/vat/returns`, `/vat/returns/manual` | Review a period; returns filed; record one filed elsewhere (ADMIN) |
 | POST | `/stock/import` | Cin7 stock file → stock in one warehouse set to the file's OnHand (`warehouseId`, `apply=false` previews) |
 | GET  | `/audit-log` | Audit log (filterable) |
 | GET  | `/tenants` | Every organisation with its plan and usage (SUPER_ADMIN) |

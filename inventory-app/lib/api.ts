@@ -216,6 +216,18 @@ export const getBankTransactions = (account?: string) => api.get("/bank/transact
 export const createBankTransaction = (body: object) => api.post("/bank/transactions", body).then(r => r.data);
 export const voidBankTransaction = (id: number) => api.post(`/bank/transactions/${id}/void`).then(r => r.data);
 
+// Phase K4: VAT returns and Making Tax Digital
+export const getMtdStatus = () => api.get("/vat/mtd").then(r => r.data);
+export const setMtdVrn = (vrn: string) => api.put("/vat/mtd/vrn", { vrn }).then(r => r.data);
+export const connectMtd = () => api.post("/vat/mtd/connect").then(r => r.data as { url: string });
+export const mtdCallback = (code: string, state: string) => api.post("/vat/mtd/callback", { code, state }).then(r => r.data);
+export const disconnectMtd = () => api.delete("/vat/mtd").then(r => r.data);
+export const getMtdObligations = (client: object) => api.post("/vat/mtd/obligations", { client }).then(r => r.data);
+export const getVatReview = (from: string, to: string) => api.get("/vat/review", { params: { from, to } }).then(r => r.data);
+export const submitVatReturn = (body: object) => api.post("/vat/mtd/submit", body).then(r => r.data);
+export const recordVatReturn = (body: object) => api.post("/vat/returns/manual", body).then(r => r.data);
+export const getFiledVatReturns = () => api.get("/vat/returns").then(r => r.data);
+
 // Phase J: Cin7's sale / purchase task CSV import (preview with apply=false), its logs, and the go-live check
 export const importTasks = ({ kind, file, options, apply }:
   { kind: "sales" | "purchases"; file: File; options: Record<string, string | number | boolean | undefined>; apply: boolean }) => {

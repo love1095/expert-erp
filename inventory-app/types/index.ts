@@ -1150,7 +1150,8 @@ export interface AgedCreditors { asAt: string; suppliers: AgedCreditor[]; totals
 // ---- VAT return (H3) ----
 export interface VatBoxes { box1: number; box2: number; box3: number; box4: number; box5: number; box6: number; box7: number; box8: number; box9: number }
 export interface VatRateRow { side: "SALES" | "PURCHASES"; taxName: string; vatType: VatType; rate: number; net: number; vat: number; lines: number }
-export interface VatDocument { invoiceId: number; side: "SALES" | "PURCHASES"; kind: "INVOICE" | "CREDIT_NOTE"; number: string; date: string; party: string; net: number; vat: number }
+// K4: spend / receive money (sourceKey BT:id) has no invoice
+export interface VatDocument { invoiceId: number | null; side: "SALES" | "PURCHASES"; kind: "INVOICE" | "CREDIT_NOTE" | "SPEND_MONEY" | "RECEIVE_MONEY"; number: string; date: string; party: string | null; net: number; vat: number; sourceKey: string }
 export interface VatReturn { from: string; to: string; boxes: VatBoxes; rates: VatRateRow[]; documents: VatDocument[]; refund: boolean }
 
 // ---- Sales profit and inventory movement (H4) ----
@@ -1292,4 +1293,17 @@ export interface BankTransactionLine { accountCode: string; description: string 
 export interface BankTransaction {
   id: number; kind: "SPEND" | "RECEIVE" | "TRANSFER"; date: string; accountCode: string; toAccountCode: string | null; contact: string | null;
   reference: string | null; total: number; status: "ACTIVE" | "VOIDED"; reconciled: boolean; lines: BankTransactionLine[];
+}
+
+// Phase K4: VAT returns and Making Tax Digital
+export interface MtdStatus { configured: boolean; vrn: string | null; connected: boolean; connectedAt: string | null; connectedBy: string | null }
+export interface VatPeriod { periodKey: string; start: string; end: string; due: string; status: "O" | "F"; filedReturnId: number | null }
+export interface VatBoxes { box1: number; box2: number; box3: number; box4: number; box5: number; box6: number; box7: number; box8: number; box9: number }
+export interface VatReview {
+  vatReturn: { from: string; to: string; boxes: VatBoxes; refund: boolean; documents: { sourceKey: string; number: string; date: string; party: string | null; net: number; vat: number; side: string }[] };
+  ledgerVatMovement: number; warnings: string[]; declaration: string;
+}
+export interface FiledVatReturn {
+  id: number; periodKey: string | null; from: string; to: string; due: string | null; boxes: VatBoxes; how: "MTD" | "MANUAL"; filedAt: string; filedBy: string | null;
+  processingDate: string | null; formBundleNumber: string | null; paymentIndicator: string | null; chargeRefNumber: string | null; note: string | null;
 }

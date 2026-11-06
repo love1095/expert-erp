@@ -55,6 +55,7 @@ public class PermissionFilter extends OncePerRequestFilter {
             // Phase K: the ERP's own accounting
             r("*", "/api/ledger/**", ACCOUNTING),
             r("*", "/api/bank/**", ACCOUNTING),
+            r("*", "/api/vat/**", ACCOUNTING),
             r("GET", "/api/cutover/**", DATA_IMPORT),
             r("GET", "/api/customers/**", CUSTOMERS, SALE_VIEW),
             r("GET", "/api/customers", CUSTOMERS, SALE_VIEW),

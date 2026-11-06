@@ -147,10 +147,11 @@ export default function VatReturnPage() {
                   <th className="px-3 font-medium text-right">Net</th><th className="px-3 font-medium text-right">VAT</th></tr></thead>
                 <tbody className="tabular-nums">
                   {data.documents.map(d => (
-                    <tr key={d.invoiceId} className="border-b border-gray-100">
+                    <tr key={d.sourceKey} className="border-b border-gray-100">
                       <td className="px-3 py-1.5">{new Date(d.date + "T00:00:00").toLocaleDateString("en-GB")}</td>
-                      <td className="px-3"><Link href={`/invoices/${d.invoiceId}`} className="text-brand-700 hover:underline">
-                        {d.kind === "CREDIT_NOTE" ? "Credit note" : d.side === "SALES" ? "Invoice" : "Bill"} {d.number}</Link></td>
+                      <td className="px-3">{d.invoiceId ? <Link href={`/invoices/${d.invoiceId}`} className="text-brand-700 hover:underline">
+                        {d.kind === "CREDIT_NOTE" ? "Credit note" : d.side === "SALES" ? "Invoice" : "Bill"} {d.number}</Link>
+                        : <Link href="/accounting/bank" className="text-brand-700 hover:underline">{d.number}</Link>}</td>
                       <td className="px-3 text-gray-600">{d.party}</td>
                       <td className="px-3 text-right">{formatGBP(d.net)}</td>
                       <td className="px-3 text-right">{formatGBP(d.vat)}</td>

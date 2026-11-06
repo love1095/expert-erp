@@ -40,12 +40,14 @@ public class VatReturnService {
     public record RateRow(String side, String taxName, VatType vatType, BigDecimal rate, BigDecimal net, BigDecimal vat, int lines) {}
 
     /** A document in the period with what it adds to the return (credit notes negative). */
-    public record Document(Long invoiceId, String side, String kind, String number, LocalDate date, String party, BigDecimal net, BigDecimal vat) {}
+    /** sourceKey: DOC:id for invoices and bills, BT:id for spend / receive money (K4). */
+    public record Document(Long invoiceId, String side, String kind, String number, LocalDate date, String party, BigDecimal net, BigDecimal vat,
+                           String sourceKey) {}
 
     public record VatReturn(LocalDate from, LocalDate to, Boxes boxes, List<RateRow> rates, List<Document> documents, boolean refund) {}
 
     private record Line(String side, String kind, Long invoiceId, String number, LocalDate date, String party,
-                        BigDecimal net, BigDecimal vat, String taxName, BigDecimal rate, VatType type, BigDecimal reportRate) {}
+                        BigDecimal net, BigDecimal vat, String taxName, BigDecimal rate, VatType type, BigDecimal reportRate, String sourceKey) {}
 
     @Transactional(readOnly = true)
     public VatReturn vatReturn(LocalDate from, LocalDate to) {
@@ -72,14 +74,37 @@ public class VatReturnService {
             return new Line("SALES".equals(rs.getString("type")) ? "SALES" : "PURCHASES", rs.getString("kind"), rs.getLong("id"),
                     rs.getString("invoice_number"), rs.getDate("issue_date").toLocalDate(), rs.getString("party_name"),
                     nz(rs.getBigDecimal("net")).multiply(sign), nz(rs.getBigDecimal("vat")).multiply(sign),
-                    rs.getString("tax_name"), rate, type, reportRate);
+                    rs.getString("tax_name"), rate, type, reportRate, "DOC:" + rs.getLong("id"));
         }, t, Date.valueOf(from), Date.valueOf(to));
+        // Phase K4: spend money (purchases) and receive money (sales) with a VAT rate, as Xero's return takes them
+        lines = new ArrayList<>(lines);
+        lines.addAll(jdbc.query("""
+                SELECT b.id, b.kind, b.txn_date, b.contact, b.reference, l.net, l.tax_amount, l.tax_name, l.tax_rate, tr.vat_type, tr.report_rate
+                FROM bank_transaction_lines l
+                JOIN bank_transactions b ON b.id = l.bank_transaction_id
+                LEFT JOIN tax_rates tr ON tr.tenant_id = b.tenant_id AND lower(tr.name) = lower(l.tax_name)
+                     AND tr.usage = CASE WHEN b.kind = 'RECEIVE' THEN 'SALE' ELSE 'PURCHASE' END
+                WHERE b.tenant_id = ? AND b.status = 'ACTIVE' AND b.kind IN ('SPEND', 'RECEIVE') AND l.tax_name IS NOT NULL
+                  AND b.txn_date BETWEEN ? AND ?
+                ORDER BY b.txn_date, b.id, l.id""", (rs, n) -> {
+            BigDecimal rate = nz(rs.getBigDecimal("tax_rate"));
+            String typeName = rs.getString("vat_type");
+            VatType type = typeName != null ? VatType.valueOf(typeName)
+                    : rate.compareTo(HUNDRED) >= 0 ? VatType.FULL_VAT : rate.signum() == 0 ? VatType.ZERO : VatType.STANDARD;
+            BigDecimal reportRate = rs.getBigDecimal("report_rate") != null ? rs.getBigDecimal("report_rate") : rate;
+            boolean receive = "RECEIVE".equals(rs.getString("kind"));
+            String ref = rs.getString("reference");
+            return new Line(receive ? "SALES" : "PURCHASES", receive ? "RECEIVE_MONEY" : "SPEND_MONEY", null,
+                    (receive ? "Receive money" : "Spend money") + (ref == null ? "" : " " + ref), rs.getDate("txn_date").toLocalDate(),
+                    rs.getString("contact"), nz(rs.getBigDecimal("net")), nz(rs.getBigDecimal("tax_amount")), rs.getString("tax_name"), rate, type,
+                    reportRate, "BT:" + rs.getLong("id"));
+        }, t, Date.valueOf(from), Date.valueOf(to)));
 
         BigDecimal b1 = BigDecimal.ZERO, b2 = BigDecimal.ZERO, b4 = BigDecimal.ZERO, b6 = BigDecimal.ZERO, b7 = BigDecimal.ZERO, b9 = BigDecimal.ZERO;
         Map<String, BigDecimal[]> byRate = new LinkedHashMap<>();
         Map<String, Line> rateInfo = new HashMap<>();
-        Map<Long, BigDecimal[]> byDoc = new LinkedHashMap<>();
-        Map<Long, Line> docInfo = new HashMap<>();
+        Map<String, BigDecimal[]> byDoc = new LinkedHashMap<>();
+        Map<String, Line> docInfo = new HashMap<>();
         for (Line l : lines) {
             if (l.type() == VatType.NO_VAT) continue;
             boolean sale = "SALES".equals(l.side());
@@ -101,10 +126,10 @@ public class VatReturnService {
             r[1] = r[1].add(vat);
             r[2] = r[2].add(BigDecimal.ONE);
             rateInfo.putIfAbsent(key, l);
-            BigDecimal[] d = byDoc.computeIfAbsent(l.invoiceId(), k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+            BigDecimal[] d = byDoc.computeIfAbsent(l.sourceKey(), k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
             d[0] = d[0].add(l.net());
             d[1] = d[1].add(vat);
-            docInfo.putIfAbsent(l.invoiceId(), l);
+            docInfo.putIfAbsent(l.sourceKey(), l);
         }
         BigDecimal b3 = b1.add(b2);
         Boxes boxes = new Boxes(pence(b1), pence(b2), pence(b3), pence(b4), pence(b3.subtract(b4).abs()),
@@ -119,7 +144,7 @@ public class VatReturnService {
         List<Document> documents = new ArrayList<>();
         byDoc.forEach((id, v) -> {
             Line l = docInfo.get(id);
-            documents.add(new Document(id, l.side(), l.kind(), l.number(), l.date(), l.party(), pence(v[0]), pence(v[1])));
+            documents.add(new Document(l.invoiceId(), l.side(), l.kind(), l.number(), l.date(), l.party(), pence(v[0]), pence(v[1]), id));
         });
         return new VatReturn(from, to, boxes, rates, documents, b3.compareTo(b4) < 0);
     }

@@ -43,6 +43,7 @@ export const NAV: NavModule[] = [
     { href: "/accounting/profit-and-loss",      label: "Profit and loss",      perm: "ACCOUNTING" },
     { href: "/accounting/balance-sheet",        label: "Balance sheet",        perm: "ACCOUNTING" },
     { href: "/accounting/trial-balance",        label: "Trial balance",        perm: "ACCOUNTING" },
+    { href: "/accounting/vat",                  label: "VAT returns (MTD)",    perm: "ACCOUNTING" },
     { href: "/accounting/account-transactions", label: "Account transactions", perm: "ACCOUNTING" },
     { href: "/accounting/journals",             label: "Journal report",       perm: "ACCOUNTING" },
     { href: "/accounting/settings",             label: "Ledger settings",      perm: "ACCOUNTING" },
