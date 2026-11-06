@@ -18,7 +18,9 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Check the sales profit figures against Cin7's for one month once orders are migrated
 
 ## To run next time the app is up
-- [ ] E2E REPORT-001 and the full backend + e2e suites for I3 (built without starting the app)
+- [x] E2E REPORT-001 (passed 2026-11-06 after rebuilding the backend; the running container was an older build)
+- [ ] The full backend + e2e suites for I3 and I4 (built without starting the app); E2E TEMPLATE-001
+- [ ] Expert Safety: make its Cin7 templates here (Invoice - Account Client / Cash Sale, Delivery Note, Pick List…) with its bank details and terms
 
 ## Test later with live systems
 - [ ] **Shopify (live store)**: a price change updates only that product (GLGH-WG-310RP-08 → expect 1 updated); stock push to the real dev store (would set stock for 13,959 linked SKUs); Shopify payouts (money paid into the bank, less fees) not matched to orders yet; Shopify-paid invoices tested with a fake order only

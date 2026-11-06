@@ -137,7 +137,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
           </div>
         }
         actions={!busyMode && <>
-          <PrintButton kind="purchase-orders" id={po.id} fileName={`${po.orderNumber}.pdf`} />
+          <PrintButton kind="purchase-orders" id={po.id} fileName={`${po.orderNumber}.pdf`} docType="PURCHASE_ORDER" />
           {canBill && <button disabled={busy} onClick={() => { setError(""); setBilling(true); }} className={BTN_SECONDARY}>Enter bill</button>}
           {open && <>
           {anyReceived ? (

@@ -42,41 +42,81 @@ public class DocumentService {
     private final SupplierRepository supplierRepository;
     private final WarehouseRepository warehouseRepository;
     private final PdfRenderer renderer;
+    private final DocumentTemplateService templateService;
 
     public record Pdf(String fileName, byte[] bytes) {}
 
     @Transactional(readOnly = true)
     public Pdf saleOrder(Long id) {
-        DocumentModel m = saleOrderModel(saleOrderService.findById(id), company());
+        return saleOrder(id, null);
+    }
+
+    /** {@code templateId}: a template of the document's type (I4), or null for the type's default. */
+    @Transactional(readOnly = true)
+    public Pdf saleOrder(Long id, Long templateId) {
+        DocumentModel m = laidOut(saleOrderModel(saleOrderService.findById(id), company()), templateId);
         return new Pdf(m.fileName(), renderer.render(m));
     }
 
     @Transactional(readOnly = true)
     public Pdf invoice(Long id) {
-        DocumentModel m = invoiceModel(invoiceService.findById(id), company());
+        return invoice(id, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Pdf invoice(Long id, Long templateId) {
+        DocumentModel m = laidOut(invoiceModel(invoiceService.findById(id), company()), templateId);
         return new Pdf(m.fileName(), renderer.render(m));
     }
 
     @Transactional(readOnly = true)
     public Pdf purchaseOrder(Long id) {
-        DocumentModel m = purchaseOrderModel(purchaseOrderService.findById(id), company());
+        return purchaseOrder(id, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Pdf purchaseOrder(Long id, Long templateId) {
+        DocumentModel m = laidOut(purchaseOrderModel(purchaseOrderService.findById(id), company()), templateId);
         return new Pdf(m.fileName(), renderer.render(m));
+    }
+
+    // The document's type from its model (titles set below), then the template asked for or the type's default
+    DocumentModel laidOut(DocumentModel m, Long templateId) {
+        DocumentTemplateService.DocType type = switch (m.title()) {
+            case "Quote" -> DocumentTemplateService.DocType.QUOTE;
+            case "Sales order" -> DocumentTemplateService.DocType.SALES_ORDER;
+            case "Credit note" -> DocumentTemplateService.DocType.CREDIT_NOTE;
+            case "Purchase order" -> DocumentTemplateService.DocType.PURCHASE_ORDER;
+            default -> DocumentTemplateService.DocType.INVOICE;
+        };
+        return DocumentTemplateService.apply(m, templateService.forPrinting(type, templateId).orElse(null));
     }
 
     /** Several documents of one kind in one PDF, in the order given (Cin7's Print on ticked rows). */
     @Transactional(readOnly = true)
     public Pdf many(String kind, List<Long> ids) {
+        return many(kind, ids, null);
+    }
+
+    /** {@code templateId}: used for every document of its type; the others print with their type's default. */
+    @Transactional(readOnly = true)
+    public Pdf many(String kind, List<Long> ids, Long templateId) {
         if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("Choose the documents to print");
         if (ids.size() > 100) throw new IllegalArgumentException("Print at most 100 documents at a time");
         Letterhead company = company();
         List<DocumentModel> models = new ArrayList<>();
         for (Long id : ids) {
-            models.add(switch (kind) {
+            DocumentModel m = switch (kind) {
                 case "sale-orders" -> saleOrderModel(saleOrderService.findById(id), company);
                 case "invoices" -> invoiceModel(invoiceService.findById(id), company);
                 case "purchase-orders" -> purchaseOrderModel(purchaseOrderService.findById(id), company);
                 default -> throw new IllegalArgumentException("Unknown document kind: " + kind);
-            });
+            };
+            DocumentModel standard = laidOut(m, null);
+            if (templateId != null) {
+                try { standard = laidOut(m, templateId); } catch (IllegalArgumentException wrongType) { /* other type: its default */ }
+            }
+            models.add(standard);
         }
         String name = models.size() == 1 ? models.get(0).fileName() : kind + "-" + LocalDate.now() + ".pdf";
         return new Pdf(name, renderer.renderAll(models));

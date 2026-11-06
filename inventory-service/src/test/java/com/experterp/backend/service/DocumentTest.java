@@ -48,6 +48,7 @@ class DocumentTest {
     @Autowired SupplierRepository supplierRepository;
     @Autowired WarehouseRepository warehouseRepository;
     @Autowired TenantRepository tenantRepository;
+    @Autowired DocumentTemplateService templateService;
 
     Warehouse warehouse;
     Product helmet;
@@ -103,6 +104,53 @@ class DocumentTest {
                 // 4 × £10 + £5 carriage = £45, 20 % VAT £9
                 "£45.00", "£9.00", "Total due", "£54.00",
                 "Please pay", "quoting " + inv.getInvoiceNumber(), "Sort code: 00-00-00", "Goods remain our property", "Page 1 of 1"));
+    }
+
+    /** Phase I4: named templates like Cin7's ("Delivery Note", "Invoice - Cash Sale"), a default per type, one picked to print. */
+    @Test
+    void templatesLayTheDocumentOutADeliveryNoteHasNoPrices() throws IOException {
+        SaleOrderResponse so = shippedOrder();
+        OrderInvoiceRequest all = new OrderInvoiceRequest();
+        all.setIssue(true);
+        InvoiceResponse inv = invoiceService.invoiceOrder(so.getId(), all);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("admin", null,
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))));
+        try {
+            DocumentTemplateService.Template delivery = templateService.save(null, new DocumentTemplateService.Template(null,
+                    DocumentTemplateService.DocType.SALES_ORDER, "Delivery Note - Expert Safety", false, "Delivery note", "#1f6feb",
+                    false, false, true, true, true, "Please check the goods on delivery.", null, null, "Your delivery"));
+            assertThat(delivery.isDefault()).isTrue();                              // the first of its type
+            String note = text(documentService.saleOrder(so.getId()).bytes());      // printed with the default
+            assertThat(note).contains(lc("Delivery note", so.getOrderNumber(), "PW54-WHR", "Please check the goods on delivery."))
+                    .doesNotContain("£45.00").doesNotContain("£54.00").doesNotContain("carriage").doesNotContain("unit price");
+
+            DocumentTemplateService.Template cash = templateService.save(null, new DocumentTemplateService.Template(null,
+                    DocumentTemplateService.DocType.INVOICE, "Invoice - Cash Sale", false, null, "#d42020", true, true, true, true, true,
+                    null, "Paid in full by card at the trade counter.", "Thank you for shopping with us.", null));
+            String paid = text(documentService.invoice(inv.getId(), cash.id()).bytes());
+            assertThat(paid).contains(lc("Invoice", "£54.00", "Paid in full by card at the trade counter.", "Thank you for shopping with us."))
+                    .doesNotContain("sort code").doesNotContain("goods remain our property");
+
+            // A template is for its own type; names are unique per type in any case
+            assertThatThrownBy(() -> documentService.invoice(inv.getId(), delivery.id())).hasMessageContaining("not for invoices");
+            assertThatThrownBy(() -> templateService.save(null, new DocumentTemplateService.Template(null,
+                    DocumentTemplateService.DocType.INVOICE, "invoice - cash sale", false, null, null, true, true, true, true, true,
+                    null, null, null, null))).hasMessageContaining("already");
+            assertThatThrownBy(() -> templateService.save(null, new DocumentTemplateService.Template(null,
+                    DocumentTemplateService.DocType.INVOICE, "Red", false, null, "red", true, true, true, true, true,
+                    null, null, null, null))).hasMessageContaining("#d42020");
+
+            // Without a template for credit notes: the standard layout; removing the default makes another the default
+            DocumentTemplateService.Template second = templateService.save(null, new DocumentTemplateService.Template(null,
+                    DocumentTemplateService.DocType.SALES_ORDER, "Pick List", true, "Pick list", "#000000", false, false, true, false, false,
+                    null, null, null, null));
+            assertThat(templateService.get(delivery.id()).isDefault()).isFalse();
+            templateService.delete(second.id());
+            assertThat(templateService.get(delivery.id()).isDefault()).isTrue();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 
     @Test

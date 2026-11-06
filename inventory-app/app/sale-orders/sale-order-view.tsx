@@ -237,6 +237,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
         {mode === "view" && (
           <div className="flex flex-wrap items-center gap-2">
             <PrintButton kind="sale-orders" id={order.id} fileName={`${order.orderNumber}.pdf`}
+              docType={order.status === "QUOTE" || order.status === "REJECTED" ? "QUOTE" : "SALES_ORDER"}
               label={order.status === "QUOTE" || order.status === "REJECTED" ? "Print quote" : "Print"} />
             {order.status === "QUOTE" && (
               <>

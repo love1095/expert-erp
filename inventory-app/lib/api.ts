@@ -363,3 +363,9 @@ export const searchEverything = (q: string) => api.get("/search", { params: { q 
 export const getCoreReports = () => api.get("/reports/core").then(r => r.data);
 export const runCoreReport = (key: string, from?: string, to?: string) =>
   api.get(`/reports/core/${key}`, { params: { from, to } }).then(r => r.data);
+
+// ---- Document templates (I4) ----
+export const getDocumentTemplates = () => api.get("/settings/document-templates").then(r => r.data);
+export const saveDocumentTemplate = (t: { id?: number | null }) =>
+  (t.id ? api.put(`/settings/document-templates/${t.id}`, t) : api.post("/settings/document-templates", t)).then(r => r.data);
+export const deleteDocumentTemplate = (id: number) => api.delete(`/settings/document-templates/${id}`);

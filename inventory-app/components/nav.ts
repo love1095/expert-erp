@@ -43,6 +43,7 @@ export const NAV: NavModule[] = [
     { href: "/settings/organisation", label: "Organisation" },
     { href: "/settings/subscription", label: "Subscription" },
     { href: "/settings/integrations", label: "Integrations" },
+    { href: "/settings/templates",    label: "Document templates" },
   ]},
 ];
 

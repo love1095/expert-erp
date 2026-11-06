@@ -18,7 +18,7 @@ The spec's phase 1 ("Replace Cin7 Core") sets the order: build a module before t
 | F ✅ | Shopify 7.4–7.6 — 7.5 ✅ 7.4 ✅ 7.6 ✅ | Cancellations and refunds, retries and monitoring, stock push | The integration that "cannot fail" |
 | G 🔄 | Customers and pricing (spec §5) — G1 ✅ G2 ✅ G3 ✅ G4 ✅ | Price tiers, contract prices, credit hold, statements | |
 | H ✅ | Finance and accounting (spec §6) — H1 ✅ H2 ✅ H3 ✅ H4 ✅ H5 ✅ (Xero CSV; API link later) | Sales / purchase ledgers, aged debtors and creditors, VAT report, FIFO COGS, accounting export queue: CSV first, then Xero / QuickBooks / Sage adapters | Spec phase 1 complete |
-| I 🔄 | Reports, permissions, search, templates (spec §8) — I1 ✅ I2 ✅ I3 ✅ | Core reports, cost prices hidden from non-owner roles, global search, document templates, 2FA | |
+| I 🔄 | Reports, permissions, search, templates (spec §8) — I1 ✅ I2 ✅ I3 ✅ I4 ✅ | Core reports, cost prices hidden from non-owner roles, global search, document templates, 2FA | |
 | J | Cutover | Open orders and balances, reconciliation, backups, monitoring, rollback plan | Switch off Cin7 |
 | K | ERP accounting (all-in-one), decided 2026-11-06 | General ledger posted from every document (never edited, only reversed), chart of accounts, manual journals, trial balance, P&L, balance sheet, period lock, year-end close; bank statement import (CSV/OFX) and reconciliation (live bank feeds via an Open Banking provider later); VAT filing to HMRC (Making Tax Digital: HMRC registration, sandbox tests, fraud-prevention headers); accountant login and exports. **No payroll** (a payroll service posts one journal). The Xero / QuickBooks link stays for customers who keep their package | Sell ERP + accounting as one, or ERP + Xero link |
 

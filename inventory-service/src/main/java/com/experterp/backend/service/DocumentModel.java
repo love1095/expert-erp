@@ -21,7 +21,21 @@ public record DocumentModel(
         List<VatRow> vatSummary,
         String notes,
         String payment,             // how to pay (invoices): bank details and the reference to quote
-        String fileName) {
+        String fileName,
+        Style style) {              // the template's layout (phase I4)
+
+    /** As before I4: the standard layout. */
+    public DocumentModel(String title, String number, String stamp, Company company, List<Party> parties, List<Field> fields,
+                         boolean showCode, boolean showSupplierCode, boolean showDiscount, List<Line> lines, List<Total> totals,
+                         List<VatRow> vatSummary, String notes, String payment, String fileName) {
+        this(title, number, stamp, company, parties, fields, showCode, showSupplierCode, showDiscount, lines, totals, vatSummary,
+                notes, payment, fileName, Style.STANDARD);
+    }
+
+    /** Accent colour; prices shown (false: a delivery note / pick list); text above the lines. */
+    public record Style(String accentColor, boolean showPrices, String introText) {
+        public static final Style STANDARD = new Style("#d42020", true, null);
+    }
 
     public record Company(String name, List<String> address, String phone, String email, String website,
                           String vatNumber, String companyNumber, String logoDataUri, String footer) {}

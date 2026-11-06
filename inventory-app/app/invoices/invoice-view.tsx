@@ -80,7 +80,8 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
           </div>
         }
         actions={!crediting && <>
-          {inv.type === "SALES" && <PrintButton kind="invoices" id={inv.id} fileName={`${inv.invoiceNumber}.pdf`} />}
+          {inv.type === "SALES" && <PrintButton kind="invoices" id={inv.id} fileName={`${inv.invoiceNumber}.pdf`}
+            docType={isCreditNote ? "CREDIT_NOTE" : "INVOICE"} />}
           {(inv.status === "DRAFT" || inv.status === "ISSUED") && !isCreditNote && (
             <button disabled={busy} onClick={() => { if (confirm(`Cancel ${inv.invoiceNumber}?`)) cancelMut.mutate(inv.id); }} className={BTN_DANGER}>
               Cancel invoice

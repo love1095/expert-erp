@@ -1198,3 +1198,11 @@ export interface CoreReport {
   key: string; title: string; description: string; from: string | null; to: string | null;
   columns: CoreReportColumn[]; rows: Record<string, string | number | null>[]; totals: Record<string, number>;
 }
+
+// ---- Document templates (I4) ----
+export type DocType = "QUOTE" | "SALES_ORDER" | "INVOICE" | "CREDIT_NOTE" | "PURCHASE_ORDER";
+export interface DocumentTemplate {
+  id: number | null; docType: DocType; name: string; isDefault: boolean; title: string | null; accentColor: string;
+  showLogo: boolean; showPrices: boolean; showSku: boolean; showDiscount: boolean; showVatSummary: boolean;
+  introText: string | null; paymentText: string | null; footerText: string | null; emailSubject: string | null;
+}

@@ -78,8 +78,8 @@
       <td class="title">
         <h1 th:text="${d.title}">Invoice</h1>
         <div class="number" th:text="${d.number}">INV-1</div>
-        <div class="bar"></div>
-        <div th:if="${d.stamp != null}" class="stamp" th:text="${d.stamp}">Draft</div>
+        <div class="bar" th:style="${'border-top-color: ' + d.style.accentColor}"></div>
+        <div th:if="${d.stamp != null}" class="stamp" th:style="${'border-color: ' + d.style.accentColor + '; color: ' + d.style.accentColor}" th:text="${d.stamp}">Draft</div>
       </td>
     </tr>
   </table>
@@ -104,6 +104,8 @@
     </tr>
   </table>
 
+  <div class="box pre" th:if="${d.style.introText != null}" th:text="${d.style.introText}" style="margin: 0 0 4mm 0">Intro</div>
+
   <table class="lines">
     <thead>
       <tr>
@@ -111,30 +113,30 @@
         <th th:if="${d.showSupplierCode}">Supplier code</th>
         <th class="desc">Description</th>
         <th class="num">Qty</th>
-        <th class="num">Unit price</th>
+        <th class="num" th:if="${d.style.showPrices}">Unit price</th>
         <th class="num" th:if="${d.showDiscount}">Disc.</th>
-        <th>VAT</th>
-        <th class="num">Net</th>
+        <th th:if="${d.style.showPrices}">VAT</th>
+        <th class="num" th:if="${d.style.showPrices}">Net</th>
       </tr>
     </thead>
     <tbody>
-      <tr th:each="l : ${d.lines}" th:class="${l.charge} ? 'charge' : null">
+      <tr th:each="l : ${d.lines}" th:if="${d.style.showPrices or !l.charge}" th:class="${l.charge} ? 'charge' : null">
         <td th:if="${d.showCode}" class="code" th:text="${l.code}">SKU</td>
         <td th:if="${d.showSupplierCode}" class="code" th:text="${l.supplierCode}">code</td>
         <td class="desc" th:text="${l.description}">Product</td>
         <td class="num" th:text="${l.quantity}">1</td>
-        <td class="num" th:text="${l.unitPrice}">£1.00</td>
+        <td class="num" th:if="${d.style.showPrices}" th:text="${l.unitPrice}">£1.00</td>
         <td class="num" th:if="${d.showDiscount}" th:text="${l.discount}">10%</td>
-        <td class="small" th:text="${l.tax}">20%</td>
-        <td class="num" th:text="${l.net}">£1.00</td>
+        <td class="small" th:if="${d.style.showPrices}" th:text="${l.tax}">20%</td>
+        <td class="num" th:if="${d.style.showPrices}" th:text="${l.net}">£1.00</td>
       </tr>
       <tr class="empty" th:if="${d.lines.isEmpty()}">
-        <td th:attr="colspan=${5 + (d.showCode ? 1 : 0) + (d.showSupplierCode ? 1 : 0) + (d.showDiscount ? 1 : 0)}">Nothing left on this document: every line was cancelled</td>
+        <td th:attr="colspan=${(d.style.showPrices ? 5 : 2) + (d.showCode ? 1 : 0) + (d.showSupplierCode ? 1 : 0) + (d.showDiscount ? 1 : 0)}">Nothing left on this document: every line was cancelled</td>
       </tr>
     </tbody>
   </table>
 
-  <table class="bottom">
+  <table class="bottom" th:if="${d.style.showPrices}">
     <tr>
       <td style="width: 55%; padding-right: 8mm">
         <table class="vat" th:if="${!d.vatSummary.isEmpty()}">
