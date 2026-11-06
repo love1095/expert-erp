@@ -1,6 +1,10 @@
 // The app's modules, grouped like Cin7 (Sale, Purchase, Inventory …). Used by the sidebar and the top bar trail.
-export interface NavItem { href: string; label: string }
+// roles: only these roles see the item (e.g. reports with cost and profit)
+export interface NavItem { href: string; label: string; roles?: string[] }
 export interface NavModule { key: string; label: string; icon: string; href?: string; items?: NavItem[] }
+
+// Cost and profit: managers and admins (Cin7 sets report permissions per user; phase I)
+const MANAGERS = ["MANAGER", "ADMIN"];
 
 export const NAV: NavModule[] = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard", href: "/" },
@@ -27,6 +31,10 @@ export const NAV: NavModule[] = [
     { href: "/vat-return",     label: "VAT return" },
     { href: "/aged-debtors",   label: "Aged debtors" },
     { href: "/aged-creditors", label: "Aged creditors" },
+    { href: "/reports/sales-profit",       label: "Sales Profit Summary",           roles: MANAGERS },
+    { href: "/reports/profit-by-rep",      label: "Profit by Sales Representatives", roles: MANAGERS },
+    { href: "/reports/sales-by-product",   label: "Sales by Product Summary",       roles: MANAGERS },
+    { href: "/reports/inventory-movement", label: "Inventory Movement Summary",     roles: MANAGERS },
   ]},
   { key: "admin", label: "Admin", icon: "admin", items: [
     { href: "/users",     label: "Users" },
@@ -48,7 +56,8 @@ export const PLATFORM_NAV: NavModule[] = [
 ];
 
 export function navFor(role?: string): NavModule[] {
-  return role === "SUPER_ADMIN" ? PLATFORM_NAV : NAV;
+  if (role === "SUPER_ADMIN") return PLATFORM_NAV;
+  return NAV.map(m => m.items ? { ...m, items: m.items.filter(i => !i.roles || (role != null && i.roles.includes(role))) } : m);
 }
 
 export function isActive(href: string, pathname: string) {

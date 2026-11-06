@@ -196,7 +196,7 @@ public class CostingService {
                 if (e.getValue().signum() <= 0) continue;
                 CostLayer layer = layerRepository.findById(e.getKey()).orElseThrow();
                 BigDecimal amount = correction(item, layer, e.getValue()).negate();
-                adjust(layer, amount, item.getId(), e.getValue().negate(), "Bill " + bill.getInvoiceNumber() + " cancelled");
+                adjust(layer, amount, item.getId(), e.getValue().negate(), "Bill " + bill.getInvoiceNumber() + " cancelled", LocalDateTime.now());
                 layer.setBilledQuantity(layer.getBilledQuantity().subtract(e.getValue()).max(BigDecimal.ZERO));
             }
             item.setCostMatchedQuantity(BigDecimal.ZERO);
@@ -210,6 +210,8 @@ public class CostingService {
         if (purchaseOrderLineId == null) return;
         List<InvoiceItem> items = invoiceItemRepository.findUnmatchedBillItems(purchaseOrderLineId, asOf);
         if (items.isEmpty()) return;
+        // When rebuilding, the correction is dated when it happened then (the bill or the receipt), not now: reports read it
+        LocalDateTime at = asOf != null ? asOf : LocalDateTime.now();
         Iterator<CostLayer> layers = layerRepository.findUnbilled(purchaseOrderLineId).iterator();
         CostLayer layer = layers.hasNext() ? layers.next() : null;
         for (InvoiceItem item : items) {
@@ -218,7 +220,7 @@ public class CostingService {
                         .min(layer.getQuantity().subtract(layer.getBilledQuantity()));
                 BigDecimal amount = correction(item, layer, units);
                 adjust(layer, amount, item.getId(), units, "Bill " + item.getInvoice().getInvoiceNumber() + " at "
-                        + money(netUnitPrice(item)) + ", received at " + money(layer.getOriginalUnitCost()));
+                        + money(netUnitPrice(item)) + ", received at " + money(layer.getOriginalUnitCost()), at);
                 layer.setBilledQuantity(layer.getBilledQuantity().add(units));
                 item.setCostMatchedQuantity(item.getCostMatchedQuantity().add(units));
                 if (layer.getBilledQuantity().compareTo(layer.getQuantity()) >= 0) layer = layers.hasNext() ? layers.next() : null;
@@ -241,16 +243,16 @@ public class CostingService {
      * Spreads a change of value over a layer: each stock-out that took from it gets its share (its quantity / the
      * layer's), passed on to the layer it opened when it was a transfer; the rest is the stock still in the layer.
      */
-    private void adjust(CostLayer layer, BigDecimal amount, Long invoiceItemId, BigDecimal billedUnits, String reason) {
+    private void adjust(CostLayer layer, BigDecimal amount, Long invoiceItemId, BigDecimal billedUnits, String reason, LocalDateTime at) {
         BigDecimal passed = BigDecimal.ZERO;
         if (amount.signum() != 0) {
             for (CostConsumption c : consumptionRepository.findByLayerIdOrderByIdAsc(layer.getId())) {
                 BigDecimal part = amount.multiply(c.getQuantity()).divide(layer.getQuantity(), AMOUNT_SCALE, RoundingMode.HALF_UP);
                 if (part.signum() == 0) continue;
                 if (c.getChildLayerId() != null) {
-                    adjust(layerRepository.findById(c.getChildLayerId()).orElseThrow(), part, invoiceItemId, null, reason);
+                    adjust(layerRepository.findById(c.getChildLayerId()).orElseThrow(), part, invoiceItemId, null, reason, at);
                 } else {
-                    adjustmentRepository.save(adjustment(layer, c.getMovementId(), invoiceItemId, null, part, reason));
+                    adjustmentRepository.save(adjustment(layer, c.getMovementId(), invoiceItemId, null, part, reason, at));
                 }
                 passed = passed.add(part);
             }
@@ -258,13 +260,14 @@ public class CostingService {
         }
         BigDecimal inStock = amount.subtract(passed);
         if (billedUnits != null || inStock.signum() != 0) {
-            adjustmentRepository.save(adjustment(layer, null, invoiceItemId, billedUnits, inStock, reason));
+            adjustmentRepository.save(adjustment(layer, null, invoiceItemId, billedUnits, inStock, reason, at));
         }
     }
 
     private static CostAdjustment adjustment(CostLayer layer, Long movementId, Long invoiceItemId, BigDecimal billedUnits,
-                                             BigDecimal amount, String reason) {
+                                             BigDecimal amount, String reason, LocalDateTime at) {
         CostAdjustment a = new CostAdjustment();
+        a.setCreatedAt(at);
         a.setLayerId(layer.getId());
         a.setMovementId(movementId);
         a.setInvoiceItemId(invoiceItemId);

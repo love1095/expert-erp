@@ -8,6 +8,7 @@ import com.experterp.backend.exception.ResourceNotFoundException;
 import com.experterp.backend.repository.CustomerRepository;
 import com.experterp.backend.repository.InvoiceRepository;
 import com.experterp.backend.repository.PaymentRepository;
+import com.experterp.backend.repository.SaleReturnRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class CreditNoteService {
     private final InvoiceRepository invoiceRepository;
     private final PaymentRepository paymentRepository;
     private final CustomerRepository customerRepository;
+    private final SaleReturnRepository saleReturnRepository;
     private final InvoiceService invoiceService;
     private final SaleOrderService saleOrderService;
     private final OrganisationSettingsService settingsService;
@@ -124,7 +126,9 @@ public class CreditNoteService {
             ret.setWarehouseId(req.getWarehouseId());
             ret.setReason("Credit note " + cn.getInvoiceNumber() + (req.getReason() == null ? "" : ": " + req.getReason()));
             ret.setLines(restock);
+            ret.setIdempotencyKey("credit-note-" + cn.getId());
             saleOrderService.createReturn(inv.getSaleOrderId(), ret);
+            saleReturnRepository.findByIdempotencyKey(ret.getIdempotencyKey()).ifPresent(r -> cn.setSaleReturnId(r.getId()));
         }
 
         String settled = settle(inv, cn, req);

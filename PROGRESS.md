@@ -532,7 +532,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ H2 ✅ H3 ✅ · next H4 margin and stock valuation)
+## Phase H — Finance and accounting (spec §6) 🔄 (H1 ✅ H2 ✅ H3 ✅ H4 ✅ · next H5 Xero export, CSV first)
 
 ### H1 Sales ledger ✅
 - [x] Cin7 checked (read-only, 2026-11-04): an invoice's **Payments** are Account (e.g. *650: Current Account - RBS*), Reference, Date paid, Amount, with *Use customer credit*, *Allocate credit note* and a **Customer credit** section; the chart of accounts is **loaded from Xero** (accounting package = Xero): bank 650 / 652 / 653 / 654, 641 Cash, 643 Card Payments, 644 Paypal Payments, 802 Customer Credits
@@ -567,6 +567,18 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 - [x] Menu: **Finance** (VAT return, Aged debtors, Aged creditors)
 - [x] Tests: `VatReturnTest` (2) — rates know their types, reverse charge charges nothing; sale + zero-rated sale + credit note + bill with import VAT and reverse charge → boxes 1 £38.00, 4 £84.30, 5 £46.30 (refund), 6 £140, 7 £296; out-of-period and cancelled left out; E2E VAT-001
 - [ ] Later: Cin7 has 5% (VAT on Income), Exempt and Reverse Charge deprecated; they are still active here (switch them off in Cin7's way if wanted). Cash accounting scheme not built (Expert Safety uses the standard scheme)
+
+### H4 Sales profit and stock value ✅
+- [x] Cin7 checked (read-only, 2026-11-06, Reports): **Sales Profit Summary** (rows Customer + Sales representative; Invoice, COGS, Profit, Gross margin; Sale = invoice − credit note ex tax; GM = (Sale − COGS)·100 / Sale, empty if either is 0; Markup; services and non-inventory left out), **Profit by Sales Representatives**, **Sales by Product Summary**, each a pivot with saved layouts; a **Show COGS** switch: *Only COGS within the date range* (default) or *All COGS*; **Inventory Movement Summary** (Location, SKU, Product, Unit: Quantity on hand, In, Out, Unit cost, Stock on hand for a period). Owner: "do the same as Cin7; if it is not best practice, note it and change later"
+- [x] **Finance → Sales Profit Summary** (per customer or per order), **Profit by Sales Representatives** (per customer, per order, totals per rep), **Sales by Product Summary** (quantity, category filter): invoices less credit notes dated in the period (issued / paid), stock products only; Invoice (with VAT), Sale, COGS, Profit, Gross margin, Markup, Grand Total, search, Cin7's period modes, **Export CSV**
+- [x] **Show COGS** like Cin7: *within the dates* = FIFO cost of goods shipped in the period less goods returned to stock, with bill corrections made in the period (a shipped order not invoiced yet shows cost and no sale, as in Cin7); *All COGS* = each invoice's cost (its order line's shipments per unit, the cost price if not shipped yet) and each credit note's goods taken back into stock (`V33`: a credit note keeps its return; the 44 local credit notes were linked by the backfill)
+- [x] **Finance → Inventory Movement Summary**: per location and product, opening quantity and FIFO value, In, Out (quantity and value), quantity on hand, unit cost, stock on hand; location and category filters, search, CSV. Values from the cost layers on their dates, so any period works and its end equals the FIFO stock value (local data: £99,851.54, the dashboard's figure; one period's closing = the next one's opening)
+- [x] Bill corrections rebuilt at start-up (or by *rebuild*) now keep the time of the bill / receipt, not the rebuild's (reports read their dates); local costs rebuilt once
+- [x] Reports with cost and profit: **managers and admins** (menu items hidden for staff, API 403)
+- [x] Tests: `SalesProfitTest` (3) — 5 helmets at £6 + 5 at £8, Abbey 4 × £10 shipped + invoiced, AE Yates 3 × £12 shipped not invoiced, 1 credited back: within dates Abbey sale £30 / COGS £18 / GM 40 % / markup 66.67 %, AE Yates COGS £22 and empty margin; All COGS one row; by rep and product; movement In £76 / Out £46 / closing £30 = FIFO stock value, next period opens at £30; bill at £7 → COGS +£1 and correction dated at the bill after a rebuild; E2E PROFIT-001
+- [ ] Later (not like Cin7 yet): drag-and-drop pivot, more fields (paid, due, ship by, customer reference, location, tags, brand), saved layouts — phase I reports. Per-user report permissions like Cin7 (now by role) — phase I
+- [ ] Later: a return without a credit note (goods back, no money) lowers COGS within the dates but is on no document for *All COGS*; Sales Overview, Customer Orders by Product and Stock Value Inventory Aging not built
+- [ ] Local data has few sales (Cin7's sales history is not imported); check the profit figures against Cin7's for a month once orders are migrated (phase J)
 
 ---
 
@@ -620,6 +632,8 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 | GET/POST | `/suppliers/{id}/credits` · `/suppliers/{id}/credits/{creditId}/void` · `/suppliers/{id}/open-credit-notes` | Supplier deposits |
 | GET | `/reports/aged-creditors?asAt=` · `/reports/aged-creditors/csv` | Aged creditors |
 | GET | `/reports/vat-return?from=&to=` · `/reports/vat-return/csv` | VAT return: nine boxes, by rate, documents (H3) |
+| GET | `/reports/sales-profit?from=&to=&cogs=WITHIN_DATES\|ALL&groupBy=` · `/csv` | Sales profit: CUSTOMER, ORDER, REP, REP_CUSTOMER, REP_ORDER, PRODUCT (H4, MANAGER+) |
+| GET | `/reports/inventory-movement?from=&to=&warehouseId=&categoryId=` · `/csv` | Inventory movement summary at FIFO value (H4, MANAGER+) |
 | GET | `/customers/overdue` | Customers with overdue invoices and their next reminder |
 | GET | `/customers/{id}/reminder` · `/customers/{id}/reminder/pdf` | The reminder they would get now / its PDF (nothing recorded) |
 | POST | `/customers/{id}/reminder` | Print the reminder and record it on the overdue invoices (ADMIN/MANAGER) |

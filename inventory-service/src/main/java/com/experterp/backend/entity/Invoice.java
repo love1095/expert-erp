@@ -80,6 +80,10 @@ public class Invoice {
     @Column
     private Long creditedInvoiceId;
 
+    // Sales credit notes that took goods back into stock: the return they made (its cost reverses COGS, H4)
+    @Column(name = "sale_return_id")
+    private Long saleReturnId;
+
     @Column(nullable = false)
     private String currency = "USD";
 

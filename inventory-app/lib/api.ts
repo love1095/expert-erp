@@ -326,3 +326,13 @@ export const getAgedCreditorsCsv = (asAt?: string) => api.get("/reports/aged-cre
 export const getVatReturn = (from: string, to: string) => api.get("/reports/vat-return", { params: { from, to } }).then(r => r.data);
 export const getVatReturnCsv = (from: string, to: string) =>
   api.get("/reports/vat-return/csv", { params: { from, to }, responseType: "blob" }).then(r => r.data as Blob);
+
+// ---- Sales profit and inventory movement (H4) ----
+export type SalesProfitParams = { from: string; to: string; cogs: "WITHIN_DATES" | "ALL"; groupBy: string };
+export const getSalesProfit = (params: SalesProfitParams) => api.get("/reports/sales-profit", { params }).then(r => r.data);
+export const getSalesProfitCsv = (params: SalesProfitParams) =>
+  api.get("/reports/sales-profit/csv", { params, responseType: "blob" }).then(r => r.data as Blob);
+export type InventoryMovementParams = { from: string; to: string; warehouseId?: number; categoryId?: number };
+export const getInventoryMovement = (params: InventoryMovementParams) => api.get("/reports/inventory-movement", { params }).then(r => r.data);
+export const getInventoryMovementCsv = (params: InventoryMovementParams) =>
+  api.get("/reports/inventory-movement/csv", { params, responseType: "blob" }).then(r => r.data as Blob);

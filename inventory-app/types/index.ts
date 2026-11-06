@@ -1152,3 +1152,19 @@ export interface VatBoxes { box1: number; box2: number; box3: number; box4: numb
 export interface VatRateRow { side: "SALES" | "PURCHASES"; taxName: string; vatType: VatType; rate: number; net: number; vat: number; lines: number }
 export interface VatDocument { invoiceId: number; side: "SALES" | "PURCHASES"; kind: "INVOICE" | "CREDIT_NOTE"; number: string; date: string; party: string; net: number; vat: number }
 export interface VatReturn { from: string; to: string; boxes: VatBoxes; rates: VatRateRow[]; documents: VatDocument[]; refund: boolean }
+
+// ---- Sales profit and inventory movement (H4) ----
+export type ProfitGroupBy = "CUSTOMER" | "ORDER" | "REP" | "REP_CUSTOMER" | "REP_ORDER" | "PRODUCT";
+export interface SalesProfitRow {
+  customerId: number | null; customer: string | null; salesRep: string | null; saleOrderId: number | null; orderNumber: string | null;
+  invoices: string; creditNotes: string; productId: number | null; sku: string | null; productName: string | null; category: string | null;
+  quantity: number; invoiced: number; sale: number; cogs: number; profit: number; grossMargin: number | null; markup: number | null;
+}
+export interface SalesProfitTotals { quantity: number; invoiced: number; sale: number; cogs: number; profit: number; grossMargin: number | null; markup: number | null }
+export interface SalesProfitReport { from: string; to: string; cogs: "WITHIN_DATES" | "ALL"; groupBy: ProfitGroupBy; rows: SalesProfitRow[]; totals: SalesProfitTotals }
+export interface InventoryMovementRow {
+  warehouseId: number; warehouse: string; productId: number; sku: string; product: string; unit: string | null;
+  categoryId: number | null; category: string | null; openingQuantity: number; openingValue: number; inQuantity: number; inValue: number;
+  outQuantity: number; outValue: number; closingQuantity: number; unitCost: number | null; closingValue: number;
+}
+export interface InventoryMovementReport { from: string; to: string; rows: InventoryMovementRow[]; totals: { openingValue: number; inValue: number; outValue: number; closingValue: number } }
