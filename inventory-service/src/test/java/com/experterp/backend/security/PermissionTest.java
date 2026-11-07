@@ -79,9 +79,9 @@ class PermissionTest {
     void staffSeeNoCostAndAManagerDoesUnlessTheirRoleSaysOtherwise() throws Exception {
         assertThat(Permission.defaultsFor(User.Role.STAFF)).contains(SALE_EDIT, PURCHASE_PRICES)
                 .doesNotContain(PRODUCT_COST, STOCK_VALUE, SALE_PROFIT, REPORTS_FINANCIAL);
-        // Managers have every tick but Adviser (the accountant's, K5, as Xero's Adviser role)
+        // Managers have every tick but Adviser (the accountant's, K5, as Xero's Adviser role) and Settings (Q5: admins' until given)
         assertThat(Permission.defaultsFor(User.Role.MANAGER)).containsAll(java.util.Arrays.stream(Permission.values())
-                .filter(p -> p != Permission.ADVISER).toList()).doesNotContain(Permission.ADVISER);
+                .filter(p -> p != Permission.ADVISER && p != Permission.SETTINGS).toList()).doesNotContain(Permission.ADVISER, Permission.SETTINGS);
 
         ProductResponse product = new ProductResponse();
         product.setCostPrice(new BigDecimal("6.00"));
@@ -121,6 +121,26 @@ class PermissionTest {
         userRepository.save(admin);
         assertThat(((UserDetailsImpl) userDetailsService.loadUserByUsername(admin.getUsername())).getPermissions())
                 .containsAll(List.of(Permission.values()));
+    }
+
+    @Test
+    void severalRolesAddUpAndSettingsCanBeGivenToARole() {
+        signIn(user("admin4-" + id, User.Role.ADMIN));
+        AccessRoleService.Role office = roles.create(new AccessRoleService.RoleRequest("Office", List.of("SETTINGS", "CUSTOMERS")));
+        AccessRoleService.Role warehouse = roles.create(new AccessRoleService.RoleRequest("Warehouse", List.of("PRODUCT_VIEW", "STOCK_ADJUST")));
+        User clerk = user("clerk-" + id, User.Role.STAFF);
+        roles.assignAll(clerk.getId(), List.of(office.id(), warehouse.id()));
+        assertThat(roles.rolesOf(clerk.getId())).containsExactlyInAnyOrder(office.id(), warehouse.id());
+        assertThat(roles.roles()).filteredOn(r -> r.name().equals("Office")).singleElement().satisfies(r -> assertThat(r.users()).isEqualTo(1));
+        UserDetailsImpl d = (UserDetailsImpl) userDetailsService.loadUserByUsername(clerk.getUsername());
+        assertThat(d.getPermissions()).containsExactlyInAnyOrder(Permission.SETTINGS, CUSTOMERS, PRODUCT_VIEW, Permission.STOCK_ADJUST);
+        assertThat(d.getAuthorities()).extracting(Object::toString).contains("PERM_SETTINGS");
+        // Back to one role, then none (the old role's defaults)
+        roles.assignAll(clerk.getId(), List.of(warehouse.id()));
+        assertThat(((UserDetailsImpl) userDetailsService.loadUserByUsername(clerk.getUsername())).getPermissions()).doesNotContain(Permission.SETTINGS);
+        roles.assignAll(clerk.getId(), List.of());
+        assertThat(((UserDetailsImpl) userDetailsService.loadUserByUsername(clerk.getUsername())).getPermissions())
+                .containsExactlyInAnyOrderElementsOf(Permission.defaultsFor(User.Role.STAFF));
     }
 
     private User user(String name, User.Role role) {

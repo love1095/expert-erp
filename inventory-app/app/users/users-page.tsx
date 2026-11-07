@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUsersPage, addUser, getAccessRoles, assignAccessRole, getSecuritySettings, setTwoFactorRequired, resetTwoFactor } from "@/lib/api";
+import { getUsersPage, addUser, getAccessRoles, assignAccessRoles, getSecuritySettings, setTwoFactorRequired, resetTwoFactor } from "@/lib/api";
 import RolesCard from "./roles-card";
 import { AccessRole } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,8 +62,9 @@ export default function UsersPage() {
     onSuccess: () => setError(""),
     onError: (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Could not reset it"),
   });
+  // Q5: several roles; the first is chosen in the list, others ticked ("also")
   const assign = useMutation({
-    mutationFn: ({ userId, roleId }: { userId: number; roleId: number | null }) => assignAccessRole(userId, roleId),
+    mutationFn: ({ userId, roleIds }: { userId: number; roleIds: number[] }) => assignAccessRoles(userId, roleIds),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-page"] }); qc.invalidateQueries({ queryKey: ["access-roles"] }); },
     onError: (e: unknown) => setError((e as { response?: { data?: { error?: string } } }).response?.data?.error || "Could not change the role"),
   });
@@ -158,13 +159,27 @@ export default function UsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       {u.role === "ADMIN" || u.role === "SUPER_ADMIN" ? <span className="text-xs text-gray-500">Everything (admin)</span>
-                        : isAdmin ? (
+                        : isAdmin ? (<>
                           <select aria-label={`Access role of ${u.username}`} className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white"
-                            value={u.accessRoleId ?? ""} onChange={e => assign.mutate({ userId: u.id, roleId: e.target.value ? Number(e.target.value) : null })}>
+                            value={u.accessRoleId ?? ""} onChange={e => {
+                              const first = e.target.value ? Number(e.target.value) : null;
+                              const others = ((u.accessRoleIds ?? []) as number[]).filter(id => id !== first && id !== u.accessRoleId);
+                              assign.mutate({ userId: u.id, roleIds: first == null ? [] : [first, ...others] });
+                            }}>
                             <option value="">Default for {u.role === "MANAGER" ? "Manager" : "Staff"}</option>
                             {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                           </select>
-                        ) : <span className="text-xs text-gray-500">{roles.find(r => r.id === u.accessRoleId)?.name ?? "Default"}</span>}
+                          {u.accessRoleId != null && <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-gray-600">
+                            {roles.filter(r => r.id !== u.accessRoleId).map(r => {
+                              const on = ((u.accessRoleIds ?? []) as number[]).includes(r.id);
+                              return <label key={r.id} className="flex items-center gap-1">
+                                <input type="checkbox" aria-label={`Also ${r.name} for ${u.username}`} checked={on} onChange={() => assign.mutate({ userId: u.id,
+                                  roleIds: [u.accessRoleId!, ...((u.accessRoleIds ?? []) as number[]).filter(id => id !== u.accessRoleId && id !== r.id), ...(on ? [] : [r.id])] })} />
+                                also {r.name}</label>;
+                            })}
+                          </div>}
+                          </>
+                        ) : <span className="text-xs text-gray-500">{((u.accessRoleIds ?? []) as number[]).map(id => roles.find(r => r.id === id)?.name).filter(Boolean).join(", ") || "Default"}</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${u.active ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>

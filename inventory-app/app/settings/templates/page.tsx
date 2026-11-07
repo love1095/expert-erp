@@ -33,8 +33,9 @@ function errorText(e: unknown, fallback: string) {
  * template is a set of layout settings on the ERP's own layout.
  */
 export default function TemplatesPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const { user, can } = useAuth();
+  // Q5: admins, or a role with Settings
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || can("SETTINGS");
   const qc = useQueryClient();
   const { data: templates = [] } = useQuery<DocumentTemplate[]>({ queryKey: ["document-templates"], queryFn: getDocumentTemplates });
   const [group, setGroup] = useState("Sale");

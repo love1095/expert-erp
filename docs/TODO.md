@@ -59,7 +59,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Payments on account (customer credit / supplier deposits) in the Xero files and the Xero API link (Xero overpayments / prepayments)
 - [ ] Xero API link: a document changed after it was sent (Xero has no edit once paid): today it is listed by the CSV export's "changed after export" check, to correct in Xero by hand
 - [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product, Stock Value Inventory Aging (phase I)
-- [ ] Roles (I1 done): Settings permissions inside roles (now admin only), several roles per user, Cin7's other ticks when those modules exist
+- [ ] Roles: Cin7's other ticks when those modules exist (Settings tick and several roles per user done in Q5, 2026-11-07)
 - [ ] Expert Safety's real users: set their roles at cutover (in Cin7 all 5 are on FULL)
 - [ ] API key rate limits (calls per minute per Application Key)
 - [x] Supplier credit notes for a price (no goods back) lower the FIFO cost (Q3, 2026-11-07); landed cost built in P5, off

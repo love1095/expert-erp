@@ -865,7 +865,7 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 - [x] Product form, list filter and badges (amber Discontinued, grey Archived); product CSV Status ACTIVE / DISCONTINUED / DEPRECATED (Archived accepted); "Deprecate products not in the file" archives discontinued products missing from the file too
 - [x] Tests: `ProductLifecycleTest` (2) — 3 of 5 confirmed, another 3 refused ("2 left"), the last 2 confirmed, then "0 left"; offered in dropdowns, not on the reorder list though below its minimum; CSV Archived / Discontinued in and out. E2E LIFE-001; products e2e green (the list says Archived)
 
-## Phase Q — Smaller items before cutover (Q1 ✅ Q2 ✅ Q3 ✅ Q4 ✅)
+## Phase Q — Smaller items before cutover ✅ (Q1 ✅ Q2 ✅ Q3 ✅ Q4 ✅ Q5 ✅ Q6 ✅)
 
 ### Q1 Credit hold stops the shipping ✅
 - [x] A customer put on credit hold (by hand, over the limit or overdue) **after** the order was confirmed now stops the **shipping** of it too — from the order, pick and pack's Ship, imports — with the hold's reasons; a manager or admin can ship anyway with a reason (kept on the order as "Confirmed or shipped past a credit hold", audited); orders confirmed past a hold and Shopify orders (paid) ship as before
@@ -882,6 +882,15 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 ### Q4 Returns without a credit note in *All COGS* ✅
 - [x] *All COGS* (the profit reports' Show COGS switch) now takes the cost of goods **returned to stock without a credit note** (taken back, no money) in the period off their order and product, so it agrees with *within the dates*; returns with a credit note stay on the credit note as before
 - [x] Tests: `SalesProfitTest` — 3 helmets invoiced at £6 cost, one back without a credit note: £12 in both modes; the existing profit tests green
+
+### Q5 Settings in roles; several roles per user ✅
+- [x] A **Settings** tick for roles: organisation and numbering, company details and logo, document templates, e-mail settings and templates, price tiers, payment accounts, Xero export accounts — no longer admin only; users and roles, API keys and FIFO rebuilds stay with admins; off in the Manager and Staff defaults (as before)
+- [x] **Several roles per user** (`V62`, `user_access_roles`): their ticks add up; on the Users page the first role is chosen as before and others ticked ("also Costs"); no role = the old Manager / Staff defaults; a role's user count counts every user who has it
+- [x] Tests: `PermissionTest` — Office (Settings, customers) + Warehouse (products, adjustments) add up, PERM_SETTINGS given; back to one role, then to the defaults; managers' defaults exclude Settings and Adviser. E2E ROLE-002 (two roles in the UI: Settings from one, the cost price from the other); ROLE-001 green
+
+### Q6 P&L and Balance Sheet as PDFs ✅
+- [x] **Export PDF** beside Export CSV on Accounting → Profit and loss and Balance sheet: the same columns (comparisons included), sections with their totals, gross / net profit, net assets and equity, the company name and the period, amounts as in Xero (thousands separated, negatives in brackets), page numbers (`financial` template, the existing PDF renderer — no new library)
+- [x] Tests: `AccountantTest` — both PDFs made for the year (a comparison column on the balance sheet). E2E LEDGER-PDF-001
 
 ---
 

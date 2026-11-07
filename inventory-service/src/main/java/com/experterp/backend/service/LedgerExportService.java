@@ -37,6 +37,8 @@ public class LedgerExportService {
     private final LedgerPeriodService periods;
     private final SalesLedgerService salesLedger;
     private final PurchaseLedgerService purchaseLedger;
+    private final PdfRenderer renderer;
+    private final DocumentService documents;
     private final MtdVatService vat;
     private final AuditService auditService;
 
@@ -73,6 +75,67 @@ public class LedgerExportService {
             total(out, bs.netAssets());
             section(out, bs.equity());
         });
+    }
+
+    // ---- PDF (Q6) ----
+
+    public record PrintRow(String name, List<String> values) {}
+
+    public record PrintBlock(String kind, String title, List<PrintRow> rows, List<String> totals) {}
+
+    public record FinancialPrint(String title, String company, String period, List<String> columns, List<PrintBlock> blocks) {}
+
+    @Transactional
+    public byte[] profitAndLossPdf(LocalDate from, LocalDate to, int compare, FinancialReportService.Step step) {
+        FinancialReportService.ProfitAndLoss pl = reports.profitAndLoss(from, to, compare, step);
+        List<PrintBlock> blocks = new ArrayList<>();
+        blocks.add(block(pl.tradingIncome()));
+        blocks.add(block(pl.costOfSales()));
+        blocks.add(total(pl.grossProfit()));
+        blocks.add(block(pl.otherIncome()));
+        blocks.add(block(pl.operatingExpenses()));
+        blocks.add(total(pl.netProfit()));
+        return renderer.render("financial", new FinancialPrint("Profit and loss", documents.company().name(),
+                "For the period " + uk(from) + " to " + uk(to), labels(pl.columns()), blocks), "Profit and loss");
+    }
+
+    @Transactional
+    public byte[] balanceSheetPdf(LocalDate asAt, int compare, FinancialReportService.Step step) {
+        FinancialReportService.BalanceSheet bs = reports.balanceSheet(asAt, compare, step);
+        List<PrintBlock> blocks = new ArrayList<>();
+        bs.assets().forEach(x -> blocks.add(block(x)));
+        blocks.add(total(bs.totalAssets()));
+        bs.liabilities().forEach(x -> blocks.add(block(x)));
+        blocks.add(total(bs.totalLiabilities()));
+        blocks.add(total(bs.netAssets()));
+        blocks.add(block(bs.equity()));
+        LocalDate date = asAt == null ? LocalDate.now() : asAt;
+        return renderer.render("financial", new FinancialPrint("Balance sheet", documents.company().name(), "As at " + uk(date),
+                labels(bs.columns()), blocks), "Balance sheet");
+    }
+
+    private static PrintBlock block(FinancialReportService.Section s) {
+        return new PrintBlock("SECTION", s.title(), s.rows().stream().map(r -> new PrintRow((r.code() == null ? "" : r.code() + " ") + r.name(),
+                r.values().stream().map(LedgerExportService::amount).toList())).toList(), s.totals().stream().map(LedgerExportService::amount).toList());
+    }
+
+    private static PrintBlock total(FinancialReportService.Total t) {
+        return new PrintBlock("TOTAL", t.title(), List.of(), t.values().stream().map(LedgerExportService::amount).toList());
+    }
+
+    private static List<String> labels(List<FinancialReportService.Column> columns) {
+        return columns.stream().map(FinancialReportService.Column::label).toList();
+    }
+
+    // Xero's style: thousands separated, negatives in brackets
+    private static String amount(BigDecimal v) {
+        if (v == null) return "";
+        String s = String.format(java.util.Locale.UK, "%,.2f", v.abs());
+        return v.signum() < 0 ? "(" + s + ")" : s;
+    }
+
+    private static String uk(LocalDate d) {
+        return d.format(java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.UK));
     }
 
     @Transactional

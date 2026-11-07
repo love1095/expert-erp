@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Phase Q6: Profit and loss / Balance sheet as a PDF, laid out like Xero's. Filled from LedgerExportService.FinancialPrint. -->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title th:text="${d.title}">Profit and loss</title>
+  <style>
+    @page { size: A4; margin: 14mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "Liberation Sans"; font-size: 7.5pt; color: #737373; } }
+    body { font-family: "Liberation Sans"; font-size: 9pt; color: #171717; margin: 0; }
+    h1 { font-size: 16pt; margin: 0; }
+    .muted { color: #525252; }
+    table { border-collapse: collapse; width: 100%; margin-top: 5mm; }
+    th { text-align: right; font-size: 7.5pt; text-transform: uppercase; color: #737373; border-bottom: 1pt solid #a3a3a3; padding: 1.5mm 1mm; }
+    th.name { text-align: left; }
+    td { padding: 1mm; }
+    td.num { text-align: right; white-space: nowrap; }
+    tr.section td { font-weight: 700; padding-top: 4mm; }
+    tr.subtotal td { border-top: 0.5pt solid #a3a3a3; font-weight: 700; }
+    tr.total td { border-top: 1pt solid #171717; border-bottom: 1pt solid #171717; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1 th:text="${d.title}">Profit and loss</h1>
+  <div th:text="${d.company}">Company</div>
+  <div class="muted" th:text="${d.period}">For the period</div>
+  <table>
+    <thead><tr><th class="name"></th><th th:each="c : ${d.columns}" th:text="${c}">Oct 2026</th></tr></thead>
+    <tbody>
+      <th:block th:each="b : ${d.blocks}">
+        <tr th:if="${b.kind == 'SECTION'}" class="section"><td th:attr="colspan=${d.columns.size() + 1}" th:text="${b.title}">Trading income</td></tr>
+        <tr th:each="r : ${b.rows}"><td th:text="${r.name}">Sales</td><td class="num" th:each="v : ${r.values}" th:text="${v}">1,000.00</td></tr>
+        <tr th:if="${b.kind == 'SECTION'}" class="subtotal"><td th:text="${'Total ' + b.title}">Total</td><td class="num" th:each="v : ${b.totals}" th:text="${v}">1,000.00</td></tr>
+        <tr th:if="${b.kind == 'TOTAL'}" class="total"><td th:text="${b.title}">Net profit</td><td class="num" th:each="v : ${b.totals}" th:text="${v}">1,000.00</td></tr>
+      </th:block>
+    </tbody>
+  </table>
+</body>
+</html>

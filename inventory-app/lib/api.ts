@@ -519,6 +519,8 @@ export const createAccessRole = (data: { name: string; permissions: string[] }) 
 export const updateAccessRole = (id: number, data: { name: string; permissions: string[] }) => api.put(`/settings/roles/${id}`, data).then(r => r.data);
 export const deleteAccessRole = (id: number) => api.delete(`/settings/roles/${id}`);
 export const assignAccessRole = (userId: number, accessRoleId: number | null) => api.put(`/settings/users/${userId}/access-role`, { accessRoleId });
+// Q5: several roles per user; their permissions add up
+export const assignAccessRoles = (userId: number, accessRoleIds: number[]) => api.put(`/settings/users/${userId}/access-roles`, { accessRoleIds });
 
 // ---- Global search (I2) ----
 export const searchEverything = (q: string) => api.get("/search", { params: { q } }).then(r => r.data);

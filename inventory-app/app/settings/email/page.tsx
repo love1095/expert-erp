@@ -61,8 +61,9 @@ function Outbox() {
 }
 
 function Templates() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const { user, can } = useAuth();
+  // Q5: admins, or a role with Settings
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || can("SETTINGS");
   const qc = useQueryClient();
   const { data = [] } = useQuery<MailTemplate[]>({ queryKey: ["mail-templates"], queryFn: getMailTemplates });
   const [type, setType] = useState("INVOICE");
@@ -110,8 +111,9 @@ function Settings() {
 }
 
 function SettingsForm({ initial }: { initial: MailSettings }) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const { user, can } = useAuth();
+  // Q5: admins, or a role with Settings
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || can("SETTINGS");
   const qc = useQueryClient();
   const [s, setS] = useState({ fromName: initial.fromName ?? "", fromAddress: initial.fromAddress ?? "", replyTo: initial.replyTo ?? "",
     smtpHost: initial.smtpHost ?? "", smtpPort: initial.smtpPort ? String(initial.smtpPort) : "587", smtpUsername: initial.smtpUsername ?? "", smtpPassword: "",

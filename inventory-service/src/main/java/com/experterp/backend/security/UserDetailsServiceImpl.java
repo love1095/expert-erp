@@ -15,14 +15,18 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userRepository.findByUsername(username)
-                .map(u -> new UserDetailsImpl(u, rolePermissions(u.getAccessRoleId())))
+                .map(u -> new UserDetailsImpl(u, rolePermissions(u.getId())))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
 
-    // The access role's ticks (read without the organisation filter: this runs before the organisation is known)
-    private java.util.Set<Permission> rolePermissions(Long accessRoleId) {
-        if (accessRoleId == null) return null;
-        java.util.List<String> p = jdbc.queryForList("SELECT permissions FROM access_roles WHERE id = ?", String.class, accessRoleId);
-        return p.isEmpty() ? null : Permission.parse(p.get(0));
+    // The ticks of all the user's roles together (Q5); none = the old role's defaults. Read without the organisation
+    // filter: this runs before the organisation is known
+    private java.util.Set<Permission> rolePermissions(Long userId) {
+        java.util.List<String> p = jdbc.queryForList("""
+                SELECT r.permissions FROM user_access_roles ur JOIN access_roles r ON r.id = ur.access_role_id WHERE ur.user_id = ?""", String.class, userId);
+        if (p.isEmpty()) return null;
+        java.util.Set<Permission> all = java.util.EnumSet.noneOf(Permission.class);
+        p.forEach(x -> all.addAll(Permission.parse(x)));
+        return all;
     }
 }

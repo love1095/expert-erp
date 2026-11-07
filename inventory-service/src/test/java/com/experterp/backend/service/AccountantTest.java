@@ -88,6 +88,10 @@ class AccountantTest {
         assertThat(tb).startsWith("﻿Code,Account,Type,Debit,Credit").contains("200,Sales,Revenue,,250.00").contains("Total,,250.00,250.00");
         String pl = new String(exports.profitAndLossCsv(LocalDate.of(y - 1, 1, 1), LocalDate.of(y - 1, 12, 31), 0, FinancialReportService.Step.YEAR), StandardCharsets.UTF_8);
         assertThat(pl).contains("Trading Income").contains("Net Profit,250.00");
+        // Q6: the same reports as PDFs
+        byte[] plPdf = exports.profitAndLossPdf(LocalDate.of(y - 1, 1, 1), LocalDate.of(y - 1, 12, 31), 0, FinancialReportService.Step.YEAR);
+        assertThat(new String(plPdf, 0, 4, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF");
+        assertThat(new String(exports.balanceSheetPdf(LocalDate.of(y - 1, 12, 31), 1, FinancialReportService.Step.YEAR), 0, 4, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF");
         String gl = new String(exports.generalLedgerCsv(LocalDate.of(y - 1, 1, 1), LocalDate.of(y - 1, 12, 31)), StandardCharsets.UTF_8);
         assertThat(gl.lines().count()).isEqualTo(3);                                        // header + two lines
 

@@ -13,8 +13,9 @@ const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
 
 export default function OrganisationPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const { user, can } = useAuth();
+  // Q5: admins, or a role with Settings
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || can("SETTINGS");
   const qc = useQueryClient();
   const { data: settings } = useQuery<OrganisationSettings>({ queryKey: ["organisation-settings"], queryFn: getOrganisationSettings });
   const { data: saleRates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "SALE"], queryFn: () => getTaxRates("SALE") });

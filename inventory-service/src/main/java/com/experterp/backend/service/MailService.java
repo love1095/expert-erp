@@ -388,8 +388,8 @@ public class MailService {
 
     private static void requireAdmin() {
         var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        boolean ok = auth != null && auth.getAuthorities().stream().anyMatch(a -> Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN").contains(a.getAuthority()));
-        if (!ok) throw new AccessDeniedException("Only an admin can change the e-mail settings and templates");
+        boolean ok = auth != null && auth.getAuthorities().stream().anyMatch(a -> Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "PERM_SETTINGS").contains(a.getAuthority()));
+        if (!ok) throw new AccessDeniedException("Only an admin, or a role with Settings, can change the e-mail settings and templates");
     }
 
     private static String money(BigDecimal v) {

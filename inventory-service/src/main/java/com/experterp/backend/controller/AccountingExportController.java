@@ -25,7 +25,7 @@ public class AccountingExportController {
     }
 
     @PutMapping("/settings")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')")
     public AccountingExportService.Settings updateSettings(@RequestBody AccountingExportService.Settings settings) {
         return service.updateSettings(settings);
     }

@@ -44,6 +44,8 @@ public enum Permission {
     // Xero's Adviser: the accountant's rights (K5)
     ADVISER("Accounting", "Accounting - Adviser: chart of accounts, ledger settings and lock dates, work up to the all-users lock date, file VAT returns", false, false),
     DASHBOARD("Dashboard", "Dashboard", true, true),
+    // Phase Q5: settings no longer admin only — users and roles, API keys and FIFO rebuilds stay with admins
+    SETTINGS("Settings", "Settings - Organisation, numbering, document templates, e-mail, price tiers, payment accounts, Xero export accounts", false, false),
     AUDIT_LOG("Audit", "Audit log - View", true, false);
 
     private final String group;

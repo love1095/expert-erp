@@ -40,6 +40,7 @@ public class AuthController {
     private final UserDetailsServiceImpl userDetailsService;
     private final TwoFactorService twoFactorService;
     private final SubscriptionService subscriptionService;
+    private final com.experterp.backend.service.AccessRoleService accessRoleService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
@@ -230,6 +231,8 @@ public class AuthController {
                     m.put("email", u.getEmail() != null ? u.getEmail() : "");
                     m.put("role", u.getRole().name());
                     m.put("accessRoleId", u.getAccessRoleId());
+                    // Q5: all the user's roles
+                    m.put("accessRoleIds", accessRoleService.rolesOf(u.getId()));
                     m.put("active", u.isActive());
                     m.put("createdAt", u.getCreatedAt());
                     return m;

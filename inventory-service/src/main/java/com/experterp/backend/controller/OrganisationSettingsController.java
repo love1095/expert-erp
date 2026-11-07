@@ -25,7 +25,7 @@ public class OrganisationSettingsController {
     }
 
     @PutMapping("/settings/organisation")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')")
     public OrganisationSettingsService.Settings update(@Valid @RequestBody OrganisationSettingsService.Settings settings) {
         return settingsService.update(settings);
     }
@@ -37,21 +37,21 @@ public class OrganisationSettingsController {
     }
 
     @PutMapping("/settings/company")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')")
     public com.experterp.backend.service.CompanyDetailsService.Details updateCompany(
             @Valid @RequestBody com.experterp.backend.service.CompanyDetailsService.Details details) {
         return companyDetailsService.update(details);
     }
 
     @PostMapping(value = "/settings/company/logo", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')")
     public com.experterp.backend.service.CompanyDetailsService.Details uploadLogo(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
         return companyDetailsService.setLogo(file.getBytes(), file.getContentType());
     }
 
     @DeleteMapping("/settings/company/logo")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')")
     public com.experterp.backend.service.CompanyDetailsService.Details removeLogo() {
         return companyDetailsService.removeLogo();
     }

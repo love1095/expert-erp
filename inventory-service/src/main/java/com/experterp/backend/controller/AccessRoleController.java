@@ -44,6 +44,13 @@ public class AccessRoleController {
         return ResponseEntity.noContent().build();
     }
 
+    // Q5: several roles; their permissions add up
+    @PutMapping("/users/{userId}/access-roles")
+    public ResponseEntity<Void> assignAll(@PathVariable Long userId, @RequestBody Map<String, java.util.List<Long>> body) {
+        service.assignAll(userId, body.get("accessRoleIds"));
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/users/{userId}/access-role")
     public ResponseEntity<Void> assign(@PathVariable Long userId, @RequestBody Map<String, Long> body) {
         service.assign(userId, body.get("accessRoleId"));

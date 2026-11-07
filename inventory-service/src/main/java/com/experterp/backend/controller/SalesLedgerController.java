@@ -37,7 +37,7 @@ public class SalesLedgerController {
     }
 
     @PutMapping("/settings/payment-accounts")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')")
     public List<SalesLedgerService.AccountView> saveAccounts(@RequestBody List<SalesLedgerService.AccountRequest> rows) {
         return ledger.saveAccounts(rows);
     }

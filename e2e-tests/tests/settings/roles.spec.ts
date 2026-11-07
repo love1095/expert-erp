@@ -40,4 +40,28 @@ test.describe('Users and roles', () => {
         await staff.dispose();
       }
     });
+  test('ROLE-002 a user gets two roles whose ticks add up; a role with Settings may change the organisation settings',
+    { tag: ['@P1', '@security', '@settings'] }, async ({ page, api, baseURL }) => {
+      const product = await api.createProduct({ costPrice: 6 });
+      const session = await addUser(api, 'STAFF');
+      const staff = await apiFor(baseURL!, session);
+      try {
+        const stamp = Date.now();
+        const office = await (await api.http.post('/api/settings/roles', { data: { name: `Office ${stamp}`, permissions: ['SETTINGS', 'PRODUCT_VIEW'] } })).json();
+        const costs = await (await api.http.post('/api/settings/roles', { data: { name: `Costs ${stamp}`, permissions: ['PRODUCT_VIEW', 'PRODUCT_COST'] } })).json();
+        const settings = await (await staff.http.get('/api/settings/organisation')).json();
+        expect((await staff.http.put('/api/settings/organisation', { data: settings })).status()).toBe(403);
+
+        await page.goto('/users');
+        await page.getByLabel(`Access role of ${session.user.username}`).selectOption({ label: office.name });
+        await page.getByLabel(`Also ${costs.name} for ${session.user.username}`).click();
+        await expect(page.getByLabel(`Also ${costs.name} for ${session.user.username}`)).toBeChecked();
+
+        // Settings from the first role, the cost price from the second
+        expect((await staff.http.put('/api/settings/organisation', { data: settings })).ok()).toBe(true);
+        expect((await (await staff.http.get(`/api/products/${product.id}`)).json()).costPrice).toBe(6);
+      } finally {
+        await staff.dispose();
+      }
+    });
 });

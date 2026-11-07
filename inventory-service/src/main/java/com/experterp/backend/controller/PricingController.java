@@ -23,7 +23,7 @@ public class PricingController {
     }
 
     @PutMapping("/settings/price-tiers")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')")
     public List<PricingService.TierView> updateTiers(@RequestBody List<PricingService.TierRequest> tiers) {
         return pricingService.updateTiers(tiers);
     }

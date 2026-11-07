@@ -26,6 +26,7 @@ export default function ProfitAndLossPage() {
         <input aria-label="To" type="date" className={INPUT} value={to} onChange={e => setTo(e.target.value)} />
         <CompareControls compare={compare} step={step} onCompare={setCompare} onStep={setStep} />
         <ExportButton name="profit-and-loss.csv" params={{ from, to, compare, step }} filename={`Profit and loss ${from} to ${to}.csv`} />
+        <ExportButton name="profit-and-loss.pdf" params={{ from, to, compare, step }} filename={`Profit and loss ${from} to ${to}.pdf`} label="Export PDF" />
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{errorOf(error)}</p>}
       {isLoading || !data ? (!error && <p className="text-sm text-gray-500">Loading…</p>) : (

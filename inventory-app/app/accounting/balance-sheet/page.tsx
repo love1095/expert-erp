@@ -26,6 +26,7 @@ export default function BalanceSheetPage() {
         <label className="flex items-center gap-1">As at <input aria-label="As at" type="date" className={INPUT} value={date} onChange={e => setDate(e.target.value)} /></label>
         <CompareControls compare={compare} step={step} onCompare={setCompare} onStep={setStep} />
         <ExportButton name="balance-sheet.csv" params={{ date, compare, step }} filename={`Balance sheet ${date}.csv`} />
+        <ExportButton name="balance-sheet.pdf" params={{ date, compare, step }} filename={`Balance sheet ${date}.pdf`} label="Export PDF" />
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{errorOf(error)}</p>}
       {isLoading || !data ? (!error && <p className="text-sm text-gray-500">Loading…</p>) : (<>

@@ -192,6 +192,21 @@ public class LedgerController {
         return file(exports.balanceSheetCsv(date, compare, step), "Balance sheet " + (date == null ? LocalDate.now() : date) + ".csv", "text/csv");
     }
 
+    // Q6: the same reports as PDFs
+    @GetMapping("/export/profit-and-loss.pdf")
+    public org.springframework.http.ResponseEntity<byte[]> profitAndLossPdf(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "0") int compare, @RequestParam(defaultValue = "MONTH") com.experterp.backend.service.FinancialReportService.Step step) {
+        return file(exports.profitAndLossPdf(from, to, compare, step), "Profit and loss " + from + " to " + to + ".pdf", "application/pdf");
+    }
+
+    @GetMapping("/export/balance-sheet.pdf")
+    public org.springframework.http.ResponseEntity<byte[]> balanceSheetPdf(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "0") int compare, @RequestParam(defaultValue = "MONTH") com.experterp.backend.service.FinancialReportService.Step step) {
+        return file(exports.balanceSheetPdf(date, compare, step), "Balance sheet " + (date == null ? LocalDate.now() : date) + ".pdf", "application/pdf");
+    }
+
     @GetMapping("/export/account-transactions.csv")
     public org.springframework.http.ResponseEntity<byte[]> exportAccountTransactions(@RequestParam String account,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
