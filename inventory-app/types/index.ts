@@ -567,6 +567,8 @@ export interface FulfilmentRequest {
   notes?: string;
   trackingCompany?: string;
   trackingNumber?: string;
+  // Q1: a manager's reason to ship past a credit hold
+  creditOverride?: string;
   lines?: { saleOrderLineId: number; quantity: number }[];
 }
 

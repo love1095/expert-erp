@@ -62,13 +62,13 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Roles (I1 done): Settings permissions inside roles (now admin only), several roles per user, Cin7's other ticks when those modules exist
 - [ ] Expert Safety's real users: set their roles at cutover (in Cin7 all 5 are on FULL)
 - [ ] API key rate limits (calls per minute per Application Key)
-- [ ] Supplier credit notes for a price (no goods back) don't lower FIFO cost yet; landed cost only if wanted
+- [ ] Supplier credit notes for a price (no goods back) don't lower FIFO cost yet (Q3); landed cost built in P5, off
 - [ ] A return without a credit note is on no document for *All COGS*
 - [ ] Cin7's deprecated tax rules (5 % income, Exempt, Reverse Charge) still active here; cash accounting VAT scheme not built
-- [ ] Shipping not stopped for orders confirmed before a credit hold
+- [x] Shipping not stopped for orders confirmed before a credit hold (Q1, 2026-11-07)
 - [ ] Hand-typed purchase invoices still take INV- numbers
 - [ ] Shopify orders imported before the VAT split keep their old lines
-- [ ] Product: Combined view (families), alternative products, product images, extra units of measure, channels, Merge products
+- [ ] Product: Combined view (families), alternative products, channels, Merge products (images and units of measure: phase P)
 - [ ] Accounting tab on sale orders; supplier tax-rule field on the supplier form
 - [ ] Reorder by sales velocity / lead time / minimum order value; multi-currency; supplier price-list import
 - [ ] Custom fields and dynamic forms

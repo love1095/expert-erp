@@ -26,6 +26,10 @@ public class FulfilmentRequest {
     @Size(max = 500)
     private String trackingUrl;
 
+    // Phase Q1: a manager's reason to ship to a customer put on credit hold after the order was confirmed
+    @Size(max = 500)
+    private String creditOverride;
+
     // Empty or missing = ship everything still remaining
     @Valid
     private List<Line> lines;

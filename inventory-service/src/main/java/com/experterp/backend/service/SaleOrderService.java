@@ -275,6 +275,22 @@ public class SaleOrderService {
     }
 
     /**
+     * Phase Q1: a customer who went on credit hold after the order was confirmed stops the shipping too, unless a
+     * manager gives a reason (kept on the order, audited). Orders confirmed past a hold, and Shopify orders (paid), ship.
+     */
+    private void checkCreditBeforeShipping(SaleOrder so, String override) {
+        if (so.getCustomer() == null || so.getSource() != SaleOrder.Source.MANUAL || so.getCreditOverride() != null) return;
+        CreditService.CreditStatus st = creditService.check(so.getCustomer(), BigDecimal.ZERO, null);
+        if (!st.held()) return;
+        if (override == null || override.isBlank()) {
+            throw new IllegalStateException(st.warning() + ". Shipping is stopped: a manager can ship anyway, with a reason");
+        }
+        if (!isManager()) throw new org.springframework.security.access.AccessDeniedException("Only a manager or admin can ship past a credit hold");
+        so.setCreditOverride(override.trim());
+        auditService.log("SALE_ORDER", so.getId(), "CREDIT_OVERRIDE", Map.of("reason", override.trim(), "hold", st.warning(), "at", "shipping"));
+    }
+
+    /**
      * Phase P6: a discontinued product is sold only while its stock lasts — no backorders. A line needing more than
      * the warehouse has free (on hand less what other orders reserve) stops the confirmation.
      */
@@ -347,6 +363,7 @@ public class SaleOrderService {
         if (so.getStatus() != Status.CONFIRMED) {
             throw new IllegalStateException("Only CONFIRMED orders can be fulfilled (order is " + so.getStatus() + ")");
         }
+        checkCreditBeforeShipping(so, req == null ? null : req.getCreditOverride());
 
         // A kit line ships its components (P2): those are the products whose stock moves
         Map<Long, Map<Long, BigDecimal>> recipes = new HashMap<>();

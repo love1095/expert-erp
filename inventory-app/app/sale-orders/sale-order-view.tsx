@@ -85,7 +85,15 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
   const confirmMutation = useMutation({ mutationFn: ({ id, override }: { id: number; override?: string }) => confirmSaleOrder(id, override),
     onSuccess: onDone, onError: onFail });
   const cancelMutation  = useMutation({ mutationFn: cancelSaleOrder,  onSuccess: onDone, onError: onFail });
-  const shipMutation    = useMutation({ mutationFn: fulfillSaleOrder, onSuccess: onDone, onError: onFail });
+  // Q1: a customer put on hold after confirming stops the shipping; a manager may ship anyway, with a reason
+  const shipMutation    = useMutation({ mutationFn: fulfillSaleOrder, onSuccess: onDone, onError: (e, vars) => {
+    const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error ?? "";
+    if (msg.includes("Shipping is stopped") && canOverrideCredit && !vars.data?.creditOverride) {
+      const reason = window.prompt(`${msg}\n\nWhy ship anyway?`);
+      if (reason) { shipMutation.mutate({ ...vars, data: { ...vars.data, creditOverride: reason } }); return; }
+    }
+    onFail(e);
+  } });
   const returnMutation  = useMutation({ mutationFn: createSaleReturn, onSuccess: onDone, onError: onFail });
   const retryMutation   = useMutation({ mutationFn: retryShopifyFulfilment, onSuccess: onDone, onError: onFail });
   const convertMutation = useMutation({ mutationFn: convertQuote, onSuccess: onDone, onError: onFail });
@@ -410,7 +418,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
             </div>
           )}
           {order.creditOverride && (
-            <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded px-3 py-1.5">Confirmed past a credit hold: {order.creditOverride}</p>
+            <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded px-3 py-1.5">Confirmed or shipped past a credit hold: {order.creditOverride}</p>
           )}
 
           {order.source === "SHOPIFY" && <ShopifyRefunds orderId={order.id} />}

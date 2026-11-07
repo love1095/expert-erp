@@ -865,6 +865,12 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 - [x] Product form, list filter and badges (amber Discontinued, grey Archived); product CSV Status ACTIVE / DISCONTINUED / DEPRECATED (Archived accepted); "Deprecate products not in the file" archives discontinued products missing from the file too
 - [x] Tests: `ProductLifecycleTest` (2) — 3 of 5 confirmed, another 3 refused ("2 left"), the last 2 confirmed, then "0 left"; offered in dropdowns, not on the reorder list though below its minimum; CSV Archived / Discontinued in and out. E2E LIFE-001; products e2e green (the list says Archived)
 
+## Phase Q — Smaller items before cutover (Q1 ✅)
+
+### Q1 Credit hold stops the shipping ✅
+- [x] A customer put on credit hold (by hand, over the limit or overdue) **after** the order was confirmed now stops the **shipping** of it too — from the order, pick and pack's Ship, imports — with the hold's reasons; a manager or admin can ship anyway with a reason (kept on the order as "Confirmed or shipped past a credit hold", audited); orders confirmed past a hold and Shopify orders (paid) ship as before
+- [x] Tests: `CreditTest` — confirmed, then held: shipping refused, staff cannot override, a manager ships with a reason. E2E CREDIT-002; CREDIT-001 green
+
 ---
 
 ## Cross-cutting (done throughout)

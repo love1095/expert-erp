@@ -21,7 +21,7 @@ test.describe('Credit control', () => {
       page.once('dialog', d => d.accept('Paying on collection'));
       await page.getByRole('button', { name: 'Confirm anyway' }).click();
       await expect(page.getByTestId(`so-status-${order.id}`)).toContainText('CONFIRMED');
-      await expect(page.getByText('Confirmed past a credit hold: Paying on collection')).toBeVisible();
+      await expect(page.getByText('Confirmed or shipped past a credit hold: Paying on collection')).toBeVisible();
 
       // The customer page: owed and on order, over the limit; put on hold by hand, then released
       await page.goto(`/customers/${customer.id}`);
@@ -41,5 +41,22 @@ test.describe('Credit control', () => {
       await page.goto('/customers');
       await page.getByLabel('Search customers').fill(customer.name);
       await expect(page.locator('[data-testid^="customer-row-"]', { hasText: customer.name })).toContainText('On hold');
+    });
+  test('CREDIT-002 a customer put on hold after the order was confirmed stops the shipping until a manager gives a reason', { tag: ['@P1', '@customers'] },
+    async ({ page, api, warehouses }) => {
+      const product = await api.createProduct({ sellPrice: 10 });
+      await api.addStock(product, warehouses.main, 5);
+      const customer = await api.createCustomer({ name: `Hold ${Date.now()}` });
+      const so = await api.createSaleOrder(warehouses.main, [{ product, quantity: 1 }], customer);
+      await api.confirmSaleOrder(so.id);
+      expect((await api.http.put(`/api/customers/${customer.id}/credit/hold`, { data: { hold: true, reason: 'Cheque bounced' } })).ok()).toBeTruthy();
+
+      const refused = await api.http.post(`/api/sale-orders/${so.id}/fulfill`);
+      expect(await refused.text()).toContain('Shipping is stopped');
+      // The admin is a manager: ships anyway with a reason
+      const shipped = await api.http.post(`/api/sale-orders/${so.id}/fulfill`, { data: { creditOverride: 'Paid by card' } });
+      expect(shipped.ok()).toBeTruthy();
+      await page.goto(`/sale-orders/${so.id}`);
+      await expect(page.getByText('Confirmed or shipped past a credit hold: Paid by card')).toBeVisible();
     });
 });

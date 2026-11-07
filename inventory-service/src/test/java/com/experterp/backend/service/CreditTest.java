@@ -2,6 +2,7 @@ package com.experterp.backend.service;
 
 import com.experterp.backend.TestcontainersConfiguration;
 import com.experterp.backend.dto.OrderInvoiceRequest;
+import com.experterp.backend.dto.FulfilmentRequest;
 import com.experterp.backend.dto.SaleOrderRequest;
 import com.experterp.backend.dto.SaleOrderResponse;
 import com.experterp.backend.entity.*;
@@ -141,6 +142,22 @@ class CreditTest {
                 .hasMessageContaining("Cheque bounced");
         assertThat(creditService.setHold(customer.getId(), false, null).held()).isFalse();
         assertThat(saleOrderService.confirm(saleOrderService.create(order(1, "1")).getId()).getStatus()).isEqualTo(SaleOrder.Status.CONFIRMED);
+    }
+
+    @Test
+    void aHoldAfterConfirmingStopsTheShippingUntilAManagerGivesAReason() {
+        as("ROLE_MANAGER");
+        Long id = saleOrderService.confirm(saleOrderService.create(order(2, "10")).getId()).getId();
+        creditService.setHold(customer.getId(), true, "Cheque bounced");
+        assertThatThrownBy(() -> saleOrderService.fulfill(id, null)).hasMessageContaining("Shipping is stopped").hasMessageContaining("Cheque bounced");
+        as("ROLE_USER");
+        FulfilmentRequest anyway = new FulfilmentRequest();
+        anyway.setCreditOverride("Paid by card on collection");
+        assertThatThrownBy(() -> saleOrderService.fulfill(id, anyway)).isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        as("ROLE_MANAGER");
+        SaleOrderResponse shipped = saleOrderService.fulfill(id, anyway);
+        assertThat(shipped.getStatus()).isEqualTo(SaleOrder.Status.COMPLETED);
+        assertThat(shipped.getCreditOverride()).isEqualTo("Paid by card on collection");
     }
 
     // ---- helpers ----
