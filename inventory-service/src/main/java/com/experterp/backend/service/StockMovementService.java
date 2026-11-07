@@ -271,6 +271,9 @@ public class StockMovementService {
 
     private StockMovement buildMovement(Product product, Warehouse warehouse, BigDecimal qty,
                                         MovementType type, ReferenceType refType, String refId, String notes) {
+        if (product.getType() == Product.Type.KIT) {
+            throw new IllegalArgumentException(product.getSku() + " is a kit: it holds no stock of its own, move its components instead");
+        }
         StockMovement m = new StockMovement();
         m.setProduct(product);
         m.setWarehouse(warehouse);

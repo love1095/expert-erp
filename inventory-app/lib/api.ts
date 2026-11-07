@@ -557,3 +557,9 @@ export const uploadProductFile = (productId: number, kind: string, file: File) =
 export const getProductFile = (fileId: number) => api.get(`/products/files/${fileId}`, { responseType: "blob" }).then(r => r.data as Blob);
 export const deleteProductFile = (fileId: number) => api.delete(`/products/files/${fileId}`).then(r => r.data);
 export const makeMainImage = (fileId: number) => api.post(`/products/files/${fileId}/main`).then(r => r.data);
+
+// Phase P2: kits
+export const getKitComponents = (productId: number) => api.get(`/products/${productId}/components`).then(r => r.data);
+export const saveKitComponents = (productId: number, components: { componentId: number; quantity: number }[]) =>
+  api.put(`/products/${productId}/components`, components).then(r => r.data);
+export const getKitBuildable = (productId: number) => api.get(`/products/${productId}/buildable`).then(r => r.data);

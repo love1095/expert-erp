@@ -39,6 +39,7 @@ public class ProductService {
     private final AuditService auditService;
     private final com.experterp.backend.repository.PurchaseOrderRepository purchaseOrderRepository;
     private final com.experterp.backend.repository.CostLayerRepository costLayerRepository;
+    private final KitService kitService;
 
     /**
      * One page of products, newest first. Long texts (description, Cin7 details) are left out of lists:
@@ -152,7 +153,16 @@ public class ProductService {
     /** The product's stock per warehouse and on open purchase orders (its page's Stock section). */
     @Transactional(readOnly = true)
     public com.experterp.backend.dto.ProductStockResponse stock(Long id) {
-        getProduct(id);
+        Product kit = getProduct(id);
+        if (kit.getType() == Product.Type.KIT) {
+            // What the components make, per warehouse (P2): no stock, layers or purchase orders of its own
+            List<com.experterp.backend.dto.ProductStockResponse.Warehouse> made = kitService.buildable(id).stream()
+                    .map(b -> new com.experterp.backend.dto.ProductStockResponse.Warehouse(b.warehouseId(), b.warehouse(), b.onHand(),
+                            b.onHand().subtract(b.available()).max(BigDecimal.ZERO), b.available())).toList();
+            BigDecimal oh = made.stream().map(w -> w.onHand()).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal av = made.stream().map(w -> w.available()).reduce(BigDecimal.ZERO, BigDecimal::add);
+            return new com.experterp.backend.dto.ProductStockResponse(made, List.of(), oh, oh.subtract(av), av, BigDecimal.ZERO, List.of(), BigDecimal.ZERO);
+        }
         Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(List.of(id));
         List<com.experterp.backend.dto.ProductStockResponse.Warehouse> warehouses = stockMovementRepository.stockPerWarehouse(id).stream()
                 .map(r -> {
@@ -239,7 +249,14 @@ public class ProductService {
         p.setShortDescription(req.getShortDescription());
         p.setUnit(req.getUnit().trim());
         p.setStatus(req.getStatus() == null ? Product.Status.ACTIVE : req.getStatus());
-        p.setType(req.getType() == null ? Product.Type.STOCK : req.getType());
+        // Not given (the product form before P2 never sent it): the product keeps its type; new products are stock
+        Product.Type type = req.getType() != null ? req.getType() : p.getType() != null ? p.getType() : Product.Type.STOCK;
+        // A kit holds no stock (P2): a product with stock movements cannot become one; a kit made something else loses its components
+        if (type == Product.Type.KIT && p.getType() != Product.Type.KIT && p.getId() != null && stockMovementRepository.existsByProductId(p.getId())) {
+            throw new IllegalStateException(p.getSku() + " has stock movements: it cannot become a kit (make a new product for the kit)");
+        }
+        if (type != Product.Type.KIT && p.getType() == Product.Type.KIT && p.getId() != null) kitService.clearComponents(p.getId());
+        p.setType(type);
         p.setSellable(req.getSellable() == null || req.getSellable());
         p.setBrand(req.getBrand());
         p.setBarcode(req.getBarcode());

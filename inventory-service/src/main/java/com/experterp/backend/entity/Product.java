@@ -119,5 +119,6 @@ public class Product {
 
     public enum Status { ACTIVE, DEPRECATED }
 
-    public enum Type { STOCK, SERVICE }
+    // KIT (phase P2): made of components, holds no stock of its own
+    public enum Type { STOCK, SERVICE, KIT }
 }

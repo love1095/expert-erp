@@ -21,7 +21,7 @@ const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:
 const BUTTON_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
 
 const EMPTY_FORM = {
-  sku: "", name: "", unit: "", categoryId: "", status: "ACTIVE", brand: "", barcode: "",
+  sku: "", name: "", unit: "", categoryId: "", status: "ACTIVE", type: "STOCK", brand: "", barcode: "",
   costPrice: "", sellPrice: "", tradePrice: "", minStock: "", reorderQuantity: "", supplierProductCode: "",
   shortDescription: "", description: "",
 };
@@ -123,7 +123,7 @@ export default function ProductsPage() {
     const str = (v: unknown) => (v == null ? "" : String(v));
     setEditing(full);
     setForm({
-      sku: full.sku, name: full.name, unit: full.unit, categoryId: str(full.categoryId), status: full.status,
+      sku: full.sku, name: full.name, unit: full.unit, categoryId: str(full.categoryId), status: full.status, type: full.type,
       brand: str(full.brand), barcode: str(full.barcode),
       costPrice: str(full.costPrice), sellPrice: str(full.sellPrice), tradePrice: str(full.tradePrice),
       minStock: str(full.minStock), reorderQuantity: str(full.reorderQuantity),
@@ -197,7 +197,7 @@ export default function ProductsPage() {
     saveMutation.mutate({
       // Fields the form does not show (family, options, Cin7 details, type...) are sent back unchanged
       ...(editing ?? {}),
-      sku: form.sku, name: form.name, unit: form.unit, status: form.status,
+      sku: form.sku, name: form.name, unit: form.unit, status: form.status, type: form.type,
       categoryId: form.categoryId ? Number(form.categoryId) : null,
       brand: text(form.brand), barcode: text(form.barcode), supplierProductCode: text(form.supplierProductCode),
       costPrice: num(form.costPrice), sellPrice: num(form.sellPrice), tradePrice: num(form.tradePrice),
@@ -304,6 +304,14 @@ export default function ProductsPage() {
             <select id="products-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={INPUT}>
               <option value="ACTIVE">Active</option>
               <option value="DEPRECATED">Deprecated (hidden, not sent to Shopify)</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="products-type" className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+            <select id="products-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={INPUT}>
+              <option value="STOCK">Stock</option>
+              <option value="SERVICE">Service</option>
+              <option value="KIT">Kit (made of other products)</option>
             </select>
           </div>
           {NUMBER_FIELDS.filter(f => seeCost || f.key !== "costPrice").map(({ label, key, placeholder }) => (

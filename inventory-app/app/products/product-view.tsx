@@ -13,9 +13,10 @@ import Pagination from "@/components/Pagination";
 import MoreActions from "@/components/MoreActions";
 import { BackLink, RecordHeader, Card, Field, BTN_PRIMARY, TH, TD } from "@/components/DetailParts";
 import { ComplianceSection, FilesSection } from "./product-compliance";
+import { ComponentsSection } from "./product-kit";
 
 // Cin7's product sections (left), those the ERP has data for; the rest come later
-const SECTIONS = ["General", "Prices", "Stock", "Suppliers", "Reorder levels", "Compliance", "Images and files", "Movements", "Activity log"] as const;
+const SECTIONS = ["General", "Components", "Prices", "Stock", "Suppliers", "Reorder levels", "Compliance", "Images and files", "Movements", "Activity log"] as const;
 type Section = typeof SECTIONS[number];
 
 const qty = (n?: number | null) => (n == null ? "—" : Number(n).toLocaleString());
@@ -47,7 +48,7 @@ export default function ProductView({ productId }: { productId: number }) {
             <span className={`text-xs font-semibold px-2 py-0.5 rounded ${p.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
               {p.status === "ACTIVE" ? "Active" : "Deprecated"}
             </span>
-            <span className="text-xs text-gray-500">{p.type === "STOCK" ? "Stock" : "Service"}{p.categoryName ? ` · ${p.categoryName}` : ""}</span>
+            <span className="text-xs text-gray-500">{p.type === "STOCK" ? "Stock" : p.type === "KIT" ? "Kit" : "Service"}{p.categoryName ? ` · ${p.categoryName}` : ""}</span>
           </div>
         }
         actions={<>
@@ -62,7 +63,7 @@ export default function ProductView({ productId }: { productId: number }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)] gap-5 items-start">
         <nav aria-label="Product sections" className="bg-white border border-gray-200 rounded-lg py-1">
-          {SECTIONS.map(s => (
+          {SECTIONS.filter(s => s !== "Components" || p.type === "KIT").map(s => (
             <button key={s} type="button" onClick={() => setSection(s)} aria-current={section === s ? "page" : undefined}
               className={`w-full text-left px-4 py-2 text-sm ${section === s ? "bg-gray-100 font-semibold text-gray-900" : "text-gray-600 hover:bg-gray-50"}`}>
               {s}
@@ -72,6 +73,7 @@ export default function ProductView({ productId }: { productId: number }) {
 
         <div className="min-w-0 space-y-4" data-testid="product-section">
           {section === "General" && <General p={p} />}
+          {section === "Components" && <ComponentsSection productId={p.id} />}
           {section === "Prices" && <Prices p={p} />}
           {section === "Stock" && <StockSection p={p} />}
           {section === "Suppliers" && <Suppliers p={p} />}
@@ -98,7 +100,7 @@ function General({ p }: { p: Product }) {
         <Field label="SKU" value={<span className="font-mono">{p.sku}</span>} />
         <Field label="Product name" value={p.name} />
         <Field label="Status" value={p.status === "ACTIVE" ? "Active" : "Deprecated"} />
-        <Field label="Type" value={p.type === "STOCK" ? "Stock" : "Service"} />
+        <Field label="Type" value={p.type === "STOCK" ? "Stock" : p.type === "KIT" ? "Kit" : "Service"} />
         <Field label="Category" value={p.categoryName} />
         <Field label="Brand" value={p.brand} />
         <Field label="Unit of measure" value={p.unit} />

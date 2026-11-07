@@ -96,11 +96,12 @@ public class CostingService {
             Object[] r = (Object[]) em.createNativeQuery(
                     "SELECT COALESCE(SUM(x.cost), 0), COALESCE(SUM(x.qty), 0) FROM (" +
                     "  SELECT c.quantity * c.unit_cost AS cost, c.quantity AS qty FROM cost_consumptions c " +
-                    "    JOIN stock_movements m ON m.id = c.movement_id WHERE m.type = 'SALE_OUT' AND m.source_line_id = :line" +
+                    "    JOIN stock_movements m ON m.id = c.movement_id WHERE m.type = 'SALE_OUT' AND m.source_line_id = :line AND m.product_id = :product" +
                     "  UNION ALL" +
                     "  SELECT a.amount, 0 FROM cost_adjustments a " +
-                    "    JOIN stock_movements m ON m.id = a.movement_id WHERE m.type = 'SALE_OUT' AND m.source_line_id = :line" +
-                    ") x").setParameter("line", m.getSourceLineId()).getSingleResult();
+                    "    JOIN stock_movements m ON m.id = a.movement_id WHERE m.type = 'SALE_OUT' AND m.source_line_id = :line AND m.product_id = :product" +
+                    // the product too: a kit line (P2) shipped several components
+                    ") x").setParameter("line", m.getSourceLineId()).setParameter("product", m.getProduct().getId()).getSingleResult();
             BigDecimal cost = new BigDecimal(r[0].toString()), qty = new BigDecimal(r[1].toString());
             if (qty.signum() > 0) return cost.divide(qty, COST_SCALE, RoundingMode.HALF_UP);
         }

@@ -86,7 +86,7 @@ public class ProductComplianceService {
                 SELECT c.product_id, p.sku, p.name, c.standards, c.certificate_number, c.certificate_issuer, c.certificate_expiry,
                        EXISTS (SELECT 1 FROM product_files f WHERE f.product_id = c.product_id AND f.kind = 'CERTIFICATE') AS has_file
                   FROM product_compliance c JOIN products p ON p.id = c.product_id
-                 WHERE c.tenant_id = ? AND c.certificate_expiry IS NOT NULL AND c.certificate_expiry <= ? AND p.status <> 'ARCHIVED'
+                 WHERE c.tenant_id = ? AND c.certificate_expiry IS NOT NULL AND c.certificate_expiry <= ? AND p.status <> 'DEPRECATED'
                  ORDER BY c.certificate_expiry, p.sku""", (rs, n) -> {
             LocalDate exp = rs.getDate(7).toLocalDate();
             return new Expiring(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), exp,

@@ -244,7 +244,16 @@ public class ProductImportService {
             p.setCategory(name == null ? null : em.getReference(Category.class, lookups.category(name)));
         }
         set(cols, r, "Brand", p::setBrand);
-        if (cols.has("Type")) p.setType("Service".equalsIgnoreCase(cols.get(r, "Type")) ? Product.Type.SERVICE : Product.Type.STOCK);
+        if (cols.has("Type")) {
+            String type = cols.get(r, "Type");
+            boolean kit = "Kit".equalsIgnoreCase(type);
+            // Kits (P2) are made and unmade on the product page (components, stock rules): the import only creates new ones
+            if (p.getType() == Product.Type.KIT || (kit && p.getId() != null)) {
+                if (p.getType() != Product.Type.KIT || !kit) warn(warnings, sku + ": a kit is made or changed on the product page, its type is left as it is");
+            } else {
+                p.setType(kit ? Product.Type.KIT : "Service".equalsIgnoreCase(type) ? Product.Type.SERVICE : Product.Type.STOCK);
+            }
+        }
         if (cols.has("Status")) {
             String s = cols.get(r, "Status");
             p.setStatus(s != null && s.equalsIgnoreCase("DEPRECATED") ? Product.Status.DEPRECATED : Product.Status.ACTIVE);
@@ -317,7 +326,7 @@ public class ProductImportService {
         v.add(p.getName());
         v.add(p.getCategory() == null ? "" : p.getCategory().getName());
         v.add(nz(p.getBrand()));
-        v.add(p.getType() == Product.Type.SERVICE ? "Service" : "Stock");
+        v.add(p.getType() == Product.Type.SERVICE ? "Service" : p.getType() == Product.Type.KIT ? "Kit" : "Stock");
         v.add(p.getStatus().name());
         v.add(p.isSellable() ? "Yes" : "No");
         v.add(nz(p.getBarcode()));

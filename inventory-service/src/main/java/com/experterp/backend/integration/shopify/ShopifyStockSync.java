@@ -50,6 +50,7 @@ public class ShopifyStockSync {
     private final NamedParameterJdbcTemplate jdbc;
     private final AuditService auditService;
     private final TransactionTemplate tx;
+    private final com.experterp.backend.service.KitService kits;
 
     // One run per organisation at a time
     private final Map<Long, ReentrantLock> locks = new ConcurrentHashMap<>();
@@ -96,7 +97,7 @@ public class ShopifyStockSync {
         Map<String, Object> params = new HashMap<>();
         params.put("t", TenantContext.get());
         params.put("p", productId);
-        return jdbc.query("""
+        List<Want> rows = jdbc.query("""
                 SELECT k.id, k.product_id, p.sku, k.shopify_inventory_item_id, k.stock_sent,
                        GREATEST(0, FLOOR(COALESCE(oh.qty, 0) - COALESCE(r.qty, 0)))::int AS available
                 FROM shopify_product_links k
@@ -112,6 +113,11 @@ public class ShopifyStockSync {
                 (rs, i) -> new Want(rs.getLong("id"), rs.getLong("product_id"), rs.getString("sku"),
                         rs.getString("shopify_inventory_item_id"), rs.getInt("available"),
                         (Integer) rs.getObject("stock_sent")));
+        // A kit shows the kits its components can make (P2)
+        Map<Long, Integer> kitStock = kits.availableKits(rows.stream().map(Want::productId).toList());
+        if (kitStock.isEmpty()) return rows;
+        return rows.stream().map(w -> kitStock.containsKey(w.productId())
+                ? new Want(w.linkId(), w.productId(), w.sku(), w.inventoryItemId(), kitStock.get(w.productId()), w.sent()) : w).toList();
     }
 
     /** Available stock of every product, all warehouses, as Shopify should show it (for the product sync). */
@@ -127,6 +133,7 @@ public class ShopifyStockSync {
                 ) r ON r.product_id = p.id
                 WHERE p.tenant_id = :t""", Map.of("t", TenantContext.get()),
                 (org.springframework.jdbc.core.RowCallbackHandler) rs -> out.put(rs.getLong("id"), rs.getInt("available")));
+        out.putAll(kits.availableKits(out.keySet()));
         return out;
     }
 

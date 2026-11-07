@@ -118,4 +118,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(m.quantity), 0) FROM StockMovement m WHERE m.type = :type AND m.sourceLineId = :lineId")
     java.math.BigDecimal sumBySourceLine(@org.springframework.data.repository.query.Param("type") StockMovement.MovementType type,
                                          @org.springframework.data.repository.query.Param("lineId") Long lineId);
+
+    // Phase P2: only a product that never moved stock can become a kit
+    boolean existsByProductId(Long productId);
 }

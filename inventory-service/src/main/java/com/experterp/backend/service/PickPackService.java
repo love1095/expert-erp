@@ -45,6 +45,7 @@ public class PickPackService {
     private final PdfRenderer renderer;
     private final DocumentService documents;
     private final AuditService auditService;
+    private final KitService kits;
 
     // ---- pick lists (N2) ----
 
@@ -85,21 +86,29 @@ public class PickPackService {
                 if (a == null) continue;
                 BigDecimal pickable = a.allocated().min(a.remaining()).subtract(pickedNotShipped(l)).subtract(onOpenLists(l.getId())).max(BigDecimal.ZERO);
                 if (pickable.signum() <= 0) continue;
-                // From its bins in walk order (what open lists have not promised), the rest from unbinned stock
-                BinService.ProductBins pb = bins.productBins(l.getProduct().getId(), so.getWarehouse().getId());
-                for (BinService.BinStock b : pb.bins()) {
-                    if (pickable.signum() <= 0) break;
-                    BigDecimal free = b.quantity().subtract(promised.getOrDefault(b.binId(), BigDecimal.ZERO));
-                    BigDecimal take = pickable.min(free);
-                    if (take.signum() <= 0) continue;
-                    insertLine(t, listId, so, l, b.binId(), b.walkOrder(), take);
-                    promised.merge(b.binId(), take, BigDecimal::add);
-                    pickable = pickable.subtract(take);
-                    lines++;
-                }
-                if (pickable.signum() > 0) {
-                    insertLine(t, listId, so, l, null, Integer.MAX_VALUE, pickable);
-                    lines++;
+                // A kit is picked as its components (P2), each in its own units
+                Map<Long, BigDecimal> recipe = kits.recipe(l.getProduct().getId());
+                if (recipe.isEmpty()) recipe = Map.of(l.getProduct().getId(), BigDecimal.ONE);
+                for (Map.Entry<Long, BigDecimal> c : recipe.entrySet()) {
+                    Long productId = c.getKey();
+                    BigDecimal per = c.getValue();
+                    BigDecimal toPick = pickable.multiply(per);
+                    // From its bins in walk order (what open lists have not promised), the rest from unbinned stock
+                    BinService.ProductBins pb = bins.productBins(productId, so.getWarehouse().getId());
+                    for (BinService.BinStock b : pb.bins()) {
+                        if (toPick.signum() <= 0) break;
+                        BigDecimal free = b.quantity().subtract(promised.getOrDefault(b.binId(), BigDecimal.ZERO));
+                        BigDecimal take = toPick.min(free);
+                        if (take.signum() <= 0) continue;
+                        insertLine(t, listId, so, l, productId, per, b.binId(), b.walkOrder(), take);
+                        promised.merge(b.binId(), take, BigDecimal::add);
+                        toPick = toPick.subtract(take);
+                        lines++;
+                    }
+                    if (toPick.signum() > 0) {
+                        insertLine(t, listId, so, l, productId, per, null, Integer.MAX_VALUE, toPick);
+                        lines++;
+                    }
                 }
             }
         }
@@ -108,10 +117,10 @@ public class PickPackService {
         return pickList(listId);
     }
 
-    private void insertLine(Long t, Long listId, SaleOrder so, SaleOrderLine l, Long binId, int walk, BigDecimal qty) {
+    private void insertLine(Long t, Long listId, SaleOrder so, SaleOrderLine l, Long productId, BigDecimal perKit, Long binId, int walk, BigDecimal qty) {
         jdbc.update("""
-                INSERT INTO pick_list_lines (tenant_id, pick_list_id, sale_order_id, sale_order_line_id, product_id, bin_id, walk_order, quantity)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", t, listId, so.getId(), l.getId(), l.getProduct().getId(), binId, walk, qty);
+                INSERT INTO pick_list_lines (tenant_id, pick_list_id, sale_order_id, sale_order_line_id, product_id, per_kit, bin_id, walk_order, quantity)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", t, listId, so.getId(), l.getId(), productId, perKit, binId, walk, qty);
     }
 
     @Transactional(readOnly = true)
@@ -369,10 +378,15 @@ public class PickPackService {
 
     // ---- shared ----
 
+    // In the order line's units: a kit line counts the whole kits its least picked component makes (P2)
+    private static final String IN_LINE_UNITS = """
+            SELECT MIN(CASE WHEN x.kit THEN FLOOR(x.q) ELSE x.q END) FROM (
+              SELECT l.product_id, SUM(l.%s / l.per_kit) AS q, bool_or(l.per_kit <> 1 OR l.product_id <> sl.product_id) AS kit
+                FROM pick_list_lines l JOIN pick_lists p ON p.id = l.pick_list_id JOIN sale_order_lines sl ON sl.id = l.sale_order_line_id
+               WHERE p.status = '%s' AND l.sale_order_line_id = ? GROUP BY l.product_id) x""";
+
     private BigDecimal pickedTotal(Long lineId) {
-        BigDecimal v = jdbc.queryForObject("""
-                SELECT SUM(l.picked) FROM pick_list_lines l JOIN pick_lists p ON p.id = l.pick_list_id WHERE p.status = 'PICKED' AND l.sale_order_line_id = ?""",
-                BigDecimal.class, lineId);
+        BigDecimal v = jdbc.queryForObject(IN_LINE_UNITS.formatted("picked", "PICKED"), BigDecimal.class, lineId);
         return v == null ? BigDecimal.ZERO : v;
     }
 
@@ -386,9 +400,7 @@ public class PickPackService {
     }
 
     private BigDecimal onOpenLists(Long lineId) {
-        BigDecimal v = jdbc.queryForObject("""
-                SELECT SUM(l.quantity) FROM pick_list_lines l JOIN pick_lists p ON p.id = l.pick_list_id WHERE p.status = 'OPEN' AND l.sale_order_line_id = ?""",
-                BigDecimal.class, lineId);
+        BigDecimal v = jdbc.queryForObject(IN_LINE_UNITS.formatted("quantity", "OPEN"), BigDecimal.class, lineId);
         return v == null ? BigDecimal.ZERO : v;
     }
 }

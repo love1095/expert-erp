@@ -820,7 +820,7 @@ Spec §4 / §7: book shipments, print labels and send tracking from the ERP. Bui
 - [ ] Owner: the couriers and accounts in use, then live clients (or one shipping hub) — TODO
 - [ ] Later: tracking polled on a schedule, collection booking, customs data for non-UK parcels, label printers (ZPL)
 
-## Phase P — Product master gaps (P1 ✅)
+## Phase P — Product master gaps (P1 ✅ P2 ✅)
 
 Spec §1: what a PPE product needs beyond Cin7's fields.
 
@@ -831,6 +831,15 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 - [x] **Product CSV**: the export has Standards, CEMarked, UKCAMarked, ProtectionClass, CertificateNumber, CertificateIssuer, CertificateExpiry after Cin7's columns; the import reads them (columns left out keep what the product has; a date as 2027-03-31 or 31/03/2027, a bad one warned and left)
 - [x] The product page's **Compliance** section (with an expiry badge: green, amber within 60 days, red expired) and **Images and files** section (P4); seeing needs *Product - list*, changing *Product - add / edit*; audit-logged
 - [x] Tests: `ProductComplianceTest` (3) — saved on one glove size, the other size of the family has nothing; the certificate replaced; expiring within 30 days: the expired boot (−5 days) then the glove, not the 90-day one, with / without file; CSV export with the values, import of a new SKU and changed columns (others kept), a bad date warned; files: a fake PDF and a PDF posing as an image refused, the type read from the bytes, images ordered, made main, deleted; another organisation sees nothing. `ProductImportServiceTest` still green. E2E COMPLY-001 (compliance saved, certificate attached, image uploaded, in the expiring report)
+
+### P2 Kits and bundles ✅
+- [x] **Kit** product type (`V56`, `KitService`; Cin7: bill of materials, kit): made of **components** (stocked products, each once, a quantity per kit; not itself, not a service or another kit); a kit **holds no stock of its own** (any stock movement on it is refused); a product that ever moved stock cannot become a kit, and a kit made something else loses its components; components cannot change while open orders still have the kit to ship
+- [x] **Its stock is what the components make**: per warehouse, the whole kits the least-covered component makes — on hand from their stock, available after what open orders reserve; shown on the product page (Components section, Stock section) and **sent to Shopify** as the kit's stock (the stock sync and the product sync)
+- [x] **Selling a kit** reserves its components (stock overview, reorder, dashboard and Shopify see them reserved); **allocation** gives a kit line the whole kits its components cover, first confirmed first served with the other orders wanting the same components; **shipping** takes each component at its own **FIFO cost** against the kit's line (the kit's cost of goods is their sum, so profit reports are right); a **returned** kit puts its components back at the cost they left at
+- [x] **Picking** a kit line lists its components, each from its own bins in walk order; a short pick counts the whole kits picked (3 gloves of a kit of 2: 1 kit); packing and shipping in kits
+- [x] Product form: Type Stock / Service / **Kit**; product CSV Type "Kit" creates a kit (an existing product's kit status is changed on its page only, warned); a product edited without a type keeps its type
+- [x] Tests: `KitTest` (3) — component rules; no stock of its own; makes min(10 / 2, 3 / 1) = 3; two kits reserve 4 + 2, one left (and for Shopify); a second order gets 1, 1 backordered; shipped: components out, cost £18 (4 × £2 + 2 × £5, FIFO); a returned kit puts 2 + 1 back, the glasses at £5; picked as components from bins in walk order, a short pick = 1 kit, the rest on a new list, packed and shipped; a stocked product cannot become a kit, a kit made stock loses its components; another organisation sees nothing. E2E KIT-001 (components on the product page, what the stock makes, two kits shipped take the components)
+- [ ] Later: assembling kits into stock (Cin7's assembly BOM, built ahead), a kit's own price list rules, kits inside kits
 
 ---
 

@@ -62,6 +62,7 @@ public class SaleOrderService {
     private final CostingService costingService;
     private final PricingService pricingService;
     private final CreditService creditService;
+    private final KitService kitService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
 
@@ -317,13 +318,22 @@ public class SaleOrderService {
             throw new IllegalStateException("Only CONFIRMED orders can be fulfilled (order is " + so.getStatus() + ")");
         }
 
-        movementService.lockProducts(so.getLines().stream().map(l -> l.getProduct().getId()).toList());
+        // A kit line ships its components (P2): those are the products whose stock moves
+        Map<Long, Map<Long, BigDecimal>> recipes = new HashMap<>();
+        so.getLines().forEach(l -> recipes.computeIfAbsent(l.getProduct().getId(), kitService::recipe));
+        List<Long> stocked = new ArrayList<>();
+        recipes.forEach((product, recipe) -> { if (recipe.isEmpty()) stocked.add(product); else stocked.addAll(recipe.keySet()); });
+        movementService.lockProducts(stocked.stream().distinct().sorted().toList());
         Map<Long, AllocationService.LineAllocation> allocations = allocationService.forOrders(List.of(so.getId()));
         List<LineQty> toShip = resolveFulfilmentLines(so, req, allocations);
 
         // Check stock for all lines up front (summed per product) so the error names the real shortfall
         Map<Long, BigDecimal> perProduct = new HashMap<>();
-        toShip.forEach(s -> perProduct.merge(s.line().getProduct().getId(), s.qty(), BigDecimal::add));
+        toShip.forEach(s -> {
+            Map<Long, BigDecimal> recipe = recipes.get(s.line().getProduct().getId());
+            if (recipe.isEmpty()) perProduct.merge(s.line().getProduct().getId(), s.qty(), BigDecimal::add);
+            else recipe.forEach((component, per) -> perProduct.merge(component, s.qty().multiply(per), BigDecimal::add));
+        });
         perProduct.forEach((productId, qty) ->
                 movementService.assertSufficientStock(productId, so.getWarehouse().getId(), qty));
 
@@ -347,10 +357,19 @@ public class SaleOrderService {
         fulfilmentRepository.save(f);
 
         toShip.forEach(s -> {
-            movementService.createMovement(
-                    s.line().getProduct(), so.getWarehouse(), s.qty(),
-                    MovementType.SALE_OUT, ReferenceType.SALE_ORDER,
-                    "SO-" + so.getId(), "Fulfilment #" + f.getId() + " on SO #" + so.getId(), s.line().getId(), null);
+            Map<Long, BigDecimal> recipe = recipes.get(s.line().getProduct().getId());
+            if (recipe.isEmpty()) {
+                movementService.createMovement(
+                        s.line().getProduct(), so.getWarehouse(), s.qty(),
+                        MovementType.SALE_OUT, ReferenceType.SALE_ORDER,
+                        "SO-" + so.getId(), "Fulfilment #" + f.getId() + " on SO #" + so.getId(), s.line().getId(), null);
+            } else {
+                // Each component at its own FIFO cost, against the kit's line (its cost of goods is their sum)
+                recipe.forEach((component, per) -> movementService.createMovement(
+                        productService.getProduct(component), so.getWarehouse(), s.qty().multiply(per),
+                        MovementType.SALE_OUT, ReferenceType.SALE_ORDER, "SO-" + so.getId(),
+                        "Fulfilment #" + f.getId() + " on SO #" + so.getId() + " (kit " + s.line().getProduct().getSku() + ")", s.line().getId(), null));
+            }
             s.line().setFulfilledQuantity(s.line().getFulfilledQuantity().add(s.qty()));
         });
 
@@ -471,10 +490,19 @@ public class SaleOrderService {
             SaleOrderLine line = rl.getSaleOrderLine();
             line.setReturnedQuantity(line.getReturnedQuantity().add(rl.getQuantity()));
             if (rl.isRestock()) {
-                movementService.createMovement(
-                        line.getProduct(), warehouse, rl.getQuantity(),
-                        MovementType.SALE_RETURN_IN, ReferenceType.SALE_RETURN,
-                        "RET-" + r.getId(), "Return #" + r.getId() + " on SO #" + so.getId(), line.getId(), null);
+                Map<Long, BigDecimal> recipe = kitService.recipe(line.getProduct().getId());
+                if (recipe.isEmpty()) {
+                    movementService.createMovement(
+                            line.getProduct(), warehouse, rl.getQuantity(),
+                            MovementType.SALE_RETURN_IN, ReferenceType.SALE_RETURN,
+                            "RET-" + r.getId(), "Return #" + r.getId() + " on SO #" + so.getId(), line.getId(), null);
+                } else {
+                    // A returned kit puts its components back, each at the cost it left at
+                    recipe.forEach((component, per) -> movementService.createMovement(
+                            productService.getProduct(component), warehouse, rl.getQuantity().multiply(per),
+                            MovementType.SALE_RETURN_IN, ReferenceType.SALE_RETURN, "RET-" + r.getId(),
+                            "Return #" + r.getId() + " on SO #" + so.getId() + " (kit " + line.getProduct().getSku() + ")", line.getId(), null));
+                }
             }
         }
 

@@ -44,7 +44,7 @@ export interface Product {
   categoryId?: number;
   categoryName?: string;
   status: "ACTIVE" | "DEPRECATED";
-  type: "STOCK" | "SERVICE";
+  type: "STOCK" | "SERVICE" | "KIT";
   sellable: boolean;
   brand?: string;
   barcode?: string;
@@ -1375,3 +1375,7 @@ export interface ProductCompliance { productId: number; standards: string | null
   certificateNumber: string | null; certificateIssuer: string | null; certificateExpiry: string | null; notes: string | null; certificateFile: ProductFile | null }
 export interface ExpiringCertificate { productId: number; sku: string; name: string; standards: string | null; certificateNumber: string | null;
   certificateIssuer: string | null; certificateExpiry: string; daysLeft: number; hasFile: boolean }
+
+// Phase P2: kits
+export interface KitComponent { componentId: number; sku: string; name: string; unit: string; quantity: number }
+export interface KitBuildable { warehouseId: number; warehouse: string; onHand: number; available: number }

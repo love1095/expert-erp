@@ -33,11 +33,16 @@ public class AllocationService {
             "AND l.quantity - l.fulfilled_quantity - l.cancelled_quantity > 0";
     static final String REMAINING = "(l.quantity - l.fulfilled_quantity - l.cancelled_quantity)";
 
+    // Phase P2: a kit line reserves its components (kc), any other line its own product
+    static final String KIT_JOIN = " LEFT JOIN kit_components kc ON kc.kit_id = l.product_id ";
+    static final String STOCK_PRODUCT = "COALESCE(kc.component_id, l.product_id)";
+    static final String STOCK_REMAINING = "(" + REMAINING + " * COALESCE(kc.quantity, 1))";
+
     /** Reserved quantity per product, all warehouses together: SQL giving (product_id, qty); needs :t. */
     public static final String RESERVED_PER_PRODUCT_SQL =
-            "SELECT l.product_id, SUM(" + REMAINING + ") AS qty " +
-            "  FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " +
-            " WHERE " + RESERVING + " GROUP BY l.product_id";
+            "SELECT " + STOCK_PRODUCT + " AS product_id, SUM(" + STOCK_REMAINING + ") AS qty " +
+            "  FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " + KIT_JOIN +
+            " WHERE " + RESERVING + " GROUP BY " + STOCK_PRODUCT;
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -53,9 +58,9 @@ public class AllocationService {
     public Map<Long, BigDecimal> reservedByProduct(Collection<Long> productIds) {
         Map<Long, BigDecimal> out = new HashMap<>();
         if (productIds.isEmpty()) return out;
-        jdbc.query("SELECT l.product_id, SUM(" + REMAINING + ") AS qty " +
-                   "  FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " +
-                   " WHERE " + RESERVING + " AND l.product_id IN (:ids) GROUP BY l.product_id",
+        jdbc.query("SELECT " + STOCK_PRODUCT + " AS product_id, SUM(" + STOCK_REMAINING + ") AS qty " +
+                   "  FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " + KIT_JOIN +
+                   " WHERE " + RESERVING + " AND " + STOCK_PRODUCT + " IN (:ids) GROUP BY " + STOCK_PRODUCT,
                 params().addValue("ids", productIds),
                 rs -> { out.put(rs.getLong("product_id"), rs.getBigDecimal("qty")); });
         return out;
@@ -66,9 +71,9 @@ public class AllocationService {
     public Map<String, BigDecimal> reservedByProductAndWarehouse(Collection<Long> productIds) {
         Map<String, BigDecimal> out = new HashMap<>();
         if (productIds.isEmpty()) return out;
-        jdbc.query("SELECT l.product_id, so.warehouse_id, SUM(" + REMAINING + ") AS qty " +
-                   "  FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " +
-                   " WHERE " + RESERVING + " AND l.product_id IN (:ids) GROUP BY l.product_id, so.warehouse_id",
+        jdbc.query("SELECT " + STOCK_PRODUCT + " AS product_id, so.warehouse_id, SUM(" + STOCK_REMAINING + ") AS qty " +
+                   "  FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " + KIT_JOIN +
+                   " WHERE " + RESERVING + " AND " + STOCK_PRODUCT + " IN (:ids) GROUP BY " + STOCK_PRODUCT + ", so.warehouse_id",
                 params().addValue("ids", productIds),
                 rs -> { out.put(key(rs.getLong("product_id"), rs.getLong("warehouse_id")), rs.getBigDecimal("qty")); });
         return out;
@@ -102,20 +107,26 @@ public class AllocationService {
 
     // Every reserving line competing for the same product + warehouse, first confirmed first; :t needed.
     // Gives line_id, order_id, remaining, allocated (aliased x so callers can filter).
+    // A kit line competes for each of its components (in component units); it is allocated the whole kits its least
+    // covered component makes (P2). Other lines: per = 1, one row, allocated as before.
     private static final String ALLOCATION_SQL =
             "SELECT x.line_id, x.order_id, x.remaining, x.allocated FROM (" +
-            " SELECT d.line_id, d.order_id, d.remaining, " +
-            "        GREATEST(LEAST(d.remaining, COALESCE(oh.qty, 0) - d.before), 0) AS allocated " +
-            "   FROM (SELECT l.id AS line_id, so.id AS order_id, l.product_id, so.warehouse_id, " + REMAINING + " AS remaining, " +
-            "                COALESCE(SUM(" + REMAINING + ") OVER (PARTITION BY l.product_id, so.warehouse_id " +
+            " SELECT c.line_id, c.order_id, c.remaining, " +
+            "        MIN(CASE WHEN c.kit THEN FLOOR(c.allocated / c.per) ELSE c.allocated END) AS allocated FROM (" +
+            " SELECT d.line_id, d.order_id, d.remaining, d.per, d.kit, " +
+            "        GREATEST(LEAST(d.remaining * d.per, COALESCE(oh.qty, 0) - d.before), 0) AS allocated " +
+            "   FROM (SELECT l.id AS line_id, so.id AS order_id, " + STOCK_PRODUCT + " AS product_id, so.warehouse_id, " + REMAINING + " AS remaining, " +
+            "                COALESCE(kc.quantity, 1) AS per, kc.id IS NOT NULL AS kit, " +
+            "                COALESCE(SUM(" + STOCK_REMAINING + ") OVER (PARTITION BY " + STOCK_PRODUCT + ", so.warehouse_id " +
             "                         ORDER BY COALESCE(so.confirmed_at, so.created_at), l.id " +
             "                         ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS before " +
-            "           FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " +
+            "           FROM sale_order_lines l JOIN sale_orders so ON so.id = l.sale_order_id " + KIT_JOIN +
             "          WHERE " + RESERVING + ") d " +
             "   LEFT JOIN (SELECT product_id, warehouse_id, " +
             "                     SUM(CASE WHEN type IN (" + StockMovementRepository.IN_TYPES + ") THEN quantity ELSE -quantity END) AS qty " +
             "                FROM stock_movements WHERE tenant_id = :t GROUP BY product_id, warehouse_id) oh " +
             "          ON oh.product_id = d.product_id AND oh.warehouse_id = d.warehouse_id" +
+            " ) c GROUP BY c.line_id, c.order_id, c.remaining" +
             ") x JOIN sale_orders so ON so.id = x.order_id WHERE so.tenant_id = :t ";
 
     private Map<Long, LineAllocation> allocate(String orderFilter, MapSqlParameterSource p) {

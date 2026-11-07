@@ -733,7 +733,7 @@ public class ShopifyProductSyncService {
                         }
                     }
                     String weight = rs.getString("weight");
-                    boolean sendable = "ACTIVE".equals(rs.getString("status")) && "STOCK".equals(rs.getString("product_type"))
+                    boolean sendable = "ACTIVE".equals(rs.getString("status")) && ("STOCK".equals(rs.getString("product_type")) || "KIT".equals(rs.getString("product_type")))
                             && rs.getBoolean("sellable");
                     return new ErpProduct(rs.getLong("id"), rs.getString("sku"), rs.getString("name"),
                             rs.getString("description"), rs.getBigDecimal("sell_price"), rs.getBigDecimal("cost_price"),
