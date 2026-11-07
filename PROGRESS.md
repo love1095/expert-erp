@@ -820,7 +820,7 @@ Spec §4 / §7: book shipments, print labels and send tracking from the ERP. Bui
 - [ ] Owner: the couriers and accounts in use, then live clients (or one shipping hub) — TODO
 - [ ] Later: tracking polled on a schedule, collection booking, customs data for non-UK parcels, label printers (ZPL)
 
-## Phase P — Product master gaps (P1 ✅ P2 ✅ P6 ✅)
+## Phase P — Product master gaps (P1 ✅ P2 ✅ P4 ✅ P6 ✅)
 
 Spec §1: what a PPE product needs beyond Cin7's fields.
 
@@ -840,6 +840,12 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 - [x] Product form: Type Stock / Service / **Kit**; product CSV Type "Kit" creates a kit (an existing product's kit status is changed on its page only, warned); a product edited without a type keeps its type
 - [x] Tests: `KitTest` (3) — component rules; no stock of its own; makes min(10 / 2, 3 / 1) = 3; two kits reserve 4 + 2, one left (and for Shopify); a second order gets 1, 1 backordered; shipped: components out, cost £18 (4 × £2 + 2 × £5, FIFO); a returned kit puts 2 + 1 back, the glasses at £5; picked as components from bins in walk order, a short pick = 1 kit, the rest on a new list, packed and shipped; a stocked product cannot become a kit, a kit made stock loses its components; another organisation sees nothing. E2E KIT-001 (components on the product page, what the stock makes, two kits shipped take the components)
 - [ ] Later: assembling kits into stock (Cin7's assembly BOM, built ahead), a kit's own price list rules, kits inside kits
+
+### P4 Images and attachments ✅
+- [x] **Several images per product** (the first is the main one: Make main), **datasheets**, **declarations of conformity**, the certificate (P1) and other files on the product page's *Images and files* section (`product_files`, built with P1): checked by their bytes, up to 10 MB, per SKU, deleted one by one, audit-logged
+- [x] **Images sent to Shopify** in the product sync (`V58`): each image not yet on that Shopify product goes once — Shopify's staged upload (`stagedUploadsCreate`, the file posted to Shopify's storage) then `productCreateMedia` — main image first, a family's images on its family product; a failed image is reported in the sync's problems and tried again next time, the product stands; a product rebuilt as a new Shopify product gets its images again
+- [x] Tests: `ShopifyProductSyncTest` — two images uploaded (multipart with Shopify's parameters) and attached to the product, the main one first, nothing sent again on the next sync; `ProductComplianceTest` covers the files. E2E COMPLY-001 uploads an image
+- [ ] Live Shopify: images on the real dev store (TODO, test later)
 
 ### P6 Product lifecycle ✅ (done before P3–P5: small and on its own)
 - [x] **Active / Discontinued / Archived** (`V57`): Archived is the existing *Deprecated* (Cin7's name; hidden, not sent to Shopify); **Discontinued** is new: still listed, offered on orders and sent to Shopify, **never on the reorder list**, and **sold only while stock lasts** — confirming an order needing more than the warehouse has free (on hand less other orders' reservations) is refused with what is left; no backorders

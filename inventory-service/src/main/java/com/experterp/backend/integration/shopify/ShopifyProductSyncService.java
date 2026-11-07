@@ -464,11 +464,71 @@ public class ShopifyProductSyncService {
             (target == null ? job.created : job.updated).incrementAndGet();
         }
         ctx.kept().add(productId);
+        sendImages(ctx, job, productId, mine);
         job.variants.addAndGet(mine.size());
         for (ErpProduct p : mine) {
             if (existing.contains(p.id())) {
                 ctx.stockUpdates().add(new StockSet(p.sku(), ctx.links().get(p.id()).getShopifyInventoryItemId(),
                         shopifyQuantity(ctx.stock().get(p.id()))));
+            }
+        }
+    }
+
+    static final String STAGED_UPLOADS = """
+            mutation($input: [StagedUploadInput!]!) {
+              stagedUploadsCreate(input: $input) {
+                stagedTargets { url resourceUrl parameters { name value } }
+                userErrors { field message }
+              }
+            }""";
+
+    static final String CREATE_MEDIA = """
+            mutation($productId: ID!, $media: [CreateMediaInput!]!) {
+              productCreateMedia(productId: $productId, media: $media) {
+                media { id }
+                mediaUserErrors { field message }
+              }
+            }""";
+
+    /**
+     * Phase P4: the members' images not yet on this Shopify product, main image first (staged upload, then attached).
+     * A failed image is reported and tried again on the next sync; the product itself stands.
+     */
+    private void sendImages(Ctx ctx, Job job, String productId, List<ErpProduct> members) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("t", TenantContext.get());
+        p.put("ids", members.stream().map(ErpProduct::id).toList());
+        p.put("product", productId);
+        List<Map<String, Object>> images = jdbc.queryForList("""
+                SELECT f.id, f.product_id, f.file_name, f.content_type, f.size_bytes FROM product_files f
+                 WHERE f.tenant_id = :t AND f.kind = 'IMAGE' AND f.product_id IN (:ids) AND f.shopify_product_id IS DISTINCT FROM :product
+                 ORDER BY f.product_id, f.position, f.id""", p);
+        for (Map<String, Object> img : images) {
+            String name = (String) img.get("file_name");
+            String sku = members.stream().filter(m -> m.id().equals(((Number) img.get("product_id")).longValue())).map(ErpProduct::sku).findFirst().orElse("");
+            try {
+                Map<String, Object> input = new LinkedHashMap<>();
+                input.put("filename", name);
+                input.put("mimeType", img.get("content_type"));
+                input.put("httpMethod", "POST");
+                input.put("resource", "IMAGE");
+                input.put("fileSize", String.valueOf(img.get("size_bytes")));
+                JsonNode staged = client.graphql(ctx.shop(), ctx.token(), STAGED_UPLOADS, Map.of("input", List.of(input))).path("stagedUploadsCreate");
+                userErrors(staged, "Shopify refused the image upload");
+                JsonNode target = staged.path("stagedTargets").path(0);
+                List<Map.Entry<String, String>> params = new ArrayList<>();
+                target.path("parameters").forEach(x -> params.add(Map.entry(x.path("name").asText(), x.path("value").asText())));
+                byte[] bytes = jdbc.queryForObject("SELECT content FROM product_files WHERE id = :id", Map.of("id", img.get("id")), byte[].class);
+                client.uploadStaged(target.path("url").asText(), params, name, (String) img.get("content_type"), bytes);
+                JsonNode created = client.graphql(ctx.shop(), ctx.token(), CREATE_MEDIA, Map.of("productId", productId,
+                        "media", List.of(Map.of("originalSource", target.path("resourceUrl").asText(), "mediaContentType", "IMAGE", "alt", name))))
+                        .path("productCreateMedia");
+                JsonNode errors = created.path("mediaUserErrors");
+                if (errors.isArray() && !errors.isEmpty()) throw new ShopifyApiException(errors.get(0).path("message").asText());
+                jdbc.update("UPDATE product_files SET shopify_product_id = :product WHERE id = :id", Map.of("product", productId, "id", img.get("id")));
+                job.imagesSent.incrementAndGet();
+            } catch (RuntimeException e) {
+                job.problem(sku + ": image " + name + " not sent: " + e.getMessage());
             }
         }
     }
@@ -880,7 +940,7 @@ public class ShopifyProductSyncService {
         final AtomicInteger total = new AtomicInteger(), processed = new AtomicInteger(), created = new AtomicInteger(),
                 updated = new AtomicInteger(), unchanged = new AtomicInteger(), removed = new AtomicInteger(),
                 failed = new AtomicInteger(), variants = new AtomicInteger(), notSent = new AtomicInteger(),
-                stockUpdated = new AtomicInteger(), withoutPrice = new AtomicInteger();
+                stockUpdated = new AtomicInteger(), withoutPrice = new AtomicInteger(), imagesSent = new AtomicInteger();
         volatile String warehouseName, locationName, error;
         volatile Phase phase = Phase.SENDING;
         final AtomicInteger phaseTotal = new AtomicInteger(), phaseDone = new AtomicInteger();

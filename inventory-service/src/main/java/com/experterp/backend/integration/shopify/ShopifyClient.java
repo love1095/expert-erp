@@ -125,6 +125,40 @@ public class ShopifyClient {
         }
     }
 
+    /**
+     * Phase P4: uploads a file to the staged target Shopify gave (stagedUploadsCreate): a multipart POST of its
+     * parameters, then the file. The target is Shopify's storage, not the Admin API.
+     */
+    public void uploadStaged(String targetUrl, java.util.List<java.util.Map.Entry<String, String>> parameters, String fileName, String contentType, byte[] bytes) {
+        String boundary = "----ExpertErp" + java.util.UUID.randomUUID().toString().replace("-", "");
+        java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
+        java.nio.charset.Charset utf8 = java.nio.charset.StandardCharsets.UTF_8;
+        try {
+            for (java.util.Map.Entry<String, String> p : parameters) {
+                body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + p.getKey() + "\"\r\n\r\n" + p.getValue() + "\r\n").getBytes(utf8));
+            }
+            body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + fileName.replace("\"", "") + "\"\r\nContent-Type: "
+                    + contentType + "\r\n\r\n").getBytes(utf8));
+            body.write(bytes);
+            body.write(("\r\n--" + boundary + "--\r\n").getBytes(utf8));
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
+        HttpRequest req = HttpRequest.newBuilder(URI.create(targetUrl)).timeout(Duration.ofSeconds(60))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build();
+        HttpResponse<String> res;
+        try {
+            res = http.send(req, HttpResponse.BodyHandlers.ofString());
+        } catch (java.io.IOException e) {
+            throw new ShopifyApiException("Could not upload the image to Shopify: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ShopifyApiException("Interrupted while uploading the image");
+        }
+        if (res.statusCode() / 100 != 2) throw new ShopifyApiException("Shopify refused the image upload (HTTP " + res.statusCode() + ")");
+    }
+
     private URI url(String shop, String path) {
         String base = baseUrlOverride == null || baseUrlOverride.isBlank() ? "https://" + shop : baseUrlOverride;
         return URI.create(base + path);

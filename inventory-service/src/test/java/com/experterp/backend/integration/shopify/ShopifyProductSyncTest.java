@@ -58,6 +58,8 @@ class ShopifyProductSyncTest {
     // Mutations received: name -> variables
     static final List<Map.Entry<String, JsonNode>> calls = new CopyOnWriteArrayList<>();
     static volatile String scopes;
+    // Images uploaded to the staged target (P4)
+    static final List<byte[]> uploads = new CopyOnWriteArrayList<>();
     static final HttpServer fakeShopify = startFakeShopify();
 
     static final class FakeProduct {
@@ -94,6 +96,7 @@ class ShopifyProductSyncTest {
     @Autowired WarehouseRepository warehouseRepository;
     @Autowired ProductRepository productRepository;
     @Autowired CategoryRepository categoryRepository;
+    @Autowired com.experterp.backend.service.ProductFileService files;
 
     Warehouse warehouse;
     String id;
@@ -111,6 +114,7 @@ class ShopifyProductSyncTest {
         warehouse = warehouseRepository.save(warehouse);
         shop.clear();
         calls.clear();
+        uploads.clear();
         scopes = "read_orders,write_products,write_inventory,read_locations";
         connectionService.save(new ShopifyConnectionService.SaveRequest("shop-" + id + ".myshopify.com", "client", "secret"));
     }
@@ -374,6 +378,33 @@ class ShopifyProductSyncTest {
         assertThat(connectionService.get()).isPresent();
     }
 
+    @Test
+    void imagesAreSentOnceMainImageFirst() {
+        Product vest = product("IMG-" + id, "Vest with photos", "10", "4");
+        stock(vest, "1");
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2};
+        byte[] jpeg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 3, 4};
+        files.upload(vest.getId(), com.experterp.backend.service.ProductFileService.Kind.IMAGE, "back.png", "image/png", png);
+        var front = files.upload(vest.getId(), com.experterp.backend.service.ProductFileService.Kind.IMAGE, "front.jpg", "image/jpeg", jpeg);
+        files.makeMain(front.id());
+
+        SyncView first = runSync();
+        assertThat(first.state()).isEqualTo(State.DONE);
+        String productId = shop.keySet().iterator().next();
+        List<JsonNode> media = calls.stream().filter(c -> c.getKey().equals("productCreateMedia")).map(Map.Entry::getValue).toList();
+        assertThat(media).hasSize(2);
+        assertThat(media).allSatisfy(m -> assertThat(m.path("productId").asText()).isEqualTo(productId));
+        assertThat(media.get(0).path("media").get(0).path("alt").asText()).isEqualTo("front.jpg");      // the main image first
+        assertThat(media.get(0).path("media").get(0).path("originalSource").asText()).startsWith("https://staged.example.test/");
+        assertThat(uploads).hasSize(2);
+        assertThat(new String(uploads.get(0), StandardCharsets.ISO_8859_1)).contains("name=\"key\"").contains("filename=\"front.jpg\"");
+
+        // The next sync sends nothing again
+        calls.clear();
+        runSync();
+        assertThat(calls).noneMatch(c -> c.getKey().equals("productCreateMedia") || c.getKey().equals("stagedUploadsCreate"));
+    }
+
     private SyncView runSync() {
         sync.start();
         long deadline = System.currentTimeMillis() + 20_000;
@@ -469,6 +500,11 @@ class ShopifyProductSyncTest {
             HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
             server.createContext("/admin/oauth/access_token", ex ->
                     reply(ex, "{\"access_token\":\"tok\",\"scope\":\"" + scopes + "\",\"expires_in\":86399}"));
+            server.createContext("/staged-upload", ex -> {
+                uploads.add(ex.getRequestBody().readAllBytes());
+                ex.sendResponseHeaders(204, -1);
+                ex.close();
+            });
             server.createContext("/admin/api/", ex -> {
                 JsonNode req = JSON.readTree(ex.getRequestBody().readAllBytes());
                 String query = req.path("query").asText();
@@ -520,6 +556,14 @@ class ShopifyProductSyncTest {
                         nodes.addObject().put("id", v.id()).put("sku", v.sku()).putObject("inventoryItem").put("id", v.itemId());
                     }
                     reply(ex, "{\"data\":{\"productSet\":{\"product\":" + product + ",\"userErrors\":[]}}}");
+                } else if (query.contains("stagedUploadsCreate(")) {
+                    calls.add(Map.entry("stagedUploadsCreate", vars));
+                    String url = "http://localhost:" + ex.getLocalAddress().getPort() + "/staged-upload";
+                    reply(ex, "{\"data\":{\"stagedUploadsCreate\":{\"stagedTargets\":[{\"url\":\"" + url + "\",\"resourceUrl\":\"https://staged.example.test/"
+                            + ids.incrementAndGet() + "\",\"parameters\":[{\"name\":\"key\",\"value\":\"k1\"}]}],\"userErrors\":[]}}}");
+                } else if (query.contains("productCreateMedia(")) {
+                    calls.add(Map.entry("productCreateMedia", vars));
+                    reply(ex, "{\"data\":{\"productCreateMedia\":{\"media\":[{\"id\":\"m\"}],\"mediaUserErrors\":[]}}}");
                 } else if (query.contains("productDelete(")) {
                     calls.add(Map.entry("productDelete", vars));
                     shop.remove(vars.path("input").path("id").asText());
