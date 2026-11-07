@@ -42,7 +42,17 @@ public class OrganisationSettingsService {
             @Min(1) long nextCreditNoteNumber,
             @NotBlank @Size(max = 10) String purchaseOrderPrefix,
             @Min(1) long nextPurchaseOrderNumber,
-            @NotBlank @Size(max = 100) String defaultPurchaseTaxRule) {}
+            @NotBlank @Size(max = 100) String defaultPurchaseTaxRule,
+            // Q2: hand-typed supplier invoices; left out = unchanged
+            @Size(max = 10) String billPrefix,
+            @Min(1) Long nextBillNumber) {
+        public Settings(String saleOrderPrefix, long nextSaleOrderNumber, String webSalesRep, String defaultSaleTaxRule, int quoteValidDays,
+                        String invoicePrefix, long nextInvoiceNumber, boolean autoInvoiceOnShipment, String creditNotePrefix, long nextCreditNoteNumber,
+                        String purchaseOrderPrefix, long nextPurchaseOrderNumber, String defaultPurchaseTaxRule) {
+            this(saleOrderPrefix, nextSaleOrderNumber, webSalesRep, defaultSaleTaxRule, quoteValidDays, invoicePrefix, nextInvoiceNumber,
+                    autoInvoiceOnShipment, creditNotePrefix, nextCreditNoteNumber, purchaseOrderPrefix, nextPurchaseOrderNumber, defaultPurchaseTaxRule, null, null);
+        }
+    }
 
     @Transactional(readOnly = true)
     public Settings get() {
@@ -50,7 +60,7 @@ public class OrganisationSettingsService {
         return new Settings(t.getSaleOrderPrefix(), t.getNextSaleOrderNumber(), t.getWebSalesRep(), t.getDefaultSaleTaxRule(),
                 t.getQuoteValidDays(), t.getInvoicePrefix(), t.getNextInvoiceNumber(), t.isAutoInvoiceOnShipment(),
                 t.getCreditNotePrefix(), t.getNextCreditNoteNumber(),
-                t.getPurchaseOrderPrefix(), t.getNextPurchaseOrderNumber(), t.getDefaultPurchaseTaxRule());
+                t.getPurchaseOrderPrefix(), t.getNextPurchaseOrderNumber(), t.getDefaultPurchaseTaxRule(), t.getBillPrefix(), t.getNextBillNumber());
     }
 
     @Transactional
@@ -72,6 +82,8 @@ public class OrganisationSettingsService {
         t.setPurchaseOrderPrefix(s.purchaseOrderPrefix().trim());
         t.setNextPurchaseOrderNumber(s.nextPurchaseOrderNumber());
         t.setDefaultPurchaseTaxRule(purchaseRule);
+        if (s.billPrefix() != null && !s.billPrefix().isBlank()) t.setBillPrefix(s.billPrefix().trim());
+        if (s.nextBillNumber() != null) t.setNextBillNumber(s.nextBillNumber());
         Map<String, Object> audit = new java.util.LinkedHashMap<>();
         audit.put("saleOrderPrefix", t.getSaleOrderPrefix());
         audit.put("nextSaleOrderNumber", t.getNextSaleOrderNumber());
@@ -110,6 +122,18 @@ public class OrganisationSettingsService {
             long n = t.getNextInvoiceNumber();
             t.setNextInvoiceNumber(n + 1);
             String number = t.getInvoicePrefix() + n;
+            if (!invoiceRepository.existsByInvoiceNumber(number)) return number;
+        }
+    }
+
+    /** Phase Q2: the next number for a hand-typed supplier invoice (e.g. BILL-12), skipping numbers in use. */
+    @Transactional
+    public String nextBillNumber() {
+        Tenant t = em.find(Tenant.class, TenantContext.get(), LockModeType.PESSIMISTIC_WRITE);
+        while (true) {
+            long n = t.getNextBillNumber();
+            t.setNextBillNumber(n + 1);
+            String number = t.getBillPrefix() + n;
             if (!invoiceRepository.existsByInvoiceNumber(number)) return number;
         }
     }

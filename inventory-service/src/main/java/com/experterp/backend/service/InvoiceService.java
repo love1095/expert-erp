@@ -92,7 +92,8 @@ public class InvoiceService {
         invoice.setDueDate(req.getDueDate());
         invoice.setCurrency(req.getCurrency() != null ? req.getCurrency() : "GBP");
         invoice.setNotes(req.getNotes());
-        invoice.setInvoiceNumber(settingsService.nextInvoiceNumber());
+        // Q2: a hand-typed supplier invoice takes the bill series, not the sales invoice one
+        invoice.setInvoiceNumber(req.getType() == Invoice.InvoiceType.PURCHASE ? settingsService.nextBillNumber() : settingsService.nextInvoiceNumber());
 
         BigDecimal total = BigDecimal.ZERO;
         for (InvoiceRequest.ItemRequest ir : req.getItems()) {

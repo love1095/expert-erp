@@ -67,6 +67,13 @@ public class Tenant {
     @Column(nullable = false)
     private long nextInvoiceNumber = 1;
 
+    // Phase Q2: hand-typed supplier invoices (no purchase order): their own series
+    @Column(nullable = false, length = 10)
+    private String billPrefix = "BILL-";
+
+    @Column(nullable = false)
+    private long nextBillNumber = 1;
+
     // Every shipment creates and issues an invoice for what it shipped
     @Column(nullable = false)
     private boolean autoInvoiceOnShipment;

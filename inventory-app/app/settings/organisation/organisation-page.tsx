@@ -95,6 +95,17 @@ export default function OrganisationPage() {
           <p className="text-[11px] text-gray-400 mt-1">Next credit note: <b>{form.creditNotePrefix}{String(form.nextCreditNoteNumber).padStart(5, "0")}</b></p>
         </div>
         <div>
+          <label htmlFor="org-bill-prefix" className={LABEL}>Supplier invoice prefix (typed by hand)</label>
+          <input id="org-bill-prefix" value={form.billPrefix ?? "BILL-"} disabled={!isAdmin} maxLength={10}
+            onChange={e => setForm({ ...form, billPrefix: e.target.value })} className={INPUT} />
+        </div>
+        <div>
+          <label htmlFor="org-next-bill" className={LABEL}>Next supplier invoice number</label>
+          <input id="org-next-bill" type="number" min="1" value={form.nextBillNumber ?? 1} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, nextBillNumber: Number(e.target.value) })} className={INPUT} />
+          <p className="text-[11px] text-gray-400 mt-1">Next: <b>{form.billPrefix ?? "BILL-"}{form.nextBillNumber ?? 1}</b> (bills of purchase orders keep the supplier&apos;s number).</p>
+        </div>
+        <div>
           <label htmlFor="org-po-prefix" className={LABEL}>Purchase order prefix</label>
           <input id="org-po-prefix" value={form.purchaseOrderPrefix} disabled={!isAdmin} maxLength={10}
             onChange={e => setForm({ ...form, purchaseOrderPrefix: e.target.value })} className={INPUT} />

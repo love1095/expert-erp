@@ -460,6 +460,9 @@ export interface OrganisationSettings {
   nextInvoiceNumber: number;
   // Every shipment creates and issues an invoice for what it shipped
   autoInvoiceOnShipment: boolean;
+  // Q2: hand-typed supplier invoices
+  billPrefix?: string;
+  nextBillNumber?: number;
   creditNotePrefix: string;
   nextCreditNoteNumber: number;
   purchaseOrderPrefix: string;

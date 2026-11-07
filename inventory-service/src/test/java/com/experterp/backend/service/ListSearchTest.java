@@ -132,6 +132,16 @@ class ListSearchTest {
         return req;
     }
 
+    @Test
+    void handTypedSupplierInvoicesTakeTheBillSeries() {
+        InvoiceRequest bill = invoice("Portwest");
+        bill.setType(Invoice.InvoiceType.PURCHASE);
+        String first = invoiceService.create(bill).getInvoiceNumber();
+        assertThat(first).startsWith("BILL-");
+        assertThat(invoiceService.create(bill).getInvoiceNumber()).isEqualTo("BILL-" + (Long.parseLong(first.substring(5)) + 1));
+        assertThat(invoiceService.create(invoice("Acme")).getInvoiceNumber()).startsWith("INV-");     // sales keep their series
+    }
+
     private InvoiceRequest invoice(String party) {
         InvoiceRequest req = new InvoiceRequest();
         req.setType(Invoice.InvoiceType.SALES);
