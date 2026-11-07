@@ -843,7 +843,7 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 
 ### P6 Product lifecycle ✅ (done before P3–P5: small and on its own)
 - [x] **Active / Discontinued / Archived** (`V57`): Archived is the existing *Deprecated* (Cin7's name; hidden, not sent to Shopify); **Discontinued** is new: still listed, offered on orders and sent to Shopify, **never on the reorder list**, and **sold only while stock lasts** — confirming an order needing more than the warehouse has free (on hand less other orders' reservations) is refused with what is left; no backorders
-- [x] Product form, list filter and badges (amber Discontinued, grey Archived); product CSV Status ACTIVE / DISCONTINUED / DEPRECATED (Archived accepted); "Deprecate products not in the file" leaves discontinued ones as they are only if listed
+- [x] Product form, list filter and badges (amber Discontinued, grey Archived); product CSV Status ACTIVE / DISCONTINUED / DEPRECATED (Archived accepted); "Deprecate products not in the file" archives discontinued products missing from the file too
 - [x] Tests: `ProductLifecycleTest` (2) — 3 of 5 confirmed, another 3 refused ("2 left"), the last 2 confirmed, then "0 left"; offered in dropdowns, not on the reorder list though below its minimum; CSV Archived / Discontinued in and out. E2E LIFE-001; products e2e green (the list says Archived)
 
 ---
