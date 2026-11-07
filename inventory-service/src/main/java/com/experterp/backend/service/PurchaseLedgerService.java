@@ -45,6 +45,7 @@ public class PurchaseLedgerService {
     private final LedgerPeriodService periodService;
     private final ReconciliationGuard reconciliationGuard;
     private final JdbcTemplate jdbc;
+    private final CostingService costingService;
 
     // ---- supplier credit notes ----
 
@@ -101,6 +102,8 @@ public class PurchaseLedgerService {
         BigDecimal net = BigDecimal.ZERO, tax = BigDecimal.ZERO;
         record Back(InvoiceItem item, BigDecimal qty) {}
         List<Back> back = new ArrayList<>();
+        record PriceCredit(InvoiceItem billItem, InvoiceItem creditItem) {}
+        List<PriceCredit> priceCredits = new ArrayList<>();
         for (CreditLine l : lines) {
             InvoiceItem item = items.get(l.invoiceItemId());
             if (item == null) throw new ResourceNotFoundException("Line " + l.invoiceItemId() + " is not on " + bill.getInvoiceNumber());
@@ -125,6 +128,9 @@ public class PurchaseLedgerService {
                     throw new IllegalStateException(what + " is not a product received on the order: nothing to send back");
                 }
                 back.add(new Back(item, l.quantity()));
+            } else if (item.getProduct() != null && item.getPurchaseOrderLineId() != null) {
+                // Q3: credited for the price, the goods kept: the stock that line priced costs less
+                priceCredits.add(new PriceCredit(item, c));
             }
         }
         Supplier supplier = bill.getSupplierId() == null ? null : supplierRepository.findById(bill.getSupplierId()).orElse(null);
@@ -143,6 +149,7 @@ public class PurchaseLedgerService {
         cn.setTaxTotal(tax);
         cn.setTotalAmount(net.add(tax));
         invoiceRepository.save(cn);
+        priceCredits.forEach(pc -> costingService.priceCredited(pc.billItem(), pc.creditItem(), cn.getInvoiceNumber()));
 
         // Goods sent back: out of the order's warehouse, off the layers that receipt made (CostingService)
         if (!back.isEmpty()) {

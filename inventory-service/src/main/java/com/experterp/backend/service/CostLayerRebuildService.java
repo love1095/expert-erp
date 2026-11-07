@@ -1,6 +1,7 @@
 package com.experterp.backend.service;
 
 import com.experterp.backend.entity.Invoice;
+import com.experterp.backend.entity.InvoiceItem;
 import com.experterp.backend.entity.StockMovement;
 import com.experterp.backend.multitenancy.TenantContext;
 import com.experterp.backend.repository.InvoiceRepository;
@@ -69,6 +70,22 @@ public class CostLayerRebuildService {
             }
         }
         while (b < bills.size()) applyBill(bills.get(b++));
+        em.flush();
+        em.clear();
+        // Q3: supplier credits for the price (goods kept) taken off again, after the bills they credit
+        @SuppressWarnings("unchecked")
+        List<Object[]> credits = em.createNativeQuery("""
+                SELECT ci.id, ci.credited_item_id, cn.invoice_number FROM invoice_items ci JOIN invoices cn ON cn.id = ci.invoice_id
+                 WHERE cn.tenant_id = :t AND cn.type = 'PURCHASE' AND cn.kind = 'CREDIT_NOTE' AND cn.status IN ('ISSUED', 'PAID')
+                   AND ci.product_id IS NOT NULL AND ci.credited_item_id IS NOT NULL AND ci.purchase_order_line_id IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM stock_movements m WHERE m.tenant_id = :t AND m.type = 'PURCHASE_RETURN_OUT'
+                                   AND m.reference_id = cn.invoice_number AND m.source_line_id = ci.purchase_order_line_id)
+                 ORDER BY cn.created_at, ci.id""").setParameter("t", tenantId).getResultList();
+        for (Object[] c : credits) {
+            InvoiceItem credit = em.find(InvoiceItem.class, ((Number) c[0]).longValue());
+            InvoiceItem billed = em.find(InvoiceItem.class, ((Number) c[1]).longValue());
+            costingService.priceCredited(billed, credit, (String) c[2]);
+        }
         em.flush();
         em.clear();
 

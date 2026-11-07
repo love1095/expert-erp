@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import(TestcontainersConfiguration.class)
 class PurchaseLedgerTest {
 
+    @Autowired CostLayerRebuildService rebuild;
     @Autowired PurchaseLedgerService ledger;
     @Autowired PurchaseOrderService purchaseOrderService;
     @Autowired InvoiceService invoiceService;
@@ -75,6 +76,23 @@ class PurchaseLedgerTest {
     void tearDown() {
         SecurityContextHolder.clearContext();
         TenantContext.clear();
+    }
+
+    @Test
+    void aCreditForThePriceWithTheGoodsKeptLowersTheirFifoCost() {
+        PurchaseOrderResponse po = received("65.50", 3);
+        InvoiceResponse bill = bill(po, "PRICE-1");
+        // One vest's worth (£65.50) credited, the goods kept: the 3 vests now cost £131.00, £43.67 each
+        ledger.createCreditNote(bill.getId(), new PurchaseLedgerService.CreditNoteRequest(null, null,
+                List.of(new PurchaseLedgerService.CreditLine(bill.getItems().get(0).getId(), BigDecimal.ONE, false)), List.of(),
+                "Price agreed lower", null, null, null));
+        ProductStockResponse stock = productService.stock(vest.getId());
+        assertThat(stock.onHand()).isEqualByComparingTo("3");
+        assertThat(stock.stockValue()).isEqualByComparingTo("131.00");
+        assertThat(movementRepository.findAll().stream().noneMatch(m -> m.getType() == MovementType.PURCHASE_RETURN_OUT)).isTrue();
+        // Rebuilding the FIFO layers keeps it
+        rebuild.rebuild();
+        assertThat(productService.stock(vest.getId()).stockValue()).isEqualByComparingTo("131.00");
     }
 
     @Test

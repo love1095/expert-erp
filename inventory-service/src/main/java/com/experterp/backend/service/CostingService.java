@@ -182,6 +182,33 @@ public class CostingService {
         landCharges(bill, asOf);
     }
 
+    // ---- supplier credit for the price (Q3) ----
+
+    /**
+     * A supplier credited part of a bill line's price and the goods were kept: the credited amount comes off the cost
+     * of the units that line priced (its matched layers, by units); the part already sold lowers cost of goods.
+     * Units not received yet take nothing (their bill price stands).
+     */
+    @Transactional
+    public void priceCredited(InvoiceItem billItem, InvoiceItem creditItem, String creditNoteNumber) {
+        BigDecimal amount = creditItem.getTotalPrice();
+        if (amount == null || amount.signum() == 0) return;
+        Map<Long, BigDecimal> units = new LinkedHashMap<>();
+        adjustmentRepository.findMatches(billItem.getId()).forEach(a -> units.merge(a.getLayerId(), a.getBilledQuantity(), BigDecimal::add));
+        units.values().removeIf(u -> u.signum() <= 0);
+        BigDecimal total = units.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (total.signum() == 0) return;
+        BigDecimal left = amount;
+        List<Map.Entry<Long, BigDecimal>> list = new ArrayList<>(units.entrySet());
+        for (int i = 0; i < list.size(); i++) {
+            BigDecimal part = i == list.size() - 1 ? left : amount.multiply(list.get(i).getValue()).divide(total, AMOUNT_SCALE, RoundingMode.HALF_UP);
+            left = left.subtract(part);
+            if (part.signum() == 0) continue;
+            adjust(layerRepository.findById(list.get(i).getKey()).orElseThrow(), part.negate(), creditItem.getId(), null,
+                    "Supplier credit " + creditNoteNumber + " for the price", LocalDateTime.now());
+        }
+    }
+
     // ---- landed cost (P5) ----
 
     /**
