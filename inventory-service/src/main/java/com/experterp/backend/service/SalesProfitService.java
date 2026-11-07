@@ -133,6 +133,17 @@ public class SalesProfitService {
                 }
                 docCost.add(c);
             }
+            // Q4: goods back to stock in the period with no credit note (taken back, no money): their cost comes off
+            // their order, as no document carries it
+            Timestamp start = Timestamp.valueOf(from.atStartOfDay()), end = Timestamp.valueOf(to.plusDays(1).atStartOfDay());
+            costs.addAll(jdbc.query("""
+                    SELECT sol.sale_order_id, sol.product_id, -SUM(l.quantity * l.original_unit_cost) FROM cost_layers l
+                      JOIN stock_movements m ON m.id = l.movement_id JOIN sale_order_lines sol ON sol.id = m.source_line_id
+                     WHERE m.tenant_id = ? AND m.type = 'SALE_RETURN_IN' AND m.reference_type = 'SALE_RETURN' AND m.created_at >= ? AND m.created_at < ?
+                       AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.tenant_id = m.tenant_id AND i.status IN ('ISSUED', 'PAID')
+                                         AND 'RET-' || i.sale_return_id = m.reference_id)
+                     GROUP BY sol.sale_order_id, sol.product_id""", (rs, n) -> new Cost(rs.getLong(1), rs.getLong(2), nz(rs.getBigDecimal(3))),
+                    t, start, end));
         }
         costs.forEach(c -> { if (c.saleOrderId() != null) orders.put(c.saleOrderId(), null); productIds.add(c.productId()); });
         lines.forEach(l -> { if (l.saleOrderId() != null) orders.put(l.saleOrderId(), null); });

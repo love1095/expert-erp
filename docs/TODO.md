@@ -63,7 +63,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] Expert Safety's real users: set their roles at cutover (in Cin7 all 5 are on FULL)
 - [ ] API key rate limits (calls per minute per Application Key)
 - [x] Supplier credit notes for a price (no goods back) lower the FIFO cost (Q3, 2026-11-07); landed cost built in P5, off
-- [ ] A return without a credit note is on no document for *All COGS*
+- [x] A return without a credit note is on no document for *All COGS* (Q4: its cost comes off its order, 2026-11-07)
 - [ ] Cin7's deprecated tax rules (5 % income, Exempt, Reverse Charge) still active here; cash accounting VAT scheme not built
 - [x] Shipping not stopped for orders confirmed before a credit hold (Q1, 2026-11-07)
 - [x] Hand-typed purchase invoices still take INV- numbers (Q2: BILL- series, 2026-11-07)

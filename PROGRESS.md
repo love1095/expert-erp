@@ -865,7 +865,7 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 - [x] Product form, list filter and badges (amber Discontinued, grey Archived); product CSV Status ACTIVE / DISCONTINUED / DEPRECATED (Archived accepted); "Deprecate products not in the file" archives discontinued products missing from the file too
 - [x] Tests: `ProductLifecycleTest` (2) — 3 of 5 confirmed, another 3 refused ("2 left"), the last 2 confirmed, then "0 left"; offered in dropdowns, not on the reorder list though below its minimum; CSV Archived / Discontinued in and out. E2E LIFE-001; products e2e green (the list says Archived)
 
-## Phase Q — Smaller items before cutover (Q1 ✅ Q2 ✅ Q3 ✅)
+## Phase Q — Smaller items before cutover (Q1 ✅ Q2 ✅ Q3 ✅ Q4 ✅)
 
 ### Q1 Credit hold stops the shipping ✅
 - [x] A customer put on credit hold (by hand, over the limit or overdue) **after** the order was confirmed now stops the **shipping** of it too — from the order, pick and pack's Ship, imports — with the hold's reasons; a manager or admin can ship anyway with a reason (kept on the order as "Confirmed or shipped past a credit hold", audited); orders confirmed past a hold and Shopify orders (paid) ship as before
@@ -878,6 +878,10 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 ### Q3 Supplier credit for the price lowers the FIFO cost ✅
 - [x] A supplier credit note line **without goods sent back** (a price agreed lower, a discount after the bill) takes its amount off the cost of the units that bill line priced (its matched FIFO layers, by units); the part already sold lowers cost of goods; the credit note still credits inventory in the ledger, so stock value and the ledger agree; units not received yet take nothing; the FIFO rebuild repeats it
 - [x] Tests: `PurchaseLedgerTest` — 3 vests at £65.50, one vest's worth credited with the goods kept: stock value £131.00, nothing sent back, still £131.00 after a rebuild; goods sent back as before
+
+### Q4 Returns without a credit note in *All COGS* ✅
+- [x] *All COGS* (the profit reports' Show COGS switch) now takes the cost of goods **returned to stock without a credit note** (taken back, no money) in the period off their order and product, so it agrees with *within the dates*; returns with a credit note stay on the credit note as before
+- [x] Tests: `SalesProfitTest` — 3 helmets invoiced at £6 cost, one back without a credit note: £12 in both modes; the existing profit tests green
 
 ---
 

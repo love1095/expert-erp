@@ -218,6 +218,27 @@ class SalesProfitTest {
         assertThat(movements.report(today, today, null, null).totals().closingValue()).isEqualByComparingTo("7.00");
     }
 
+    @Test
+    void aReturnWithoutACreditNoteTakesItsCostOffInAllCogs() {
+        stockIn("6.00", 5);
+        shipAndInvoice("Cash Customer " + id, "Stephen Seddon", 3, "10.00", true);
+        Long orderId = saleOrderService.findAll(null, null, "Cash Customer " + id, 0, 5).getContent().get(0).getId();
+        Long lineId = saleOrderService.findById(orderId).getLines().get(0).getId();
+        // One helmet back to stock, no money given back: no credit note
+        SaleReturnRequest ret = new SaleReturnRequest();
+        SaleReturnRequest.Line rl = new SaleReturnRequest.Line();
+        rl.setSaleOrderLineId(lineId);
+        rl.setQuantity(BigDecimal.ONE);
+        rl.setRestock(true);
+        ret.setLines(List.of(rl));
+        saleOrderService.createReturn(orderId, ret);
+
+        LocalDate today = LocalDate.now();
+        // The invoice carries 3 × £6; the return takes £6 off: £12, as within the dates
+        assertThat(profit.report(today, today, CogsMode.ALL, GroupBy.ORDER).totals().cogs()).isEqualByComparingTo("12.00");
+        assertThat(profit.report(today, today, CogsMode.WITHIN_DATES, GroupBy.ORDER).totals().cogs()).isEqualByComparingTo("12.00");
+    }
+
     private void stockIn(String cost, int qty) {
         movementService.createMovement(helmet, warehouse, BigDecimal.valueOf(qty), MovementType.ADJUSTMENT_IN,
                 ReferenceType.MANUAL, "IN", null, null, new BigDecimal(cost));
