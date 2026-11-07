@@ -151,7 +151,7 @@ public class DocumentService {
         for (SaleOrderResponse.Line l : so.getLines()) {
             BigDecimal qty = l.getQuantity().subtract(nz(l.getCancelledQuantity()));
             if (qty.signum() <= 0) continue;
-            lines.add(new Line(l.getProductSku(), null, l.getProductName(), qty(qty), money(l.getUnitPrice()),
+            lines.add(new Line(l.getProductSku(), null, l.getProductName(), qty(qty) + (l.getUnitName() != null ? " " + l.getUnitName() : ""), money(l.getUnitPrice()),
                     percent(l.getDiscountPercent()), rate(l.getTaxRate()), money(l.getNetAmount()), false));
             taxed.add(new Taxed(l.getTaxName(), l.getTaxRate(), l.getNetAmount(), l.getTaxAmount()));
         }
@@ -198,7 +198,7 @@ public class DocumentService {
         for (InvoiceResponse.ItemResponse i : inv.getItems()) {
             boolean charge = i.getProductId() == null;
             String description = i.getProductName() != null ? i.getProductName() : i.getDescription();
-            lines.add(new Line(i.getProductSku(), null, description, qty(i.getQuantity()), money(i.getUnitPrice()),
+            lines.add(new Line(i.getProductSku(), null, description, qty(i.getQuantity()) + (i.getUnitName() != null ? " " + i.getUnitName() : ""), money(i.getUnitPrice()),
                     percent(i.getDiscountPercent()), rate(i.getTaxRate()), money(i.getTotalPrice()), charge));
             taxed.add(new Taxed(i.getTaxName(), i.getTaxRate(), i.getTotalPrice(), i.getTaxAmount()));
         }

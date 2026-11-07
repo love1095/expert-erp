@@ -1,5 +1,6 @@
 "use client";
 
+import UnitSelect from "@/components/UnitSelect";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createPurchaseOrder, getSuppliers, getTaxRates, previewPurchaseOrder, updatePurchaseOrder } from "@/lib/api";
@@ -9,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "../sale-orders/product-picker";
 
 // productSku / productName: shown in the search box when editing an existing line
-type LineForm = { productSku?: string; productName?: string; productId: string; quantity: string; unitCost: string; discountPercent: string; supplierSku: string; taxRule: string; taxReason: string };
+type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitCost: string; discountPercent: string; supplierSku: string; taxRule: string; taxReason: string };
 type CostForm = { description: string; reference: string; quantity: string; unitPrice: string; taxRule: string; taxReason: string };
 
 const emptyLine = (): LineForm => ({ productId: "", quantity: "", unitCost: "", discountPercent: "", supplierSku: "", taxRule: "", taxReason: "" });
@@ -44,7 +45,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
     requiredBy: str(editing?.requiredBy), notes: str(editing?.notes),
   });
   const [lines, setLines] = useState<LineForm[]>(editing ? editing.lines.map(l => ({
-    productSku: l.productSku, productName: l.productName, productId: String(l.productId), quantity: str(l.quantity),
+    productSku: l.productSku, productName: l.productName, productId: String(l.productId), unitName: l.unitName ?? "", quantity: str(l.quantity),
     unitCost: str(l.unitCost), discountPercent: str(l.discountPercent), supplierSku: str(l.supplierSku),
     taxRule: l.taxOverridden ? str(l.taxName) : "", taxReason: "",
   })) : [emptyLine()]);
@@ -61,7 +62,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
     supplierReference: text(header.supplierReference), paymentTerm: text(header.paymentTerm),
     requiredBy: text(header.requiredBy), notes: text(header.notes),
     lines: lines.map(l => ({
-      productId: l.productId ? Number(l.productId) : undefined, quantity: num(l.quantity), unitCost: num(l.unitCost) ?? null,
+      productId: l.productId ? Number(l.productId) : undefined, unitName: text(l.unitName ?? ""), quantity: num(l.quantity), unitCost: num(l.unitCost) ?? null,
       discountPercent: num(l.discountPercent), supplierSku: text(l.supplierSku), taxRule: text(l.taxRule), taxReason: text(l.taxReason),
     })),
     costs: costs.map(c => ({
@@ -176,7 +177,9 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
                 <div className="col-span-3">
                   <ProductPicker label={`Product for line ${i + 1}`}
                     selected={l.productSku ? { id: Number(l.productId), sku: l.productSku, name: l.productName ?? "" } : undefined}
-                    onSelect={pr => setLine(i, { productId: String(pr.id) })} />
+                    onSelect={pr => setLine(i, { productId: String(pr.id), unitName: "" })} />
+                  <UnitSelect productId={l.productId ? Number(l.productId) : undefined} value={l.unitName ?? ""}
+                    onChange={u => setLine(i, { unitName: u, unitCost: "" })} label={`Unit for line ${i + 1}`} />
                 </div>
                 <input aria-label={`Supplier SKU for line ${i + 1}`} value={l.supplierSku} placeholder={p?.supplierSku ?? "—"}
                   onChange={e => setLine(i, { supplierSku: e.target.value })} className={INPUT} />

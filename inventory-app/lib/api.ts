@@ -563,3 +563,11 @@ export const getKitComponents = (productId: number) => api.get(`/products/${prod
 export const saveKitComponents = (productId: number, components: { componentId: number; quantity: number }[]) =>
   api.put(`/products/${productId}/components`, components).then(r => r.data);
 export const getKitBuildable = (productId: number) => api.get(`/products/${productId}/buildable`).then(r => r.data);
+
+// Phase P3: units of measure
+export const getProductUnits = (productId: number) => api.get(`/products/${productId}/units`).then(r => r.data);
+export const saveProductUnits = (productId: number, units: { name: string; factor: number; barcode?: string | null; sellPrice?: number | null; buyPrice?: number | null }[]) =>
+  api.put(`/products/${productId}/units`, units).then(r => r.data);
+
+// Phase P5: landed cost — OFF, VALUE or QUANTITY
+export const saveLandedCost = (landedCost: string) => api.put("/stock-adjustments/settings", { landedCost }).then(r => r.data);

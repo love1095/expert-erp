@@ -54,6 +54,9 @@ public class PurchaseOrderResponse {
         private String productSku;
         private String productName;
         private String unit;
+        // Phase P3: the line's own unit (empty: the product's) and the base units one holds
+        private String unitName;
+        private BigDecimal unitFactor;
         private String supplierSku;
         private BigDecimal quantity;
         @com.experterp.backend.security.Restricted(com.experterp.backend.security.Permission.PURCHASE_PRICES) private BigDecimal unitCost;

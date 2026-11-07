@@ -507,7 +507,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                       return (
                         <tr key={l.id}>
                           <td className="text-gray-800"><Clip text={`${l.productSku}: ${l.productName}`} width="12rem" /></td>
-                          <td className="num">{qty(l.quantity)}</td>
+                          <td className="num">{qty(l.quantity)}{l.unitName ? <span className="text-xs text-gray-500"> {l.unitName}</span> : null}</td>
                           <td className="num text-emerald-700">{qty(l.fulfilledQuantity)}</td>
                           {showCancelled && <td className="num text-gray-500">{qty(l.cancelledQuantity)}</td>}
                           {showReturned && <td className="num text-gray-600">{qty(l.returnedQuantity)}</td>}

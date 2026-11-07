@@ -77,6 +77,8 @@ public class SaleOrderRequest {
     public static class Line {
         @NotNull private Long productId;
         @NotNull @Positive private BigDecimal quantity;
+        // Phase P3: one of the product's units (empty: its own unit)
+        private String unitName;
         // Empty = the customer's price (contract price, else their tier, else Retail; phase G1)
         private BigDecimal unitPrice;
         // Empty = the customer's discount (none on a contract price)

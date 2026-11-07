@@ -179,6 +179,83 @@ public class CostingService {
     public void billIssued(Invoice bill, LocalDateTime asOf) {
         bill.getItems().stream().map(InvoiceItem::getPurchaseOrderLineId).filter(Objects::nonNull).distinct()
                 .forEach(lineId -> matchBills(lineId, asOf));
+        landCharges(bill, asOf);
+    }
+
+    // ---- landed cost (P5) ----
+
+    /**
+     * With landed cost on (Settings: by value or by quantity), the bill's charges (freight, duty) are spread over the
+     * stock its lines received — by line value or by units — and added to those layers' cost (the part already sold
+     * goes to cost of goods, like a bill price change). Decided when the bill is issued; a rebuild repeats it.
+     * Nothing received yet: the charge stays an expense.
+     */
+    private void landCharges(Invoice bill, LocalDateTime asOf) {
+        List<InvoiceItem> charges = bill.getItems().stream().filter(i -> i.getProduct() == null && i.getPurchaseOrderLineId() == null
+                && i.getTotalPrice() != null && i.getTotalPrice().signum() != 0).toList();
+        if (charges.isEmpty() || bill.getKind() != Invoice.Kind.INVOICE) return;
+        if (asOf == null) {
+            String mode = landedCostMode();
+            if ("OFF".equals(mode)) return;
+            List<InvoiceItem> lines = bill.getItems().stream().filter(i -> i.getPurchaseOrderLineId() != null).toList();
+            Map<CostLayer, BigDecimal> weights = weights(lines, mode);
+            if (weights.isEmpty()) return;
+            charges.forEach(c -> c.setLanded(true));
+        }
+        String mode = landedCostMode();
+        List<InvoiceItem> lines = bill.getItems().stream().filter(i -> i.getPurchaseOrderLineId() != null).toList();
+        Map<CostLayer, BigDecimal> weights = weights(lines, "QUANTITY".equals(mode) ? mode : "VALUE");
+        BigDecimal total = weights.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (total.signum() == 0) return;
+        LocalDateTime at = asOf != null ? asOf : LocalDateTime.now();
+        for (InvoiceItem charge : charges) {
+            if (!charge.isLanded() || alreadyLanded(charge.getId())) continue;
+            BigDecimal left = charge.getTotalPrice();
+            List<Map.Entry<CostLayer, BigDecimal>> list = new ArrayList<>(weights.entrySet());
+            for (int i = 0; i < list.size(); i++) {
+                CostLayer layer = list.get(i).getKey();
+                // The last layer takes the rounding, so the charge lands to the penny
+                BigDecimal part = i == list.size() - 1 ? left
+                        : charge.getTotalPrice().multiply(list.get(i).getValue()).divide(total, AMOUNT_SCALE, RoundingMode.HALF_UP);
+                left = left.subtract(part);
+                if (part.signum() == 0) continue;
+                adjust(layer, part, charge.getId(), null, "Landed cost: " + nn(charge.getDescription()) + " on bill " + bill.getInvoiceNumber(), at);
+                em.createNativeQuery("INSERT INTO landed_costs (tenant_id, invoice_item_id, layer_id, amount) VALUES (:t, :item, :layer, :amount)")
+                        .setParameter("t", layer.getTenantId()).setParameter("item", charge.getId()).setParameter("layer", layer.getId())
+                        .setParameter("amount", part).executeUpdate();
+            }
+        }
+    }
+
+    // The received units this bill's lines priced (their matches), per layer, weighted by value (units × cost) or units
+    private Map<CostLayer, BigDecimal> weights(List<InvoiceItem> lines, String mode) {
+        Map<Long, BigDecimal> units = new LinkedHashMap<>();
+        for (InvoiceItem item : lines) {
+            adjustmentRepository.findMatches(item.getId()).forEach(a -> units.merge(a.getLayerId(), a.getBilledQuantity(), BigDecimal::add));
+        }
+        Map<CostLayer, BigDecimal> out = new LinkedHashMap<>();
+        units.forEach((layerId, u) -> {
+            if (u.signum() <= 0) return;
+            CostLayer l = layerRepository.findById(layerId).orElseThrow();
+            out.put(l, "QUANTITY".equals(mode) ? u : u.multiply(l.getOriginalUnitCost()));
+        });
+        return out;
+    }
+
+    private boolean alreadyLanded(Long itemId) {
+        return ((Number) em.createNativeQuery("SELECT COUNT(*) FROM landed_costs WHERE invoice_item_id = :i").setParameter("i", itemId)
+                .getSingleResult()).longValue() > 0;
+    }
+
+    /** OFF, VALUE or QUANTITY (Inventory settings). */
+    public String landedCostMode() {
+        List<?> r = em.createNativeQuery("SELECT landed_cost FROM inventory_settings WHERE tenant_id = :t")
+                .setParameter("t", com.experterp.backend.multitenancy.TenantContext.get()).getResultList();
+        return r.isEmpty() ? "OFF" : String.valueOf(r.get(0));
+    }
+
+    private static String nn(String s) {
+        return s == null ? "" : s;
     }
 
     /**
@@ -187,6 +264,18 @@ public class CostingService {
      */
     @Transactional
     public void billCancelled(Invoice bill) {
+        // Landed charges (P5) taken back from the layers they went to
+        for (InvoiceItem item : bill.getItems()) {
+            if (!item.isLanded()) continue;
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = em.createNativeQuery("SELECT layer_id, amount FROM landed_costs WHERE invoice_item_id = :i ORDER BY id")
+                    .setParameter("i", item.getId()).getResultList();
+            for (Object[] r : rows) {
+                CostLayer layer = layerRepository.findById(((Number) r[0]).longValue()).orElseThrow();
+                adjust(layer, new BigDecimal(r[1].toString()).negate(), item.getId(), null, "Bill " + bill.getInvoiceNumber() + " cancelled: landed cost back", LocalDateTime.now());
+            }
+            em.createNativeQuery("DELETE FROM landed_costs WHERE invoice_item_id = :i").setParameter("i", item.getId()).executeUpdate();
+        }
         Set<Long> lines = new LinkedHashSet<>();
         for (InvoiceItem item : bill.getItems()) {
             if (item.getPurchaseOrderLineId() == null) continue;
@@ -215,15 +304,17 @@ public class CostingService {
         LocalDateTime at = asOf != null ? asOf : LocalDateTime.now();
         Iterator<CostLayer> layers = layerRepository.findUnbilled(purchaseOrderLineId).iterator();
         CostLayer layer = layers.hasNext() ? layers.next() : null;
+        // The bill is in the order line's unit, the layers in the product's own (P3): one bill unit = factor layer units
+        BigDecimal factor = factor(purchaseOrderLineId);
         for (InvoiceItem item : items) {
             while (layer != null && item.getCostMatchedQuantity().compareTo(item.getQuantity()) < 0) {
-                BigDecimal units = item.getQuantity().subtract(item.getCostMatchedQuantity())
+                BigDecimal units = item.getQuantity().subtract(item.getCostMatchedQuantity()).multiply(factor)
                         .min(layer.getQuantity().subtract(layer.getBilledQuantity()));
                 BigDecimal amount = correction(item, layer, units);
                 adjust(layer, amount, item.getId(), units, "Bill " + item.getInvoice().getInvoiceNumber() + " at "
                         + money(netUnitPrice(item)) + ", received at " + money(layer.getOriginalUnitCost()), at);
                 layer.setBilledQuantity(layer.getBilledQuantity().add(units));
-                item.setCostMatchedQuantity(item.getCostMatchedQuantity().add(units));
+                item.setCostMatchedQuantity(item.getCostMatchedQuantity().add(units.divide(factor, 4, RoundingMode.HALF_UP)));
                 if (layer.getBilledQuantity().compareTo(layer.getQuantity()) >= 0) layer = layers.hasNext() ? layers.next() : null;
             }
             if (layer == null) break;
@@ -231,8 +322,18 @@ public class CostingService {
     }
 
     // What the bill changes on these units: (bill price after discount − the cost they came in at) × units
-    private static BigDecimal correction(InvoiceItem item, CostLayer layer, BigDecimal units) {
-        return netUnitPrice(item).subtract(layer.getOriginalUnitCost()).multiply(units).setScale(AMOUNT_SCALE, RoundingMode.HALF_UP);
+    // units are layer (base) units; the bill's price is per order-line unit (P3)
+    private BigDecimal correction(InvoiceItem item, CostLayer layer, BigDecimal units) {
+        BigDecimal factor = factor(item.getPurchaseOrderLineId());
+        BigDecimal perBaseUnit = netUnitPrice(item).divide(factor, COST_SCALE, RoundingMode.HALF_UP);
+        return perBaseUnit.subtract(layer.getOriginalUnitCost()).multiply(units).setScale(AMOUNT_SCALE, RoundingMode.HALF_UP);
+    }
+
+    /** Base units in one unit of the purchase order line (1 unless bought by the box, P3). */
+    private BigDecimal factor(Long purchaseOrderLineId) {
+        if (purchaseOrderLineId == null) return BigDecimal.ONE;
+        List<?> r = em.createNativeQuery("SELECT unit_factor FROM purchase_order_lines WHERE id = :id").setParameter("id", purchaseOrderLineId).getResultList();
+        return r.isEmpty() || r.get(0) == null ? BigDecimal.ONE : new BigDecimal(r.get(0).toString());
     }
 
     static BigDecimal netUnitPrice(InvoiceItem item) {

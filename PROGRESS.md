@@ -820,7 +820,7 @@ Spec §4 / §7: book shipments, print labels and send tracking from the ERP. Bui
 - [ ] Owner: the couriers and accounts in use, then live clients (or one shipping hub) — TODO
 - [ ] Later: tracking polled on a schedule, collection booking, customs data for non-UK parcels, label printers (ZPL)
 
-## Phase P — Product master gaps (P1 ✅ P2 ✅ P4 ✅ P6 ✅)
+## Phase P — Product master gaps ✅ (P1 ✅ P2 ✅ P3 ✅ P4 ✅ P5 ✅ P6 ✅)
 
 Spec §1: what a PPE product needs beyond Cin7's fields.
 
@@ -841,11 +841,24 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 - [x] Tests: `KitTest` (3) — component rules; no stock of its own; makes min(10 / 2, 3 / 1) = 3; two kits reserve 4 + 2, one left (and for Shopify); a second order gets 1, 1 backordered; shipped: components out, cost £18 (4 × £2 + 2 × £5, FIFO); a returned kit puts 2 + 1 back, the glasses at £5; picked as components from bins in walk order, a short pick = 1 kit, the rest on a new list, packed and shipped; a stocked product cannot become a kit, a kit made stock loses its components; another organisation sees nothing. E2E KIT-001 (components on the product page, what the stock makes, two kits shipped take the components)
 - [ ] Later: assembling kits into stock (Cin7's assembly BOM, built ahead), a kit's own price list rules, kits inside kits
 
+### P3 Units of measure ✅
+- [x] **Extra units per product** (`V59`, `ProductUnitService`; the product page's *Units* section): name, how many of the product's own unit it holds (Pair = 2, Box of 100, Carton of 1,000), barcode, its own sell and buy price (empty: the product's price × holds); not the product's own unit or 1, each name once; a unit on open orders cannot be removed or changed
+- [x] **Sell or buy in any unit**: a sale or purchase order line keeps its unit (`unit_name`, `unit_factor`), its quantity and price are per that unit (the unit's own price, else the customer's price × holds — "Retail (Box of 100)"; the same for purchase costs); the order forms offer the unit under the product; order pages, invoices, bills and their PDFs show "3 Box of 100"
+- [x] **Stock and FIFO stay in the product's own unit**: reservations, allocation (whole units only: 250 make 2 boxes of 100), pick lists (picked in the own unit, whole boxes counted), shipping (3 boxes = 300 out at FIFO), returns, discontinued checks, receiving (2 cartons = 2,000 in at a thousandth of the carton cost), on order (stock pages, reorder), supplier returns and bill cost matching (a bill at £160 a carton corrects the layers to £0.16 each)
+- [x] Tests: `UnitOfMeasureTest` (2) — unit rules; 2 cartons on order = 2,000, received at £0.15, billed at £160 → £0.16; 3 boxes at the box's own £45, a carton at 1,000 × £0.50, 300 reserved, shipped at £48 cost, a box returned = 100 back; a unit on an open order cannot change, an unknown unit refused; 250 in stock allocate 2 of 3 boxes, picked 200, a short pick of 150 = 1 box, shipped 100. E2E UOM-001 (unit added on the product page, 2 boxes sold take 20)
+- [ ] Later: scanning a unit's barcode (counts the unit's quantity), units in the Shopify sync (Shopify has no units: variants per pack size), sales reports by unit (they count order lines as entered)
+
 ### P4 Images and attachments ✅
 - [x] **Several images per product** (the first is the main one: Make main), **datasheets**, **declarations of conformity**, the certificate (P1) and other files on the product page's *Images and files* section (`product_files`, built with P1): checked by their bytes, up to 10 MB, per SKU, deleted one by one, audit-logged
 - [x] **Images sent to Shopify** in the product sync (`V58`): each image not yet on that Shopify product goes once — Shopify's staged upload (`stagedUploadsCreate`, the file posted to Shopify's storage) then `productCreateMedia` — main image first, a family's images on its family product; a failed image is reported in the sync's problems and tried again next time, the product stands; a product rebuilt as a new Shopify product gets its images again
 - [x] Tests: `ShopifyProductSyncTest` — two images uploaded (multipart with Shopify's parameters) and attached to the product, the main one first, nothing sent again on the next sync; `ProductComplianceTest` covers the files. E2E COMPLY-001 uploads an image
 - [ ] Live Shopify: images on the real dev store (TODO, test later)
+
+### P5 Landed cost ✅ (built, off until the owner decides)
+- [x] **Setting** (`V60`; Inventory → Adjustments, managers): freight and duty on supplier bills are **an expense** (off, the default, as today) or **added to the stock cost, by value** or **by quantity**
+- [x] On: when a bill is issued, its charges (freight, duty…) are **spread over the received units its lines priced** — by value (units × cost) or by units, the last share taking the pennies — and added to those **FIFO layers**; the part of a layer already sold goes to **cost of goods** (like a bill price change); the charge is **posted to inventory** (ledger and Xero export) instead of purchase charges; a **cancelled bill** takes it back; the FIFO rebuild repeats it (decided per charge when issued: changing the setting later does not move old bills); nothing received yet: the charge stays an expense
+- [x] Tests: `LandedCostTest` (3) — off: freight stays an expense and on purchase charges; by value: £30 over £100 + £100 → helmets £11.50, gloves £5.75, £7.50 into cost of goods for the 5 already sold, posted to inventory, cancelled back to £10 / £5; by quantity: £1 a unit; bad mode refused, staff cannot change it. E2E LAND-001 (switched on from the screen, £20 freight on 10 at £4 → £6)
+- [ ] Owner: switch it on or not, by value or by quantity (TODO)
 
 ### P6 Product lifecycle ✅ (done before P3–P5: small and on its own)
 - [x] **Active / Discontinued / Archived** (`V57`): Archived is the existing *Deprecated* (Cin7's name; hidden, not sent to Shopify); **Discontinued** is new: still listed, offered on orders and sent to Shopify, **never on the reorder list**, and **sold only while stock lasts** — confirming an order needing more than the warehouse has free (on hand less other orders' reservations) is refused with what is left; no backorders

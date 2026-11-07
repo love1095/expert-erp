@@ -1,5 +1,6 @@
 "use client";
 
+import UnitSelect from "@/components/UnitSelect";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder, getPriceTiers } from "@/lib/api";
@@ -10,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "./product-picker";
 
 // productSku / productName: shown in the search box when editing an existing line
-type LineForm = { productSku?: string; productName?: string; productId: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
+type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 type ChargeForm = { description: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 
 const emptyLine = (): LineForm => ({ productId: "", quantity: "", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
@@ -66,7 +67,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   const [shipTo, setShipTo] = useState({ company: str(editing?.shipToCompany), contact: str(editing?.shipToContact) });
   const [quoteValidUntil, setQuoteValidUntil] = useState(str(editing?.quoteValidUntil));
   const [lines, setLines] = useState<LineForm[]>(editing ? editing.lines.map(l => ({
-    productSku: l.productSku, productName: l.productName, productId: String(l.productId), quantity: str(l.quantity),
+    productSku: l.productSku, productName: l.productName, productId: String(l.productId), unitName: l.unitName ?? "", quantity: str(l.quantity),
     unitPrice: str(l.unitPrice), discountPercent: str(l.discountPercent), taxRule: l.taxOverridden ? str(l.taxName) : "", taxReason: "",
   })) : [emptyLine()]);
   const [charges, setCharges] = useState<ChargeForm[]>(editing ? editing.charges.map(c => ({
@@ -96,7 +97,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
     billingAddress: sendAddress(billing), shippingAddress: sendAddress(shipping),
     shipToCompany: text(shipTo.company), shipToContact: text(shipTo.contact),
     lines: lines.map(l => ({
-      productId: l.productId ? Number(l.productId) : undefined, quantity: num(l.quantity), unitPrice: num(l.unitPrice) ?? null,
+      productId: l.productId ? Number(l.productId) : undefined, unitName: text(l.unitName ?? ""), quantity: num(l.quantity), unitPrice: num(l.unitPrice) ?? null,
       discountPercent: num(l.discountPercent), taxRule: text(l.taxRule), taxReason: text(l.taxReason),
     })),
     charges: charges.map(c => ({
@@ -259,7 +260,9 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
                   {/* No typed price: the server prices it for the customer (contract price, else tier, else Retail; G1) */}
                   <ProductPicker label={`Product for line ${i + 1}`}
                     selected={l.productSku ? { id: Number(l.productId), sku: l.productSku, name: l.productName ?? "" } : undefined}
-                    onSelect={pr => setLine(i, { productId: String(pr.id) })} />
+                    onSelect={pr => setLine(i, { productId: String(pr.id), unitName: "" })} />
+                  <UnitSelect productId={l.productId ? Number(l.productId) : undefined} value={l.unitName ?? ""}
+                    onChange={u => setLine(i, { unitName: u, unitPrice: "" })} label={`Unit for line ${i + 1}`} />
                 </div>
                 <input aria-label={`Quantity for line ${i + 1}`} type="number" min="0.0001" step="any" value={l.quantity} placeholder="Qty" required
                   onChange={e => setLine(i, { quantity: e.target.value })} className={INPUT} />

@@ -47,6 +47,8 @@ public class PurchaseOrderRequest {
     public static class Line {
         @NotNull private Long productId;
         @NotNull @Positive private BigDecimal quantity;
+        // Phase P3: one of the product's units (empty: its own unit)
+        @Size(max = 50) private String unitName;
         // Empty = the product's cost price
         @DecimalMin("0") private BigDecimal unitCost;
         @DecimalMin("0") @DecimalMax("100") private BigDecimal discountPercent;

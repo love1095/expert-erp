@@ -31,7 +31,7 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
     // On order per product + warehouse (Cin7's "On order" / "Next delivery"): what ordered POs still have to bring in,
     // and the earliest required-by date among them. Rows: product_id[0], warehouse_id[1], qty[2], next_delivery[3]
     @Query(value =
-        "SELECT l.product_id, po.warehouse_id, SUM(l.quantity - l.received_quantity - l.closed_short_quantity), MIN(po.required_by) " +
+        "SELECT l.product_id, po.warehouse_id, SUM((l.quantity - l.received_quantity - l.closed_short_quantity) * l.unit_factor), MIN(po.required_by) " +
         "  FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id " +
         " WHERE po.tenant_id = :tenantId AND po.status = 'ORDERED' AND l.product_id IN (:productIds) " +
         "   AND l.quantity - l.received_quantity - l.closed_short_quantity > 0 " +

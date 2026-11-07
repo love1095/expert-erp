@@ -25,14 +25,17 @@ public class StockCountController {
         Map<String, Object> m = new HashMap<>();
         m.put("approvalValue", adjustments.approvalValue());
         m.put("reasons", StockAdjustmentService.REASONS);
+        m.put("landedCost", adjustments.landedCost());
         return m;
     }
 
-    public record Settings(BigDecimal approvalValue) {}
+    // landedCost given: only it changes; otherwise the approval value is saved (null = no approval needed)
+    public record Settings(BigDecimal approvalValue, String landedCost) {}
 
     @PutMapping("/api/stock-adjustments/settings")
     public Map<String, Object> saveSettings(@RequestBody Settings s) {
-        adjustments.setApprovalValue(s.approvalValue());
+        if (s.landedCost() != null) adjustments.setLandedCost(s.landedCost());
+        else adjustments.setApprovalValue(s.approvalValue());
         return settings();
     }
 

@@ -77,6 +77,9 @@ public class SaleOrderResponse {
         private String productSku;
         private String productName;
         private BigDecimal quantity;
+        // Phase P3: the line's unit (empty: the product's own unit) and the base units one holds
+        private String unitName;
+        private BigDecimal unitFactor;
         private BigDecimal unitPrice;
         private BigDecimal fulfilledQuantity;
         private BigDecimal cancelledQuantity;

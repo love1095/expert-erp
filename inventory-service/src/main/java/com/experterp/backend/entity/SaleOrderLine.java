@@ -29,6 +29,14 @@ public class SaleOrderLine {
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal quantity;
 
+    // Phase P3: the unit the line is in (empty: the product's own unit) and the base units one of it holds;
+    // quantity and price are in this unit, stock moves quantity × factor
+    @Column(name = "unit_name", length = 50)
+    private String unitName;
+
+    @Column(name = "unit_factor", nullable = false, precision = 18, scale = 4)
+    private BigDecimal unitFactor = BigDecimal.ONE;
+
     @Column(precision = 18, scale = 4)
     private BigDecimal unitPrice;
 

@@ -14,9 +14,10 @@ import MoreActions from "@/components/MoreActions";
 import { BackLink, RecordHeader, Card, Field, BTN_PRIMARY, TH, TD } from "@/components/DetailParts";
 import { ComplianceSection, FilesSection } from "./product-compliance";
 import { ComponentsSection } from "./product-kit";
+import { UnitsSection } from "./product-units";
 
 // Cin7's product sections (left), those the ERP has data for; the rest come later
-const SECTIONS = ["General", "Components", "Prices", "Stock", "Suppliers", "Reorder levels", "Compliance", "Images and files", "Movements", "Activity log"] as const;
+const SECTIONS = ["General", "Components", "Units", "Prices", "Stock", "Suppliers", "Reorder levels", "Compliance", "Images and files", "Movements", "Activity log"] as const;
 type Section = typeof SECTIONS[number];
 
 const qty = (n?: number | null) => (n == null ? "—" : Number(n).toLocaleString());
@@ -63,7 +64,7 @@ export default function ProductView({ productId }: { productId: number }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)] gap-5 items-start">
         <nav aria-label="Product sections" className="bg-white border border-gray-200 rounded-lg py-1">
-          {SECTIONS.filter(s => s !== "Components" || p.type === "KIT").map(s => (
+          {SECTIONS.filter(s => (s !== "Components" || p.type === "KIT") && (s !== "Units" || p.type !== "SERVICE")).map(s => (
             <button key={s} type="button" onClick={() => setSection(s)} aria-current={section === s ? "page" : undefined}
               className={`w-full text-left px-4 py-2 text-sm ${section === s ? "bg-gray-100 font-semibold text-gray-900" : "text-gray-600 hover:bg-gray-50"}`}>
               {s}
@@ -74,6 +75,7 @@ export default function ProductView({ productId }: { productId: number }) {
         <div className="min-w-0 space-y-4" data-testid="product-section">
           {section === "General" && <General p={p} />}
           {section === "Components" && <ComponentsSection productId={p.id} />}
+          {section === "Units" && <UnitsSection p={p} />}
           {section === "Prices" && <Prices p={p} />}
           {section === "Stock" && <StockSection p={p} />}
           {section === "Suppliers" && <Suppliers p={p} />}

@@ -63,6 +63,7 @@ public class SaleOrderService {
     private final PricingService pricingService;
     private final CreditService creditService;
     private final KitService kitService;
+    private final ProductUnitService unitService;
 
     // May choose a different VAT rate than the rule gives (docs/business-rules.md §3)
 
@@ -282,7 +283,7 @@ public class SaleOrderService {
         for (SaleOrderLine l : so.getLines()) {
             if (l.getProduct().getStatus() == Product.Status.DISCONTINUED && l.getProduct().getType() != Product.Type.KIT
                     && l.getRemainingQuantity().signum() > 0) {
-                wanted.merge(l.getProduct().getId(), l.getRemainingQuantity(), BigDecimal::add);
+                wanted.merge(l.getProduct().getId(), l.getRemainingQuantity().multiply(l.getUnitFactor()), BigDecimal::add);
             }
         }
         if (wanted.isEmpty()) return;
@@ -360,8 +361,9 @@ public class SaleOrderService {
         Map<Long, BigDecimal> perProduct = new HashMap<>();
         toShip.forEach(s -> {
             Map<Long, BigDecimal> recipe = recipes.get(s.line().getProduct().getId());
-            if (recipe.isEmpty()) perProduct.merge(s.line().getProduct().getId(), s.qty(), BigDecimal::add);
-            else recipe.forEach((component, per) -> perProduct.merge(component, s.qty().multiply(per), BigDecimal::add));
+            BigDecimal base = s.qty().multiply(s.line().getUnitFactor());      // P3: in the product's own unit
+            if (recipe.isEmpty()) perProduct.merge(s.line().getProduct().getId(), base, BigDecimal::add);
+            else recipe.forEach((component, per) -> perProduct.merge(component, base.multiply(per), BigDecimal::add));
         });
         perProduct.forEach((productId, qty) ->
                 movementService.assertSufficientStock(productId, so.getWarehouse().getId(), qty));
@@ -387,15 +389,16 @@ public class SaleOrderService {
 
         toShip.forEach(s -> {
             Map<Long, BigDecimal> recipe = recipes.get(s.line().getProduct().getId());
+            BigDecimal base = s.qty().multiply(s.line().getUnitFactor());
             if (recipe.isEmpty()) {
                 movementService.createMovement(
-                        s.line().getProduct(), so.getWarehouse(), s.qty(),
+                        s.line().getProduct(), so.getWarehouse(), base,
                         MovementType.SALE_OUT, ReferenceType.SALE_ORDER,
                         "SO-" + so.getId(), "Fulfilment #" + f.getId() + " on SO #" + so.getId(), s.line().getId(), null);
             } else {
                 // Each component at its own FIFO cost, against the kit's line (its cost of goods is their sum)
                 recipe.forEach((component, per) -> movementService.createMovement(
-                        productService.getProduct(component), so.getWarehouse(), s.qty().multiply(per),
+                        productService.getProduct(component), so.getWarehouse(), base.multiply(per),
                         MovementType.SALE_OUT, ReferenceType.SALE_ORDER, "SO-" + so.getId(),
                         "Fulfilment #" + f.getId() + " on SO #" + so.getId() + " (kit " + s.line().getProduct().getSku() + ")", s.line().getId(), null));
             }
@@ -520,15 +523,16 @@ public class SaleOrderService {
             line.setReturnedQuantity(line.getReturnedQuantity().add(rl.getQuantity()));
             if (rl.isRestock()) {
                 Map<Long, BigDecimal> recipe = kitService.recipe(line.getProduct().getId());
+                BigDecimal base = rl.getQuantity().multiply(line.getUnitFactor());     // P3: in the product's own unit
                 if (recipe.isEmpty()) {
                     movementService.createMovement(
-                            line.getProduct(), warehouse, rl.getQuantity(),
+                            line.getProduct(), warehouse, base,
                             MovementType.SALE_RETURN_IN, ReferenceType.SALE_RETURN,
                             "RET-" + r.getId(), "Return #" + r.getId() + " on SO #" + so.getId(), line.getId(), null);
                 } else {
                     // A returned kit puts its components back, each at the cost it left at
                     recipe.forEach((component, per) -> movementService.createMovement(
-                            productService.getProduct(component), warehouse, rl.getQuantity().multiply(per),
+                            productService.getProduct(component), warehouse, base.multiply(per),
                             MovementType.SALE_RETURN_IN, ReferenceType.SALE_RETURN, "RET-" + r.getId(),
                             "Return #" + r.getId() + " on SO #" + so.getId() + " (kit " + line.getProduct().getSku() + ")", line.getId(), null));
                 }
@@ -583,18 +587,24 @@ public class SaleOrderService {
             line.setSaleOrder(so);
             line.setProduct(product);
             line.setQuantity(l.getQuantity());
+            // Phase P3: sold in one of the product's units (a box of 100…): price per that unit
+            ProductUnitService.Resolved unit = unitService.resolve(product, l.getUnitName());
+            line.setUnitName(unit.name());
+            line.setUnitFactor(unit.factor());
             PricingService.Price price = prices.get(product.getId());
+            BigDecimal listed = price == null || price.unitPrice() == null ? null
+                    : unit.base() ? price.unitPrice() : ProductUnitService.price(unit, price.unitPrice(), true);
             if (l.getUnitPrice() == null) {
                 // A product with no selling price stays without one, as before (priced later on the order)
-                if (price != null && price.unitPrice() != null) {
-                    line.setUnitPrice(price.unitPrice());
-                    line.setPriceSource(price.source());
+                if (listed != null) {
+                    line.setUnitPrice(listed);
+                    line.setPriceSource(unit.base() ? price.source() : price.source() + " (" + unit.name() + ")");
                 }
             } else {
                 line.setUnitPrice(l.getUnitPrice());
                 // The customer's price kept on an edited order keeps its source
-                line.setPriceSource(price != null && price.unitPrice() != null && price.unitPrice().compareTo(l.getUnitPrice()) == 0
-                        ? price.source() : "Typed");
+                line.setPriceSource(listed != null && listed.compareTo(l.getUnitPrice()) == 0
+                        ? (unit.base() ? price.source() : price.source() + " (" + unit.name() + ")") : "Typed");
             }
             // A contract price is the agreed net price: no customer discount on top
             boolean contract = price != null && price.contract() && !"Typed".equals(line.getPriceSource());
@@ -880,6 +890,8 @@ public class SaleOrderService {
             lr.setProductSku(l.getProduct().getSku());
             lr.setProductName(l.getProduct().getName());
             lr.setQuantity(l.getQuantity());
+            lr.setUnitName(l.getUnitName());
+            lr.setUnitFactor(l.getUnitFactor());
             lr.setUnitPrice(l.getUnitPrice());
             lr.setFulfilledQuantity(l.getFulfilledQuantity());
             lr.setCancelledQuantity(l.getCancelledQuantity());

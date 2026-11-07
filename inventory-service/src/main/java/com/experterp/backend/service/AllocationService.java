@@ -36,7 +36,8 @@ public class AllocationService {
     // Phase P2: a kit line reserves its components (kc), any other line its own product
     static final String KIT_JOIN = " LEFT JOIN kit_components kc ON kc.kit_id = l.product_id ";
     static final String STOCK_PRODUCT = "COALESCE(kc.component_id, l.product_id)";
-    static final String STOCK_REMAINING = "(" + REMAINING + " * COALESCE(kc.quantity, 1))";
+    // ... in the product's own unit: a line sold by the box of 100 reserves 100 per box (P3)
+    static final String STOCK_REMAINING = "(" + REMAINING + " * l.unit_factor * COALESCE(kc.quantity, 1))";
 
     /** Reserved quantity per product, all warehouses together: SQL giving (product_id, qty); needs :t. */
     public static final String RESERVED_PER_PRODUCT_SQL =
@@ -116,7 +117,7 @@ public class AllocationService {
             " SELECT d.line_id, d.order_id, d.remaining, d.per, d.kit, " +
             "        GREATEST(LEAST(d.remaining * d.per, COALESCE(oh.qty, 0) - d.before), 0) AS allocated " +
             "   FROM (SELECT l.id AS line_id, so.id AS order_id, " + STOCK_PRODUCT + " AS product_id, so.warehouse_id, " + REMAINING + " AS remaining, " +
-            "                COALESCE(kc.quantity, 1) AS per, kc.id IS NOT NULL AS kit, " +
+            "                l.unit_factor * COALESCE(kc.quantity, 1) AS per, (kc.id IS NOT NULL OR l.unit_factor <> 1) AS kit, " +
             "                COALESCE(SUM(" + STOCK_REMAINING + ") OVER (PARTITION BY " + STOCK_PRODUCT + ", so.warehouse_id " +
             "                         ORDER BY COALESCE(so.confirmed_at, so.created_at), l.id " +
             "                         ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS before " +

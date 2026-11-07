@@ -187,7 +187,7 @@ public class AccountingExportService {
 
     private static final String DOC_LINES = """
                 SELECT i.id, i.type, i.kind, i.invoice_number, so.order_number, i.issue_date, i.due_date,
-                       COALESCE(c.name, s.name, i.party_name), p.product_type, p.sku, COALESCE(it.description, p.name),
+                       COALESCE(c.name, s.name, i.party_name), CASE WHEN it.landed THEN 'STOCK' ELSE p.product_type END, p.sku, COALESCE(it.description, p.name),
                        it.quantity, it.unit_price, it.discount_percent, it.total_price, it.tax_name, it.tax_amount, i.total_amount
                 FROM invoices i
                 JOIN invoice_items it ON it.invoice_id = i.id

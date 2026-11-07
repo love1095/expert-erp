@@ -30,6 +30,10 @@ public class InvoiceItem {
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal quantity;
 
+    // Phase P3: the order line's unit (empty: the product's own unit)
+    @Column(name = "unit_name", length = 50)
+    private String unitName;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal unitPrice;
 
@@ -71,4 +75,8 @@ public class InvoiceItem {
     // Bill items: units matched to received stock (FIFO layers) so far; the rest waits for the goods
     @Column(name = "cost_matched_quantity", nullable = false, precision = 18, scale = 4)
     private BigDecimal costMatchedQuantity = BigDecimal.ZERO;
+
+    // Phase P5: a bill's charge (freight, duty) made part of the stock's cost (landed cost) when the bill was issued
+    @Column(nullable = false)
+    private boolean landed;
 }

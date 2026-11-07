@@ -47,6 +47,7 @@ public class PurchaseOrderService {
     private final OrganisationSettingsService settingsService;
     private final PurchaseReceiptRepository receiptRepository;
     private final InvoiceService invoiceService;
+    private final ProductUnitService unitService;
 
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> findAll(int page, int size, PurchaseOrder.Status status, String q) {
@@ -262,12 +263,16 @@ public class PurchaseOrderService {
             line.setPurchaseOrder(po);
             line.setProduct(product);
             line.setQuantity(l.getQuantity());
+            // Phase P3: bought in one of the product's units (a carton of 500…): cost per that unit
+            ProductUnitService.Resolved unit = unitService.resolve(product, l.getUnitName());
+            line.setUnitName(unit.name());
+            line.setUnitFactor(unit.factor());
             // From the product's own supplier: their price and code (as in Cin7); otherwise the cost price
             boolean ownSupplier = product.getDefaultSupplier() == null || supplier == null
                     || product.getDefaultSupplier().getId().equals(supplier.getId());
             BigDecimal supplierPrice = product.getDetails() != null ? product.getDetails().getSupplierPrice() : null;
-            line.setUnitCost(l.getUnitCost() != null ? l.getUnitCost()
-                    : ownSupplier && supplierPrice != null ? supplierPrice : product.getCostPrice());
+            BigDecimal baseCost = ownSupplier && supplierPrice != null ? supplierPrice : product.getCostPrice();
+            line.setUnitCost(l.getUnitCost() != null ? l.getUnitCost() : unit.base() ? baseCost : ProductUnitService.price(unit, baseCost, false));
             line.setDiscountPercent(l.getDiscountPercent() != null ? l.getDiscountPercent() : BigDecimal.ZERO);
             line.setSupplierSku(blankToNull(l.getSupplierSku()) != null ? l.getSupplierSku().trim()
                     : ownSupplier ? blankToNull(product.getSupplierProductCode()) : null);
@@ -370,9 +375,12 @@ public class PurchaseOrderService {
             line.setReceivedQuantity(line.getReceivedQuantity().add(x.qty()));
             if (overQty.signum() > 0) over.add(Map.of("sku", line.getProduct().getSku(), "over", overQty));
             // The PO line cost after discount becomes the cost of the stock received (FIFO)
-            movementService.createMovement(line.getProduct(), warehouse, x.qty(),
+            // In the product's own unit (P3): a carton of 500 received is 500 at a 500th of its cost
+            BigDecimal cost = netUnitCost(line);
+            movementService.createMovement(line.getProduct(), warehouse, x.qty().multiply(line.getUnitFactor()),
                     MovementType.PURCHASE_IN, ReferenceType.PURCHASE_ORDER,
-                    po.getOrderNumber(), "Received on " + po.getOrderNumber(), line.getId(), netUnitCost(line));
+                    po.getOrderNumber(), "Received on " + po.getOrderNumber(), line.getId(),
+                    cost == null ? null : cost.divide(line.getUnitFactor(), 6, java.math.RoundingMode.HALF_UP));
         }
         receiptRepository.save(receipt);
 
@@ -471,7 +479,9 @@ public class PurchaseOrderService {
             lr.setProductId(l.getProduct().getId());
             lr.setProductSku(l.getProduct().getSku());
             lr.setProductName(l.getProduct().getName());
-            lr.setUnit(l.getProduct().getUnit());
+            lr.setUnit(l.getUnitName() != null ? l.getUnitName() : l.getProduct().getUnit());
+            lr.setUnitName(l.getUnitName());
+            lr.setUnitFactor(l.getUnitFactor());
             lr.setSupplierSku(l.getSupplierSku());
             lr.setQuantity(l.getQuantity());
             lr.setUnitCost(l.getUnitCost());

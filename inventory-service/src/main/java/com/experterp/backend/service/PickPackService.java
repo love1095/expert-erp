@@ -87,8 +87,10 @@ public class PickPackService {
                 BigDecimal pickable = a.allocated().min(a.remaining()).subtract(pickedNotShipped(l)).subtract(onOpenLists(l.getId())).max(BigDecimal.ZERO);
                 if (pickable.signum() <= 0) continue;
                 // A kit is picked as its components (P2), each in its own units
-                Map<Long, BigDecimal> recipe = kits.recipe(l.getProduct().getId());
-                if (recipe.isEmpty()) recipe = Map.of(l.getProduct().getId(), BigDecimal.ONE);
+                Map<Long, BigDecimal> recipe = new LinkedHashMap<>(kits.recipe(l.getProduct().getId()));
+                if (recipe.isEmpty()) recipe.put(l.getProduct().getId(), BigDecimal.ONE);
+                // Sold by the box (P3): picked in the product's own unit, per_kit = base units per line unit
+                recipe.replaceAll((product, per) -> per.multiply(l.getUnitFactor()));
                 for (Map.Entry<Long, BigDecimal> c : recipe.entrySet()) {
                     Long productId = c.getKey();
                     BigDecimal per = c.getValue();

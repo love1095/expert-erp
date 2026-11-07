@@ -194,6 +194,7 @@ public class InvoiceService {
             item.setProduct(line.getProduct());
             item.setDescription(line.getProduct().getSku() + ": " + line.getProduct().getName());
             item.setSaleOrderLineId(line.getId());
+            item.setUnitName(line.getUnitName());
             line.setInvoicedQuantity(line.getInvoicedQuantity().add(qty));
             net = net.add(item.getTotalPrice());
             tax = tax.add(item.getTaxAmount());
@@ -284,6 +285,7 @@ public class InvoiceService {
             item.setProduct(line.getProduct());
             item.setDescription(line.getProduct().getSku() + ": " + line.getProduct().getName());
             item.setPurchaseOrderLineId(line.getId());
+            item.setUnitName(line.getUnitName());
             line.setBilledQuantity(line.getBilledQuantity().add(qty));
             net = net.add(item.getTotalPrice());
             tax = tax.add(item.getTaxAmount());
@@ -602,6 +604,7 @@ public class InvoiceService {
             ir.setDescription(item.getDescription());
             ir.setQuantity(item.getQuantity());
             ir.setUnitPrice(item.getUnitPrice());
+            ir.setUnitName(item.getUnitName());
             ir.setTotalPrice(item.getTotalPrice());
             ir.setDiscountPercent(item.getDiscountPercent());
             ir.setTaxName(item.getTaxName());

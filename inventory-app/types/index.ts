@@ -302,6 +302,9 @@ export interface OrderLine {
 
 export interface PurchaseOrderLine extends OrderLine {
   unit?: string;
+  // Phase P3: the line's own unit (empty: the product's)
+  unitName?: string | null;
+  unitFactor?: number;
   // The supplier's code for the product, e.g. 3200.BK.L
   supplierSku?: string;
   discountPercent: number;
@@ -386,6 +389,9 @@ export interface PurchaseOrder {
 }
 
 export interface SaleOrderLine extends OrderLine {
+  // Phase P3: the line's unit (empty: the product's own) and the base units one holds
+  unitName?: string | null;
+  unitFactor?: number;
   fulfilledQuantity: number;
   cancelledQuantity: number;
   returnedQuantity: number;
@@ -1379,3 +1385,6 @@ export interface ExpiringCertificate { productId: number; sku: string; name: str
 // Phase P2: kits
 export interface KitComponent { componentId: number; sku: string; name: string; unit: string; quantity: number }
 export interface KitBuildable { warehouseId: number; warehouse: string; onHand: number; available: number }
+
+// Phase P3: units of measure
+export interface ProductUnit { id: number; name: string; factor: number; barcode: string | null; sellPrice: number | null; buyPrice: number | null }

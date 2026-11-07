@@ -213,7 +213,7 @@ public class LedgerService {
         Map<Long, Object[]> heads = new HashMap<>();
         jdbc.query("""
                 SELECT i.id, i.type, i.kind, i.invoice_number, i.issue_date, COALESCE(c.name, s.name, i.party_name), i.total_amount,
-                       p.product_type, it.total_price, it.tax_amount, it.tax_name
+                       CASE WHEN it.landed THEN 'STOCK' ELSE p.product_type END, it.total_price, it.tax_amount, it.tax_name
                   FROM invoices i
                   JOIN invoice_items it ON it.invoice_id = i.id
                   LEFT JOIN products p ON p.id = it.product_id

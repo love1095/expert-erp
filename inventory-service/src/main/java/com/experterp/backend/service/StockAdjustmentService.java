@@ -67,6 +67,26 @@ public class StockAdjustmentService {
         return approvalValue();
     }
 
+    /** Phase P5: OFF (charges on bills are an expense), VALUE or QUANTITY (spread over the stock the bill priced). */
+    @Transactional(readOnly = true)
+    public String landedCost() {
+        List<String> v = jdbc.queryForList("SELECT landed_cost FROM inventory_settings WHERE tenant_id = ?", String.class, TenantContext.get());
+        return v.isEmpty() ? "OFF" : v.get(0);
+    }
+
+    @Transactional
+    public String setLandedCost(String mode) {
+        requireManager();
+        String m = mode == null ? "OFF" : mode.toUpperCase(Locale.ROOT);
+        if (!List.of("OFF", "VALUE", "QUANTITY").contains(m)) throw new IllegalArgumentException("Landed cost: OFF, VALUE or QUANTITY");
+        jdbc.update("""
+                INSERT INTO inventory_settings (tenant_id, landed_cost, updated_at, updated_by) VALUES (?, ?, now(), ?)
+                ON CONFLICT (tenant_id) DO UPDATE SET landed_cost = EXCLUDED.landed_cost, updated_at = now(), updated_by = EXCLUDED.updated_by""",
+                TenantContext.get(), m, auditService.currentActorName());
+        auditService.log("INVENTORY", null, "LANDED_COST", Map.of("mode", m));
+        return landedCost();
+    }
+
     // ---- adjusting ----
 
     /** Posts the adjustment, or keeps it waiting for a manager when it is worth more than the approval value. */

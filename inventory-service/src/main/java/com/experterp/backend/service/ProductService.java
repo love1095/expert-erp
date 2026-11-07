@@ -183,7 +183,7 @@ public class ProductService {
                 .filter(l -> l.getOutstandingQuantity().signum() > 0)
                 .map(l -> new com.experterp.backend.dto.ProductStockResponse.OpenOrder(l.getPurchaseOrder().getId(),
                         l.getPurchaseOrder().getOrderNumber(), l.getPurchaseOrder().getSupplierName(),
-                        l.getPurchaseOrder().getStatus().name(), l.getOutstandingQuantity(), l.getPurchaseOrder().getRequiredBy()))
+                        l.getPurchaseOrder().getStatus().name(), l.getOutstandingQuantity().multiply(l.getUnitFactor()), l.getPurchaseOrder().getRequiredBy()))
                 .toList();
         BigDecimal onHand = warehouses.stream().map(w -> w.onHand()).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal res = warehouses.stream().map(w -> w.reserved()).reduce(BigDecimal.ZERO, BigDecimal::add);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createAdjustment, decideAdjustment, getAdjustments, getAdjustmentSettings, getProductBins, getWarehouses, lookupProduct, saveAdjustmentSettings } from "@/lib/api";
+import { saveLandedCost, createAdjustment, decideAdjustment, getAdjustments, getAdjustmentSettings, getProductBins, getWarehouses, lookupProduct, saveAdjustmentSettings } from "@/lib/api";
 import { FoundProduct, StockAdjustment } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
@@ -22,7 +22,7 @@ export default function StockAdjustmentsPage() {
   const qc = useQueryClient();
   const { user, can } = useAuth();
   const manager = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || user?.role === "MANAGER";
-  const { data: settings } = useQuery<{ approvalValue: number | null; reasons: string[] }>({ queryKey: ["adjustment-settings"], queryFn: getAdjustmentSettings });
+  const { data: settings } = useQuery<{ approvalValue: number | null; reasons: string[]; landedCost: string }>({ queryKey: ["adjustment-settings"], queryFn: getAdjustmentSettings });
   const { data: warehouses = [] } = useQuery<{ id: number; name: string }[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const { data: list = [] } = useQuery<StockAdjustment[]>({ queryKey: ["adjustments"], queryFn: () => getAdjustments() });
 
@@ -52,6 +52,8 @@ export default function StockAdjustmentsPage() {
     onError: e => setMsg({ ok: false, text: errorOf(e) }),
   });
   const decide = useMutation({ mutationFn: ({ id, ok }: { id: number; ok: boolean }) => decideAdjustment(id, ok), onSuccess: refresh, onError: e => setMsg({ ok: false, text: errorOf(e) }) });
+  const saveLanded = useMutation({ mutationFn: (mode: string) => saveLandedCost(mode),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["adjustment-settings"] }), onError: e => setMsg({ ok: false, text: errorOf(e) }) });
   const saveLimit = useMutation({ mutationFn: () => saveAdjustmentSettings(limit === "" || limit == null ? null : Number(limit)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["adjustment-settings"] }); setLimit(null); }, onError: e => setMsg({ ok: false, text: errorOf(e) }) });
 
@@ -101,6 +103,16 @@ export default function StockAdjustmentsPage() {
             {settings?.approvalValue != null ? <>Adjustments worth more than {gbp(settings.approvalValue)} wait for a manager.</> : <>No approval needed: every adjustment is posted at once.</>}
             {manager && limit == null && <button className="ml-2 text-brand-700 hover:underline" onClick={() => setLimit(settings?.approvalValue == null ? "" : String(settings.approvalValue))}>Change</button>}
           </p>
+          {manager && (
+            <label className="flex items-center gap-2 text-xs text-gray-600" data-testid="landed-cost">
+              Freight and duty on supplier bills (landed cost):
+              <select aria-label="Landed cost" className="border rounded px-2 py-1" value={settings?.landedCost ?? "OFF"} onChange={e => saveLanded.mutate(e.target.value)}>
+                <option value="OFF">An expense (off)</option>
+                <option value="VALUE">Added to the stock cost, by value</option>
+                <option value="QUANTITY">Added to the stock cost, by quantity</option>
+              </select>
+            </label>
+          )}
           {manager && limit != null && (
             <div className="flex items-center gap-2 text-sm">
               <label>Approval needed over £<input type="number" min="0" step="0.01" aria-label="Approval value" className="border rounded px-2 py-1 w-28 ml-1" value={limit} onChange={e => setLimit(e.target.value)} /></label>

@@ -116,6 +116,7 @@ public class PurchaseLedgerService {
             c.setDescription(item.getDescription());
             c.setCreditedItemId(item.getId());
             c.setPurchaseOrderLineId(item.getPurchaseOrderLineId());
+            c.setUnitName(item.getUnitName());
             item.setCreditedQuantity(item.getCreditedQuantity().add(l.quantity()));
             net = net.add(c.getTotalPrice());
             tax = tax.add(c.getTaxAmount());
@@ -149,12 +150,15 @@ public class PurchaseLedgerService {
             if (po == null || po.getWarehouse() == null) throw new IllegalStateException(bill.getInvoiceNumber() + " is not for an order: nothing to send back");
             for (Back b : back) {
                 Long lineId = b.item().getPurchaseOrderLineId();
+                // In the product's own unit (P3): the bill line is in the order line's unit
+                BigDecimal factor = po.getLines().stream().filter(l -> l.getId().equals(lineId)).map(l -> l.getUnitFactor()).findFirst().orElse(BigDecimal.ONE);
+                BigDecimal qty = b.qty().multiply(factor);
                 BigDecimal received = received(lineId), returned = returned(lineId);
-                if (b.qty().compareTo(received.subtract(returned)) > 0) {
-                    throw new IllegalStateException("Cannot send back " + plain(b.qty()) + " of " + b.item().getProduct().getSku() + ": "
+                if (qty.compareTo(received.subtract(returned)) > 0) {
+                    throw new IllegalStateException("Cannot send back " + plain(qty) + " of " + b.item().getProduct().getSku() + ": "
                             + plain(received) + " received, " + plain(returned) + " already sent back");
                 }
-                movementService.createMovement(b.item().getProduct(), po.getWarehouse(), b.qty(), MovementType.PURCHASE_RETURN_OUT,
+                movementService.createMovement(b.item().getProduct(), po.getWarehouse(), qty, MovementType.PURCHASE_RETURN_OUT,
                         ReferenceType.PURCHASE_RETURN, cn.getInvoiceNumber(), "Returned to " + bill.getPartyName() + " on credit note "
                                 + cn.getInvoiceNumber(), lineId, null);
             }

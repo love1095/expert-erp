@@ -10,6 +10,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Cin7 read-only check**: PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data)
 - [ ] **Customer contacts import**: CustomerContacts_11_4_2026.csv is built but not run — load it?
 - [ ] **E-mail**: the SMTP account or mail provider (e.g. Microsoft 365, Google Workspace, SendGrid) and the sender address (e.g. accounts@expertsafety.co.uk) → Settings → E-mail, then APP_MAIL_MODE=live
+- [ ] **Landed cost** (phase P5, built, off): should freight and duty on supplier bills be added to the stock cost (by value or by quantity) instead of an expense? Inventory → Adjustments → Landed cost; the accountant should agree as it changes margins and stock value
 - [ ] **Stock adjustment approval value** (phase N5): above what value an adjustment needs a manager (Inventory → Adjustments → Change; empty today = none)
 - [ ] **Couriers** and courier accounts in use today (phase O is built against a fake courier): e.g. Royal Mail Click & Drop, DPD, Parcelforce, Evri, or one shipping hub (ShipStation, Sendcloud…); with the accounts and API keys the live clients are built, then APP_COURIER_MODE=live
 - [ ] **Financial year end**: now a setting (Accounting → Ledger settings, 31 March by default) — set Expert Safety to 30 November (1 December start seen in Cin7) once the owner confirms

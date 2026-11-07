@@ -55,6 +55,8 @@ public class InvoiceResponse {
         private String description;
         private BigDecimal quantity;
         private BigDecimal unitPrice;
+        // Phase P3: the order line's unit (empty: the product's own)
+        private String unitName;
         // Net amount; VAT copied from the order line
         private BigDecimal totalPrice;
         private BigDecimal discountPercent;
