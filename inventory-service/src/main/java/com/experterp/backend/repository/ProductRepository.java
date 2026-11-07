@@ -61,8 +61,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p.sku FROM Product p")
     Set<String> findAllSkus();
 
-    // [id, sku] of the current tenant's active products
-    @Query("SELECT p.id, p.sku FROM Product p WHERE p.status = com.experterp.backend.entity.Product.Status.ACTIVE")
+    // [id, sku] of the current tenant's products not archived (active or discontinued)
+    @Query("SELECT p.id, p.sku FROM Product p WHERE p.status <> com.experterp.backend.entity.Product.Status.DEPRECATED")
     List<Object[]> findActiveIdsAndSkus();
 
     // Native, so the tenant is filtered by hand

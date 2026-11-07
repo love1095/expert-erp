@@ -45,6 +45,7 @@ const NUMBER_FIELDS: { label: string; key: keyof Form; placeholder?: string }[] 
 
 const STATUS_BADGE: Record<Product["status"], string> = {
   ACTIVE: "bg-emerald-50 text-emerald-700",
+  DISCONTINUED: "bg-amber-50 text-amber-800",
   DEPRECATED: "bg-gray-100 text-gray-500",
 };
 
@@ -303,7 +304,8 @@ export default function ProductsPage() {
             <label htmlFor="products-status" className="block text-xs font-medium text-gray-600 mb-1">Status</label>
             <select id="products-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={INPUT}>
               <option value="ACTIVE">Active</option>
-              <option value="DEPRECATED">Deprecated (hidden, not sent to Shopify)</option>
+              <option value="DISCONTINUED">Discontinued (sold while stock lasts, not reordered)</option>
+              <option value="DEPRECATED">Archived (hidden, not sent to Shopify; Cin7: Deprecated)</option>
             </select>
           </div>
           <div>
@@ -349,7 +351,8 @@ export default function ProductsPage() {
         <select id="products-filter-status" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}
           className={FILTER_SELECT}>
           <option value="ACTIVE">Active</option>
-          <option value="DEPRECATED">Deprecated</option>
+          <option value="DISCONTINUED">Discontinued</option>
+          <option value="DEPRECATED">Archived</option>
           <option value="ALL">All statuses</option>
         </select>
         <label htmlFor="products-filter-category" className="sr-only">Category</label>
@@ -415,7 +418,7 @@ export default function ProductsPage() {
                     <td className="text-gray-500"><Clip text={p.unit} width="5.5rem" /></td>
                     <td>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_BADGE[p.status]}`}>
-                        {p.status === "ACTIVE" ? "Active" : "Deprecated"}
+                        {p.status === "ACTIVE" ? "Active" : p.status === "DISCONTINUED" ? "Discontinued" : "Archived"}
                       </span>
                     </td>
                     {seeCost && <td className="num text-gray-600">{formatGBP(p.costPrice)}</td>}

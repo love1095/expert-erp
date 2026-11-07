@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -78,7 +79,13 @@ public class ProductService {
         for (Object[] row : stockMovementRepository.calculateAllTotalStocks()) {
             stock.put((Long) row[0], (BigDecimal) row[1]);
         }
-        return productRepository.findOptions(status).stream()
+        // "Active" dropdowns also offer discontinued products: they are sold while stock lasts (P6)
+        List<Object[]> rows = new ArrayList<>(productRepository.findOptions(status));
+        if (status == Product.Status.ACTIVE) {
+            rows.addAll(productRepository.findOptions(Product.Status.DISCONTINUED));
+            rows.sort(java.util.Comparator.comparing(r -> (String) r[1]));
+        }
+        return rows.stream()
                 .map(r -> new ProductOption((Long) r[0], (String) r[1], (String) r[2], (String) r[3], (Long) r[4],
                         stock.getOrDefault((Long) r[0], BigDecimal.ZERO)))
                 .toList();

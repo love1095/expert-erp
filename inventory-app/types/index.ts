@@ -43,7 +43,7 @@ export interface Product {
   unit: string;
   categoryId?: number;
   categoryName?: string;
-  status: "ACTIVE" | "DEPRECATED";
+  status: "ACTIVE" | "DISCONTINUED" | "DEPRECATED";
   type: "STOCK" | "SERVICE" | "KIT";
   sellable: boolean;
   brand?: string;
@@ -185,7 +185,7 @@ export interface Customer {
   holdReason?: string | null;
   id: number;
   name: string;
-  status: "ACTIVE" | "DEPRECATED";
+  status: "ACTIVE" | "DISCONTINUED" | "DEPRECATED";
   currency?: string;
   paymentTerm?: string;
   taxRule?: string;

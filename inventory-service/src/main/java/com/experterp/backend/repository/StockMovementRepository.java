@@ -87,7 +87,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
         "WHERE m.tenant_id = :tenantId AND p.tenant_id = :tenantId AND w.tenant_id = :tenantId " +
         "  AND (CAST(:categoryId AS bigint) IS NULL OR p.category_id = :categoryId) " +
         "  AND (:q = '' OR LOWER(p.sku) LIKE :q OR LOWER(p.name) LIKE :q) " +
-        "  AND (:activeOnly = false OR p.status = 'ACTIVE') ";
+        "  AND (:activeOnly = false OR p.status <> 'DEPRECATED') ";
     String OVERVIEW_STOCK = "COALESCE(SUM(CASE WHEN m.type IN (" + IN_TYPES + ") THEN m.quantity ELSE -m.quantity END), 0)";
 
     @Query(value =

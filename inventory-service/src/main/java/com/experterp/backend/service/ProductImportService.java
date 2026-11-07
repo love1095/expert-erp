@@ -256,7 +256,8 @@ public class ProductImportService {
         }
         if (cols.has("Status")) {
             String s = cols.get(r, "Status");
-            p.setStatus(s != null && s.equalsIgnoreCase("DEPRECATED") ? Product.Status.DEPRECATED : Product.Status.ACTIVE);
+            p.setStatus(s != null && (s.equalsIgnoreCase("DEPRECATED") || s.equalsIgnoreCase("ARCHIVED")) ? Product.Status.DEPRECATED
+                    : s != null && s.equalsIgnoreCase("DISCONTINUED") ? Product.Status.DISCONTINUED : Product.Status.ACTIVE);
         }
         if (cols.has("Sellable")) p.setSellable(!"No".equalsIgnoreCase(cols.get(r, "Sellable")));
         set(cols, r, "Barcode", p::setBarcode);

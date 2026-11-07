@@ -46,7 +46,7 @@ export default function ProductView({ productId }: { productId: number }) {
         badges={
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <span className={`text-xs font-semibold px-2 py-0.5 rounded ${p.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
-              {p.status === "ACTIVE" ? "Active" : "Deprecated"}
+              {p.status === "ACTIVE" ? "Active" : p.status === "DISCONTINUED" ? "Discontinued" : "Archived"}
             </span>
             <span className="text-xs text-gray-500">{p.type === "STOCK" ? "Stock" : p.type === "KIT" ? "Kit" : "Service"}{p.categoryName ? ` · ${p.categoryName}` : ""}</span>
           </div>

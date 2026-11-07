@@ -72,7 +72,7 @@ test('PRD-005 a Cin7 inventory list is imported; deprecated products are hidden 
   await expect(polo).toContainText('Testbrand');
   await expect(polo).toContainText('£9.99');
   await page.getByLabel('Status').selectOption('DEPRECATED');
-  await expect(page.getByRole('row').filter({ hasText: 'TST-OLD' })).toContainText('Deprecated');
+  await expect(page.getByRole('row').filter({ hasText: 'TST-OLD' })).toContainText('Archived');
 
   // Importing again changes nothing
   await page.getByLabel('CSV file').setInputFiles('fixtures/files/cin7-inventory.csv');

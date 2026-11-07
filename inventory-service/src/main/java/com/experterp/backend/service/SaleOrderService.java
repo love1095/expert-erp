@@ -260,6 +260,7 @@ public class SaleOrderService {
                 auditService.log("SALE_ORDER", id, "CREDIT_OVERRIDE", Map.of("reason", creditOverride.trim(), "hold", st.warning()));
             }
         }
+        checkDiscontinued(so);
         so.setStatus(Status.CONFIRMED);
         so.setConfirmedAt(LocalDateTime.now());
         Map<String, Object> changes = new HashMap<>(Map.of("status", Status.CONFIRMED));
@@ -270,6 +271,34 @@ public class SaleOrderService {
         }
         auditService.log("SALE_ORDER", id, "CONFIRM", changes);
         return toDetailResponse(so);
+    }
+
+    /**
+     * Phase P6: a discontinued product is sold only while its stock lasts — no backorders. A line needing more than
+     * the warehouse has free (on hand less what other orders reserve) stops the confirmation.
+     */
+    private void checkDiscontinued(SaleOrder so) {
+        Map<Long, BigDecimal> wanted = new LinkedHashMap<>();
+        for (SaleOrderLine l : so.getLines()) {
+            if (l.getProduct().getStatus() == Product.Status.DISCONTINUED && l.getProduct().getType() != Product.Type.KIT
+                    && l.getRemainingQuantity().signum() > 0) {
+                wanted.merge(l.getProduct().getId(), l.getRemainingQuantity(), BigDecimal::add);
+            }
+        }
+        if (wanted.isEmpty()) return;
+        Long wid = so.getWarehouse().getId();
+        Map<String, BigDecimal> reserved = allocationService.reservedByProductAndWarehouse(wanted.keySet());
+        wanted.forEach((productId, qty) -> {
+            BigDecimal res = reserved.getOrDefault(AllocationService.key(productId, wid), BigDecimal.ZERO);
+            // A Shopify draft already reserves its own lines
+            if (so.getSource() == SaleOrder.Source.SHOPIFY) res = res.subtract(qty).max(BigDecimal.ZERO);
+            BigDecimal free = movementService.getStockLevel(productId, wid).getStock().subtract(res).max(BigDecimal.ZERO);
+            if (qty.compareTo(free) > 0) {
+                Product p = productService.getProduct(productId);
+                throw new IllegalStateException(p.getSku() + " is discontinued and sold only while stock lasts: "
+                        + free.stripTrailingZeros().toPlainString() + " left in " + so.getWarehouse().getName());
+            }
+        });
     }
 
     /**

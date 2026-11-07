@@ -117,7 +117,8 @@ public class Product {
 
     private LocalDateTime updatedAt;
 
-    public enum Status { ACTIVE, DEPRECATED }
+    // DISCONTINUED (P6): still sold while stock lasts, never reordered; DEPRECATED = archived (Cin7's Deprecated)
+    public enum Status { ACTIVE, DISCONTINUED, DEPRECATED }
 
     // KIT (phase P2): made of components, holds no stock of its own
     public enum Type { STOCK, SERVICE, KIT }
