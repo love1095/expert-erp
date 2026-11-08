@@ -487,7 +487,7 @@ Multi-tenancy: **DISCRIMINATOR** strategy — shared database, `tenant_id` colum
 
 ---
 
-## Phase G — Customers and pricing (spec §5) 🔄 (G1 ✅ G2 ✅ G3 ✅ G4 ✅)
+## Phase G — Customers and pricing (spec §5) ✅ (G1 ✅ G2 ✅ G3 ✅ G4 ✅)
 
 ### G1 Price tiers and contract prices ✅
 - [x] **Price tiers** per organisation (`V25` `price_tiers`), numbered like Cin7's PriceTier1..10 and named in Settings → Organisation → **Price tiers** (ADMIN): tiers 1–4 use each product's own price for the tier (Cin7's PriceTier1–4 columns: sell price, trade price, tier 3, tier 4; a product without one gets tier 1), or a **percentage off tier 1**; tiers 5–10 must be a percentage. Seeded *1 Retail* and *2 Contract* (the name the real Cin7 customers use: 191 Contract, 141 Retail) or *Trade*; renaming a tier renames it on its customers; a tier in use cannot be removed

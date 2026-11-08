@@ -1,4 +1,4 @@
-.PHONY: up down logs backend app e2e tunnel tunnel-down backup restore-check
+.PHONY: up down logs backend app e2e tunnel tunnel-down backup restore-check progress
 
 # Backend in the background (rebuilt from the current code); returns once the API answers on :8080
 backend:
@@ -47,3 +47,7 @@ backup:
 
 restore-check:
 	infra/restore.sh "$$(ls -t backups/erp-*.dump | head -1)"
+
+# Progress report for the owner (expert-erp-progress.html, Print / save as PDF in the browser), from PROGRESS.md + docs/TODO.md
+progress:
+	node infra/progress-report.mjs
