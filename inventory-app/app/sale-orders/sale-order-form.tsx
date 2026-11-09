@@ -9,6 +9,7 @@ import { AddressFields, EMPTY_ADDRESS, oneLine } from "@/components/AddressField
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "./product-picker";
+import NameCombobox from "@/components/NameCombobox";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
@@ -169,11 +170,9 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="col-span-2">
           <label htmlFor="sale-orders-customer" className={LABEL}>Customer *</label>
-          <input id="sale-orders-customer" list="sale-orders-customer-list" value={customerName} onChange={e => setCustomerName(e.target.value)} required
-            placeholder="Pick a customer or type a new name" autoComplete="off" className={`${INPUT} w-full`} />
-          <datalist id="sale-orders-customer-list">
-            {customers.filter(c => c.status === "ACTIVE").map(c => <option key={c.id} value={c.name}>{c.contacts[0]?.email ?? ""}</option>)}
-          </datalist>
+          <NameCombobox id="sale-orders-customer" value={customerName} onChange={setCustomerName} required listLabel="Customers"
+            placeholder="Pick a customer or type a new name" className={`${INPUT} w-full`}
+            options={customers.filter(c => c.status === "ACTIVE").map(c => ({ key: c.id, name: c.name, sub: c.contacts[0]?.email }))} />
           {customerName.trim() && !existing && <p className="text-[11px] text-gray-400 mt-1">New customer — will be added to Customers</p>}
         </div>
         <div>

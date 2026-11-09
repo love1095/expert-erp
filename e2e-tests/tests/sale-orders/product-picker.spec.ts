@@ -56,4 +56,20 @@ test.describe('Product selection list', () => {
       await expect(first.getByTestId('picker-on-order')).toHaveText('7');
       await expect(page.getByText('On order', { exact: true })).toBeVisible();
     });
+
+  test('PICK-003 the customer box opens the app\'s own list under it: the name, the e-mail small under it', { tag: ['@P2', '@sale-orders', '@customers'] },
+    async ({ page, api }) => {
+      const customer = await api.createCustomer({ name: `Acme ${uid()}`, email: 'buyer@acme.test' });
+      await page.goto('/sale-orders/new');
+      await page.getByLabel('Customer *').click();
+      const list = page.getByRole('listbox', { name: 'Customers' });
+      const option = list.getByRole('option').filter({ hasText: customer.name });
+      await expect(option).toContainText('buyer@acme.test');
+      await option.click();
+      await expect(page.getByLabel('Customer *')).toHaveValue(customer.name);
+      await expect(list).toHaveCount(0);
+      // A new name can still be typed
+      await page.getByLabel('Customer *').fill('Walk-in cash sale');
+      await expect(page.getByText('New customer — will be added to Customers')).toBeVisible();
+    });
 });

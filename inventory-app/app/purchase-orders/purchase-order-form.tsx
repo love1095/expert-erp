@@ -8,6 +8,7 @@ import { PurchaseOrder, Supplier, TaxRate, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "../sale-orders/product-picker";
+import NameCombobox from "@/components/NameCombobox";
 import { useConfirm } from "@/components/ConfirmDialog";
 
 // productSku / productName: shown in the search box when editing an existing line
@@ -132,11 +133,9 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="col-span-2">
           <label htmlFor="po-supplier" className={LABEL}>Supplier *</label>
-          <input id="po-supplier" list="po-supplier-list" value={supplierName} onChange={e => setSupplierName(e.target.value)} required
-            placeholder="Pick a supplier" autoComplete="off" className={`${INPUT} w-full`} />
-          <datalist id="po-supplier-list">
-            {suppliers.map(s => <option key={s.id} value={s.name} />)}
-          </datalist>
+          <NameCombobox id="po-supplier" value={supplierName} onChange={setSupplierName} required listLabel="Suppliers"
+            placeholder="Pick a supplier" className={`${INPUT} w-full`}
+            options={suppliers.map(s => ({ key: s.id, name: s.name, sub: [s.contactName, s.email].filter(Boolean).join(" · ") }))} />
           {supplierName.trim() && !supplier && !editing && (
             <p className="text-[11px] text-amber-700 mt-1">Not a supplier on file: terms, codes and prices won&apos;t be filled in</p>
           )}
