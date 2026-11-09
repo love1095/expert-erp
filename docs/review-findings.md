@@ -230,6 +230,7 @@ Each finding records:
 - **Order of work** (later, in phases, owner 2026-11-09): 1) building blocks; 2) the three model pages; 3) the other pages module by module with the page recheck, together with R2 (`/new` pages) and R7 (pop-ups).
 - **Severity**: Minor (look and ease of use)
 - **Status**: Found, plan agreed; **do later in phases** (on the to-do list in `docs/TODO.md`).
+  - **Started 2026-11-09** (owner: the forms are hard to read, parts not easy to tell apart, like Cin7's sale screen): `components/ui/Section.tsx` with `Section` (white box, bold title, thin line, buttons on the right), `SubHeading` and `StickyActions` (Save bar fixed at the bottom with the total). The **sale order form** now has Customer details · Accounting details · Shipping details side by side, Products (Order / Quote lines), Additional charges and services, Comments and Totals; the **purchase order form** Supplier details · Delivery details, Products, Additional costs, Memo and Totals. Better than Cin7: addresses shown as one line with "Change" (the saved-address list stays), the customer's defaults shown in the empty boxes ("30 Day EOM (customer's)"), the Save bar with the total always in view. Other forms follow in the R8 phases.
 
 ## R9 The product box on order lines is a search box, not a selection list like Cin7 (owner, 2026-11-09)
 

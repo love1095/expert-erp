@@ -9,6 +9,7 @@ import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "../sale-orders/product-picker";
 import NameCombobox from "@/components/NameCombobox";
+import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
 import { useConfirm } from "@/components/ConfirmDialog";
 
 // productSku / productName: shown in the search box when editing an existing line
@@ -126,50 +127,58 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
         if (as === "ordered" && !(await ask({ title: "Mark this PO as ordered?", message: "It is placed with the supplier.", action: "Mark as ordered" }))) return;
         save.mutate({ ordered: as === "ordered" });
       }}
-      className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4" data-testid="purchase-order-form">
-      <h2 className="font-semibold text-gray-800">{editing ? `Edit draft ${editing.orderNumber}` : "New purchase order"}</h2>
+      className="space-y-5" data-testid="purchase-order-form">
+      {editing && <p className="text-sm text-gray-600">Editing draft <b>{editing.orderNumber}</b></p>}
       {error && <p role="alert" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="col-span-2">
-          <label htmlFor="po-supplier" className={LABEL}>Supplier *</label>
-          <NameCombobox id="po-supplier" value={supplierName} onChange={setSupplierName} required listLabel="Suppliers"
-            placeholder="Pick a supplier" className={`${INPUT} w-full`}
-            options={suppliers.map(s => ({ key: s.id, name: s.name, sub: [s.contactName, s.email].filter(Boolean).join(" · ") }))} />
-          {supplierName.trim() && !supplier && !editing && (
-            <p className="text-[11px] text-amber-700 mt-1">Not a supplier on file: terms, codes and prices won&apos;t be filled in</p>
-          )}
-        </div>
-        <div>
-          <label htmlFor="po-warehouse" className={LABEL}>Deliver to *</label>
-          <select id="po-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required className={`${INPUT} w-full`}>
-            <option value="">Select warehouse</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="po-required-by" className={LABEL}>Required by</label>
-          <input id="po-required-by" type="date" value={header.requiredBy} onChange={e => setHeader({ ...header, requiredBy: e.target.value })} className={`${INPUT} w-full`} />
-        </div>
-        <div>
-          <label htmlFor="po-terms" className={LABEL}>Terms</label>
-          <input id="po-terms" value={header.paymentTerm} onChange={e => setHeader({ ...header, paymentTerm: e.target.value })}
-            placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (supplier's)` : "None"} autoComplete="off" className={`${INPUT} w-full`} />
-        </div>
-        <div>
-          <label htmlFor="po-supplier-reference" className={LABEL}>Supplier reference</label>
-          <input id="po-supplier-reference" value={header.supplierReference} onChange={e => setHeader({ ...header, supplierReference: e.target.value })}
-            placeholder="Their order confirmation" autoComplete="off" className={`${INPUT} w-full`} />
-        </div>
+      {/* Like Cin7's purchase screen: supplier and delivery details side by side */}
+      <div className="grid gap-5 lg:grid-cols-2 items-start">
+        <Section title="Supplier details" testId="po-form-supplier">
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="po-supplier" className={LABEL}>Supplier *</label>
+              <NameCombobox id="po-supplier" value={supplierName} onChange={setSupplierName} required listLabel="Suppliers"
+                placeholder="Pick a supplier" className={`${INPUT} w-full`}
+                options={suppliers.map(s => ({ key: s.id, name: s.name, sub: [s.contactName, s.email].filter(Boolean).join(" · ") }))} />
+              {supplierName.trim() && !supplier && !editing && (
+                <p className="text-[11px] text-amber-700 mt-1">Not a supplier on file: terms, codes and prices won&apos;t be filled in</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="po-supplier-reference" className={LABEL}>Supplier reference</label>
+                <input id="po-supplier-reference" value={header.supplierReference} onChange={e => setHeader({ ...header, supplierReference: e.target.value })}
+                  placeholder="Their order confirmation" autoComplete="off" className={`${INPUT} w-full`} />
+              </div>
+              <div>
+                <label htmlFor="po-terms" className={LABEL}>Terms</label>
+                <input id="po-terms" value={header.paymentTerm} onChange={e => setHeader({ ...header, paymentTerm: e.target.value })}
+                  placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (supplier's)` : "Supplier's terms"} autoComplete="off" className={`${INPUT} w-full`} />
+              </div>
+            </div>
+          </div>
+        </Section>
+        <Section title="Delivery details" testId="po-form-delivery">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="po-warehouse" className={LABEL}>Deliver to *</label>
+              <select id="po-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required className={`${INPUT} w-full`}>
+                <option value="">Select warehouse</option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="po-required-by" className={LABEL}>Required by</label>
+              <input id="po-required-by" type="date" value={header.requiredBy} onChange={e => setHeader({ ...header, requiredBy: e.target.value })} className={`${INPUT} w-full`} />
+            </div>
+          </div>
+        </Section>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-600">Lines *</span>
-          <button type="button" onClick={() => setLines([...lines, emptyLine()])} className="text-xs text-brand-700 hover:underline">+ Add line</button>
-        </div>
-        <div className="grid grid-cols-12 gap-2 mb-1 text-[11px] text-gray-400">
-          <span className="col-span-3">Product</span><span>Supplier SKU</span><span>Qty</span><span>£ cost</span>
+      <Section title={editing ? "Order lines *" : "Products *"} testId="po-form-lines"
+        actions={<button type="button" onClick={() => setLines([...lines, emptyLine()])} className={ADD_BUTTON}>+ Add line</button>}>
+        <div className="grid grid-cols-12 gap-2 pb-2 mb-2 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          <span className="col-span-3">Product</span><span>Supplier SKU</span><span>Qty</span><span>Cost £</span>
           <span>Disc %</span><span className="col-span-2">VAT</span><span className="text-right">Net</span><span className="text-right">VAT £</span><span />
         </div>
         {lines.map((l, i) => {
@@ -196,7 +205,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
                 <div className="col-span-2">{vatSelect(l.taxRule, p && !p.taxOverridden ? p.taxName : undefined, v => setLine(i, { taxRule: v }), `VAT for line ${i + 1}`)}</div>
                 <span className="text-right text-sm tabular-nums text-gray-700">{p ? formatGBP(p.netAmount) : "—"}</span>
                 <span className="text-right text-sm tabular-nums text-gray-500">{p ? formatGBP(p.taxAmount) : "—"}</span>
-                <button type="button" onClick={() => setLines(lines.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
+                <button type="button" onClick={() => setLines(lines.filter((_, j) => j !== i))} className="justify-self-end text-gray-400 hover:text-red-600 text-xs px-1">Remove</button>
               </div>
               {l.taxRule && (
                 <input aria-label={`VAT reason for line ${i + 1}`} value={l.taxReason} onChange={e => setLine(i, { taxReason: e.target.value })}
@@ -205,14 +214,11 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
             </div>
           );
         })}
-      </div>
+      </Section>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-600">Additional costs <span className="font-normal text-gray-400">(an expense, not stock cost)</span></span>
-          <button type="button" onClick={() => setCosts([...costs, emptyCost()])} className="text-xs text-brand-700 hover:underline">+ Add cost</button>
-        </div>
-        {costs.length === 0 && <p className="text-xs text-gray-400">Freight, duty… none yet.</p>}
+      <Section title="Additional costs" hint="Freight, duty… an expense, not stock cost" testId="po-form-costs"
+        actions={<button type="button" onClick={() => setCosts([...costs, emptyCost()])} className={ADD_BUTTON}>+ Add cost</button>}>
+        {costs.length === 0 && <p className="text-sm text-gray-400">None yet.</p>}
         {costs.map((c, i) => {
           const p = previewCostFor(i);
           return (
@@ -227,37 +233,41 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
               <div className="col-span-2">{vatSelect(c.taxRule, p?.taxName, v => setCost(i, { taxRule: v }), `VAT for cost ${i + 1}`)}</div>
               <span className="text-right text-sm tabular-nums text-gray-700">{p ? formatGBP(p.netAmount) : "—"}</span>
               <span className="text-right text-sm tabular-nums text-gray-500">{p ? formatGBP(p.taxAmount) : "—"}</span>
-              <button type="button" onClick={() => setCosts(costs.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
+              <button type="button" onClick={() => setCosts(costs.filter((_, j) => j !== i))} className="justify-self-end text-gray-400 hover:text-red-600 text-xs px-1">Remove</button>
             </div>
           );
         })}
-      </div>
+      </Section>
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex-1 min-w-64">
-          <label htmlFor="po-notes" className={LABEL}>Memo</label>
-          <input id="po-notes" value={header.notes} onChange={e => setHeader({ ...header, notes: e.target.value })} placeholder="Optional" className={`${INPUT} w-full`} />
-        </div>
-        <dl data-testid="po-form-totals" className="text-sm grid grid-cols-2 gap-x-6 gap-y-0.5 tabular-nums">
-          <dt className="text-gray-500">Before tax</dt><dd className="text-right">{formatGBP(preview?.subtotal ?? 0)}</dd>
-          <dt className="text-gray-500">VAT</dt><dd className="text-right">{formatGBP(preview?.taxTotal ?? 0)}</dd>
-          <dt className="font-semibold">Total</dt><dd className="text-right font-semibold">{formatGBP(preview?.total ?? 0)}</dd>
-        </dl>
+      <div className="grid gap-5 lg:grid-cols-3 items-start">
+        <Section title="Memo" className="lg:col-span-2">
+          <label htmlFor="po-notes" className="sr-only">Memo</label>
+          <textarea id="po-notes" rows={3} value={header.notes} onChange={e => setHeader({ ...header, notes: e.target.value })}
+            placeholder="Notes for this purchase order (optional)" className={`${INPUT} w-full`} />
+        </Section>
+        <Section title="Totals">
+          <dl data-testid="po-form-totals" className="text-sm grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums">
+            <dt className="text-gray-500">Before tax</dt><dd className="text-right">{formatGBP(preview?.subtotal ?? 0)}</dd>
+            <dt className="text-gray-500">VAT</dt><dd className="text-right">{formatGBP(preview?.taxTotal ?? 0)}</dd>
+            <dt className="font-semibold pt-1 border-t border-gray-100">Total</dt><dd className="text-right font-semibold pt-1 border-t border-gray-100">{formatGBP(preview?.total ?? 0)}</dd>
+          </dl>
+        </Section>
       </div>
       {previewError && <p className="text-xs text-amber-700">{previewError}</p>}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" value="ordered" disabled={save.isPending}
-          className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
-          {save.isPending ? "Saving..." : editing ? "Save & mark ordered" : "Create & mark ordered"}
-        </button>
+      {/* Always in view at the bottom of the screen, with the total (review R8) */}
+      <StickyActions summary={<>Total <b className="text-gray-900 tabular-nums">{formatGBP(preview?.total ?? 0)}</b>
+        <span className="hidden md:inline text-xs text-gray-400 ml-3">&quot;Ordered&quot; = sent to the supplier; a draft can still be changed.</span></>}>
+        {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2">Cancel</button>}
         <button type="submit" value="draft" disabled={save.isPending}
           className="border border-gray-300 bg-white text-gray-700 px-5 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
           {editing ? "Save draft" : "Save as draft"}
         </button>
-        {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>}
-        <span className="text-xs text-gray-400">&quot;Ordered&quot; = sent to the supplier; a draft can still be changed.</span>
-      </div>
+        <button type="submit" value="ordered" disabled={save.isPending}
+          className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+          {save.isPending ? "Saving..." : editing ? "Save & mark ordered" : "Create & mark ordered"}
+        </button>
+      </StickyActions>
     </form>
   );
 }

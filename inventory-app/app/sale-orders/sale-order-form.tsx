@@ -10,6 +10,7 @@ import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "./product-picker";
 import NameCombobox from "@/components/NameCombobox";
+import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
@@ -154,6 +155,15 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
     </select>
   );
 
+  const field = (id: string, label: string, control: React.ReactNode, help?: React.ReactNode) => (
+    <div>
+      <label htmlFor={id} className={LABEL}>{label}</label>
+      {control}
+      {help && <p className="text-[11px] text-gray-400 mt-1">{help}</p>}
+    </div>
+  );
+  const lineWord = editing ? (isQuote ? "Quote lines" : "Order lines") : "Products";
+
   return (
     <form onSubmit={e => {
         e.preventDefault(); setError("");
@@ -161,93 +171,82 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         const as = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
         save.mutate({ asQuote: editing ? isQuote : as === "quote" });
       }}
-      className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4" data-testid="sale-order-form">
-      <h2 className="font-semibold text-gray-800">
-        {editing ? `Edit ${isQuote ? "quote" : "order"} ${editing.orderNumber}` : "New quote or sale order"}
-      </h2>
+      className="space-y-5" data-testid="sale-order-form">
+      {editing && <p className="text-sm text-gray-600">Editing {isQuote ? "quote" : "order"} <b>{editing.orderNumber}</b></p>}
       {error && <p role="alert" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="col-span-2">
-          <label htmlFor="sale-orders-customer" className={LABEL}>Customer *</label>
-          <NameCombobox id="sale-orders-customer" value={customerName} onChange={setCustomerName} required listLabel="Customers"
-            placeholder="Pick a customer or type a new name" className={`${INPUT} w-full`}
-            options={customers.filter(c => c.status === "ACTIVE").map(c => ({ key: c.id, name: c.name, sub: c.contacts[0]?.email }))} />
-          {customerName.trim() && !existing && <p className="text-[11px] text-gray-400 mt-1">New customer — will be added to Customers</p>}
-        </div>
-        <div>
-          <label htmlFor="sale-orders-ship-from-warehouse" className={LABEL}>Ship from Warehouse *</label>
-          <select id="sale-orders-ship-from-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required className={`${INPUT} w-full`}>
-            <option value="">Select warehouse</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="sale-orders-reference" className={LABEL}>Customer reference</label>
-          <input id="sale-orders-reference" value={header.customerReference} onChange={e => setHeader({ ...header, customerReference: e.target.value })}
-            placeholder="Their PO number" autoComplete="off" className={`${INPUT} w-full`} />
-        </div>
-        <div>
-          <label htmlFor="sale-orders-rep" className={LABEL}>Sales rep</label>
-          <input id="sale-orders-rep" value={header.salesRep} onChange={e => setHeader({ ...header, salesRep: e.target.value })}
-            placeholder={preview?.salesRep ? `${preview.salesRep} (customer's)` : "None"} autoComplete="off" className={`${INPUT} w-full`} />
-        </div>
-        <div>
-          {/* Like Cin7: the customer's tier unless changed for this order; lines without a typed price follow it (G1) */}
-          <label htmlFor="sale-orders-price-tier" className={LABEL}>Price tier</label>
-          <select id="sale-orders-price-tier" value={header.priceTier} onChange={e => setHeader({ ...header, priceTier: e.target.value })}
-            className={`${INPUT} w-full`}>
-            <option value="">{customerTier} (customer&apos;s)</option>
-            {tiers.map(t => <option key={t.number} value={t.name}>{t.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="sale-orders-terms" className={LABEL}>Terms</label>
-          <input id="sale-orders-terms" value={header.paymentTerm} onChange={e => setHeader({ ...header, paymentTerm: e.target.value })}
-            placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (customer's)` : "None"} autoComplete="off" className={`${INPUT} w-full`} />
-        </div>
-        <div>
-          <label htmlFor="sale-orders-ship-by" className={LABEL}>Ship by</label>
-          <input id="sale-orders-ship-by" type="date" value={header.shipBy} onChange={e => setHeader({ ...header, shipBy: e.target.value })} className={`${INPUT} w-full`} />
-        </div>
-        <div>
-          <label htmlFor="sale-orders-carrier" className={LABEL}>Carrier</label>
-          <input id="sale-orders-carrier" value={header.carrier} onChange={e => setHeader({ ...header, carrier: e.target.value })}
-            placeholder={preview?.carrier ? `${preview.carrier} (customer's)` : "None"} autoComplete="off" className={`${INPUT} w-full`} />
-        </div>
-        {(!editing || isQuote) && (
-          <div>
-            <label htmlFor="sale-orders-valid-until" className={LABEL}>Quote valid until</label>
-            <input id="sale-orders-valid-until" type="date" value={quoteValidUntil} onChange={e => setQuoteValidUntil(e.target.value)} className={`${INPUT} w-full`} />
-            {!editing && <p className="text-[11px] text-gray-400 mt-1">Quotes only; empty = the organisation&apos;s default</p>}
+      {/* Like Cin7's sale screen: customer, accounting and shipping details side by side */}
+      <div className="grid gap-5 lg:grid-cols-3 items-start">
+        <Section title="Customer details" testId="so-form-customer">
+          <div className="space-y-3">
+            {field("sale-orders-customer", "Customer *", <>
+              <NameCombobox id="sale-orders-customer" value={customerName} onChange={setCustomerName} required listLabel="Customers"
+                placeholder="Pick a customer or type a new name" className={`${INPUT} w-full`}
+                options={customers.filter(c => c.status === "ACTIVE").map(c => ({ key: c.id, name: c.name, sub: c.contacts[0]?.email }))} />
+            </>, customerName.trim() && !existing ? "New customer — will be added to Customers" : undefined)}
+            {field("sale-orders-reference", "Customer reference",
+              <input id="sale-orders-reference" value={header.customerReference} onChange={e => setHeader({ ...header, customerReference: e.target.value })}
+                placeholder="Their PO number" autoComplete="off" className={`${INPUT} w-full`} />)}
           </div>
-        )}
-        <div className="col-span-2 lg:col-span-4">
-          <label htmlFor="sale-orders-shipping-notes" className={LABEL}>Shipping notes</label>
-          <input id="sale-orders-shipping-notes" value={header.shippingNotes} onChange={e => setHeader({ ...header, shippingNotes: e.target.value })}
-            placeholder="Optional" autoComplete="off" className={`${INPUT} w-full`} />
-        </div>
+          <div data-testid="so-form-addresses">
+            <AddressBlock title="Billing address" value={billing} onChange={setBilling} saved={saved} />
+          </div>
+        </Section>
+
+        <Section title="Accounting details" testId="so-form-accounting">
+          <div className="space-y-3">
+            {field("sale-orders-terms", "Terms",
+              <input id="sale-orders-terms" value={header.paymentTerm} onChange={e => setHeader({ ...header, paymentTerm: e.target.value })}
+                placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (customer's)` : "Customer's terms"} autoComplete="off" className={`${INPUT} w-full`} />)}
+            {/* Like Cin7: the customer's tier unless changed for this order; lines without a typed price follow it (G1) */}
+            {field("sale-orders-price-tier", "Price tier",
+              <select id="sale-orders-price-tier" value={header.priceTier} onChange={e => setHeader({ ...header, priceTier: e.target.value })}
+                className={`${INPUT} w-full`}>
+                <option value="">{customerTier} (customer&apos;s)</option>
+                {tiers.map(t => <option key={t.number} value={t.name}>{t.name}</option>)}
+              </select>)}
+            {field("sale-orders-rep", "Sales rep",
+              <input id="sale-orders-rep" value={header.salesRep} onChange={e => setHeader({ ...header, salesRep: e.target.value })}
+                placeholder={preview?.salesRep ? `${preview.salesRep} (customer's)` : "Customer's sales rep"} autoComplete="off" className={`${INPUT} w-full`} />)}
+            {(!editing || isQuote) && field("sale-orders-valid-until", "Quote valid until",
+              <input id="sale-orders-valid-until" type="date" value={quoteValidUntil} onChange={e => setQuoteValidUntil(e.target.value)} className={`${INPUT} w-full`} />,
+              !editing ? "Quotes only; empty = the organisation's default" : undefined)}
+          </div>
+        </Section>
+
+        <Section title="Shipping details" testId="so-form-shipping">
+          <div className="space-y-3">
+            {field("sale-orders-ship-from-warehouse", "Ship from Warehouse *",
+              <select id="sale-orders-ship-from-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required className={`${INPUT} w-full`}>
+                <option value="">Select warehouse</option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>)}
+            <div className="grid grid-cols-2 gap-3">
+              {field("sale-orders-ship-by", "Ship by",
+                <input id="sale-orders-ship-by" type="date" value={header.shipBy} onChange={e => setHeader({ ...header, shipBy: e.target.value })} className={`${INPUT} w-full`} />)}
+              {field("sale-orders-carrier", "Carrier",
+                <input id="sale-orders-carrier" value={header.carrier} onChange={e => setHeader({ ...header, carrier: e.target.value })}
+                  placeholder={preview?.carrier ? `${preview.carrier} (customer's)` : "Customer's carrier"} autoComplete="off" className={`${INPUT} w-full`} />)}
+            </div>
+            {field("sale-orders-shipping-notes", "Shipping notes",
+              <input id="sale-orders-shipping-notes" value={header.shippingNotes} onChange={e => setHeader({ ...header, shippingNotes: e.target.value })}
+                placeholder="Optional" autoComplete="off" className={`${INPUT} w-full`} />)}
+          </div>
+          <AddressBlock title="Shipping address" value={shipping} onChange={setShipping} saved={saved}>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <input aria-label="Ship to company" placeholder="Ship to company" value={shipTo.company} autoComplete="off"
+                onChange={e => setShipTo({ ...shipTo, company: e.target.value })} className={INPUT} />
+              <input aria-label="Ship to contact" placeholder="Ship to contact" value={shipTo.contact} autoComplete="off"
+                onChange={e => setShipTo({ ...shipTo, contact: e.target.value })} className={INPUT} />
+            </div>
+          </AddressBlock>
+        </Section>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4" data-testid="so-form-addresses">
-        <AddressBlock title="Billing address" value={billing} onChange={setBilling} saved={saved} />
-        <AddressBlock title="Shipping address" value={shipping} onChange={setShipping} saved={saved}>
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <input aria-label="Ship to company" placeholder="Ship to company" value={shipTo.company} autoComplete="off"
-              onChange={e => setShipTo({ ...shipTo, company: e.target.value })} className={INPUT} />
-            <input aria-label="Ship to contact" placeholder="Ship to contact" value={shipTo.contact} autoComplete="off"
-              onChange={e => setShipTo({ ...shipTo, contact: e.target.value })} className={INPUT} />
-          </div>
-        </AddressBlock>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-600">Lines *</span>
-          <button type="button" onClick={() => setLines([...lines, emptyLine()])} className="text-xs text-brand-600 hover:text-brand-800">+ Add line</button>
-        </div>
-        <div className="grid grid-cols-12 gap-2 mb-1 text-[11px] text-gray-400">
-          <span className="col-span-4">Product</span><span>Qty</span><span>£ price</span>
+      <Section title={`${lineWord} *`} testId="so-form-lines"
+        actions={<button type="button" onClick={() => setLines([...lines, emptyLine()])} className={ADD_BUTTON}>+ Add line</button>}>
+        <div className="grid grid-cols-12 gap-2 pb-2 mb-2 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          <span className="col-span-4">Product</span><span>Qty</span><span>Price £</span>
           <span>Disc %</span><span className="col-span-2">VAT</span><span className="text-right">Net</span><span className="text-right">VAT £</span><span />
         </div>
         {lines.map((l, i) => {
@@ -274,7 +273,8 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
                 <div className="col-span-2">{vatSelect(l.taxRule, p && !p.taxOverridden ? p.taxName : undefined, v => setLine(i, { taxRule: v }), `VAT for line ${i + 1}`)}</div>
                 <span className="text-right text-sm tabular-nums text-gray-700">{p ? formatGBP(p.netAmount) : "—"}</span>
                 <span className="text-right text-sm tabular-nums text-gray-500">{p ? formatGBP(p.taxAmount) : "—"}</span>
-                <button type="button" onClick={() => setLines(lines.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
+                <button type="button" onClick={() => setLines(lines.filter((_, j) => j !== i))} aria-label={`Remove line ${i + 1}`}
+                  className="justify-self-end text-gray-400 hover:text-red-600 text-xs px-1">Remove</button>
               </div>
               {p?.priceSource && !l.unitPrice && (
                 <p data-testid={`so-form-price-source-${i}`} className="text-[11px] text-gray-400 mt-0.5 ml-[33%]">{p.priceSource} price {formatGBP(p.unitPrice)}</p>
@@ -286,14 +286,11 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
             </div>
           );
         })}
-      </div>
+      </Section>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-600">Additional charges</span>
-          <button type="button" onClick={() => setCharges([...charges, emptyCharge()])} className="text-xs text-brand-600 hover:text-brand-800">+ Add charge</button>
-        </div>
-        {charges.length === 0 && <p className="text-xs text-gray-400">Carriage, delivery… none yet.</p>}
+      <Section title="Additional charges and services" testId="so-form-charges"
+        actions={<button type="button" onClick={() => setCharges([...charges, emptyCharge()])} className={ADD_BUTTON}>+ Add charge</button>}>
+        {charges.length === 0 && <p className="text-sm text-gray-400">Carriage, delivery… none yet.</p>}
         {charges.map((c, i) => {
           const p = previewChargeFor(i);
           return (
@@ -307,7 +304,8 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
                 <div className="col-span-2">{vatSelect(c.taxRule, p && !p.taxOverridden ? p.taxName : undefined, v => setCharge(i, { taxRule: v }), `VAT for charge ${i + 1}`)}</div>
                 <span className="text-right text-sm tabular-nums text-gray-700">{p ? formatGBP(p.netAmount) : "—"}</span>
                 <span className="text-right text-sm tabular-nums text-gray-500">{p ? formatGBP(p.taxAmount) : "—"}</span>
-                <button type="button" onClick={() => setCharges(charges.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
+                <button type="button" onClick={() => setCharges(charges.filter((_, j) => j !== i))} aria-label={`Remove charge ${i + 1}`}
+                  className="justify-self-end text-gray-400 hover:text-red-600 text-xs px-1">Remove</button>
               </div>
               {c.taxRule && (
                 <input aria-label={`VAT reason for charge ${i + 1}`} value={c.taxReason} onChange={e => setCharge(i, { taxReason: e.target.value })}
@@ -316,19 +314,23 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
             </div>
           );
         })}
+      </Section>
+
+      <div className="grid gap-5 lg:grid-cols-3 items-start">
+        <Section title="Comments" className="lg:col-span-2">
+          <label htmlFor="sale-orders-notes" className="sr-only">Notes</label>
+          <textarea id="sale-orders-notes" rows={3} value={header.notes} onChange={e => setHeader({ ...header, notes: e.target.value })}
+            placeholder="Notes for this order (optional)" className={`${INPUT} w-full`} />
+        </Section>
+        <Section title="Totals">
+          <dl data-testid="so-form-totals" className="text-sm grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums">
+            <dt className="text-gray-500">Before tax</dt><dd className="text-right">{formatGBP(preview?.subtotal ?? 0)}</dd>
+            <dt className="text-gray-500">VAT</dt><dd className="text-right">{formatGBP(preview?.taxTotal ?? 0)}</dd>
+            <dt className="font-semibold pt-1 border-t border-gray-100">Total</dt><dd className="text-right font-semibold pt-1 border-t border-gray-100">{formatGBP(preview?.total ?? 0)}</dd>
+          </dl>
+        </Section>
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex-1 min-w-64">
-          <label htmlFor="sale-orders-notes" className={LABEL}>Notes</label>
-          <input id="sale-orders-notes" value={header.notes} onChange={e => setHeader({ ...header, notes: e.target.value })} placeholder="Optional" className={`${INPUT} w-full`} />
-        </div>
-        <dl data-testid="so-form-totals" className="text-sm grid grid-cols-2 gap-x-6 gap-y-0.5 tabular-nums">
-          <dt className="text-gray-500">Before tax</dt><dd className="text-right">{formatGBP(preview?.subtotal ?? 0)}</dd>
-          <dt className="text-gray-500">VAT</dt><dd className="text-right">{formatGBP(preview?.taxTotal ?? 0)}</dd>
-          <dt className="font-semibold">Total</dt><dd className="text-right font-semibold">{formatGBP(preview?.total ?? 0)}</dd>
-        </dl>
-      </div>
       {previewError && <p className="text-xs text-amber-700">{previewError}</p>}
       {/* G2: warning at order entry; the order can be saved, but only a manager can confirm it */}
       {preview?.creditWarning && (
@@ -337,54 +339,60 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Always in view at the bottom of the screen, with the total (review R8) */}
+      <StickyActions summary={<>Total <b className="text-gray-900 tabular-nums">{formatGBP(preview?.total ?? 0)}</b>
+        {!editing && <span className="hidden md:inline text-xs text-gray-400 ml-3">A quote reserves no stock and becomes the order when the customer accepts it.</span>}</>}>
+        {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2">Cancel</button>}
         {editing ? (
-          <>
-            <button type="submit" disabled={save.isPending}
-              className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
-              {save.isPending ? "Saving..." : "Save changes"}
-            </button>
-            {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>}
-          </>
+          <button type="submit" disabled={save.isPending}
+            className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+            {save.isPending ? "Saving..." : "Save changes"}
+          </button>
         ) : (
           <>
+            <button type="submit" value="quote" disabled={save.isPending}
+              className="border border-violet-300 bg-white text-violet-700 px-5 py-2 rounded-md text-sm font-medium hover:bg-violet-50 disabled:opacity-50">
+              Create quote
+            </button>
             <button type="submit" value="order" disabled={save.isPending}
               className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {save.isPending ? "Saving..." : "Create Sale Order"}
             </button>
-            <button type="submit" value="quote" disabled={save.isPending}
-              className="border border-violet-300 text-violet-700 px-5 py-2 rounded-md text-sm font-medium hover:bg-violet-50 disabled:opacity-50">
-              Create quote
-            </button>
-            {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>}
-            <span className="text-xs text-gray-400">A quote reserves no stock and becomes the order when the customer accepts it.</span>
           </>
         )}
-      </div>
+      </StickyActions>
     </form>
   );
 }
 
-// One address on the order: pick one of the customer's saved addresses, or type it (G4)
+// One address on the order: pick one of the customer's saved addresses, or type it (G4). Shown as one line; "Change"
+// opens the fields (the fields stay in the page, only hidden, so the address is still sent and read).
 function AddressBlock({ title, value, onChange, saved, children }: {
   title: string; value: PostalAddress; onChange: (a: PostalAddress) => void; saved: CustomerAddress[]; children?: React.ReactNode;
 }) {
+  const [editing, setEditing] = useState(false);
   const current = saved.findIndex(a => oneLine(a) === oneLine(value));
+  const text = oneLine(value);
   return (
-    <div className="border border-gray-200 rounded-md p-3">
+    <div className="mt-5 pt-4 border-t border-gray-100">
       <div className="flex items-center justify-between mb-2 gap-2">
-        <span className="text-xs font-medium text-gray-600">{title}</span>
-        {saved.length > 0 && (
-          <select aria-label={`${title}: saved addresses`} value={current >= 0 ? String(current) : ""}
-            onChange={e => { const a = saved[Number(e.target.value)]; if (a) onChange(plain(a)); }}
-            className={`${INPUT} max-w-[60%] text-xs`}>
-            <option value="">{current >= 0 ? "" : "Typed for this order"}</option>
-            {saved.map((a, i) => <option key={a.id ?? i} value={i}>{a.type.charAt(0) + a.type.slice(1).toLowerCase()}: {oneLine(a)}</option>)}
-          </select>
-        )}
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h3>
+        <button type="button" onClick={() => setEditing(e => !e)} aria-expanded={editing} aria-label={`${editing ? "Done with" : "Change"} ${title.toLowerCase()}`}
+          className="text-xs font-medium text-brand-700 hover:text-brand-900">{editing ? "Done" : text ? "Change" : "Add"}</button>
       </div>
+      {saved.length > 0 && (
+        <select aria-label={`${title}: saved addresses`} value={current >= 0 ? String(current) : ""}
+          onChange={e => { const a = saved[Number(e.target.value)]; if (a) onChange(plain(a)); }}
+          className={`${INPUT} w-full text-xs mb-2`}>
+          <option value="">{current >= 0 ? "" : "Typed for this order"}</option>
+          {saved.map((a, i) => <option key={a.id ?? i} value={i}>{a.type.charAt(0) + a.type.slice(1).toLowerCase()}: {oneLine(a)}</option>)}
+        </select>
+      )}
       {children}
-      <AddressFields label={title} value={value} onChange={onChange} inputClass={`${INPUT} w-full`} />
+      {!editing && <p className={`text-sm ${text ? "text-gray-700" : "text-gray-400"}`}>{text || "No address yet"}</p>}
+      <div className={editing ? "" : "hidden"}>
+        <AddressFields label={title} value={value} onChange={onChange} inputClass={`${INPUT} w-full`} />
+      </div>
     </div>
   );
 }

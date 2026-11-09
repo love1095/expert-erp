@@ -55,7 +55,7 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
 - [ ] **R4 Simple vs Advanced**: keep one kind with "Receive and bill all" / "Ship and invoice all" (after the owner's OK and the Cin7 check)
 - [ ] **R5 Product drop-downs**: type-to-search picker on Stock history, Movements Log, Transfer and Invoices
 - [ ] **R8 UI improvement, cleaner look** (owner 2026-11-09: later, in phases). Coded directly on dev, no Figma; each page: detail → change on dev → before/after screenshots (desktop + phone) for the owner's OK → one commit
-  - [ ] Phase 1: building blocks in `components/ui` (Button, Field, Section, StatusTabs, sticky Save bar, Money, UK DateText), approved by the owner
+  - [ ] Phase 1: building blocks in `components/ui` (Section, SubHeading, StickyActions done 2026-11-09 with the sale and purchase order forms; still Button, Field, StatusTabs, Money, DateText) (Button, Field, Section, StatusTabs, sticky Save bar, Money, UK DateText), approved by the owner
   - [ ] Phase 2: three model pages: Sale orders list (status tabs with counts, Filters panel, empty columns hidden, clear progress), New sale order (Customer → Lines → Delivery → Notes, "More details", sticky Save), sale order page (one main button, others under "More")
   - [ ] Phase 3: the other pages module by module with the page recheck, together with R2 (`/new` pages) and R7 (pop-ups)
   - [ ] UK date format everywhere (a US-English browser shows 11/9/2026 for 9 November)
