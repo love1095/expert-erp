@@ -230,3 +230,26 @@ Each finding records:
 - **Order of work** (later, in phases, owner 2026-11-09): 1) building blocks; 2) the three model pages; 3) the other pages module by module with the page recheck, together with R2 (`/new` pages) and R7 (pop-ups).
 - **Severity**: Minor (look and ease of use)
 - **Status**: Found, plan agreed; **do later in phases** (on the to-do list in `docs/TODO.md`).
+
+## R9 The product box on order lines is a search box, not a selection list like Cin7 (owner, 2026-11-09)
+
+- **Where**: `inventory-app/app/sale-orders/product-picker.tsx`, used on sale order lines (`sale-order-form.tsx:261`), purchase order lines (`purchase-order-form.tsx:182`) and contract prices (`customers/contract-prices.tsx:89`).
+- **What is wrong**:
+  1. Clicking the box shows nothing: the list only appears after **2 letters** are typed (`q.length < 2`).
+  2. It looks like a text box: placeholder "Search SKU or name", no ▾ arrow. In Cin7 the product field is a selection list: click it, the list opens, then type to narrow it down.
+  3. At most **15** matches and no way to see more (no scrolling to load the next ones).
+  4. No keyboard use: ↑ ↓ to move, Enter to pick, Esc to close do not work; Tab leaves the box without picking.
+  5. On a purchase order it shows the **selling** price and available stock; a buyer needs the cost and what is already on order.
+- **Evidence**: the code above (lines `if (!open || q.length < 2)`, `size: 15`, `placeholder="Search SKU or name"`).
+- **Impact**: order entry is slower and feels different from Cin7; staff have to know part of the SKU or name before they see anything. No wrong data.
+- **Proposed fix** (one shared component, so all three places change at once):
+  1. A **selection list** (combobox): the box shows "Select a product" and a ▾ arrow; a click (or focus) opens the list straight away with the first products (A–Z by SKU), and **scrolling loads 20 more** each time, so all 14,000 can be reached without loading them all at once.
+  2. **Typing narrows the list** from the first letter (SKU, name, barcode), as now but with no 2-letter minimum.
+  3. **Keyboard**: ↑ ↓ move, Enter or Tab picks the highlighted product, Esc closes; the chosen product shows as "SKU — name" with × to clear.
+  4. **Columns per use**: sale lines: SKU, name, available, selling price (or the customer's tier/contract price). Purchase lines: SKU, name, on hand, on order, cost; when a supplier is chosen, **that supplier's products first**.
+  5. Speed with big data: each page of 20 is one indexed query (the search part depends on R1's index fix); nothing loads all products.
+  6. The same component then replaces the full drop-downs on Stock history, Movements Log, Transfer and the new invoice page (finding R5).
+  7. Tests: the existing e2e tests keep working (same label and list names); new e2e: the list opens on click with no typing, scrolling loads more, keyboard picking, PO shows cost.
+- **To check first**: in Cin7 (read-only), exactly what its product list shows on a sale line and a purchase line (columns, order), to copy it.
+- **Severity**: Minor to Major (daily order entry)
+- **Status**: Found, waiting for the owner's go

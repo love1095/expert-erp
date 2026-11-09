@@ -45,6 +45,7 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
 - [x] **R7 Confirmation pop-ups** steps 1–2 done 2026-11-09: own pop-up, 23 browser boxes replaced, ~70 actions that move stock or money, delete or send now ask, ticked rows always ask
 - [ ] **R7 step 3, saves**: owner to choose a) pop-up on every save, or b) (recommended) no pop-up, "Saved" message, unsaved-changes warning, pop-up only when editing money or stock already booked
 - [ ] **R7 reasons**: move the `prompt()` reason boxes (void payment, credit hold, remove credit, dismiss refund) into the pop-up
+- [ ] **R9 Product selection list like Cin7** on SO/PO lines and contract prices: opens on click, scroll loads more, type to narrow, keyboard, PO shows cost and on order (supplier's products first); then reuse it for R5
 - [ ] **R1 Search uses its indexes**: drop `coalesce` in search WHERE parts, trigram indexes for the missing columns, EXPLAIN test
 - [x] **R2 "+ New" on its own page** (rule D1): done 2026-11-09 for orders, products, customers, suppliers (with a first supplier record page), hand-typed invoices and bills, manual journals (with a journal page); edit on the record page
 - [ ] **S6 supplier page, rest**: statement, supplier deposits and contacts/addresses on `/suppliers/{id}` (first version 2026-11-09)
