@@ -407,15 +407,28 @@ public class LedgerService {
 
     @Transactional(readOnly = true)
     public List<ManualJournal> manualJournals(String status) {
+        return loadManual(status, null);
+    }
+
+    /** One manual journal, for its own page (review R2). */
+    @Transactional(readOnly = true)
+    public ManualJournal manualJournal(Long id) {
+        return loadManual(null, id).stream().findFirst()
+                .orElseThrow(() -> new com.experterp.backend.exception.ResourceNotFoundException("Manual journal not found: " + id));
+    }
+
+    private List<ManualJournal> loadManual(String status, Long onlyId) {
         Long t = TenantContext.get();
         Map<Long, List<ManualLine>> lines = new HashMap<>();
-        jdbc.query("SELECT manual_journal_id, account_code, description, amount FROM manual_journal_lines WHERE tenant_id = ? ORDER BY manual_journal_id, line_no",
+        jdbc.query("SELECT manual_journal_id, account_code, description, amount FROM manual_journal_lines WHERE tenant_id = ?"
+                        + " AND (?::bigint IS NULL OR manual_journal_id = ?::bigint) ORDER BY manual_journal_id, line_no",
                 rs -> {
                     BigDecimal a = rs.getBigDecimal(4);
                     lines.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(new ManualLine(rs.getString(2), rs.getString(3),
                             a.signum() > 0 ? a : null, a.signum() < 0 ? a.negate() : null));
-                }, t);
-        return jdbc.query("SELECT * FROM manual_journals WHERE tenant_id = ? AND (?::varchar IS NULL OR status = ?::varchar) ORDER BY journal_date DESC, id DESC LIMIT 500",
+                }, t, onlyId, onlyId);
+        return jdbc.query("SELECT * FROM manual_journals WHERE tenant_id = ? AND (?::varchar IS NULL OR status = ?::varchar)"
+                        + " AND (?::bigint IS NULL OR id = ?::bigint) ORDER BY journal_date DESC, id DESC LIMIT 500",
                 (rs, n) -> {
                     long id = rs.getLong("id");
                     List<ManualLine> l = lines.getOrDefault(id, List.of());
@@ -423,7 +436,7 @@ public class LedgerService {
                     return new ManualJournal(id, rs.getDate("journal_date").toLocalDate(), rs.getString("narration"), rs.getString("status"), total, l,
                             rs.getTimestamp("created_at").toLocalDateTime(), rs.getString("created_by"),
                             rs.getTimestamp("voided_at") == null ? null : rs.getTimestamp("voided_at").toLocalDateTime(), rs.getString("voided_by"));
-                }, t, status, status);
+                }, t, status, status, onlyId, onlyId);
     }
 
     /** Xero's manual journal: a narration, a date and lines (account, description, debit or credit); debits must equal credits. */

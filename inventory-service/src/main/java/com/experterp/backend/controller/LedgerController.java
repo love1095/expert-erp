@@ -99,6 +99,11 @@ public class LedgerController {
         return ledger.manualJournals(status);
     }
 
+    @GetMapping("/manual-journals/{id}")
+    public LedgerService.ManualJournal manualJournal(@PathVariable Long id) {
+        return ledger.manualJournal(id);
+    }
+
     @PostMapping("/manual-journals")
     public LedgerService.ManualJournal addManual(@RequestBody LedgerService.ManualJournalRequest req) {
         return ledger.saveManual(null, req);

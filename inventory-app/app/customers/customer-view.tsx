@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -18,11 +18,18 @@ import CreditCard from "./credit-card";
 import { ADDRESS_TYPES, AddressText } from "@/components/AddressFields";
 import StatementCard from "./statement-card";
 import CustomerCreditCard from "./customer-credit";
+import CustomerForm from "./customer-form";
 
 // One customer on its own page, like Cin7's customer screen: account details, contacts and their sales
 export default function CustomerView({ customerId }: { customerId: number }) {
   const router = useRouter();
   const [allContacts, setAllContacts] = useState(false);
+  // Edit happens here, on the customer's page (review R2); ?edit=1 opens it straight away (the list's Edit)
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("edit")) setEditing(true);
+  }, []);
+  const stopEditing = () => { setEditing(false); router.replace(`/customers/${customerId}`); };
   const { data: c, isLoading } = useQuery<Customer>({ queryKey: ["customer", customerId], queryFn: () => getCustomer(customerId) });
   const { data: orders } = useQuery<Page<SaleOrder>>({
     queryKey: ["sale-orders", "customer", customerId],
@@ -55,14 +62,15 @@ export default function CustomerView({ customerId }: { customerId: number }) {
             {c.source === "SHOPIFY" && <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">Shopify</span>}
           </div>
         }
-        actions={<>
-          <Link href={`/customers?edit=${c.id}`} className={BTN_SECONDARY}>Edit</Link>
+        actions={editing ? undefined : <>
+          <button type="button" onClick={() => setEditing(true)} className={BTN_SECONDARY}>Edit</button>
           <button onClick={() => router.push(`/sale-orders?customer=${c.id}`)} className="bg-brand-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
             All orders
           </button>
         </>}
       />
 
+      {editing ? <CustomerForm editing={c} onSaved={stopEditing} onCancel={stopEditing} /> : (
       <RecordLayout trail={<>
         <TrailCard title="Balance" badge={overdue > 0 ? <span className="text-[11px] font-semibold text-red-600">Overdue</span> : undefined}>
           <div className="flex justify-between"><span className="text-gray-500">Due</span><span className="tabular-nums font-medium">{formatGBP(due)}</span></div>
@@ -183,6 +191,7 @@ export default function CustomerView({ customerId }: { customerId: number }) {
           <p className="text-sm text-gray-700 whitespace-pre-line">{c.notes || <span className="text-gray-400">No notes</span>}</p>
         </div>
       </RecordLayout>
+      )}
     </div>
   );
 }

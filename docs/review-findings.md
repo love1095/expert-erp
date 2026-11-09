@@ -62,7 +62,14 @@ Each finding records:
   4. Update the e2e tests that click "+ New …" (7 files, e.g. "+ New SO" in 10 places) and add one test per new page: open `/x/new` directly, save, land on `/x/{id}`, then Back.
 - **Severity**: Minor to Major (no wrong data; it affects daily use and matching Cin7)
 - **Design agreed (2026-11-08)**: a new page for records with lines or tabs (sale orders and quotes, purchase orders, products, customers, suppliers, hand-typed invoices and bills, manual journals); a short form or pop-up only for small set-up records (warehouses, bins, templates, chart of accounts, payment accounts, roles, API keys).
-- **Status**: Agreed, implement later. Belongs with the Part 1 structure decisions (target menu and pages).
+- **Status**: Fixed 2026-11-09 (owner: "start implement"):
+  - New pages: `/sale-orders/new`, `/purchase-orders/new`, `/products/new`, `/customers/new`, `/suppliers/new`, `/invoices/new` (hand-typed invoice or bill), `/accounting/manual-journals/new`. Saving opens the record's page; Cancel and "Back to list" go back to the list.
+  - One form component per record, for new and edit: `product-form.tsx`, `customer-form.tsx`, `supplier-form.tsx`, `invoice-form.tsx`, `journal-form.tsx` (sale and purchase order forms already were).
+  - Edit on the record page: products and customers no longer go back to `/products?edit=` / `/customers?edit=`. The list's Edit (or More → Edit) opens `/x/{id}?edit=1`.
+  - New record pages: **suppliers** (`/suppliers/{id}`: details, what is owed, open bills, recent POs and bills, Edit, Delete; S6 first step: statement and deposits still to come) and **manual journals** (`/accounting/manual-journals/{id}`: lines, Post / Edit for a draft, Void; backend `GET /api/ledger/manual-journals/{id}`). The top-bar search opens the supplier page.
+  - Side effect for R5: the Invoices list no longer loads every product (only the new invoice page does).
+  - Left as they are (small set-up records, as agreed): warehouses, bins, templates, chart of accounts, payment accounts, roles, API keys. Credit notes move with R3.
+  - Tests: e2e NEW-001 (every "+ New" opens its own page, Cancel and Back return, no record form on a list), NEW-002 (supplier new → record page → edit), NEW-003 (hand-typed invoice); updated SO, PO, product, customer, plan, ledger and Shopify tests; backend LedgerTest (one journal).
 
 ## R3 Credit notes and returns: where they start, and two buttons that overlap
 

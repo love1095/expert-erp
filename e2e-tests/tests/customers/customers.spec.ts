@@ -9,7 +9,8 @@ test.describe('Customers', () => {
     async ({ page, api }) => {
       const name = `Acme ${uid()}`;
       await page.goto('/customers');
-      await page.getByRole('button', { name: '+ New Customer' }).click();
+      await page.getByRole('link', { name: '+ New Customer' }).click();
+      await expect(page).toHaveURL(/\/customers\/new$/);
       await page.getByLabel('Name *').fill(name);
       await page.getByLabel('Payment Term').fill('30 Day EOM');
       await page.getByLabel('Credit Limit (£)').fill('2500');
@@ -18,19 +19,26 @@ test.describe('Customers', () => {
       await page.getByRole('button', { name: '+ Add contact' }).click();
       await page.getByLabel('Contact 2 name').fill('Accounts');
       await page.getByRole('button', { name: 'Create Customer' }).click();
-      await expect(page.getByRole('button', { name: '+ New Customer' })).toBeVisible();
+      // Saving opens the new customer's page (review R2)
+      await expect(page).toHaveURL(/\/customers\/\d+$/);
 
       const [created] = await api.findCustomers(name);
+      await expect(page.getByTestId(`customer-page-${created.id}`)).toContainText(name);
+      await page.goto('/customers');
       expect(created).toMatchObject({ name, status: 'ACTIVE', paymentTerm: '30 Day EOM', creditLimit: 2500, source: 'MANUAL', orderCount: 0 });
       expect(created.contacts.map(c => [c.name, c.email ?? null, c.defaultContact]))
         .toEqual([['Pat', 'buyer@acme.test', true], ['Accounts', null, false]]);
       const row = page.getByTestId(`customer-row-${created.id}`);
       await expect(row).toContainText('buyer@acme.test');
 
-      await row.getByRole('button', { name: 'Edit' }).click();
+      // Edit from the list opens the customer's own page in edit mode
+      await row.getByRole('link', { name: 'Edit' }).click();
+      await expect(page).toHaveURL(new RegExp(`/customers/${created.id}\\?edit=1$`));
       await page.getByLabel('Name *').fill(`${name} Ltd`);
       await page.getByLabel('Status').selectOption('DEPRECATED');
       await page.getByRole('button', { name: 'Save Customer' }).click();
+      await expect(page.getByTestId(`customer-page-${created.id}`)).toContainText(`${name} Ltd`);
+      await page.goto('/customers');
       await expect(row).toContainText(`${name} Ltd`);
       await expect(row).toContainText('Deprecated');
 

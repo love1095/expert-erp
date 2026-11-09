@@ -44,7 +44,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 Done module by module with the page recheck (Part 4 step 5 of the review plan), so each page is touched once.
 - [ ] **R7 Confirmation pop-ups** (rule D2, owner 2026-11-09: later): one shared app pop-up replacing the 23 browser `confirm()` boxes; then Danger (red) and Posting (summary of stock/money changed) pop-ups on the other actions, module by module; ticked-row actions always ask; e2e helper `confirmAction` and tests. **Owner to choose for saves**: a) pop-up on every save, or b) (recommended) no pop-up, "Saved" message, unsaved-changes warning, pop-up only when editing money or stock already booked
 - [ ] **R1 Search uses its indexes**: drop `coalesce` in search WHERE parts, trigram indexes for the missing columns, EXPLAIN test
-- [ ] **R2 "+ New" on its own page** (rule D1): `/x/new` laid out like the record page for orders, products, customers, suppliers, hand-typed invoices and bills, manual journals; edit on the record page
+- [x] **R2 "+ New" on its own page** (rule D1): done 2026-11-09 for orders, products, customers, suppliers (with a first supplier record page), hand-typed invoices and bills, manual journals (with a journal page); edit on the record page
+- [ ] **S6 supplier page, rest**: statement, supplier deposits and contacts/addresses on `/suppliers/{id}` (first version 2026-11-09)
 - [ ] **R3 Credit notes and returns**: own page, start from the order, one Return / credit action, lists; check double restock first (flow test F1)
 - [ ] **R4 Simple vs Advanced**: keep one kind with "Receive and bill all" / "Ship and invoice all" (after the owner's OK and the Cin7 check)
 - [ ] **R5 Product drop-downs**: type-to-search picker on Stock history, Movements Log, Transfer and Invoices

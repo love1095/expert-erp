@@ -10,7 +10,8 @@ test.describe('General ledger', () => {
       await expect(chart).toContainText('Inventory Control');
 
       await page.goto('/accounting/manual-journals');
-      await page.getByRole('button', { name: '+ New journal' }).click();
+      await page.getByRole('link', { name: '+ New journal' }).click();
+      await expect(page).toHaveURL(/\/accounting\/manual-journals\/new$/);
       await page.getByLabel('Narration').fill('Advert in Safety Weekly');
       await page.getByLabel('Line 1 account').selectOption({ label: '400 - Advertising & Marketing' });
       await page.getByLabel('Line 1 debit').fill('120');
@@ -21,7 +22,10 @@ test.describe('General ledger', () => {
       await expect(page.getByTestId('journal-form').getByRole('alert')).toContainText('must be equal');
       await page.getByLabel('Line 2 credit').fill('120');
       await page.getByRole('button', { name: 'Post' }).click();
-      await expect(page.getByTestId('manual-journals')).toContainText('Posted');
+      // Saving opens the journal's own page (review R2)
+      await expect(page).toHaveURL(/\/accounting\/manual-journals\/\d+$/, { timeout: 30_000 });
+      await expect(page.getByTestId('journal-status')).toHaveText('Posted');
+      await expect(page.getByTestId('journal-lines')).toContainText('£120.00');
 
       await page.goto('/accounting/trial-balance');
       await expect(page.getByTestId('tb-400')).toContainText('£120.00');

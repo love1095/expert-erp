@@ -51,6 +51,7 @@ export const deleteWarehouse = (id: number) => api.delete(`/warehouses/${id}`);
 export const getSuppliers     = () => api.get("/suppliers", { params: { size: 9999 } }).then(r => Array.isArray(r.data) ? r.data : r.data.content);
 export const getSuppliersPage = (params?: { search?: string; page?: number; size?: number }) =>
   api.get("/suppliers", { params: { size: 20, ...params } }).then(r => toPage(r.data));
+export const getSupplier = (id: number) => api.get(`/suppliers/${id}`).then(r => r.data);
 export const createSupplier = (data: unknown) => api.post("/suppliers", data).then(r => r.data);
 export const updateSupplier = (id: number, data: unknown) => api.put(`/suppliers/${id}`, data).then(r => r.data);
 export const deleteSupplier = (id: number) => api.delete(`/suppliers/${id}`).then(r => r.data);
@@ -179,6 +180,7 @@ export const saveLedgerSettings = (body: object) => api.put("/ledger/settings", 
 export const getOpeningBalances = () => api.get("/ledger/opening-balances").then(r => r.data);
 export const saveOpeningBalances = (body: object[]) => api.put("/ledger/opening-balances", body).then(r => r.data);
 export const getManualJournals = (status?: string) => api.get("/ledger/manual-journals", { params: { status } }).then(r => r.data);
+export const getManualJournal = (id: number) => api.get(`/ledger/manual-journals/${id}`).then(r => r.data);
 export const saveManualJournal = (id: number | null, body: object) =>
   (id ? api.put(`/ledger/manual-journals/${id}`, body) : api.post("/ledger/manual-journals", body)).then(r => r.data);
 export const postManualJournal = (id: number) => api.post(`/ledger/manual-journals/${id}/post`).then(r => r.data);

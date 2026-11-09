@@ -170,6 +170,11 @@ class LedgerTest {
 
         LedgerService.ManualJournal draft = ledger.saveManual(null, manual("Advert in Safety Weekly", line("400", "100", null), line("650", null, "100"), false));
         assertThat(draft.status()).isEqualTo("DRAFT");
+        assertThat(ledger.manualJournal(draft.id())).satisfies(j -> {                     // one journal, for its own page
+            assertThat(j.narration()).isEqualTo("Advert in Safety Weekly");
+            assertThat(j.lines()).hasSize(2);
+        });
+        assertThatThrownBy(() -> ledger.manualJournal(-1L)).hasMessageContaining("not found");
         assertThat(balance(ledger.trialBalance(today), "400")).isEqualByComparingTo("0");   // a draft posts nothing
 
         ledger.post(draft.id());

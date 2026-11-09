@@ -11,7 +11,7 @@ const KIND: Record<SearchKind, string> = {
   CUSTOMER: "Customers", SUPPLIER: "Suppliers", PRODUCT: "Products",
 };
 
-/** Where a hit opens (suppliers have no page of their own yet: their list, searched). */
+/** Where a hit opens: the record's own page. */
 export function hrefOf(h: SearchHit) {
   switch (h.kind) {
     case "SALE_ORDER": return `/sale-orders/${h.id}`;
@@ -19,7 +19,7 @@ export function hrefOf(h: SearchHit) {
     case "PURCHASE_ORDER": return `/purchase-orders/${h.id}`;
     case "CUSTOMER": return `/customers/${h.id}`;
     case "PRODUCT": return `/products/${h.id}`;
-    case "SUPPLIER": return `/suppliers?q=${encodeURIComponent(h.title)}`;
+    case "SUPPLIER": return `/suppliers/${h.id}`;
   }
 }
 
