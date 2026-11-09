@@ -198,8 +198,15 @@ Each finding records:
      - Dashboard: charts grow in and the big numbers count up, once, on first load.
      - Hover and keyboard focus: gentle row highlight, clear focus outline.
      - Rules: nothing longer than about 300 ms, no bouncing or whole-page slides, no row-by-row animation of long lists; one set of speeds in the building blocks (phase 1); everything off when the device is set to reduce motion (`prefers-reduced-motion`); Tailwind first, a library such as `motion` only with the owner's OK.
-  5. **Design rule D3** (to agree): every page is built from these blocks only. New colours, sizes or one-off buttons are not allowed in pages.
-  6. **Tests**: the e2e tests use labels and roles, so most keep working; screenshots of each page before and after go in the review notes.
+  5. **Footers** (owner, 2026-11-09): no website-style footer across every page (the page area scrolls, so it would take room from the data or never be seen; Cin7 and Xero have none). Instead:
+     - Sidebar bottom and user menu: Help · What's new · version · Support (needed once the ERP is sold to other companies).
+     - List pages: a footer bar under the table with "Displaying 1–20 of 340", paging and page size; on money lists (invoices, payments, aged debtors…) the **totals of the filtered rows**; with ticked rows, "3 selected · £1,240.00".
+     - Creation and edit pages: the sticky Save bar (point 3).
+     - Record pages: a quiet last line, "Created by … on … · Last changed by … on … · View history" (link to the audit log).
+     - Printed documents (invoices, POs, statements): company number, VAT number, registered address, bank details, "Page 1 of 2"; checked with the document template review.
+     - Login and register: "© Expert ERP · Privacy · Terms".
+  6. **Design rule D3** (to agree): every page is built from these blocks only. New colours, sizes or one-off buttons are not allowed in pages.
+  7. **Tests**: the e2e tests use labels and roles, so most keep working; screenshots of each page before and after go in the review notes.
 - **How the design work is done** (owner, 2026-11-09): no separate design tool (Figma) for now. The pages are changed directly in the code on the dev environment and approved page by page:
   1. **Building blocks first**: built once on dev, the owner approves them, every page then uses them.
   2. **Each page**: the detail first (what will change), then the change on dev, then screenshots before and after (desktop and phone) for the owner to OK or mark up, then the commit. Each page is one commit, so it can be undone.
