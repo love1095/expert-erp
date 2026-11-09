@@ -48,6 +48,7 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
 - [ ] **R3 Credit notes and returns**: own page, start from the order, one Return / credit action, lists; check double restock first (flow test F1)
 - [ ] **R4 Simple vs Advanced**: keep one kind with "Receive and bill all" / "Ship and invoice all" (after the owner's OK and the Cin7 check)
 - [ ] **R5 Product drop-downs**: type-to-search picker on Stock history, Movements Log, Transfer and Invoices
+- [ ] **R8 Cleaner look** (owner 2026-11-09): mock-up of 3 pages for the owner, then building blocks (Button, Field, Section, StatusTabs, sticky Save bar, UK dates), then pages moved with R2 and R7; UK date format everywhere (US browsers show 11/9/2026)
 - [x] R6 Window scrolled the app off the top (fixed daee4ae, 2026-11-09)
 
 ## Needs the owner's OK

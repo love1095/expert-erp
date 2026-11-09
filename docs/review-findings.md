@@ -159,3 +159,38 @@ Each finding records:
   3. Saves, as the owner chooses in point 3.
 - **Severity**: Major (a wrong click changes stock or money with no warning)
 - **Status**: Found, plan written. Owner (2026-11-09): do it later; on the to-do list in `docs/TODO.md` (Review fixes to do). Still to choose a) or b) for saves.
+
+## R8 A cleaner look for list pages and creation pages (owner, 2026-11-09)
+
+- **Where**: all list pages (`ListToolbar`, `ListHead`), all create/edit forms (sale order form, customer form, product form…), record pages (`DetailParts`). Screenshots taken 2026-11-09 at 1500×900: Sale orders list, New sale order, Sale order SO-6, New customer.
+- **What makes them look busy today**:
+  - **List pages**
+    1. Empty columns full of "—": on Sale orders, Reference, Documents and Sales rep are empty on most rows, yet each takes a column.
+    2. The *Progress* icons are tiny and pale (5 icons of 14 px). It's hard to see at a glance where an order is.
+    3. The status filter is a drop-down ("All quotes and orders"). Cin7 and most modern apps use **tabs with counts** (All · Draft · Confirmed · To ship · To invoice), which take one click and show the workload.
+    4. Three fonts in one row: order number in a typewriter font, names bold, numbers plain.
+    5. A *Refresh* button that isn't needed (the list refreshes on its own).
+    6. **Dates follow the browser's language**: a browser set to US English shows `11/9/2026` for 9 November (`ClientDate.tsx:10`, `toLocaleDateString()` with no locale). The owner's screen shows `29/10/2026`. Should always be UK `09/11/2026` or `9 Nov 2026`.
+  - **Creation pages**
+    1. One long wall of boxes with the same weight: the new sale order shows 10 fields, two full address blocks (13 empty boxes), then the **lines, the most important part, below the fold**.
+    2. No sections: customer, delivery, pricing and notes are mixed in one grid.
+    3. Fields the customer already fills in (terms, price tier, sales rep, carrier, addresses) are shown empty and open, although they are copied from the customer on save.
+    4. Placeholders that look like values ("None"), and labels in two styles ("Payment Term", "Credit Limit (£)" vs "Ship by", "Customer reference").
+    5. The Save / Cancel buttons are at the very bottom of a long form, and "Cancel" at the top is the black main button.
+    6. Browser-default drop-downs and date boxes next to the app's own inputs, so heights and styles differ.
+  - **Record pages** (fine overall, small things): five buttons of the same weight in the header (Print, E-mail, Cancel order, Edit, Confirm order); long product names cut off ("Safety b…") while the table has room; an empty *Shipments* card on a draft.
+- **Impact**: no wrong data. Pages look crowded, new staff don't know where to look, and orders take longer to enter. It matters more once the ERP is sold to other companies.
+- **Proposed fix**: a small design system first, then each page moved to it during the page recheck (with R2's `/new` pages, so each page is redone once).
+  1. **Building blocks** in `components/ui`: `Button` (primary in the brand colour, secondary, quiet, danger), `Field` (label + input + help + error, one height for text, select and date), `Section` (a card with a heading and an optional "More" toggle), `StatusTabs` (tabs with counts), `StickyActions` (the Save bar fixed at the bottom of a form), `Money` and `DateText` (UK format, numbers aligned).
+  2. **List pages**: title + "+ New" on top; status **tabs with counts** under the title; one search box and a "Filters" button (filters open in a side panel, with chips showing the active ones); columns chosen by the user, and empty optional columns hidden by default; a clear progress bar or a coloured step label instead of 5 pale icons; one font, with numbers aligned right; no Refresh button.
+  3. **Creation and record pages** (same layout, rule D1):
+     - The header: title, status, and one main button; the other actions in a "More" menu (Print, E-mail, Cancel…).
+     - **Sections**: *Customer* (pick the customer; their address, terms and price tier show as a short summary with "Change"), *Lines* (straight after the customer, full width, with totals on the right), *Delivery* (warehouse, ship by, carrier; addresses collapsed until "Change"), *Notes*.
+     - The rarely used fields are inside "More details", closed by default.
+     - A **sticky bar** at the bottom: "Cancel" (quiet) and "Save" (brand colour), always in view; a warning when leaving with unsaved changes (shared with R7 b).
+     - Labels in sentence case, help text under the field, no "None" placeholders.
+  4. **Design rule D3** (to agree): every page is built from these blocks only. New colours, sizes or one-off buttons are not allowed in pages.
+  5. **Tests**: the e2e tests use labels and roles, so most keep working; screenshots of each page before and after go in the review notes.
+- **Order of work**: 1) a clickable mock-up of three pages (Sale orders list, New sale order, Customer form) for the owner to choose the look; 2) the building blocks; 3) pages moved module by module with the page recheck, together with R2 (`/new` pages) and R7 (pop-ups).
+- **Severity**: Minor (look and ease of use)
+- **Status**: Found, plan written; waiting for the owner on the mock-up.
