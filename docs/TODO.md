@@ -78,6 +78,17 @@ Already in the ERP (the base to build on): Cin7's minimum-based Reorder list, to
 - [ ] **ABC classes** (A = products making about 80 % of sales value, watched most closely)
 - [ ] Where it shows: a dashboard panel, a report with CSV export, the Reorder page, and a **weekly e-mail digest** (once live e-mail is on)
 
+**Manage dashboard, like Cin7 (owner, 2026-11-09)**: each user decides which parts the dashboard shows
+- [ ] **The parts (widgets)**, from what the dashboard has today: the 7 figure tiles (revenue, orders to ship, stock value, products to reorder, units shipped, unpaid invoices, active customers), orders by status, Sales waiting now, Purchases waiting now, revenue per day, units in and out per day, the per-day table, sales by rep, top and worst sellers, recent sale orders, reorder list; later the Stock health panel (S1), overdue invoices, Xero / Shopify failed items
+- [ ] **"Manage dashboard" button** on the dashboard: a panel with every part, a tick to show or hide it, and drag (or up / down arrows) to put them in order; "Reset to default"
+- [ ] **Saved per user** on the server (follows the person to any computer), not in the browser; a new user gets the organisation's default
+- [ ] **Organisation default** set by an admin (e.g. the warehouse sees stock and orders to ship, accounts see money); each user can change their own
+- [ ] **Permissions win**: a part a role may not see (cost, stock value, money reports) is not offered and never sent by the server
+- [ ] **Speed**: the server only works out the parts that are shown (today one call computes everything); each part loads on its own, with placeholder rows
+- [ ] Sizes (half / full width) and a period per part (today / 7 / 30 days) if wanted
+- [ ] Tests: hide a part → it is gone after a reload and on another browser; a role without the permission never sees the part; reset brings the default back
+- To check first in Cin7 (look only): which parts its dashboard offers and how its "Manage dashboard" screen works, to copy it
+
 **S2 Safety-supplier (PPE) functions**
 - [ ] **Batch / serial / expiry tracking**: batch and expiry on receipt (first-aid kits, filters, spill kits), serial numbers (harnesses, lanyards); sell earliest expiry first; recall trace: which customers got a batch; expiry warning list
 - [ ] **Embroidery / logo jobs**: an order line "to embroider" becomes a job: garments to the embroiderer, logo charge, extra lead time, stock coming back
