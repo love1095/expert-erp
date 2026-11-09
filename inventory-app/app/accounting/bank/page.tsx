@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { errorOf } from "../ledger-parts";
 import { BankTransactionForm } from "./bank-transaction-form";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 /** Phase K3: Xero's bank accounts — balance in the ERP, statement balance, items to reconcile, statement import, spend / receive money. */
 export default function BankAccountsPage() {
@@ -36,6 +37,7 @@ export default function BankAccountsPage() {
 }
 
 function BankCard({ account: a }: { account: BankAccountCard }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<BankImportResult | null>(null);
@@ -70,7 +72,7 @@ function BankCard({ account: a }: { account: BankAccountCard }) {
           <p>{result.applied ? "✓ Imported" : "Preview"} ({result.format}): <b>{result.lines} lines</b>{result.from && <> from {new Date(result.from).toLocaleDateString("en-GB")} to {new Date(result.to!).toLocaleDateString("en-GB")}</>},
             money in {formatGBP(result.moneyIn)}, out {formatGBP(result.moneyOut)}</p>
           {result.warnings.map((w, i) => <p key={i} className="text-xs text-amber-800">{w}</p>)}
-          {!result.applied && result.lines > 0 && <button className={BTN_PRIMARY} onClick={() => run.mutate(true)}>Import {result.lines} lines</button>}
+          {!result.applied && result.lines > 0 && <button className={BTN_PRIMARY} onClick={async () => { if (await ask({ title: `Import ${result.lines} statement lines?`, action: "Import" })) run.mutate(true); }}>Import {result.lines} lines</button>}
         </div>
       )}
     </section>

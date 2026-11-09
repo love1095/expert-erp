@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getWarehouses, saveShopifySettings, registerShopifyWebhooks } from "@/lib/api";
 import { ShopifyConnection, Warehouse } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400";
 const BUTTON = "bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50";
@@ -14,6 +15,7 @@ const BUTTON_SECONDARY = "border border-gray-300 text-gray-700 px-4 py-2 rounded
 
 /** Order import (7.2): which warehouse ships Shopify orders, and webhooks. */
 export default function ShopifyOrders({ conn }: { conn: ShopifyConnection }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
 
@@ -107,7 +109,7 @@ export default function ShopifyOrders({ conn }: { conn: ShopifyConnection }) {
               </p>
             )}
           </div>
-          <button onClick={() => webhooksMutation.mutate()} disabled={busy || !connected || !conn.publicUrl || settingsChanged}
+          <button onClick={async () => { if (await ask({ title: "Register the webhooks with Shopify?", action: "Register" })) webhooksMutation.mutate(); }} disabled={busy || !connected || !conn.publicUrl || settingsChanged}
             title={settingsChanged ? "Save the order settings first" : undefined} className={BUTTON}>
             {webhooksMutation.isPending ? "Registering..." : "Register webhooks"}
           </button>

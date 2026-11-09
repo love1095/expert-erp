@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm disabled:bg-gray-50";
@@ -83,6 +84,7 @@ function Templates() {
 }
 
 function TemplateForm({ t, disabled, onDone }: { t: MailTemplate; disabled: boolean; onDone: () => void }) {
+  const ask = useConfirm();
   const [subject, setSubject] = useState(t.subject);
   const [body, setBody] = useState(t.body);
   const [msg, setMsg] = useState("");
@@ -97,7 +99,7 @@ function TemplateForm({ t, disabled, onDone }: { t: MailTemplate; disabled: bool
       <p className="text-xs text-gray-500">Placeholders: {"{{customer}} {{supplier}} {{number}} {{amount}} {{amount_due}} {{due_date}} {{date}} {{reference}} {{order_number}} {{invoices}} {{balance}} {{company}} {{carrier}} {{tracking}} {{tracking_url}}"}</p>
       {!disabled && <div className="flex items-center gap-2">
         <button className={BTN_PRIMARY} onClick={() => save.mutate()}>Save</button>
-        {t.custom && <button className={BTN_SECONDARY} onClick={() => reset.mutate()}>Use the standard wording</button>}
+        {t.custom && <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Go back to the standard wording?", message: "Your own wording for this e-mail is removed.", action: "Use standard", danger: true })) reset.mutate(); }}>Use the standard wording</button>}
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}
       </div>}
     </section>

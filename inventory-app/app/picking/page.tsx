@@ -9,6 +9,7 @@ import { PickList } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 
@@ -17,6 +18,7 @@ const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: {
  * A pick list is picked from its page (or the phone page, by scanning); packing and shipping are on the order.
  */
 export default function PickingPage() {
+  const ask = useConfirm();
   const router = useRouter();
   const [ticked, setTicked] = useState<number[]>([]);
   const [msg, setMsg] = useState("");
@@ -31,7 +33,7 @@ export default function PickingPage() {
       <section className="bg-white border border-gray-200 rounded-xl" data-testid="orders-to-pick">
         <div className="px-5 pt-4 flex items-center gap-3">
           <h2 className="font-semibold mr-auto">Open orders</h2>
-          <button className={BTN_PRIMARY} disabled={ticked.length === 0 || create.isPending} onClick={() => create.mutate()}>
+          <button className={BTN_PRIMARY} disabled={ticked.length === 0 || create.isPending} onClick={async () => { if (await ask({ title: "Make a pick list for the ticked orders?", action: "Make pick list" })) create.mutate(); }}>
             Create pick list{ticked.length > 1 ? ` (wave of ${ticked.length})` : ""}</button>
         </div>
         {msg && <p role="alert" className="px-5 text-sm text-red-700">{msg}</p>}

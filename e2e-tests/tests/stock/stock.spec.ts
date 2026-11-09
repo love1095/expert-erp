@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/test';
+import { test, expect, clickAndConfirm } from '../../fixtures/test';
 
 test.describe('Stock movements', () => {
   test('STK-001 recording an inbound movement increases stock', { tag: ['@P0', '@stock'] }, async ({ page, api, warehouses }) => {
@@ -10,7 +10,7 @@ test.describe('Stock movements', () => {
     await page.getByLabel('Warehouse').selectOption(String(warehouses.main.id));
     await page.getByLabel('Type').selectOption('ADJUSTMENT_IN');
     await page.getByLabel('Quantity').fill('25');
-    await page.getByRole('button', { name: 'Record Movement', exact: true }).click();
+    await clickAndConfirm(page, page.getByRole('button', { name: 'Record Movement', exact: true }));
 
     await expect.poll(() => api.stock(product, warehouses.main)).toBe(25);
   });
@@ -40,7 +40,7 @@ test.describe('Stock movements', () => {
     await page.getByLabel('From Warehouse').selectOption(String(warehouses.main.id));
     await page.getByLabel('To Warehouse').selectOption(String(warehouses.second.id));
     await page.getByLabel('Quantity').fill('10');
-    await page.getByRole('button', { name: 'Transfer Stock' }).click();
+    await clickAndConfirm(page, page.getByRole('button', { name: 'Transfer Stock' }));
 
     await expect.poll(() => api.stock(product, warehouses.second)).toBe(10);
     expect(await api.stock(product, warehouses.main)).toBe(20);

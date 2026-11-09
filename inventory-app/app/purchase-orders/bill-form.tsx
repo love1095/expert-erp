@@ -6,6 +6,7 @@ import { billPurchaseOrder } from "@/lib/api";
 import { Invoice, PurchaseOrder } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { BTN_PRIMARY, BTN_SECONDARY, TH, TD } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type ChargeForm = { description: string; quantity: string; unitPrice: string };
 
@@ -18,6 +19,7 @@ const qty = (n: number) => Number(n).toLocaleString();
  * shipping, which are an expense. Prices and quantities that differ from the PO and the receipts are flagged.
  */
 export default function BillForm({ po, onSaved, onCancel }: { po: PurchaseOrder; onSaved: (bill: Invoice) => void; onCancel: () => void }) {
+  const ask = useConfirm();
   const [number, setNumber] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState("");
@@ -51,9 +53,12 @@ export default function BillForm({ po, onSaved, onCancel }: { po: PurchaseOrder;
   const chargesNet = charges.reduce((t, c) => t + Number(c.quantity || 1) * Number(c.unitPrice || 0), 0);
 
   return (
-    <form data-testid="bill-form" onSubmit={e => {
+    <form data-testid="bill-form" onSubmit={async e => {
         e.preventDefault(); setError("");
-        save.mutate(((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "draft");
+        const draft = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "draft";
+        // Entering the bill (not a draft) posts what is owed: ask first (review R7)
+        if (!draft && !(await ask({ title: "Enter this supplier bill?", message: "What is owed is posted to the accounts.", action: "Enter bill" }))) return;
+        save.mutate(draft);
       }}
       className="bg-white border-2 border-brand-600 rounded-lg p-4 space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Enter the supplier&apos;s bill for {po.orderNumber}</h3>

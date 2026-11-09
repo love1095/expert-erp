@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { INPUT, errorOf } from "../ledger-parts";
 import { clientInfo } from "./client-info";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const day = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB") : "");
 const BOXES: [keyof VatBoxes, string][] = [
@@ -43,6 +44,7 @@ export default function VatReturnsPage() {
 }
 
 function Connection({ status, isAdmin }: { status: MtdStatus; isAdmin: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [vrn, setVrn] = useState(status.vrn ?? "");
   const [msg, setMsg] = useState("");
@@ -63,7 +65,7 @@ function Connection({ status, isAdmin }: { status: MtdStatus; isAdmin: boolean }
           ? <span className="text-green-700">✓ Connected to HMRC{status.connectedAt && ` on ${day(status.connectedAt)}`}{status.connectedBy && ` by ${status.connectedBy}`}</span>
           : <span className="text-gray-500">Not connected</span>}
         {isAdmin && status.configured && (status.connected
-          ? <button className={BTN_SECONDARY} onClick={() => disconnect.mutate()}>Disconnect</button>
+          ? <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Disconnect from HMRC?", message: "VAT returns cannot be filed from here until it is connected again.", action: "Disconnect", danger: true })) disconnect.mutate(); }}>Disconnect</button>
           : <button className={BTN_PRIMARY} disabled={!status.vrn} onClick={() => connect.mutate()}>Connect to HMRC</button>)}
       </div>
       {msg && <p role="status" className="text-sm text-gray-600">{msg}</p>}
@@ -110,6 +112,7 @@ function PeriodPicker({ onPick }: { onPick: (from: string, to: string) => void }
 
 function ReviewPanel({ from, to, periodKey, due, canSubmit, isAdmin, onDone }: { from: string; to: string; periodKey?: string; due?: string;
   canSubmit: boolean; isAdmin: boolean; onDone: () => void }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery<VatReview>({ queryKey: ["vat-review", from, to], queryFn: () => getVatReview(from, to) });
   const [declared, setDeclared] = useState(false);
@@ -141,9 +144,9 @@ function ReviewPanel({ from, to, periodKey, due, canSubmit, isAdmin, onDone }: {
           {canSubmit && (<>
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={declared} onChange={e => setDeclared(e.target.checked)} />
               <span>{data.declaration}</span></label>
-            <button className={BTN_PRIMARY} disabled={!declared || submit.isPending} onClick={() => submit.mutate()}>Submit to HMRC</button>
+            <button className={BTN_PRIMARY} disabled={!declared || submit.isPending} onClick={async () => { if (await ask({ title: "Submit this VAT return to HMRC?", message: "A submitted return cannot be changed.", action: "Submit" })) submit.mutate(); }}>Submit to HMRC</button>
           </>)}
-          <button className={`${BTN_SECONDARY} ml-2`} disabled={record.isPending} onClick={() => record.mutate()}>Mark as filed (filed another way)</button>
+          <button className={`${BTN_SECONDARY} ml-2`} disabled={record.isPending} onClick={async () => { if (await ask({ title: "Mark this period as filed?", message: "The period is locked.", action: "Mark as filed" })) record.mutate(); }}>Mark as filed (filed another way)</button>
           {msg && <p role="alert" className="text-sm text-red-700">{msg}</p>}
         </div>
       )}

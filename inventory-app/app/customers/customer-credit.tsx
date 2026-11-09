@@ -10,6 +10,7 @@ import { Card, BTN_SECONDARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
 import { isoDay } from "./statement-card";
 import { METHOD_LABEL } from "../invoices/payments-card";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "border border-gray-300 rounded px-2 py-1 text-sm";
 
@@ -18,6 +19,7 @@ const INPUT = "border border-gray-300 rounded px-2 py-1 text-sm";
  * one. It shows on their statement and is used on invoices ("Use customer credit" on the invoice).
  */
 export default function CustomerCreditCard({ customer }: { customer: Customer }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { user } = useAuth();
   const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
@@ -96,7 +98,7 @@ export default function CustomerCreditCard({ customer }: { customer: Customer })
             <input value={form.reference} maxLength={100} onChange={e => setForm({ ...form, reference: e.target.value })}
               aria-label="Reference" className={`${INPUT} w-36`} /></label>
           <button type="button" className={BTN_SECONDARY} disabled={!form.amount || receive.isPending || (active.length > 0 && !accountId)}
-            onClick={() => receive.mutate()}>{receive.isPending ? "Saving…" : "Save"}</button>
+            onClick={async () => { if (await ask({ title: "Record this customer credit?", action: "Save" })) receive.mutate(); }}>{receive.isPending ? "Saving…" : "Save"}</button>
           <button type="button" className="text-gray-500 hover:underline" onClick={() => setOpen(false)}>Cancel</button>
         </div>
       ) : (

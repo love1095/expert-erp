@@ -8,6 +8,7 @@ import { StockTake, StockTakeLine } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_DANGER, BTN_PRIMARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const gbp = (n: number | null) => n == null ? "" : Number(n).toLocaleString("en-GB", { style: "currency", currency: "GBP" });
@@ -20,6 +21,7 @@ const TAKE_STATUS: Record<string, string> = { COUNTING: "Counting", POSTED: "Pos
  * go; lines not counted are left alone. A manager posts it: the variances become stock-take adjustments.
  */
 export default function StockTakePage({ id, compact = false }: { id: number; compact?: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { user, can } = useAuth();
   const manager = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || user?.role === "MANAGER";
@@ -76,8 +78,8 @@ export default function StockTakePage({ id, compact = false }: { id: number; com
       </div>
       {st.status === "COUNTING" && (
         <div className="flex gap-3">
-          {manager && <button className={BTN_PRIMARY} disabled={post.isPending || st.countedLines === 0} onClick={() => post.mutate()}>Post stock take</button>}
-          {can("STOCK_ADJUST") && <button className={BTN_DANGER} onClick={() => cancel.mutate()}>Cancel stock take</button>}
+          {manager && <button className={BTN_PRIMARY} disabled={post.isPending || st.countedLines === 0} onClick={async () => { if (await ask({ title: "Post this stock take?", message: "The differences are booked as stock adjustments.", action: "Post" })) post.mutate(); }}>Post stock take</button>}
+          {can("STOCK_ADJUST") && <button className={BTN_DANGER} onClick={async () => { if (await ask({ title: "Cancel this stock take?", action: "Cancel stock take", danger: true })) cancel.mutate(); }}>Cancel stock take</button>}
           {!manager && <span className="text-sm text-gray-500 self-center">A manager posts the stock take.</span>}
         </div>
       )}

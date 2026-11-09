@@ -10,6 +10,7 @@ import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { INPUT, SourceLink, errorOf, today } from "../../ledger-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tab = "reconcile" | "statement" | "transactions";
 const day = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB") : "");
@@ -45,6 +46,7 @@ function Reconcile({ code, accounts }: { code: string; accounts: BankAccountCard
 }
 
 function LineCard({ code, line, accounts }: { code: string; line: BankStatementLine; accounts: BankAccountCard[] }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [mode, setMode] = useState<"match" | "find" | "create" | "transfer">(line.suggestions.length > 0 ? "match" : "create");
   const [error, setError] = useState("");
@@ -61,7 +63,7 @@ function LineCard({ code, line, accounts }: { code: string; line: BankStatementL
         <div className="font-medium">{line.payee}</div>
         {line.reference && <div className="text-gray-500">Ref {line.reference}</div>}
         {line.description && line.description !== line.payee && <div className="text-gray-500 text-xs">{line.description}</div>}
-        <button className="text-xs text-gray-400 hover:text-red-600" onClick={() => remove.mutate()}>Delete this line</button>
+        <button className="text-xs text-gray-400 hover:text-red-600" onClick={async () => { if (await ask({ title: "Delete this statement line?", action: "Delete", danger: true })) remove.mutate(); }}>Delete this line</button>
       </div>
       <div className="p-4 text-sm space-y-2">
         <div className="flex gap-3 text-xs" role="tablist">
@@ -115,6 +117,7 @@ function FindAndMatch({ code, amount, onMatch }: { code: string; amount: number;
 }
 
 function CreateForLine({ line, onDone, onError }: { line: BankStatementLine; onDone: () => void; onError: (e: unknown) => void }) {
+  const ask = useConfirm();
   const out = line.amount < 0;
   const { data: chart = [] } = useQuery<LedgerAccount[]>({ queryKey: ["ledger-accounts", false], queryFn: () => getLedgerAccounts(false) });
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", out ? "PURCHASE" : "SALE"], queryFn: () => getTaxRates(out ? "PURCHASE" : "SALE") });
@@ -136,7 +139,7 @@ function CreateForLine({ line, onDone, onError }: { line: BankStatementLine; onD
       <select aria-label="VAT rate" className={INPUT} value={tax} onChange={e => setTax(e.target.value)}>
         <option value="">No VAT</option>{rates.filter(r => r.active).map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
       </select>
-      <button className={`${BTN_PRIMARY} col-span-2`} disabled={!account || create.isPending} onClick={() => create.mutate()}>
+      <button className={`${BTN_PRIMARY} col-span-2`} disabled={!account || create.isPending} onClick={async () => { if (await ask({ title: "Create this transaction and match it?", message: "It is posted to the accounts.", action: "Create" })) create.mutate(); }}>
         Create {out ? "spend" : "receive"} money and reconcile
       </button>
     </div>
@@ -144,6 +147,7 @@ function CreateForLine({ line, onDone, onError }: { line: BankStatementLine; onD
 }
 
 function TransferForLine({ line, accounts, onDone, onError }: { line: BankStatementLine; accounts: BankAccountCard[]; onDone: () => void; onError: (e: unknown) => void }) {
+  const ask = useConfirm();
   const [to, setTo] = useState("");
   const t = useMutation({ mutationFn: () => transferBankLine(line.id, to), onSuccess: onDone, onError });
   return (
@@ -152,12 +156,13 @@ function TransferForLine({ line, accounts, onDone, onError }: { line: BankStatem
         <option value="">{line.amount < 0 ? "Transferred to…" : "Transferred from…"}</option>
         {accounts.map(a => <option key={a.code} value={a.code}>{a.code} - {a.name}</option>)}
       </select>
-      <button className={BTN_PRIMARY} disabled={!to || t.isPending} onClick={() => t.mutate()}>Reconcile</button>
+      <button className={BTN_PRIMARY} disabled={!to || t.isPending} onClick={async () => { if (await ask({ title: "Record this transfer?", action: "Reconcile" })) t.mutate(); }}>Reconcile</button>
     </div>
   );
 }
 
 function Reconciled({ code }: { code: string }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: lines = [] } = useQuery<BankStatementLine[]>({ queryKey: ["bank-lines", code, "RECONCILED"], queryFn: () => getBankLines(code, "RECONCILED") });
   const [error, setError] = useState("");
@@ -178,7 +183,7 @@ function Reconciled({ code }: { code: string }) {
               <td>{l.payee}{l.reference && <span className="text-gray-400"> · {l.reference}</span>}</td>
               <td className="space-x-2">{l.matched.map(m => <SourceLink key={m.sourceKey} sourceKey={m.sourceKey} sourceType={m.sourceType} reference={m.reference} />)}</td>
               <td className="text-right tabular-nums">{formatGBP(l.amount)}</td>
-              <td className="px-4 text-right"><button className={BTN_SECONDARY} onClick={() => undo.mutate(l.id)}>Unreconcile</button></td>
+              <td className="px-4 text-right"><button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Unreconcile this line?", action: "Unreconcile" })) undo.mutate(l.id); }}>Unreconcile</button></td>
             </tr>
           ))}
           {lines.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">No reconciled lines</td></tr>}
@@ -189,6 +194,7 @@ function Reconciled({ code }: { code: string }) {
 }
 
 function Transactions({ code }: { code: string }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: txns = [] } = useQuery<BankTransaction[]>({ queryKey: ["bank-transactions", code], queryFn: () => getBankTransactions(code) });
   const [error, setError] = useState("");
@@ -211,7 +217,7 @@ function Transactions({ code }: { code: string }) {
               <td className="text-xs">{t.lines.map(l => `${l.accountCode}${l.tax ? ` (VAT ${formatGBP(l.tax)})` : ""}`).join(", ")}</td>
               <td className="text-right tabular-nums">{formatGBP(t.total)}</td>
               <td>{t.status === "VOIDED" ? "Voided" : t.reconciled ? "Reconciled" : ""}</td>
-              <td className="px-4 text-right">{t.status === "ACTIVE" && <button className={BTN_DANGER} onClick={() => v.mutate(t.id)}>Void</button>}</td>
+              <td className="px-4 text-right">{t.status === "ACTIVE" && <button className={BTN_DANGER} onClick={async () => { if (await ask({ title: "Void this transaction?", message: "A reversal is posted.", action: "Void", danger: true })) v.mutate(t.id); }}>Void</button>}</td>
             </tr>
           ))}
           {txns.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">No spend / receive money or transfers</td></tr>}

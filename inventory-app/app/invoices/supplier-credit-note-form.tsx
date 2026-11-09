@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createSupplierCreditNote, getPaymentAccounts } from "@/lib/api";
 import { Invoice, PaymentAccount } from "@/types";
 import { isoDay } from "../customers/statement-card";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Settle = "APPLY_TO_BILL" | "REFUND" | "KEEP_AS_CREDIT";
 const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1 text-sm";
@@ -17,6 +18,7 @@ const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1 text-sm";
 export default function SupplierCreditNoteForm({ bill, onDone, onCancel }: {
   bill: Invoice; onDone: (creditNote: Invoice) => void; onCancel: () => void;
 }) {
+  const ask = useConfirm();
   const { data: accounts = [] } = useQuery<PaymentAccount[]>({ queryKey: ["payment-accounts"], queryFn: getPaymentAccounts });
   const active = accounts.filter(a => a.active);
   const [number, setNumber] = useState("");
@@ -36,13 +38,17 @@ export default function SupplierCreditNoteForm({ bill, onDone, onCancel }: {
     onError: (e: unknown) => setError((e as { response?: { data?: { error?: string } } })?.response?.data?.error || "Could not create the credit note"),
   });
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     const lines = bill.items.filter(i => Number(qty[i.id] || 0) > 0)
       .map(i => ({ invoiceItemId: i.id, quantity: Number(qty[i.id]), returnGoods: !!back[i.id] }));
     const charges = extra.description.trim() && extra.price ? [{ description: extra.description.trim(), unitPrice: Number(extra.price) }] : [];
     if (lines.length === 0 && charges.length === 0) { setError("Credit at least one line or amount"); return; }
+    const returned = lines.filter(l => l.returnGoods).length;
+    if (!(await ask({ title: `Record a supplier credit for ${bill.invoiceNumber}?`,
+      message: returned ? `${returned} line${returned !== 1 ? "s go" : " goes"} back to the supplier and leave stock.` : "No goods go back.",
+      details: `${lines.length} line${lines.length !== 1 ? "s" : ""}${charges.length ? " + an amount" : ""}`, action: "Record credit" }))) return;
     const refundAccount = refund.accountId || String(active.find(a => a.defaultAccount)?.id ?? "");
     save.mutate({ id: bill.id, data: {
       number: number.trim() || undefined, date, lines, charges, reason: reason.trim() || undefined, settle,

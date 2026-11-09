@@ -8,6 +8,7 @@ import { bookCourier, cancelCourier, createPickList, getCourierLabel, getCourier
 import { CourierQuote, CourierShipment, OrderWarehouse } from "@/types";
 import { BTN_PRIMARY, BTN_SECONDARY, TrailCard } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const q = (n: number) => Number(n).toLocaleString("en-GB", { maximumFractionDigits: 4 });
@@ -23,6 +24,7 @@ const COURIER_STATUS: Record<string, string> = { BOOKED: "booked", SHIPPED: "shi
  * customer when ticked), despatch note.
  */
 export default function WarehouseCard({ orderId, onShipped }: { orderId: number; onShipped: () => void }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: w } = useQuery<OrderWarehouse>({ queryKey: ["order-warehouse", orderId], queryFn: () => getOrderWarehouse(orderId) });
   const [carton, setCarton] = useState({ weight: "", l: "", w: "", h: "" });
@@ -67,14 +69,14 @@ export default function WarehouseCard({ orderId, onShipped }: { orderId: number;
         <li key={p.id}>Carton {p.number}{p.weightKg ? ` · ${q(p.weightKg)} kg` : ""} · {p.lines.map(l => `${q(l.quantity)} × ${l.sku}`).join(", ")} ·{" "}
           <span className={p.status === "SHIPPED" ? "text-green-700" : "text-amber-700"}>{p.status === "SHIPPED" ? "shipped" : "to ship"}</span></li>))}</ul>}
       <div className="mt-2 space-y-2 text-xs">
-        {w.stage === "AUTHORISED" && <button className={BTN_SECONDARY} onClick={() => pick.mutate()}>Make pick list</button>}
+        {w.stage === "AUTHORISED" && <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Make a pick list for this order?", action: "Make pick list" })) pick.mutate(); }}>Make pick list</button>}
         {w.stage === "PICKING" && <Link href="/picking" className="text-brand-700 hover:underline">Being picked: open the pick lists</Link>}
         {packable && <div className="flex flex-wrap items-center gap-1">
           <input aria-label="Carton weight kg" placeholder="kg" className={INPUT} value={carton.weight} onChange={e => setCarton({ ...carton, weight: e.target.value })} />
           <input aria-label="Carton length cm" placeholder="L cm" className={INPUT} value={carton.l} onChange={e => setCarton({ ...carton, l: e.target.value })} />
           <input aria-label="Carton width cm" placeholder="W cm" className={INPUT} value={carton.w} onChange={e => setCarton({ ...carton, w: e.target.value })} />
           <input aria-label="Carton height cm" placeholder="H cm" className={INPUT} value={carton.h} onChange={e => setCarton({ ...carton, h: e.target.value })} />
-          <button className={BTN_SECONDARY} onClick={() => pack.mutate()}>Pack into a carton</button>
+          <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Pack the picked items into a carton?", action: "Pack" })) pack.mutate(); }}>Pack into a carton</button>
         </div>}
         {bookings.length > 0 && <ul className="space-y-1" data-testid="courier-bookings">{bookings.map(b => (
           <li key={b.id} className={b.status === "CANCELLED" ? "text-gray-400 line-through" : ""}>
@@ -84,7 +86,7 @@ export default function WarehouseCard({ orderId, onShipped }: { orderId: number;
             {b.status !== "CANCELLED" && <span className="ml-2 space-x-2">
               <button className="text-brand-700 hover:underline" onClick={() => openPdf(() => getCourierLabel(b.id), `Label-${b.trackingNumber}.pdf`)}>Label</button>
               <button className="text-brand-700 hover:underline" onClick={() => track.mutate(b.id)}>Track</button>
-              {b.status === "BOOKED" && <button className="text-red-700 hover:underline" onClick={() => cancelBooking.mutate(b.id)}>Cancel booking</button>}
+              {b.status === "BOOKED" && <button className="text-red-700 hover:underline" onClick={async () => { if (await ask({ title: "Cancel this courier booking?", action: "Cancel booking", danger: true })) cancelBooking.mutate(b.id); }}>Cancel booking</button>}
             </span>}
           </li>))}</ul>}
         {packed && !booked && !quote && <button className={BTN_SECONDARY} onClick={() => services.mutate()}>Book courier</button>}
@@ -92,7 +94,7 @@ export default function WarehouseCard({ orderId, onShipped }: { orderId: number;
           <select aria-label="Courier service" className="border border-gray-300 rounded px-1.5 py-1 text-xs" value={service} onChange={e => setService(e.target.value)}>
             {quote.services.map(o => <option key={o.serviceCode} value={o.serviceCode}>{o.name} · {gbp(o.price)} · {o.days} day{o.days === 1 ? "" : "s"}</option>)}
           </select>
-          <button className={BTN_PRIMARY} disabled={!service || book.isPending} onClick={() => book.mutate()}>Book</button>
+          <button className={BTN_PRIMARY} disabled={!service || book.isPending} onClick={async () => { if (await ask({ title: "Book this courier?", message: "The courier is booked for the cartons and may charge for it.", action: "Book" })) book.mutate(); }}>Book</button>
           <button className="text-gray-500 hover:underline" onClick={() => setQuote(null)}>Close</button>
           {quote.mode === "fake" && <span className="text-gray-500">Test courier: nothing is really booked</span>}
         </div>}
@@ -102,7 +104,7 @@ export default function WarehouseCard({ orderId, onShipped }: { orderId: number;
         {packed && <div className="flex flex-wrap items-center gap-1">
           {!booked && <><input aria-label="Carrier" placeholder="Carrier" className={`${INPUT} w-24`} value={ship.carrier} onChange={e => setShip({ ...ship, carrier: e.target.value })} />
           <input aria-label="Tracking number" placeholder="Tracking" className={`${INPUT} w-28`} value={ship.tracking} onChange={e => setShip({ ...ship, tracking: e.target.value })} /></>}
-          <button className={BTN_PRIMARY} onClick={() => doShip.mutate()}>Ship cartons</button>
+          <button className={BTN_PRIMARY} onClick={async () => { if (await ask({ title: "Ship the cartons?", message: "The stock leaves the warehouse.", action: "Ship" })) doShip.mutate(); }}>Ship cartons</button>
         </div>}
         {w.packages.length > 0 && <button className="text-brand-700 hover:underline" onClick={() => openPdf(() => getDespatchNote(orderId), `Despatch-${w.orderNumber}.pdf`)}>Despatch note</button>}
         {note && <p className="text-gray-600" data-testid="ship-email">{note}</p>}

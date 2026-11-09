@@ -6,6 +6,7 @@ import { getShopifyRefunds, applyShopifyRefund, dismissShopifyRefund } from "@/l
 import { ShopifyRefund } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 function errorText(e: unknown) {
   return (e as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ?? "Something went wrong";
@@ -20,6 +21,7 @@ const RESTOCK_LABEL: Record<string, string> = {
  * items back in stock) or cancels what has not shipped; "Dismiss" when nothing is needed (business-rules.md §5).
  */
 function Refund({ orderId, refund }: { orderId: number; refund: ShopifyRefund }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [restock, setRestock] = useState<number[]>(
     refund.lines.filter(l => l.restockType === "return" && l.saleOrderLineId != null).map(l => l.saleOrderLineId as number));
@@ -68,7 +70,7 @@ function Refund({ orderId, refund }: { orderId: number; refund: ShopifyRefund })
       {Number(refund.otherAmount) > 0 && <p className="text-xs mt-1">Beyond the items (shipping or other): {formatGBP(refund.otherAmount)}</p>}
       {open ? (
         <div className="mt-2 flex items-center gap-3">
-          <button type="button" disabled={apply.isPending} onClick={() => apply.mutate()}
+          <button type="button" disabled={apply.isPending} onClick={async () => { if (await ask({ title: "Apply this Shopify refund here?", message: "The credit note and any restock are recorded in the ERP.", action: "Apply refund" })) apply.mutate(); }}
             className="bg-brand-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
             {apply.isPending ? "Applying..." : "Apply in the ERP"}
           </button>

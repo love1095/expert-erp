@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getShopifyConnection, importShopifyOrders } from "@/lib/api";
 import { ShopifyConnection, ShopifyImportResult } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const BUTTON_SECONDARY = "border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
 
@@ -23,6 +24,7 @@ export function ShopifyImportButton({ onOpen }: { onOpen: () => void }) {
 }
 
 export function ShopifyImportPanel({ onClose }: { onClose: () => void }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: conn } = useQuery<ShopifyConnection | null>({ queryKey: ["shopify-connection"], queryFn: getShopifyConnection });
   const [days, setDays] = useState(30);
@@ -61,7 +63,7 @@ export function ShopifyImportPanel({ onClose }: { onClose: () => void }) {
           <option value={30}>Last 30 days</option>
           <option value={60}>Last 60 days</option>
         </select>
-        <button onClick={() => importMutation.mutate(days)} disabled={importMutation.isPending}
+        <button onClick={async () => { if (await ask({ title: `Import Shopify orders from the last ${days} days?`, message: "Orders already here are not created twice.", action: "Import" })) importMutation.mutate(days); }} disabled={importMutation.isPending}
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
           {importMutation.isPending ? "Importing..." : "Import orders"}
         </button>

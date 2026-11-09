@@ -7,6 +7,7 @@ import { FoundProduct, StockAdjustment } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const gbp = (n: number | null | undefined) => n == null ? "" : Number(n).toLocaleString("en-GB", { style: "currency", currency: "GBP" });
@@ -19,6 +20,7 @@ const STATUS_LABEL: Record<string, string> = { PENDING: "Waiting for approval", 
  * at cost. One worth more than the approval value waits here for a manager to approve or reject.
  */
 export default function StockAdjustmentsPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { user, can } = useAuth();
   const manager = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || user?.role === "MANAGER";
@@ -95,7 +97,7 @@ export default function StockAdjustmentsPage() {
             <label className="flex flex-col gap-1 md:col-span-3">Note
               <input className="border rounded px-2 py-1.5" aria-label="Note" value={note} onChange={e => setNote(e.target.value)} /></label>
             <div className="flex items-end">
-              <button className={BTN_PRIMARY} disabled={!product || !wh || !(Number(qty) > 0) || save.isPending} onClick={() => save.mutate()}>Save adjustment</button>
+              <button className={BTN_PRIMARY} disabled={!product || !wh || !(Number(qty) > 0) || save.isPending} onClick={async () => { if (await ask({ title: "Save this stock adjustment?", message: "Stock changes at once, or waits for a manager above the approval value.", action: "Save adjustment" })) save.mutate(); }}>Save adjustment</button>
             </div>
           </div>
           {msg && <p role="alert" className={`text-sm ${msg.ok ? "text-green-700" : "text-red-700"}`}>{msg.text}</p>}
@@ -128,8 +130,8 @@ export default function StockAdjustmentsPage() {
           <h2 className="font-semibold px-5 pt-4">Waiting for approval</h2>
           <AdjustTable rows={pending} actions={manager ? a => (
             <span className="flex gap-3 justify-end">
-              <button className="text-green-700 hover:underline" onClick={() => decide.mutate({ id: a.id, ok: true })}>Approve</button>
-              <button className="text-red-700 hover:underline" onClick={() => decide.mutate({ id: a.id, ok: false })}>Reject</button>
+              <button className="text-green-700 hover:underline" onClick={async () => { if (await ask({ title: "Approve this adjustment?", message: "The stock changes.", action: "Approve" })) decide.mutate({ id: a.id, ok: true }); }}>Approve</button>
+              <button className="text-red-700 hover:underline" onClick={async () => { if (await ask({ title: "Reject this adjustment?", action: "Reject", danger: true })) decide.mutate({ id: a.id, ok: false }); }}>Reject</button>
             </span>) : undefined} />
         </section>
       )}

@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const when = (d: string | null) => (d ? new Date(d).toLocaleString("en-GB") : "");
@@ -35,6 +36,7 @@ export default function XeroPage() {
 }
 
 function Connection({ conn, manage }: { conn: XeroConnection; manage: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [msg, setMsg] = useState("");
   const refresh = () => qc.invalidateQueries({ queryKey: ["xero-connection"] });
@@ -58,7 +60,7 @@ function Connection({ conn, manage }: { conn: XeroConnection; manage: boolean })
         {manage && conn.status === "CHOOSE_ORGANISATION" && conn.organisations.map(o => (
           <button key={o.tenantId} className={BTN_SECONDARY} onClick={() => choose.mutate(o.tenantId)}>{o.tenantName}</button>))}
         {manage && conn.configured && conn.status !== "CONNECTED" && <button className={BTN_PRIMARY} onClick={() => connect.mutate()}>Connect to Xero</button>}
-        {manage && conn.status === "CONNECTED" && <button className={BTN_SECONDARY} onClick={() => disconnect.mutate()}>Disconnect</button>}
+        {manage && conn.status === "CONNECTED" && <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Disconnect Xero?", message: "Nothing is sent to Xero until it is connected again.", action: "Disconnect", danger: true })) disconnect.mutate(); }}>Disconnect</button>}
       </div>
       {conn.lastError && <p className="text-sm text-red-700">{conn.lastError}</p>}
       {msg && <p role="alert" className="text-sm text-red-700">{msg}</p>}
@@ -67,6 +69,7 @@ function Connection({ conn, manage }: { conn: XeroConnection; manage: boolean })
 }
 
 function LinkChoice({ link, manage, connected }: { link: "CSV" | "API"; manage: boolean; connected: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [msg, setMsg] = useState("");
   const set = useMutation({ mutationFn: setXeroLink, onSuccess: () => { setMsg(""); qc.invalidateQueries({ queryKey: ["xero-link"] }); }, onError: e => setMsg(errorOf(e)) });
@@ -80,8 +83,8 @@ function LinkChoice({ link, manage, connected }: { link: "CSV" | "API"; manage: 
       </p>
       {manage && (
         <div className="flex gap-2 text-sm">
-          <button className={link === "CSV" ? BTN_PRIMARY : BTN_SECONDARY} disabled={link === "CSV"} onClick={() => set.mutate("CSV")}>CSV files</button>
-          <button className={link === "API" ? BTN_PRIMARY : BTN_SECONDARY} disabled={link === "API" || !connected} onClick={() => set.mutate("API")}>
+          <button className={link === "CSV" ? BTN_PRIMARY : BTN_SECONDARY} disabled={link === "CSV"} onClick={async () => { if (await ask({ title: "Switch the Xero link to CSV files?", action: "Switch" })) set.mutate("CSV"); }}>CSV files</button>
+          <button className={link === "API" ? BTN_PRIMARY : BTN_SECONDARY} disabled={link === "API" || !connected} onClick={async () => { if (await ask({ title: "Switch the Xero link to the Xero API?", message: "Documents are then sent to Xero directly.", action: "Switch" })) set.mutate("API"); }}>
             Send through the Xero link</button>
           {!connected && link === "CSV" && <span className="text-xs text-gray-500 self-center">Connect to Xero first</span>}
         </div>
@@ -92,6 +95,7 @@ function LinkChoice({ link, manage, connected }: { link: "CSV" | "API"; manage: 
 }
 
 function Queue({ manage }: { manage: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [status, setStatus] = useState<"" | "FAILED" | "PENDING" | "SENT">("");
   const [msg, setMsg] = useState("");
@@ -105,7 +109,7 @@ function Queue({ manage }: { manage: boolean }) {
       <div className="px-5 pt-4 flex flex-wrap items-center gap-3">
         <h2 className="font-semibold">Sent to Xero</h2>
         <span className="text-sm text-gray-600" data-testid="xero-counts">{c.PENDING ?? 0} waiting · <span className={(c.FAILED ?? 0) > 0 ? "text-red-700 font-medium" : ""}>{c.FAILED ?? 0} failed</span> · {c.SENT ?? 0} sent</span>
-        {manage && <button className={BTN_SECONDARY} disabled={run.isPending} onClick={() => run.mutate()}>{run.isPending ? "Sending…" : "Send now"}</button>}
+        {manage && <button className={BTN_SECONDARY} disabled={run.isPending} onClick={async () => { if (await ask({ title: "Send to Xero now?", message: "The documents waiting are sent to Xero.", action: "Send" })) run.mutate(); }}>{run.isPending ? "Sending…" : "Send now"}</button>}
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}
       </div>
       <div className="flex gap-5 border-b border-gray-200 text-sm px-5 mt-2" role="tablist">
@@ -125,7 +129,7 @@ function Queue({ manage }: { manage: boolean }) {
               <td>{i.attempts}</td>
               <td className="text-xs text-gray-500">{i.status === "SENT" ? when(i.sentAt) : i.status === "PENDING" ? `next ${when(i.nextAttemptAt)}` : when(i.createdAt)}</td>
               <td className="text-xs max-w-md">{i.status === "SENT" ? <span className="font-mono text-gray-400">{i.lastError ?? i.xeroId}</span> : <span className="text-red-700">{i.lastError}</span>}</td>
-              <td className="px-5 text-right">{manage && i.status === "FAILED" && <button className={BTN_SECONDARY} onClick={() => retry.mutate(i.id)}>Retry</button>}</td>
+              <td className="px-5 text-right">{manage && i.status === "FAILED" && <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Send this document to Xero again?", action: "Retry" })) retry.mutate(i.id); }}>Retry</button>}</td>
             </tr>
           ))}
           {(data?.items ?? []).length === 0 && <tr><td colSpan={6} className="px-5 py-4 text-gray-400">Nothing here</td></tr>}
@@ -136,6 +140,7 @@ function Queue({ manage }: { manage: boolean }) {
 }
 
 function PaymentsFromXero({ manage }: { manage: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [msg, setMsg] = useState("");
   const { data = [] } = useQuery<XeroPulledPayment[]>({ queryKey: ["xero-payments"], queryFn: getXeroPayments });
@@ -151,7 +156,7 @@ function PaymentsFromXero({ manage }: { manage: boolean }) {
     <section className="bg-white border border-gray-200 rounded-xl" data-testid="xero-payments">
       <div className="px-5 pt-4 flex items-center gap-3">
         <h2 className="font-semibold">Payments entered in Xero</h2>
-        {manage && <button className={BTN_SECONDARY} disabled={pull.isPending} onClick={() => pull.mutate()}>Pull now</button>}
+        {manage && <button className={BTN_SECONDARY} disabled={pull.isPending} onClick={async () => { if (await ask({ title: "Pull payments from Xero now?", message: "Payments made in Xero are recorded here.", action: "Pull" })) pull.mutate(); }}>Pull now</button>}
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}
       </div>
       <p className="px-5 text-xs text-gray-500">Checked every 5 minutes (and at once when Xero says something changed); recorded against the invoice or bill here.</p>

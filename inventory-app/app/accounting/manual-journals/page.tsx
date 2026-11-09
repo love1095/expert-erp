@@ -9,9 +9,11 @@ import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { errorOf } from "../ledger-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 /** Phase K1: Xero's Manual journals — Draft / Posted / Voided tabs; narration, date, lines with debits = credits. */
 export default function ManualJournalsPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [status, setStatus] = useState<"" | "DRAFT" | "POSTED" | "VOIDED">("");
   const [error, setError] = useState("");
@@ -49,8 +51,8 @@ export default function ManualJournalsPage() {
               <td className="text-right tabular-nums">{formatGBP(j.total)}</td>
               <td><span className={`text-xs px-2 py-0.5 rounded ${j.status === "POSTED" ? "bg-green-50 text-green-700" : j.status === "VOIDED" ? "bg-gray-100 text-gray-500" : "bg-amber-50 text-amber-700"}`}>{j.status === "POSTED" ? "Posted" : j.status === "VOIDED" ? "Voided" : "Draft"}</span></td>
               <td className="px-4 text-right whitespace-nowrap space-x-2">
-                {j.status === "DRAFT" && <button className={BTN_SECONDARY} onClick={() => act.mutate({ id: j.id, what: "post" })}>Post</button>}
-                {j.status !== "VOIDED" && <button className={BTN_DANGER} onClick={() => act.mutate({ id: j.id, what: "void" })}>{j.status === "DRAFT" ? "Delete" : "Void"}</button>}
+                {j.status === "DRAFT" && <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Post this journal?", message: "It goes into the accounts. Afterwards it can only be voided.", action: "Post" })) act.mutate({ id: j.id, what: "post" }); }}>Post</button>}
+                {j.status !== "VOIDED" && <button className={BTN_DANGER} onClick={async () => { if (await ask({ title: `${j.status === "DRAFT" ? "Delete" : "Void"} this journal?`, action: j.status === "DRAFT" ? "Delete" : "Void", danger: true })) act.mutate({ id: j.id, what: "void" }); }}>{j.status === "DRAFT" ? "Delete" : "Void"}</button>}
               </td>
             </tr>
           ))}

@@ -42,7 +42,9 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## Review fixes to do (found in the review, details in [`review-findings.md`](review-findings.md))
 Done module by module with the page recheck (Part 4 step 5 of the review plan), so each page is touched once.
-- [ ] **R7 Confirmation pop-ups** (rule D2, owner 2026-11-09: later): one shared app pop-up replacing the 23 browser `confirm()` boxes; then Danger (red) and Posting (summary of stock/money changed) pop-ups on the other actions, module by module; ticked-row actions always ask; e2e helper `confirmAction` and tests. **Owner to choose for saves**: a) pop-up on every save, or b) (recommended) no pop-up, "Saved" message, unsaved-changes warning, pop-up only when editing money or stock already booked
+- [x] **R7 Confirmation pop-ups** steps 1–2 done 2026-11-09: own pop-up, 23 browser boxes replaced, ~70 actions that move stock or money, delete or send now ask, ticked rows always ask
+- [ ] **R7 step 3, saves**: owner to choose a) pop-up on every save, or b) (recommended) no pop-up, "Saved" message, unsaved-changes warning, pop-up only when editing money or stock already booked
+- [ ] **R7 reasons**: move the `prompt()` reason boxes (void payment, credit hold, remove credit, dismiss refund) into the pop-up
 - [ ] **R1 Search uses its indexes**: drop `coalesce` in search WHERE parts, trigram indexes for the missing columns, EXPLAIN test
 - [x] **R2 "+ New" on its own page** (rule D1): done 2026-11-09 for orders, products, customers, suppliers (with a first supplier record page), hand-typed invoices and bills, manual journals (with a journal page); edit on the record page
 - [ ] **S6 supplier page, rest**: statement, supplier deposits and contacts/addresses on `/suppliers/{id}` (first version 2026-11-09)

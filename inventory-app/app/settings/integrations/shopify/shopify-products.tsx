@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { syncShopifyProducts, getShopifyProductSync } from "@/lib/api";
 import { ShopifyConnection, ShopifyProductSync } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const PHASES: ShopifyProductSync["phase"][] = ["SENDING", "REMOVING", "STOCK"];
 const PHASE_LABEL: Record<ShopifyProductSync["phase"], string> = {
@@ -18,6 +19,7 @@ const BUTTON = "bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium
 
 /** Product sync: sends every ERP product (details, price, cost, stock) to Shopify, in the background. */
 export default function ShopifyProducts({ conn }: { conn: ShopifyConnection }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +67,7 @@ export default function ShopifyProducts({ conn }: { conn: ShopifyConnection }) {
             <p className="text-xs text-gray-500 mt-1">Last sync: <ClientDate iso={conn.lastProductSyncAt} showTime /></p>
           )}
         </div>
-        <button onClick={() => startMutation.mutate()} disabled={running || startMutation.isPending || !connected || !canWrite}
+        <button onClick={async () => { if (await ask({ title: "Send the products to Shopify?", action: "Start sync" })) startMutation.mutate(); }} disabled={running || startMutation.isPending || !connected || !canWrite}
           className={`${BUTTON} shrink-0`}>
           {running ? "Syncing..." : "Sync products to Shopify"}
         </button>

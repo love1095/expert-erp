@@ -18,6 +18,7 @@ import {
 import PurchaseOrderForm from "./purchase-order-form";
 import BillForm from "./bill-form";
 import SupplierDeposits from "./supplier-deposits";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export const PO_STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -54,6 +55,7 @@ const PO_LINE_COLS: [string, boolean][] = [["Product", false], ["Supplier SKU", 
   ["To receive", true], ["Billed", true], ["Price", true], ["Disc.", true], ["Tax rule", false], ["Total", true]];
 
 export default function PurchaseOrderView({ orderId }: { orderId: number }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: po, isLoading } = useQuery<PurchaseOrder>({ queryKey: ["purchase-order", orderId], queryFn: () => getPurchaseOrder(orderId) });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
@@ -110,10 +112,13 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
     setError("");
     setReceiving(true);
   };
-  const submitReceipt = (e: React.FormEvent) => {
+  const submitReceipt = async (e: React.FormEvent) => {
     e.preventDefault();
     const lines = po.lines.map(l => ({ purchaseOrderLineId: l.id, quantity: Number(amounts[l.id] || 0) })).filter(x => x.quantity > 0);
     if (lines.length === 0) { setError("Enter what arrived for at least one line"); return; }
+    const units = lines.reduce((t, l) => t + l.quantity, 0);
+    if (!(await ask({ title: `Receive goods on ${po.orderNumber}?`, message: "They are added to stock at the PO's cost.",
+      details: `${lines.length} line${lines.length !== 1 ? "s" : ""} · ${units} unit${units !== 1 ? "s" : ""}`, action: "Receive" }))) return;
     receiveMut.mutate({ id: po.id, data: {
       idempotencyKey: receipt.key, receivedOn: receipt.receivedOn || undefined,
       warehouseId: receipt.warehouseId ? Number(receipt.warehouseId) : undefined, notes: receipt.notes || undefined, lines,
@@ -143,13 +148,13 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
           {canBill && <button disabled={busy} onClick={() => { setError(""); setBilling(true); }} className={BTN_SECONDARY}>Enter bill</button>}
           {open && <>
           {anyReceived ? (
-            <button disabled={busy} onClick={() => { if (confirm("Nothing more is coming? What is still outstanding is closed short.")) shortMut.mutate(po.id); }}
+            <button disabled={busy} onClick={async () => { if (await ask({ title: "Nothing more is coming? What is still outstanding is closed short.", action: "Close short", danger: true })) shortMut.mutate(po.id); }}
               className={BTN_SECONDARY}>Close short</button>
           ) : (
-            <button disabled={busy} onClick={() => { if (confirm(`Cancel ${po.orderNumber}?`)) cancelMut.mutate(po.id); }} className={BTN_DANGER}>Cancel PO</button>
+            <button disabled={busy} onClick={async () => { if (await ask({ title: `Cancel ${po.orderNumber}?`, action: "Cancel PO", danger: true })) cancelMut.mutate(po.id); }} className={BTN_DANGER}>Cancel PO</button>
           )}
           {po.status === "DRAFT" && <button disabled={busy} onClick={() => setEditing(true)} className={BTN_SECONDARY}>Edit</button>}
-          {po.status === "DRAFT" && <button disabled={busy} onClick={() => orderMut.mutate(po.id)} className={BTN_SECONDARY}>Mark as ordered</button>}
+          {po.status === "DRAFT" && <button disabled={busy} onClick={async () => { if (await ask({ title: `Mark ${po.orderNumber} as ordered?`, message: "It is placed with the supplier; its lines can no longer be changed freely.", action: "Mark as ordered" })) orderMut.mutate(po.id); }} className={BTN_SECONDARY}>Mark as ordered</button>}
           <button disabled={busy} onClick={startReceiving} className={BTN_PRIMARY}>Receive stock</button>
           </>}
         </>}

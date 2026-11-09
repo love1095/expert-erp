@@ -32,15 +32,19 @@ test.describe('List actions', () => {
       await page.reload();
       await page.getByTestId(`so-select-${a.id}`).check();
       await page.getByTestId(`so-select-${b.id}`).check();
-      // (the fixture accepts confirm dialogs)
-      let asked = '';
-      page.once('dialog', d => { asked = d.message(); });
+      // The app's pop-up (review R7) says how many rows and Cin7's words; looked at here instead of auto-confirmed
+      await page.removeLocatorHandler(page.getByTestId('confirm-dialog'));
       await bar.getByRole('button', { name: 'Undo' }).click();
+      const dialog = page.getByTestId('confirm-dialog');
+      await expect(dialog).toContainText('Undo 2 ticked rows?');
+      await expect(dialog).toContainText('This will change the task status back to draft. Would you like to proceed anyway?');
+      await expect(dialog).toContainText(a.orderNumber);
+      await dialog.getByTestId('confirm-ok').click();
+      await page.addLocatorHandler(dialog, d => d.getByTestId('confirm-ok').click());
       const result = page.getByTestId('bulk-result');
       await expect(result).toContainText('Undo: 1 done, 1 not done');
       await expect(result).toContainText(b.orderNumber);
       expect(await status(a.id)).toBe('DRAFT');
-      expect(asked).toBe('This will change the task status back to draft. Would you like to proceed anyway?');
 
       // Export downloads the ticked rows
       await page.getByTestId(`so-select-${a.id}`).check();

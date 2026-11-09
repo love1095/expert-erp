@@ -5,11 +5,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { getWarehouses, importStock } from "@/lib/api";
 import { StockImportResult, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const qty = (n: number) => n.toLocaleString();
 
 // Cin7 stock file → stock in one warehouse set to the file's OnHand. Preview first, then import.
 export default function StockImport({ onImported }: { onImported: () => void }) {
+  const ask = useConfirm();
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses-all"], queryFn: getWarehouses });
   const [warehouseId, setWarehouseId] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -86,7 +88,7 @@ export default function StockImport({ onImported }: { onImported: () => void }) 
             </ul>
           )}
           {!result.applied && result.changed > 0 && (
-            <button onClick={() => run.mutate(true)} disabled={run.isPending}
+            <button onClick={async () => { if (await ask({ title: "Import the stock levels?", message: "Stock is adjusted to the quantities in the file.", action: "Import" })) run.mutate(true); }} disabled={run.isPending}
               className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               Import {qty(result.changed)} changes
             </button>

@@ -10,6 +10,7 @@ import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
 import { BTN_PRIMARY, TH, TD } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // Which suppliers' products are shown: all, one supplier, or products without a supplier
 type Scope = { kind: "all" } | { kind: "supplier"; id: number } | { kind: "none" };
@@ -23,6 +24,7 @@ const qty = (n: number) => Number(n).toLocaleString();
  * products become one draft purchase order per supplier, with the supplier's codes, prices and VAT.
  */
 export default function ReorderPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [scope, setScope] = useState<Scope>({ kind: "all" });
   const [search, setSearch] = useState("");
@@ -184,7 +186,7 @@ export default function ReorderPage() {
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
               <button type="button" disabled={chosenList.length === 0 || !deliverTo || withoutSupplier.length > 0 || raise.isPending}
-                onClick={() => { setError(""); raise.mutate(); }} className={BTN_PRIMARY}>
+                onClick={async () => { if (!(await ask({ title: "Raise purchase orders for the ticked products?", message: "One draft purchase order is made per supplier.", action: "Raise POs" }))) return; setError(""); raise.mutate(); }} className={BTN_PRIMARY}>
                 {raise.isPending ? "Creating..." : `Create draft PO${chosenSuppliers > 1 ? "s" : ""}`}
               </button>
             </div>

@@ -35,3 +35,12 @@
 .list-table th { white-space: nowrap; padding: 0.625rem 0.625rem; }
 .list-table td { white-space: nowrap; padding: 0.5rem 0.625rem; vertical-align: middle; }
 .list-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Confirm pop-up (review R7): quick fade and scale in, off when the device asks for less motion */
+@keyframes erp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes erp-pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+.erp-fade-in { animation: erp-fade-in 120ms ease-out; }
+.erp-pop-in { animation: erp-pop-in 150ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .erp-fade-in, .erp-pop-in { animation: none; }
+}

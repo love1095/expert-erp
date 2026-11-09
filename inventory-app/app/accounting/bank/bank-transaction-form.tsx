@@ -7,12 +7,14 @@ import { BankAccountCard, LedgerAccount, TaxRate } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { INPUT, errorOf, today } from "../ledger-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface Line { accountCode: string; description: string; amount: string; taxRule: string }
 const blank = (): Line => ({ accountCode: "", description: "", amount: "", taxRule: "" });
 
 /** Xero's Spend money / Receive money (amounts including VAT) and Transfer money. */
 export function BankTransactionForm({ kind, accounts, onDone }: { kind: "SPEND" | "RECEIVE" | "TRANSFER"; accounts: BankAccountCard[]; onDone: () => void }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: chart = [] } = useQuery<LedgerAccount[]>({ queryKey: ["ledger-accounts", false], queryFn: () => getLedgerAccounts(false) });
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", kind], queryFn: () => getTaxRates(kind === "RECEIVE" ? "SALE" : "PURCHASE"), enabled: kind !== "TRANSFER" });
@@ -76,7 +78,7 @@ export function BankTransactionForm({ kind, accounts, onDone }: { kind: "SPEND" 
         </table>
       )}
       <div className="flex gap-2">
-        <button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save</button>
+        <button className={BTN_PRIMARY} disabled={save.isPending} onClick={async () => { if (await ask({ title: "Record this bank transaction?", message: "It is posted to the accounts.", action: "Save" })) save.mutate(); }}>Save</button>
         <button className={BTN_SECONDARY} onClick={onDone}>Cancel</button>
       </div>
     </section>

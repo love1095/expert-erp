@@ -7,8 +7,10 @@ import { StockMovement, Product, Warehouse, Category, Page } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export default function StockMovementsPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
 
   const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>(undefined);
@@ -45,8 +47,9 @@ export default function StockMovementsPage() {
     onError: (e: any) => setError(e.response?.data?.error || "Failed to record movement"),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!(await ask({ title: "Record this stock movement?", message: "Stock changes at once.", details: `${form.quantity} unit(s)`, action: "Record" }))) return;
     createMutation.mutate({
       productId: Number(form.productId),
       warehouseId: Number(form.warehouseId),

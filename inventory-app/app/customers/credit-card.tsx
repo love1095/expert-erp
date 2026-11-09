@@ -8,12 +8,14 @@ import { formatGBP } from "@/lib/currency";
 import { ClientDate } from "@/components/ClientDate";
 import { Card } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 /**
  * Phase G2: what the customer owes and has on order against their credit limit, overdue invoices, and the hold.
  * On hold (by hand, over the limit, or overdue), their orders warn at entry and only a manager can confirm them.
  */
 export default function CreditCard({ customer }: { customer: Customer }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { user } = useAuth();
   const canHold = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
@@ -53,7 +55,7 @@ export default function CreditCard({ customer }: { customer: Customer }) {
       <div className="mt-3 flex items-center gap-3 text-xs">
         {st.manualHold ? <>
           <span className="text-gray-600">Put on hold by {st.heldBy}{st.heldAt && <>, <ClientDate iso={st.heldAt} /></>}: {st.holdReason}</span>
-          {canHold && <button type="button" onClick={() => hold.mutate({ on: false })} className="text-brand-700 hover:underline">Release the hold</button>}
+          {canHold && <button type="button" onClick={async () => { if (await ask({ title: "Release the credit hold?", action: "Release" })) hold.mutate({ on: false }); }} className="text-brand-700 hover:underline">Release the hold</button>}
         </> : canHold && (
           <button type="button" onClick={() => { const reason = window.prompt("Why is the customer put on hold?"); if (reason) hold.mutate({ on: true, reason }); }}
             className="text-red-600 hover:underline">Put on hold</button>

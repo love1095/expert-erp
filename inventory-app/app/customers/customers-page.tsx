@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, ListHead } from "@/components/ListToolbar";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // Cin7 Core's customer files, on the Import and Export menus
 const FILE_TYPES: { value: CustomerFileType; label: string }[] = [
@@ -20,6 +21,7 @@ const FILE_TYPES: { value: CustomerFileType; label: string }[] = [
 ];
 
 export default function CustomersPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -159,7 +161,7 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <Link href={`/customers/${c.id}?edit=1`} className="text-xs text-gray-500 hover:text-gray-800">Edit</Link>
-                          <button onClick={() => { if (confirm(`Delete customer "${c.name}"?`)) deleteMutation.mutate(c.id); }}
+                          <button onClick={async () => { if (await ask({ title: `Delete customer "${c.name}"?`, action: "Delete", danger: true })) deleteMutation.mutate(c.id); }}
                             className="text-xs text-red-400 hover:text-red-600">Delete</button>
                         </td>
                       </tr>

@@ -9,6 +9,7 @@ import { ClientDate } from "@/components/ClientDate";
 import ShopifyOrders from "./shopify-orders";
 import ShopifyProducts from "./shopify-products";
 import ShopifyHealthCard from "./shopify-health";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400";
 
@@ -19,6 +20,7 @@ const STATUS: Record<ShopifyConnection["status"], { label: string; color: string
 };
 
 export default function ShopifyPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: conn, isLoading, error: loadError } = useQuery<ShopifyConnection | null>({
     queryKey: ["shopify-connection"],
@@ -123,7 +125,7 @@ export default function ShopifyPage() {
                     Change credentials
                   </button>
                 )}
-                <button onClick={() => { if (confirm(`Disconnect ${conn.shopDomain}? The saved credentials are deleted.`)) deleteMutation.mutate(); }}
+                <button onClick={async () => { if (await ask({ title: `Disconnect ${conn.shopDomain}? The saved credentials are deleted.`, action: "Disconnect", danger: true })) deleteMutation.mutate(); }}
                   className="ml-auto text-sm text-red-500 hover:text-red-700">
                   Disconnect
                 </button>

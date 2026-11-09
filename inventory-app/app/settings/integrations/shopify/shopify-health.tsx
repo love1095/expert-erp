@@ -7,9 +7,11 @@ import { getShopifyHealth, reconcileShopify, getShopifyRefundsToReview, syncShop
 import { ShopifyHealth, ShopifyReconcileResult, ShopifyRefundWaiting, ShopifyStockSyncResult } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 /** 7.5: is anything being lost? Webhook deliveries, failures waiting or given up, and the daily check. */
 export default function ShopifyHealthCard() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: health } = useQuery<ShopifyHealth | null>({ queryKey: ["shopify-health"], queryFn: getShopifyHealth, refetchInterval: 60_000 });
   const { data: refunds = [] } = useQuery<ShopifyRefundWaiting[]>({
@@ -79,7 +81,7 @@ export default function ShopifyHealthCard() {
           {stockResult && <p role="status" className="text-emerald-700 mt-1">✓ Stock sent: {stockResult.sent.toLocaleString()} products{stockResult.failed > 0 ? `, ${stockResult.failed} refused` : ""}</p>}
           {stockError && <p role="alert" className="text-red-600 mt-1">{stockError}</p>}
         </div>
-        <button type="button" onClick={() => sendStock.mutate()} disabled={sendStock.isPending}
+        <button type="button" onClick={async () => { if (await ask({ title: "Send stock levels to Shopify now?", action: "Send" })) sendStock.mutate(); }} disabled={sendStock.isPending}
           className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50 shrink-0">
           {sendStock.isPending ? "Sending..." : "Send all stock now"}
         </button>

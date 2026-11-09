@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // Cin7's list actions: tick rows, then Undo / Fill and authorise / Print / Email / Export / Void on all of them.
 export type BulkAction<T> = {
   label: string;
-  // Asked before anything is done
+  // Said in the pop-up before anything is done (actions that change the rows always ask, review R7)
   confirm?: string;
   // Run for each ticked row, one after another; a row that fails is reported and the others carry on
   each?: (row: T) => Promise<unknown>;
@@ -54,9 +55,20 @@ export function BulkActionBar<T>({ selected, name, actions, onClear, onDone }: {
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const ask = useConfirm();
 
   const run = async (a: BulkAction<T>) => {
-    if (a.confirm && !confirm(a.confirm)) return;
+    // Actions that change the ticked rows always ask, with how many (review R7); print and export do not
+    if (a.each || a.confirm) {
+      const n = selected.length;
+      const ok = await ask({
+        title: `${a.label} ${n} ticked row${n !== 1 ? "s" : ""}?`,
+        message: a.confirm,
+        details: selected.slice(0, 8).map(name).join(", ") + (n > 8 ? ` and ${n - 8} more` : ""),
+        action: a.label, danger: a.danger,
+      });
+      if (!ok) return;
+    }
     setResult(null);
     if (a.all) {
       setBusy(a.label);

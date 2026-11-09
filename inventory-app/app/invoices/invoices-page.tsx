@@ -10,10 +10,12 @@ import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 import { formatGBP } from "@/lib/currency";
 import { INVOICE_STATUS_COLOR as STATUS_COLOR } from "./invoice-view";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // ─── main component ──────────────────────────────────────────────────────────
 
 export default function InvoicesPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
 
   // list state
@@ -126,11 +128,11 @@ export default function InvoicesPage() {
                       <td className="num text-gray-500">{inv.amountPaid > 0 ? formatGBP(inv.amountPaid) : "—"}</td>
                       <td className="text-right space-x-2">
                         {inv.status === "DRAFT" && (
-                          <button onClick={e => { e.stopPropagation(); issueMut.mutate(inv.id); }}
+                          <button onClick={async e => { e.stopPropagation(); if (!(await ask({ title: `Issue ${inv.invoiceNumber}?`, message: "It can no longer be edited and is posted to the accounts.", action: "Issue" }))) return; issueMut.mutate(inv.id); }}
                             className="text-xs text-brand-700 hover:underline font-medium">Issue</button>
                         )}
                         {(inv.status === "DRAFT" || inv.status === "ISSUED") && inv.kind !== "CREDIT_NOTE" && (
-                          <button onClick={e => { e.stopPropagation(); cancelMut.mutate(inv.id); }}
+                          <button onClick={async e => { e.stopPropagation(); if (!(await ask({ title: `Cancel ${inv.invoiceNumber}?`, action: "Cancel invoice", danger: true }))) return; cancelMut.mutate(inv.id); }}
                             className="text-xs text-gray-400 hover:text-red-500 font-medium">Cancel</button>
                         )}
                       </td>

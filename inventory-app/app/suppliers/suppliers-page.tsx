@@ -8,8 +8,10 @@ import { Supplier, Page } from "@/types";
 import { useState } from "react";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar } from "@/components/ListToolbar";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export default function SuppliersPage({ initialSearch = "" }: { initialSearch?: string }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(0);
@@ -82,7 +84,7 @@ export default function SuppliersPage({ initialSearch = "" }: { initialSearch?: 
                     ) : "—"}</td>
                     <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <Link href={`/suppliers/${s.id}?edit=1`} className="text-xs text-gray-500 hover:text-gray-800">Edit</Link>
-                      <button onClick={() => { if (confirm(`Delete supplier "${s.name}"?`)) deleteMutation.mutate(s.id); }}
+                      <button onClick={async () => { if (await ask({ title: `Delete supplier "${s.name}"?`, action: "Delete", danger: true })) deleteMutation.mutate(s.id); }}
                         className="text-xs text-red-400 hover:text-red-600">Delete</button>
                     </td>
                   </tr>

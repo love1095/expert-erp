@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getShopifyEvents, retryShopifyEvent } from "@/lib/api";
 import { ShopifyWebhookEvent } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const EVENT_COLOR: Record<ShopifyWebhookEvent["status"], string> = {
   PROCESSED: "bg-emerald-100 text-emerald-700",
@@ -19,6 +20,7 @@ const EVENT_COLOR: Record<ShopifyWebhookEvent["status"], string> = {
  * tried again on their own, waiting longer each time (7.5); Retry runs one now.
  */
 export default function ShopifyWebhooks() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [failedOnly, setFailedOnly] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -82,7 +84,7 @@ export default function ShopifyWebhooks() {
                   <td className="px-4 py-3 text-xs text-red-600">{e.error ?? ""}</td>
                   <td className="px-4 py-3 text-right">
                     {(e.status === "FAILED" || e.status === "RECEIVED") && (
-                      <button type="button" disabled={retry.isPending} onClick={() => { setMessage(null); retry.mutate(e.id); }}
+                      <button type="button" disabled={retry.isPending} onClick={async () => { if (!(await ask({ title: "Process this Shopify webhook again?", action: "Retry" }))) return; setMessage(null); retry.mutate(e.id); }}
                         className="text-xs text-brand-600 hover:underline disabled:opacity-50">Retry</button>
                     )}
                   </td>

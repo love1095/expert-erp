@@ -10,6 +10,7 @@ import { ClientDate } from "@/components/ClientDate";
 import { BackLink, RecordHeader, Card, BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY, TH, TD } from "@/components/DetailParts";
 import { errorOf } from "../../ledger-parts";
 import JournalForm from "../journal-form";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const STATUS: Record<ManualJournal["status"], { label: string; color: string }> = {
   DRAFT: { label: "Draft", color: "bg-amber-50 text-amber-700" },
@@ -19,6 +20,7 @@ const STATUS: Record<ManualJournal["status"], { label: string; color: string }> 
 
 // One manual journal on its own page (review R2): a draft is edited here; a posted one can be voided
 export default function ManualJournalPage({ params }: { params: Promise<{ id: string }> }) {
+  const ask = useConfirm();
   const { id } = use(params);
   const journalId = Number(id);
   const router = useRouter();
@@ -50,10 +52,10 @@ export default function ManualJournalPage({ params }: { params: Promise<{ id: st
         </div>}
         actions={editing ? undefined : <>
           {j.status === "DRAFT" && <button type="button" className={BTN_SECONDARY} onClick={() => setEditing(true)}>Edit</button>}
-          {j.status === "DRAFT" && <button type="button" className={BTN_PRIMARY} disabled={act.isPending} onClick={() => act.mutate("post")}>Post</button>}
+          {j.status === "DRAFT" && <button type="button" className={BTN_PRIMARY} disabled={act.isPending} onClick={async () => { if (await ask({ title: "Post this journal?", message: "It goes into the accounts. Afterwards it can only be voided.", action: "Post" })) act.mutate("post"); }}>Post</button>}
           {j.status !== "VOIDED" && (
             <button type="button" className={BTN_DANGER} disabled={act.isPending}
-              onClick={() => { if (confirm(j.status === "DRAFT" ? "Delete this draft journal?" : "Void this journal? A reversing journal is posted.")) act.mutate("void"); }}>
+              onClick={async () => { if (await ask({ title: j.status === "DRAFT" ? "Delete this draft journal?" : "Void this journal? A reversing journal is posted.", action: j.status === "DRAFT" ? "Delete" : "Void", danger: true })) act.mutate("void"); }}>
               {j.status === "DRAFT" ? "Delete" : "Void"}
             </button>
           )}

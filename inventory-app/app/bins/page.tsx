@@ -7,6 +7,7 @@ import { Bin, ProductBins, Warehouse } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const INPUT = "border border-gray-300 rounded-md px-2 py-1.5 text-sm";
@@ -40,6 +41,7 @@ export default function BinsPage() {
 }
 
 function BinList({ warehouseId, manage }: { warehouseId: number; manage: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: bins = [] } = useQuery<Bin[]>({ queryKey: ["bins", warehouseId], queryFn: () => getBins(warehouseId) });
   const [code, setCode] = useState("");
@@ -72,7 +74,7 @@ function BinList({ warehouseId, manage }: { warehouseId: number; manage: boolean
               <td>{b.active ? "Active" : "Inactive"}</td>
               <td className="px-5 text-right space-x-2 whitespace-nowrap">{manage && <>
                 <button className="text-xs text-brand-700 hover:underline" onClick={() => update.mutate({ b, patch: { active: !b.active } })}>{b.active ? "Make inactive" : "Make active"}</button>
-                {Number(b.units) === 0 && <button className="text-xs text-red-600 hover:underline" onClick={() => remove.mutate(b.id)}>Delete</button>}
+                {Number(b.units) === 0 && <button className="text-xs text-red-600 hover:underline" onClick={async () => { if (await ask({ title: `Delete bin ${b.code}?`, action: "Delete", danger: true })) remove.mutate(b.id); }}>Delete</button>}
               </>}</td>
             </tr>
           ))}
@@ -84,6 +86,7 @@ function BinList({ warehouseId, manage }: { warehouseId: number; manage: boolean
 }
 
 function ProductStock({ warehouseId, manage }: { warehouseId: number; manage: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [productId, setProductId] = useState<number | null>(null);
@@ -133,7 +136,7 @@ function ProductStock({ warehouseId, manage }: { warehouseId: number; manage: bo
           <select aria-label="To bin" className={INPUT} value={move.to} onChange={e => setMove({ ...move, to: e.target.value })}>
             <option value="">to no bin</option>{active.map(b => <option key={b.id} value={b.id}>to {b.code}</option>)}
           </select>
-          <button className={BTN_SECONDARY} disabled={!move.qty} onClick={() => doMove.mutate()}>Move</button>
+          <button className={BTN_SECONDARY} disabled={!move.qty} onClick={async () => { if (await ask({ title: "Move the stock between bins?", action: "Move" })) doMove.mutate(); }}>Move</button>
         </div>}
       </>)}
       {msg && <p role="status" className="text-sm text-gray-600">{msg}</p>}
@@ -142,6 +145,7 @@ function ProductStock({ warehouseId, manage }: { warehouseId: number; manage: bo
 }
 
 function BinImport({ warehouseId }: { warehouseId: number }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<{ applied: boolean; rows: number; binsCreated: number; changed: number; warnings: string[] } | null>(null);
@@ -163,7 +167,7 @@ function BinImport({ warehouseId }: { warehouseId: number }) {
       {result && <div className="text-sm bg-gray-50 rounded px-3 py-2">
         {result.applied ? "✓ Imported" : "Preview"}: {result.rows} rows with a bin, {result.binsCreated} new bins, {result.changed} quantities set
         <ul className="text-xs text-amber-800 list-disc ml-5">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-        {!result.applied && result.changed > 0 && <button className={BTN_PRIMARY} onClick={() => run.mutate(true)}>Import</button>}
+        {!result.applied && result.changed > 0 && <button className={BTN_PRIMARY} onClick={async () => { if (await ask({ title: "Import the bin file?", message: "The bins in the file are created or changed.", action: "Import" })) run.mutate(true); }}>Import</button>}
       </div>}
     </section>
   );

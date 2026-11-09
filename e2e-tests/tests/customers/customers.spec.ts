@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/test';
+import { test, expect, clickAndConfirm } from '../../fixtures/test';
 import { addUser, apiFor, registerTenant, uid } from '../../fixtures/api';
 import path from 'node:path';
 
@@ -107,7 +107,7 @@ test.describe('Customers', () => {
 
       const dialogs: string[] = [];
       page.on('dialog', d => { if (d.type() === 'alert') dialogs.push(d.message()); });
-      await row.getByRole('button', { name: 'Delete' }).click();
+      await clickAndConfirm(page, row.getByRole('button', { name: 'Delete' }));
       await expect.poll(() => dialogs).toContainEqual(expect.stringContaining('cannot be deleted'));
       expect((await api.getCustomer(customer.id)).id).toBe(customer.id);
 

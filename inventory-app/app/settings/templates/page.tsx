@@ -7,6 +7,7 @@ import { DocType, DocumentTemplate } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const TYPES: { group: string; type: DocType; label: string; title: string }[] = [
   { group: "Sale", type: "QUOTE", label: "Quote", title: "Quote" },
@@ -33,6 +34,7 @@ function errorText(e: unknown, fallback: string) {
  * template is a set of layout settings on the ERP's own layout.
  */
 export default function TemplatesPage() {
+  const ask = useConfirm();
   const { user, can } = useAuth();
   // Q5: admins, or a role with Settings
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || can("SETTINGS");
@@ -92,7 +94,7 @@ export default function TemplatesPage() {
                       <span className="flex gap-2">
                         <button type="button" className="text-sm text-brand-700 hover:underline" onClick={() => { setMessage(null); setForm(x); }}>{isAdmin ? "Edit" : "View"}</button>
                         {isAdmin && <button type="button" className="text-sm text-red-600 hover:underline"
-                          onClick={() => { if (confirm(`Remove the template ${x.name}?`)) remove.mutate(x.id!); }}>Remove</button>}
+                          onClick={async () => { if (await ask({ title: `Remove the template ${x.name}?`, action: "Remove", danger: true })) remove.mutate(x.id!); }}>Remove</button>}
                       </span>
                     </li>
                   ))}

@@ -16,6 +16,7 @@ import {
 import CreditNoteForm from "./credit-note-form";
 import PaymentsCard from "./payments-card";
 import SupplierCreditNoteForm from "./supplier-credit-note-form";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export const INVOICE_STATUS_COLOR: Record<InvoiceStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -28,6 +29,7 @@ const money = (inv: Invoice, n: number | undefined) => `${inv.currency} ${Number
 
 // One invoice or credit note on its own page, like Cin7's invoice tab
 export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const router = useRouter();
   const { data: inv, isLoading } = useQuery<Invoice>({ queryKey: ["invoice", invoiceId], queryFn: () => getInvoice(invoiceId) });
@@ -86,13 +88,13 @@ export default function InvoiceView({ invoiceId }: { invoiceId: number }) {
           {inv.type === "SALES" && inv.status !== "DRAFT" && inv.status !== "CANCELLED" &&
             <EmailButton request={{ kind: isCreditNote ? "CREDIT_NOTE" : "INVOICE", id: inv.id }} docKey={`DOC:${inv.id}`} />}
           {(inv.status === "DRAFT" || inv.status === "ISSUED") && !isCreditNote && (
-            <button disabled={busy} onClick={() => { if (confirm(`Cancel ${inv.invoiceNumber}?`)) cancelMut.mutate(inv.id); }} className={BTN_DANGER}>
+            <button disabled={busy} onClick={async () => { if (await ask({ title: `Cancel ${inv.invoiceNumber}?`, action: "Cancel invoice", danger: true })) cancelMut.mutate(inv.id); }} className={BTN_DANGER}>
               Cancel invoice
             </button>
           )}
           {canCredit && <button disabled={busy} onClick={() => setCrediting(true)} className={BTN_SECONDARY}>
             {inv.type === "SALES" ? "Credit note & restock" : "Supplier credit note"}</button>}
-          {inv.status === "DRAFT" && <button disabled={busy} onClick={() => issueMut.mutate(inv.id)} className={BTN_PRIMARY}>Issue invoice</button>}
+          {inv.status === "DRAFT" && <button disabled={busy} onClick={async () => { if (await ask({ title: "Issue this invoice?", message: "It can no longer be edited and is posted to the accounts.", action: "Issue" })) issueMut.mutate(inv.id); }} className={BTN_PRIMARY}>Issue invoice</button>}
         </>}
       />
 

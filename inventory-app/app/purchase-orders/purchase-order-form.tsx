@@ -8,6 +8,7 @@ import { PurchaseOrder, Supplier, TaxRate, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "../sale-orders/product-picker";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitCost: string; discountPercent: string; supplierSku: string; taxRule: string; taxReason: string };
@@ -32,6 +33,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   editing?: PurchaseOrder;
   onCancel?: () => void;
 }) {
+  const ask = useConfirm();
   const { user } = useAuth();
   const mayChangeVat = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "PURCHASE"], queryFn: () => getTaxRates("PURCHASE") });
@@ -116,9 +118,11 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   );
 
   return (
-    <form onSubmit={e => {
+    <form onSubmit={async e => {
         e.preventDefault(); setError("");
         const as = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
+        // Placing the order with the supplier asks first (review R7); a plain save does not
+        if (as === "ordered" && !(await ask({ title: "Mark this PO as ordered?", message: "It is placed with the supplier.", action: "Mark as ordered" }))) return;
         save.mutate({ ordered: as === "ordered" });
       }}
       className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-4" data-testid="purchase-order-form">

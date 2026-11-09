@@ -165,7 +165,14 @@ Each finding records:
   2. Danger and Posting actions, module by module with the Part 2 page recheck (Sale → Purchase → Inventory → Finance → Accounting → Settings), so each page is touched once.
   3. Saves, as the owner chooses in point 3.
 - **Severity**: Major (a wrong click changes stock or money with no warning)
-- **Status**: Found, plan written. Owner (2026-11-09): do it later; on the to-do list in `docs/TODO.md` (Review fixes to do). Still to choose a) or b) for saves.
+- **Status**: Steps 1 and 2 fixed 2026-11-09 (owner: "implement popup to confirm for actions"):
+  - `components/ConfirmDialog.tsx`: `ConfirmProvider` + `useConfirm()`. Title, explanation, figures, Cancel and the action word; red with Cancel focused for dangerous actions; Escape or a click outside cancels; optional "type the name to confirm"; quick fade (off with reduced motion).
+  - All 23 browser `confirm()` boxes replaced.
+  - Ticked-row actions that change rows always ask, with the count and the first names.
+  - About 70 more actions now ask: ship, receive, return, transfer, stock movement, adjustment (save, approve, reject), stock take (start, post, cancel), pick lists, packing, courier booking and cancelling, confirm and convert orders, mark PO as ordered (also "Create & mark ordered"), enter a bill, issue and cancel invoices, credit notes, supplier credits, payments, credit used, supplier deposits, customer credit, journals post/void, bank transactions, reconcile create/transfer/unreconcile/void, statement and chart and bin and stock and task imports, VAT submit / mark filed / HMRC disconnect, Xero send/pull/retry/switch/disconnect, Shopify import, refunds, stock push, product sync, webhooks, e-mail send, deletes (bins, files, accounts, logo, statement lines), 2FA off and new codes, credit hold release.
+  - Not asking (on purpose): plain saves (step 3, owner to choose a or b), previews, look-ups, test connection, and actions that already ask for a reason with `prompt()` (void payment, credit hold, remove credit, dismiss refund; to move into the pop-up with a reason box later).
+  - Tests: e2e CONF-001 (red pop-up, Cancel / Escape / click outside keep the customer, Delete removes it), CONF-002 (confirm order asks with the number, Cancel leaves a draft); the fixture presses the pop-up's button for other tests (`autoConfirm`), `clickAndConfirm()` where a test reads the result through the API.
+  - **Still open**: step 3 saves, owner to choose a) or b); `prompt()` reasons into the pop-up.
 
 ## R8 A cleaner look for list pages and creation pages (owner, 2026-11-09)
 

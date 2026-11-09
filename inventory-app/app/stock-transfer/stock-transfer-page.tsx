@@ -5,8 +5,10 @@ import { createTransfer, getProducts, getWarehouses, getCategories } from "@/lib
 import { Product, Warehouse, StockMovement, Category } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export default function StockTransferPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
 
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
@@ -31,9 +33,11 @@ export default function StockTransferPage() {
     onError: (e: any) => setError(e.response?.data?.error || "Transfer failed"),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResult(null);
+    if (!(await ask({ title: "Transfer the stock?", message: "It leaves one warehouse and arrives in the other.",
+      details: `${form.quantity} unit${form.quantity === "1" ? "" : "s"}`, action: "Transfer" }))) return;
     mutation.mutate({
       productId: Number(form.productId),
       fromWarehouseId: Number(form.fromWarehouseId),

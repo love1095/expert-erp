@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createCreditNote, getWarehouses } from "@/lib/api";
 import { Invoice, PaymentMethod, Warehouse } from "@/types";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Settle = "APPLY_TO_INVOICE" | "REFUND" | "KEEP_AS_CREDIT";
 const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1 text-sm";
@@ -15,6 +16,7 @@ const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1 text-sm";
 export default function CreditNoteForm({ invoice, onDone, onCancel }: {
   invoice: Invoice; onDone: (creditNote: Invoice) => void; onCancel: () => void;
 }) {
+  const ask = useConfirm();
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses-all"], queryFn: getWarehouses });
   const [qty, setQty] = useState<Record<number, string>>({});
   const [restock, setRestock] = useState<Record<number, boolean>>({});
@@ -32,7 +34,7 @@ export default function CreditNoteForm({ invoice, onDone, onCancel }: {
     onError: (e: any) => setError(e.response?.data?.error || "Could not create the credit note"),
   });
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     const lines = invoice.items
@@ -40,6 +42,10 @@ export default function CreditNoteForm({ invoice, onDone, onCancel }: {
       .map(i => ({ invoiceItemId: i.id, quantity: Number(qty[i.id]), restock: !!restock[i.id] }));
     const charges = extra.description.trim() && extra.price ? [{ description: extra.description.trim(), unitPrice: Number(extra.price) }] : [];
     if (lines.length === 0 && charges.length === 0) { setError("Credit at least one item or amount"); return; }
+    const restocked = lines.filter(l => l.restock).length;
+    if (!(await ask({ title: `Make a credit note for ${invoice.invoiceNumber}?`,
+      message: restocked ? `${restocked} line${restocked !== 1 ? "s go" : " goes"} back to stock.` : "Nothing goes back to stock.",
+      details: `${lines.length} line${lines.length !== 1 ? "s" : ""}${charges.length ? " + an amount" : ""}`, action: "Make credit note" }))) return;
     save.mutate({ id: invoice.id, data: {
       lines, charges, reason: reason || undefined, warehouseId: warehouseId ? Number(warehouseId) : undefined,
       settle, refundMethod: refund.method, refundReference: refund.reference || undefined,

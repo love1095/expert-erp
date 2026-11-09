@@ -16,6 +16,7 @@ import { ComplianceSection, FilesSection } from "./product-compliance";
 import { ComponentsSection } from "./product-kit";
 import { UnitsSection } from "./product-units";
 import ProductForm from "./product-form";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // Cin7's product sections (left), those the ERP has data for; the rest come later
 const SECTIONS = ["General", "Components", "Units", "Prices", "Stock", "Suppliers", "Reorder levels", "Compliance", "Images and files", "Movements", "Activity log"] as const;
@@ -26,6 +27,7 @@ const money = (n?: number | null) => (n == null ? "—" : formatGBP(n));
 
 /** One product on its own page, like Cin7's product details: sections on the left, the chosen one on the right. */
 export default function ProductView({ productId }: { productId: number }) {
+  const ask = useConfirm();
   const router = useRouter();
   const qc = useQueryClient();
   const [section, setSection] = useState<Section>("General");
@@ -62,7 +64,7 @@ export default function ProductView({ productId }: { productId: number }) {
         actions={editing ? undefined : <>
           <MoreActions actions={[
             { label: "Delete product", danger: true,
-              onClick: () => { if (confirm(`Delete ${p.sku}? Only a product without stock movements or orders can be deleted.`)) remove.mutate(); } },
+              onClick: async () => { if (await ask({ title: `Delete ${p.sku}? Only a product without stock movements or orders can be deleted.`, action: "Delete", danger: true })) remove.mutate(); } },
           ]} />
           <button type="button" onClick={() => setEditing(true)} className={BTN_PRIMARY}>Edit</button>
         </>}

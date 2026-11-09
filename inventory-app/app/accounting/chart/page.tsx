@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { CLASS_LABEL, INPUT, errorOf, today } from "../ledger-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tab = "ALL" | "ASSET" | "LIABILITY" | "EQUITY" | "EXPENSE" | "REVENUE" | "ARCHIVED";
 interface Form { id: number | null; code: string; name: string; type: string; taxType: string; description: string; archived: boolean }
@@ -18,6 +19,7 @@ interface Form { id: number | null; code: string; name: string; type: string; ta
  * add / edit / archive / delete, and import of Xero's chart export.
  */
 export default function ChartPage() {
+  const ask = useConfirm();
   // Xero's Adviser (K5): the accountant, and admins
   const { can } = useAuth();
   const isAdmin = can("ADVISER");
@@ -88,7 +90,7 @@ export default function ChartPage() {
           <div className="flex gap-2">
             <button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate(form)}>Save</button>
             <button className={BTN_SECONDARY} onClick={() => setForm(null)}>Cancel</button>
-            {form.id && <button className={`${BTN_DANGER} ml-auto`} onClick={() => remove.mutate(form.id!)}>Delete</button>}
+            {form.id && <button className={`${BTN_DANGER} ml-auto`} onClick={async () => { if (await ask({ title: "Delete this account?", action: "Delete", danger: true })) remove.mutate(form.id!); }}>Delete</button>}
           </div>
         </section>
       )}
@@ -123,6 +125,7 @@ export default function ChartPage() {
 
 /** Xero's Chart of accounts → Import: its own export file, previewed first. */
 function ChartImport({ onDone }: { onDone: () => void }) {
+  const ask = useConfirm();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<{ added: number; updated: number; unchanged: number; warnings: string[]; applied?: boolean } | null>(null);
   const [error, setError] = useState("");
@@ -141,7 +144,7 @@ function ChartImport({ onDone }: { onDone: () => void }) {
           {result.applied ? "✓ Imported" : "Preview"}: {result.added} new, {result.updated} changed, {result.unchanged} the same
           {result.warnings.length > 0 && <span className="text-amber-700"> · {result.warnings.join("; ")}</span>}
           {!result.applied && result.added + result.updated > 0 &&
-            <button className="ml-2 text-brand-700 underline" onClick={() => run.mutate(true)}>Import</button>}
+            <button className="ml-2 text-brand-700 underline" onClick={async () => { if (await ask({ title: "Import the chart of accounts?", message: "Accounts in the file are created or changed.", action: "Import" })) run.mutate(true); }}>Import</button>}
         </span>
       )}
     </span>

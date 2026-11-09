@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/test';
+import { test, expect, clickAndConfirm } from '../../fixtures/test';
 import { addUser, apiFor } from '../../fixtures/api';
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -28,7 +28,7 @@ test.describe('Xero export', () => {
       await expect(page.getByTestId('export-count-INVOICE')).toContainText('1');
       await expect(page.getByTestId('export-count-JOURNAL')).not.toContainText(' 0');
       const download = page.waitForEvent('download');
-      await page.getByRole('button', { name: 'Export for Xero' }).click();
+      await clickAndConfirm(page, page.getByRole('button', { name: 'Export for Xero' }));
       expect((await download).suggestedFilename()).toMatch(/^Xero_export_.*\.zip$/);
       await expect(page.getByTestId('export-count-INVOICE')).toContainText('0');
       await expect(page.getByRole('button', { name: 'Export for Xero' })).toBeDisabled();

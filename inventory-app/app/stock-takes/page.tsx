@@ -9,6 +9,7 @@ import { FoundProduct, StockTake } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const gbp = (n: number) => Number(n).toLocaleString("en-GB", { style: "currency", currency: "GBP" });
@@ -19,6 +20,7 @@ const TAKE_STATUS: Record<string, string> = { COUNTING: "Counting", POSTED: "Pos
  * category: what each bin should hold is frozen, then counted on the stock take's page or the phone scanner page.
  */
 export default function StockTakesPage() {
+  const ask = useConfirm();
   const router = useRouter();
   const { can } = useAuth();
   const { data: warehouses = [] } = useQuery<{ id: number; name: string }[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
@@ -75,7 +77,7 @@ export default function StockTakesPage() {
             )}
             <label className="flex flex-col gap-1 flex-1 min-w-48">Note
               <input className="border rounded px-2 py-1.5" aria-label="Note" value={note} onChange={e => setNote(e.target.value)} /></label>
-            <button className={BTN_PRIMARY} disabled={!ready || start.isPending} onClick={() => start.mutate()}>Start counting</button>
+            <button className={BTN_PRIMARY} disabled={!ready || start.isPending} onClick={async () => { if (await ask({ title: "Start the stock take?", action: "Start counting" })) start.mutate(); }}>Start counting</button>
           </div>
           {scope === "PRODUCTS" && chosen.length > 0 && (
             <p className="text-gray-600">{chosen.map(p => <span key={p.id} className="inline-block mr-2 px-2 py-0.5 bg-gray-100 rounded">{p.sku}

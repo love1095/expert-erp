@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/test';
+import { test, expect, clickAndConfirm } from '../../fixtures/test';
 
 // Phase E5: FIFO cost layers (docs/phase-e-purchasing.md, docs/business-rules.md section 2)
 test('FIFO-001 stock in at two costs, shipping 15 costs the oldest first: £80, the rest is worth £30', { tag: ['@P0', '@stock'] },
@@ -13,7 +13,7 @@ test('FIFO-001 stock in at two costs, shipping 15 costs the oldest first: £80, 
     await page.getByLabel('Type').selectOption('ADJUSTMENT_IN');
     await page.getByLabel('Quantity').fill('10');
     await page.getByLabel('Unit cost (£)').fill('5');
-    await page.getByRole('button', { name: 'Record Movement', exact: true }).click();
+    await clickAndConfirm(page, page.getByRole('button', { name: 'Record Movement', exact: true }));
     await expect.poll(() => api.stock(product, warehouses.main)).toBe(10);
     const res = await api.http.post('/api/stock-movements', {
       data: { productId: product.id, warehouseId: warehouses.main.id, quantity: 10, type: 'ADJUSTMENT_IN', unitCost: 6 },

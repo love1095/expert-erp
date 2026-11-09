@@ -6,6 +6,7 @@ import { confirmTwoFactor, disableTwoFactor, getTwoFactorStatus, newRecoveryCode
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface Status { enabled: boolean; required: boolean; recoveryCodesLeft: number }
 
@@ -15,6 +16,7 @@ function errorText(e: unknown, fallback: string) {
 
 /** Phase I5: the signed-in user's own two-step sign-in (Cin7: User profile → two-factor authentication). */
 export default function AccountPage() {
+  const ask = useConfirm();
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: status } = useQuery<Status>({ queryKey: ["two-factor"], queryFn: getTwoFactorStatus });
@@ -89,9 +91,9 @@ export default function AccountPage() {
           <div className="space-y-3">
             {codeInput}
             <div className="flex gap-2">
-              <button type="button" className={BTN_SECONDARY} disabled={renew.isPending || code.trim().length < 6} onClick={() => renew.mutate()}>New recovery codes</button>
+              <button type="button" className={BTN_SECONDARY} disabled={renew.isPending || code.trim().length < 6} onClick={async () => { if (await ask({ title: "Make new recovery codes?", message: "The old codes stop working.", action: "Make new codes" })) renew.mutate(); }}>New recovery codes</button>
               {!status.required && (
-                <button type="button" className={BTN_DANGER} disabled={disable.isPending || code.trim().length < 6} onClick={() => disable.mutate()}>Turn off</button>
+                <button type="button" className={BTN_DANGER} disabled={disable.isPending || code.trim().length < 6} onClick={async () => { if (await ask({ title: "Turn off two-step sign-in?", action: "Turn off", danger: true })) disable.mutate(); }}>Turn off</button>
               )}
             </div>
           </div>

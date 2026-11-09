@@ -7,6 +7,7 @@ import { LedgerAccount, ManualJournal, ManualLine } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { INPUT, errorOf, today } from "../ledger-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface EditLine { accountCode: string; description: string; debit: string; credit: string }
 interface Edit { date: string; narration: string; lines: EditLine[] }
@@ -32,6 +33,7 @@ export default function JournalForm({ editing, onSaved, onCancel }: {
   onSaved: (j: ManualJournal) => void;
   onCancel: () => void;
 }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<Edit>(() => toEdit(editing));
   const [error, setError] = useState("");
@@ -93,7 +95,7 @@ export default function JournalForm({ editing, onSaved, onCancel }: {
         </tfoot>
       </table>
       <div className="flex gap-2">
-        <button type="button" className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate(true)}>Post</button>
+        <button type="button" className={BTN_PRIMARY} disabled={save.isPending} onClick={async () => { if (await ask({ title: "Post this journal?", message: "It goes into the accounts. Afterwards it can only be voided.", action: "Post" })) save.mutate(true); }}>Post</button>
         <button type="button" className={BTN_SECONDARY} disabled={save.isPending} onClick={() => save.mutate(false)}>Save as draft</button>
         <button type="button" className={BTN_SECONDARY} onClick={onCancel}>Cancel</button>
       </div>

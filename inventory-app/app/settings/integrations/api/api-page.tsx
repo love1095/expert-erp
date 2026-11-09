@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getApiAccess, createApiKey, revokeApiKey } from "@/lib/api";
 import { ApiAccess, ApiKey, ApiKeyCreated } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
@@ -38,6 +39,7 @@ function CopyField({ label, value, testId }: { label: string; value: string; tes
 }
 
 export default function ApiPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery<ApiAccess>({ queryKey: ["api-access"], queryFn: getApiAccess, retry: false });
   const [name, setName] = useState("");
@@ -138,8 +140,8 @@ export default function ApiPage() {
                     <td className="px-4 py-2 text-right">
                       {k.revokedAt
                         ? <span className="text-xs">Revoked <ClientDate iso={k.revokedAt} /></span>
-                        : <button type="button" onClick={() => {
-                            if (window.confirm(`Revoke "${k.name}"? Systems using it stop working at once.`)) revoke.mutate(k.id);
+                        : <button type="button" onClick={async () => {
+                            if (await ask({ title: `Revoke "${k.name}"? Systems using it stop working at once.`, action: "Revoke", danger: true })) revoke.mutate(k.id);
                           }} className="text-sm text-red-600 hover:underline">Revoke</button>}
                     </td>
                   </tr>

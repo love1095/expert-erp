@@ -9,6 +9,7 @@ import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY } from "@/components/DetailParts";
 import { ExportButton, INPUT, errorOf } from "../ledger-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // Which account each kind of posting goes to (Xero export mapping of phase H5, plus the ledger's own)
 const MAPPING: [keyof LedgerSettings, string][] = [
@@ -83,6 +84,7 @@ function SettingsForm({ initial, accounts }: { initial: LedgerSettings; accounts
 }
 
 function BalancesForm({ initial, accounts }: { initial: OpeningBalances; accounts: LedgerAccount[] }) {
+  const ask = useConfirm();
   // Xero's Adviser (K5): the accountant, and admins
   const { can } = useAuth();
   const isAdmin = can("ADVISER");
@@ -128,7 +130,7 @@ function BalancesForm({ initial, accounts }: { initial: OpeningBalances; account
             {Math.abs(debits - credits) > 0.004 && <tr><td className="text-right pr-2 text-gray-500">Historical adjustment</td><td colSpan={2} className="text-right tabular-nums text-gray-600">{formatGBP(credits - debits)}</td></tr>}
           </tfoot>
         </table>
-        {isAdmin && <div className="flex items-center gap-3"><button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save balances</button>
+        {isAdmin && <div className="flex items-center gap-3"><button className={BTN_PRIMARY} disabled={save.isPending} onClick={async () => { if (await ask({ title: "Save the conversion balances?", message: "They are posted to the accounts.", action: "Save" })) save.mutate(); }}>Save balances</button>
           {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}</div>}
       </>)}
     </section>

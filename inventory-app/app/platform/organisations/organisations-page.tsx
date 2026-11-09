@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getOrganisations, setOrganisationSubscription, setOrganisationActive } from "@/lib/api";
 import { PlatformOrganisation } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const PLANS: PlatformOrganisation["planTier"][] = ["FREE", "PRO", "ENTERPRISE"];
 const STATUSES: PlatformOrganisation["status"][] = ["ACTIVE", "CANCELLED", "EXPIRED"];
@@ -15,6 +16,7 @@ function errorText(e: unknown) {
 }
 
 function Row({ org, onError }: { org: PlatformOrganisation; onError: (m: string) => void }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const refresh = () => qc.invalidateQueries({ queryKey: ["platform-organisations"] });
   const plan = useMutation({
@@ -50,8 +52,8 @@ function Row({ org, onError }: { org: PlatformOrganisation; onError: (m: string)
       <td className="px-4 py-2"><ClientDate iso={org.createdAt} /></td>
       <td className="px-4 py-2 text-right">
         <button type="button" disabled={active.isPending}
-          onClick={() => {
-            if (!org.active || window.confirm(`Switch off ${org.name}? Its people cannot log in and its API keys stop until it is switched on again.`)) {
+          onClick={async () => {
+            if (!org.active || await ask({ title: `Switch off ${org.name}? Its people cannot log in and its API keys stop until it is switched on again.`, action: "Switch off", danger: true })) {
               active.mutate(!org.active);
             }
           }}

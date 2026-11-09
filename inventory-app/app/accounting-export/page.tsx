@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { download } from "../reports/report-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-50";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
@@ -51,6 +52,7 @@ async function blobError(e: unknown, fallback: string) {
  * invoices and credit notes, bills and supplier credit notes, COGS and stock journals; payments listed to match.
  */
 export default function AccountingExportPage() {
+  const ask = useConfirm();
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const qc = useQueryClient();
@@ -97,7 +99,7 @@ export default function AccountingExportPage() {
               {pending?.startDate ? <>Dated from {ukDate(pending.startDate)} to today, not exported yet.</> : "Set the export start date below first."}
             </p>
           </div>
-          <button type="button" className={BTN_PRIMARY} disabled={!ready || run.isPending} onClick={() => { setExportMessage(null); run.mutate(); }}>
+          <button type="button" className={BTN_PRIMARY} disabled={!ready || run.isPending} onClick={async () => { if (!(await ask({ title: "Export to Xero files now?", message: "The documents in the files are marked as exported.", action: "Export" }))) return; setExportMessage(null); run.mutate(); }}>
             {run.isPending ? "Exporting…" : "Export for Xero"}
           </button>
         </div>
@@ -167,7 +169,7 @@ export default function AccountingExportPage() {
                     onClick={() => download(getAccountingExportFile(b.id), `Xero_export_${b.id}.zip`)}>Download</button>
                   {b.undoneAt ? <span title={`Undone by ${b.undoneBy}`}>Undone</span> : (
                     <button type="button" className="text-red-600 hover:underline"
-                      onClick={() => { if (confirm("Undo this export? Only if Xero did not import its files: its documents will be exported again.")) undo.mutate(b.id); }}>
+                      onClick={async () => { if (await ask({ title: "Undo this export? Only if Xero did not import its files: its documents will be exported again.", action: "Undo export", danger: true })) undo.mutate(b.id); }}>
                       Undo
                     </button>
                   )}

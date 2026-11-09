@@ -14,12 +14,14 @@ import {
 } from "@/components/DetailParts";
 import { PO_STATUS_COLOR } from "../purchase-orders/purchase-order-view";
 import SupplierForm from "./supplier-form";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 /**
  * One supplier on its own page (review S6, like the customer page): details, what is owed, recent purchase orders and bills.
  * Edit happens here (review R2). Statement and supplier deposits come with the purchase page review.
  */
 export default function SupplierView({ supplierId }: { supplierId: number }) {
+  const ask = useConfirm();
   const router = useRouter();
   const qc = useQueryClient();
   const [error, setError] = useState("");
@@ -72,7 +74,7 @@ export default function SupplierView({ supplierId }: { supplierId: number }) {
         }
         actions={editing ? undefined : <>
           <MoreActions actions={[
-            { label: "Delete supplier", danger: true, onClick: () => { if (confirm(`Delete supplier "${s.name}"?`)) remove.mutate(); } },
+            { label: "Delete supplier", danger: true, onClick: async () => { if (await ask({ title: `Delete supplier "${s.name}"?`, action: "Delete", danger: true })) remove.mutate(); } },
           ]} />
           <button type="button" onClick={() => setEditing(true)} className={BTN_PRIMARY}>Edit</button>
         </>}

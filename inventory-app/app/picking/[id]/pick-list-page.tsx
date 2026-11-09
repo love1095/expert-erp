@@ -8,6 +8,7 @@ import { PickList } from "@/types";
 import { PageHeader } from "@/components/ListToolbar";
 import { BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const q = (n: number) => Number(n).toLocaleString("en-GB", { maximumFractionDigits: 4 });
@@ -18,6 +19,7 @@ const q = (n: number) => Number(n).toLocaleString("en-GB", { maximumFractionDigi
  * takes the quantities picked (what was scanned, or everything when nothing was) out of their bins.
  */
 export default function PickListPage({ id }: { id: number }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: pl } = useQuery<PickList>({ queryKey: ["pick-list", id], queryFn: () => getPickList(id) });
   const [code, setCode] = useState("");
@@ -61,8 +63,8 @@ export default function PickListPage({ id }: { id: number }) {
       </table>
       <div className="flex gap-2">
         <button className={BTN_SECONDARY} onClick={() => openPdf(() => getPickListPdf(id), `${pl.number}.pdf`)}>Print</button>
-        {open && <button className={BTN_PRIMARY} onClick={() => confirm.mutate()}>Confirm pick</button>}
-        {open && <button className={BTN_DANGER} onClick={() => cancel.mutate()}>Cancel</button>}
+        {open && <button className={BTN_PRIMARY} onClick={async () => { if (await ask({ title: "Confirm the pick?", message: "The picked quantities are taken from their bins.", action: "Confirm pick" })) confirm.mutate(); }}>Confirm pick</button>}
+        {open && <button className={BTN_DANGER} onClick={async () => { if (await ask({ title: "Cancel this pick list?", action: "Cancel pick list", danger: true })) cancel.mutate(); }}>Cancel</button>}
       </div>
     </div>
   );

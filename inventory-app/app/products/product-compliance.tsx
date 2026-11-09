@@ -7,6 +7,7 @@ import { ProductCompliance, ProductFile, ProductFileKind } from "@/types";
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const INPUT = "border border-gray-300 rounded-md px-2 py-1.5 text-sm w-full";
@@ -88,6 +89,7 @@ export function ComplianceSection({ productId }: { productId: number }) {
 
 /** Phase P4: images (the first is the main one, sent to Shopify), datasheets, declarations of conformity and other files. */
 export function FilesSection({ productId }: { productId: number }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { can } = useAuth();
   const edit = can("PRODUCT_EDIT");
@@ -110,7 +112,7 @@ export function FilesSection({ productId }: { productId: number }) {
             <figcaption className="mt-1 truncate" title={f.fileName}>{i === 0 ? <b>Main · </b> : null}{f.fileName}</figcaption>
             {edit && <div className="flex gap-2">
               {i > 0 && <button className="text-brand-700 hover:underline" onClick={() => main.mutate(f.id)}>Make main</button>}
-              <button className="text-red-700 hover:underline" onClick={() => remove.mutate(f.id)}>Delete</button>
+              <button className="text-red-700 hover:underline" onClick={async () => { if (await ask({ title: "Delete this file?", action: "Delete", danger: true })) remove.mutate(f.id); }}>Delete</button>
             </div>}
           </figure>
         ))}
@@ -123,7 +125,7 @@ export function FilesSection({ productId }: { productId: number }) {
               <td className="py-1.5">{KIND_LABEL[f.kind]}</td>
               <td><button className="text-brand-700 hover:underline" onClick={() => openPdf(() => getProductFile(f.id), f.fileName)}>{f.fileName}</button></td>
               <td className="text-gray-500">{kb(f.sizeBytes)}</td>
-              <td className="text-right">{edit && <button className="text-red-700 hover:underline" onClick={() => remove.mutate(f.id)}>Delete</button>}</td>
+              <td className="text-right">{edit && <button className="text-red-700 hover:underline" onClick={async () => { if (await ask({ title: "Delete this file?", action: "Delete", danger: true })) remove.mutate(f.id); }}>Delete</button>}</td>
             </tr>
           ))}
         </tbody>

@@ -19,6 +19,7 @@ import { formatGBP } from "@/lib/currency";
 import { Clip, ListHead } from "@/components/ListToolbar";
 import { downloadCsv } from "@/components/BulkActions";
 import { BTN_PRIMARY, BTN_SECONDARY, TrailCard, Field } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Mode = "view" | "ship" | "return" | "edit" | "invoice";
 
@@ -51,6 +52,7 @@ const INVOICE_COLOR: Record<string, string> = {
 };
 
 export default function SaleOrderView({ orderId, warehouses }: { orderId: number; warehouses: Warehouse[] }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: order, isLoading } = useQuery<SaleOrder>({
     queryKey: ["sale-order", orderId],
@@ -167,7 +169,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
       .map(l => ({ line: l, quantity: Number(amounts[l.id] || 0) }))
       .filter(x => x.quantity > 0);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const chosen = selectedLines();
     const chargesOnly = mode === "invoice" && includeCharges && order.charges.some(c => !c.invoiced);
@@ -175,8 +177,22 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
     const over = chosen.find(x => x.quantity > maxFor(x.line));
     if (over) { setError(`${over.line.productSku}: at most ${qty(maxFor(over.line))}`); return; }
 
+    // Review R7: say what will happen, with the figures, before doing it
+    const issue = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "issue";
+    const units = chosen.reduce((t, x) => t + x.quantity, 0);
+    const lineText = `${chosen.length} line${chosen.length !== 1 ? "s" : ""} · ${qty(units)} unit${units !== 1 ? "s" : ""}`;
+    const ok = await ask(mode === "invoice"
+      ? { title: issue ? `Invoice and issue for ${order.orderNumber}?` : `Make a draft invoice for ${order.orderNumber}?`,
+          message: issue ? "The invoice is posted to the accounts and can no longer be edited." : undefined,
+          details: chosen.length ? lineText : "Charges only", action: issue ? "Invoice and issue" : "Make draft" }
+      : mode === "ship"
+      ? { title: `Ship ${order.orderNumber}?`, message: "The stock leaves the warehouse.", details: lineText, action: "Ship" }
+      : { title: `Record a return on ${order.orderNumber}?`,
+          message: chosen.some(x => restock[x.line.id] ?? true) ? "Goods marked back to stock are added to stock." : "Nothing goes back to stock.",
+          details: lineText, action: "Record return" });
+    if (!ok) return;
+
     if (mode === "invoice") {
-      const issue = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "issue";
       invoiceMutation.mutate({ id: order.id, data: {
         issue, includeCharges, notes: notes || undefined,
         lines: chosen.map(x => ({ saleOrderLineId: x.line.id, quantity: x.quantity })),
@@ -253,10 +269,10 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
               <EmailButton request={{ kind: "SALE_ORDER", id: order.id }} docKey={`SO:${order.id}`} label={order.status === "QUOTE" ? "E-mail quote" : "E-mail"} />}
             {order.status === "QUOTE" && (
               <>
-                <button disabled={busy} onClick={() => { if (confirm("Reject this quote?")) rejectMutation.mutate(order.id); }} className={BTN_SECONDARY}>
+                <button disabled={busy} onClick={async () => { if (await ask({ title: "Reject this quote?", action: "Reject quote", danger: true })) rejectMutation.mutate(order.id); }} className={BTN_SECONDARY}>
                   Reject quote
                 </button>
-                <button disabled={busy || order.quoteExpired} onClick={() => convertMutation.mutate(order.id)}
+                <button disabled={busy || order.quoteExpired} onClick={async () => { if (await ask({ title: "Convert this quote into a sale order?", message: "It keeps the same number and now reserves stock once confirmed.", action: "Convert" })) convertMutation.mutate(order.id); }}
                   title={order.quoteExpired ? "Expired: edit the quote and give it a new valid-until date first" : undefined}
                   className={BTN_PRIMARY}>
                   Convert to order
@@ -265,11 +281,11 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
             )}
             {canCancel && (
               <button disabled={busy}
-                onClick={() => {
+                onClick={async () => {
                   const msg = shipped
                     ? "Cancel the quantities not yet shipped? Shipped items are kept; the order will be completed."
                     : "Cancel this order?";
-                  if (confirm(msg)) cancelMutation.mutate(order.id);
+                  if (await ask({ title: msg, action: "Cancel order", danger: true })) cancelMutation.mutate(order.id);
                 }}
                 className="border border-red-200 bg-white text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-50 disabled:opacity-50">
                 {shipped ? "Cancel remaining" : "Cancel order"}
@@ -288,7 +304,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                   onClick={() => { const reason = window.prompt("The customer is on credit hold. Why confirm anyway?"); if (reason) confirmMutation.mutate({ id: order.id, override: reason }); }}
                   className={BTN_PRIMARY}>Confirm anyway</button>
               ) : (
-                <button disabled={busy} onClick={() => confirmMutation.mutate({ id: order.id })} className={BTN_PRIMARY}>
+                <button disabled={busy} onClick={async () => { if (await ask({ title: `Confirm ${order.orderNumber}?`, message: "Stock is reserved for it and it can be picked and shipped.", action: "Confirm order" })) confirmMutation.mutate({ id: order.id }); }} className={BTN_PRIMARY}>
                   {order.needsReview ? "Confirm as it is" : "Confirm order"}
                 </button>
               )
@@ -320,7 +336,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
                     {f.syncStatus === "FAILED" && (
                       <>
                         <span className="text-red-600">✕ Not sent to Shopify: {f.syncMessage}</span>
-                        <button type="button" disabled={busy} onClick={() => retryMutation.mutate({ id: order.id, fulfilmentId: f.id })}
+                        <button type="button" disabled={busy} onClick={async () => { if (await ask({ title: "Send this shipment to Shopify again?", action: "Retry" })) retryMutation.mutate({ id: order.id, fulfilmentId: f.id }); }}
                           className="ml-2 text-xs font-medium text-brand-700 hover:underline disabled:opacity-50">
                           {retryMutation.isPending ? "Retrying..." : "Retry"}
                         </button>

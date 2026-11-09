@@ -8,6 +8,7 @@ import { formatGBP } from "@/lib/currency";
 import { Card, TH, TD } from "@/components/DetailParts";
 import ProductPicker from "../sale-orders/product-picker";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "border border-gray-300 rounded-md px-2 py-1 text-sm";
 const today = () => new Date().toISOString().slice(0, 10);
@@ -21,6 +22,7 @@ function errorText(e: unknown) {
  * day, else the customer's price tier, else Retail. Managers and admins change contract prices.
  */
 export default function ContractPrices({ customer }: { customer: Customer }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { user } = useAuth();
   const canEdit = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
@@ -74,8 +76,8 @@ export default function ContractPrices({ customer }: { customer: Customer }) {
               <td className={`${TD} text-xs`}>{p.validTo ?? "no end"}{!p.current && !ended(p) && <span className="block text-amber-700">not started</span>}</td>
               <td className={`${TD} text-xs text-gray-500`}>{p.note}</td>
               <td className={`${TD} text-right whitespace-nowrap`}>
-                {canEdit && !ended(p) && <button type="button" onClick={() => end.mutate(p)} className="text-xs text-brand-700 hover:underline">End today</button>}
-                {user?.role === "ADMIN" && <button type="button" onClick={() => { if (window.confirm(`Delete the contract price for ${p.sku}?`)) remove.mutate(p); }}
+                {canEdit && !ended(p) && <button type="button" onClick={async () => { if (await ask({ title: `End the contract price for ${p.sku} today?`, action: "End today" })) end.mutate(p); }} className="text-xs text-brand-700 hover:underline">End today</button>}
+                {user?.role === "ADMIN" && <button type="button" onClick={async () => { if (await ask({ title: `Delete the contract price for ${p.sku}?`, action: "Delete", danger: true })) remove.mutate(p); }}
                   className="ml-3 text-xs text-red-600 hover:underline">Delete</button>}
               </td>
             </tr>

@@ -6,6 +6,7 @@ import { getOutbox, getOutboxAttachment, MailRequest, previewMail, sendMail } fr
 import { MailDraft, SentMail } from "@/types";
 import { BTN_PRIMARY, BTN_SECONDARY, Card } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm";
@@ -16,6 +17,7 @@ const STATUS: Record<string, string> = { KEPT: "In the outbox (test mode)", SENT
  * organisation's template, the PDF attached; everything can be changed before sending.
  */
 export default function EmailButton({ request, label = "E-mail", docKey, onSent }: { request: MailRequest; label?: string; docKey: string; onSent?: () => void }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<MailDraft | null>(null);
@@ -58,7 +60,7 @@ export default function EmailButton({ request, label = "E-mail", docKey, onSent 
             </>)}
             {msg && <p role="status" className={`text-sm ${msg.startsWith("✓") ? "text-green-700" : "text-red-700"}`}>{msg}</p>}
             <div className="flex gap-2">
-              {draft && <button className={BTN_PRIMARY} disabled={send.isPending} onClick={() => send.mutate()}>{send.isPending ? "Sending…" : "Send"}</button>}
+              {draft && <button className={BTN_PRIMARY} disabled={send.isPending} onClick={async () => { if (await ask({ title: "Send this e-mail?", action: "Send" })) send.mutate(); }}>{send.isPending ? "Sending…" : "Send"}</button>}
               <button className={BTN_SECONDARY} onClick={() => setOpen(false)}>Close</button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deleteCompanyLogo, getCompanyDetails, getCompanyLogo, updateCompanyDetails, uploadCompanyLogo } from "@/lib/api";
 import { CompanyDetails } from "@/types";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-50";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
@@ -29,6 +30,7 @@ export default function CompanyDetailsCard({ isAdmin }: { isAdmin: boolean }) {
 }
 
 function DetailsForm({ initial, isAdmin }: { initial: CompanyDetails; isAdmin: boolean }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [form, setForm] = useState<CompanyDetails>(initial);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -85,7 +87,7 @@ function DetailsForm({ initial, isAdmin }: { initial: CompanyDetails; isAdmin: b
               <input type="file" accept="image/png,image/jpeg" className="sr-only" aria-label="Logo file"
                 onChange={e => { const file = e.target.files?.[0]; if (file) { setMessage(null); upload.mutate(file); } e.target.value = ""; }} />
             </label>
-            {hasLogo && <button type="button" onClick={() => { setMessage(null); removeLogo.mutate(); }}
+            {hasLogo && <button type="button" onClick={async () => { if (!(await ask({ title: "Remove the logo?", action: "Remove", danger: true }))) return; setMessage(null); removeLogo.mutate(); }}
               className="text-sm text-red-600 hover:underline">Remove</button>}
           </>}
           <span className="text-[11px] text-gray-400">PNG or JPEG, up to 512 KB</span>

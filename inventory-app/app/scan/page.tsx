@@ -7,6 +7,7 @@ import { getPickLists, getPurchaseOrder, getPurchaseOrders, getStockTakes, looku
 import { FoundProduct, PickList, PurchaseOrder, StockTake } from "@/types";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import StockTakePage from "../stock-takes/[id]/stock-take-page";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const q = (n: number) => Number(n).toLocaleString("en-GB", { maximumFractionDigits: 4 });
@@ -64,6 +65,7 @@ function Count() {
 }
 
 function Receive() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: orders } = useQuery<{ content: { id: number; orderNumber: string; supplierName: string }[] }>({
     queryKey: ["purchase-orders", "ORDERED"], queryFn: () => getPurchaseOrders({ status: "ORDERED", size: 100 }) });
@@ -119,7 +121,7 @@ function Receive() {
           ))}
         </tbody>
       </table>
-      <button className={`${BTN_PRIMARY} w-full py-3`} disabled={total === 0 || receive.isPending} onClick={() => receive.mutate()}>Receive {total} scanned</button>
+      <button className={`${BTN_PRIMARY} w-full py-3`} disabled={total === 0 || receive.isPending} onClick={async () => { if (await ask({ title: `Receive ${total} scanned units?`, message: "They are added to stock.", action: "Receive" })) receive.mutate(); }}>Receive {total} scanned</button>
     </div>
   );
 }

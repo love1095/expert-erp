@@ -7,6 +7,7 @@ import { PaymentAccount, SupplierCredit } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { TrailCard } from "@/components/DetailParts";
 import { isoDay } from "../customers/statement-card";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1 text-sm";
 
@@ -15,6 +16,7 @@ const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1 text-sm";
  * bill. Used on a bill with "Use supplier deposit" (Cin7's button on the bill's payments).
  */
 export default function SupplierDeposits({ supplierId, purchaseOrderId }: { supplierId: number; purchaseOrderId: number }) {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: credits = [] } = useQuery<SupplierCredit[]>({ queryKey: ["supplier-credits", supplierId], queryFn: () => getSupplierCredits(supplierId) });
   const { data: accounts = [] } = useQuery<PaymentAccount[]>({ queryKey: ["payment-accounts"], queryFn: getPaymentAccounts });
@@ -56,7 +58,7 @@ export default function SupplierDeposits({ supplierId, purchaseOrderId }: { supp
           <input aria-label="Deposit reference" placeholder="Reference (e.g. proforma no.)" value={form.reference} maxLength={100}
             onChange={e => setForm({ ...form, reference: e.target.value })} className={INPUT} />
           <div className="flex gap-2">
-            <button type="button" disabled={!form.amount || pay.isPending} onClick={() => pay.mutate()}
+            <button type="button" disabled={!form.amount || pay.isPending} onClick={async () => { if (await ask({ title: "Record this supplier deposit?", action: "Record" })) pay.mutate(); }}
               className="flex-1 bg-brand-600 text-white py-1.5 rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50">
               {pay.isPending ? "Saving…" : "Record deposit"}</button>
             <button type="button" onClick={() => setOpen(false)} className="text-xs text-gray-500 px-2">Cancel</button>

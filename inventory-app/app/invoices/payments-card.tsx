@@ -10,6 +10,7 @@ import { CustomerCredit, Invoice, OpenCreditNote, PaymentAccount, PaymentMethod,
 import { TrailCard, BTN_PRIMARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
 import { isoDay } from "../customers/statement-card";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export const METHOD_LABEL: Record<PaymentMethod, string> = {
   BANK: "Bank", CASH: "Cash", STRIPE: "Card", CARD: "Card", PAYPAL: "PayPal", SHOPIFY: "Shopify",
@@ -27,6 +28,7 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
   inv: Invoice; busy: boolean; hidden: boolean;
   onDone: (u: Invoice) => void; onFail: (e: unknown) => void;
 }) {
+  const ask = useConfirm();
   const { user } = useAuth();
   const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const isCreditNote = inv.kind === "CREDIT_NOTE";
@@ -148,12 +150,12 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
           <label htmlFor="invoice-pay-reference" className="sr-only">Reference</label>
           <input id="invoice-pay-reference" value={reference} onChange={e => setReference(e.target.value)} placeholder="Reference (optional)"
             maxLength={100} autoComplete="off" className={INPUT} />
-          <button disabled={!amount || (active.length > 0 && !chosenAccount) || working} onClick={() => pay.mutate()} className={`w-full ${BTN_PRIMARY}`}>
+          <button disabled={!amount || (active.length > 0 && !chosenAccount) || working} onClick={async () => { if (await ask({ title: `Record a payment of £${amount}?`, action: "Record payment" })) pay.mutate(); }} className={`w-full ${BTN_PRIMARY}`}>
             {pay.isPending ? "Saving…" : isCreditNote ? "Record refund" : "Record payment"}
           </button>
 
           {(salesInvoice || bill) && creditLeft > 0.004 && (
-            <button type="button" disabled={working} onClick={() => useCredit.mutate()} data-testid={bill ? "use-supplier-credit" : "use-customer-credit"}
+            <button type="button" disabled={working} onClick={async () => { if (await ask({ title: "Use the credit on this document?", action: "Use credit" })) useCredit.mutate(); }} data-testid={bill ? "use-supplier-credit" : "use-customer-credit"}
               className="w-full text-xs text-brand-700 hover:underline text-left">
               {bill ? "Use supplier deposit" : "Use customer credit"} ({money(creditLeft)} available)
             </button>

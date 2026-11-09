@@ -7,6 +7,7 @@ import { ImportLog, TaskImportResult, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { PageHeader } from "@/components/ListToolbar";
 import { download } from "@/app/reports/report-parts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tab = "sales" | "purchases" | "logs";
 const SELECT = "border border-gray-300 rounded-md px-3 py-1.5 text-sm";
@@ -35,6 +36,7 @@ export default function DataImportPage() {
 }
 
 function Importer({ kind }: { kind: "sales" | "purchases" }) {
+  const ask = useConfirm();
   const sales = kind === "sales";
   const qc = useQueryClient();
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses-all"], queryFn: getWarehouses });
@@ -156,7 +158,7 @@ function Importer({ kind }: { kind: "sales" | "purchases" }) {
         </div>
 
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded">✕ {error}</p>}
-        {result && <ResultView result={result} onImport={() => run.mutate(true)} busy={run.isPending} />}
+        {result && <ResultView result={result} onImport={async () => { if (await ask({ title: "Import these sales and purchases?", message: "The documents in the file are created, with their stock and money.", action: "Import" })) run.mutate(true); }} busy={run.isPending} />}
       </section>
     </div>
   );

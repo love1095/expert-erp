@@ -16,6 +16,7 @@ import { formatGBP } from "@/lib/currency";
 import { useRef, useState } from "react";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const BUTTON_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
 
@@ -26,6 +27,7 @@ const STATUS_BADGE: Record<Product["status"], string> = {
 };
 
 export default function ProductsPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   // Phase I1: cost price only for roles with "Product - Prices: cost price"
   const { can } = useAuth();
@@ -124,9 +126,9 @@ export default function ProductsPage() {
               disabledReason: selection.selected.length === 1 ? undefined : "Tick one product" },
             { label: `Delete${selection.selected.length ? ` (${selection.selected.length})` : ""}`, danger: true,
               disabledReason: selection.selected.length ? undefined : "Tick the products to delete",
-              onClick: () => { if (confirm(`Delete ${selection.selected.length} product(s)? Products with stock movements or orders are kept.`)) deleteTicked(selection.selected); } },
+              onClick: async () => { if (await ask({ title: `Delete ${selection.selected.length} product(s)? Products with stock movements or orders are kept.`, action: "Delete", danger: true })) deleteTicked(selection.selected); } },
             { label: "Delete deprecated products", danger: true, divider: true,
-              onClick: () => { if (confirm("Delete every deprecated product that has no stock movements or orders?")) deleteDeprecated.mutate(); } },
+              onClick: async () => { if (await ask({ title: "Delete every deprecated product that has no stock movements or orders?", action: "Delete", danger: true })) deleteDeprecated.mutate(); } },
           ]} />
           <button onClick={() => { setShowImport(!showImport); setImportError(""); }} className={BUTTON_SECONDARY}>
             Import

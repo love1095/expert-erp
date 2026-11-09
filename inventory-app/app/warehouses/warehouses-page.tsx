@@ -6,8 +6,10 @@ import { Warehouse, Page } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export default function WarehousesPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
   const [form, setForm] = useState({ name: "", location: "" });
@@ -100,7 +102,7 @@ export default function WarehousesPage() {
                     <td className="px-4 py-3 text-gray-500">{w.location || "—"}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={w.createdAt} /></td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteMutation.mutate(w.id); }}
+                      <button onClick={async () => { if (await ask({ title: `Delete "${w.name}"?`, action: "Delete", danger: true })) deleteMutation.mutate(w.id); }}
                         className="text-xs text-red-500 hover:text-red-700">Delete</button>
                     </td>
                   </tr>

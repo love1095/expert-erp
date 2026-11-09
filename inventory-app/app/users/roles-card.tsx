@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createAccessRole, deleteAccessRole, getAccessRoles, getPermissionCatalogue, updateAccessRole } from "@/lib/api";
 import { AccessRole, PermissionInfo } from "@/types";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 function errorText(e: unknown, fallback: string) {
   return (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback;
@@ -18,6 +19,7 @@ const READ_ONLY = ["SALE_VIEW", "CUSTOMERS", "PURCHASE_VIEW", "PRODUCT_VIEW", "D
  * "Full access" ticks all, "Read-only access" only the viewing ones. Admins always have everything.
  */
 export default function RolesCard() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const { data: catalogue = [] } = useQuery<PermissionInfo[]>({ queryKey: ["permission-catalogue"], queryFn: getPermissionCatalogue });
   const { data: roles = [] } = useQuery<AccessRole[]>({ queryKey: ["access-roles"], queryFn: getAccessRoles });
@@ -69,7 +71,7 @@ export default function RolesCard() {
                 {r.name} <span className="text-xs text-gray-400">({r.users})</span>
               </button>
               <button type="button" aria-label={`Remove role ${r.name}`} className="text-gray-400 hover:text-red-600 text-sm px-1"
-                onClick={() => { if (confirm(`Remove the role ${r.name}?`)) remove.mutate(r.id); }}>×</button>
+                onClick={async () => { if (await ask({ title: `Remove the role ${r.name}?`, action: "Remove", danger: true })) remove.mutate(r.id); }}>×</button>
             </div>
           ))}
         </div>

@@ -15,6 +15,7 @@ import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 import { printMany } from "@/components/PrintButton";
 import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_EMAIL } from "@/components/BulkActions";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // Cin7's actions on ticked purchases
 const PURCHASE_ACTIONS: BulkAction<PurchaseOrder>[] = [
@@ -31,6 +32,7 @@ const PURCHASE_ACTIONS: BulkAction<PurchaseOrder>[] = [
 ];
 
 export default function PurchaseOrdersPage() {
+  const ask = useConfirm();
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -148,9 +150,9 @@ export default function PurchaseOrdersPage() {
                     <td className="text-right space-x-3" onClick={e => e.stopPropagation()}>
                       {(o.status === "DRAFT" || o.status === "ORDERED") && (
                         <>
-                          <button onClick={() => { if (confirm("Receive everything still outstanding? This adds the stock.")) receiveMutation.mutate(o.id); }}
+                          <button onClick={async () => { if (await ask({ title: "Receive everything still outstanding? This adds the stock.", action: "Receive" })) receiveMutation.mutate(o.id); }}
                             className="text-xs text-gray-800 hover:underline font-medium">Receive</button>
-                          <button onClick={() => { if (confirm("Cancel this PO?")) cancelMutation.mutate(o.id); }}
+                          <button onClick={async () => { if (await ask({ title: "Cancel this PO?", action: "Cancel PO", danger: true })) cancelMutation.mutate(o.id); }}
                             className="text-xs text-red-500 hover:text-red-700">Cancel</button>
                         </>
                       )}

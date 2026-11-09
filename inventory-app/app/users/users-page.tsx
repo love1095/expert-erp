@@ -9,6 +9,7 @@ import { ClientDate } from "@/components/ClientDate";
 import { Page } from "@/types";
 import { useState } from "react";
 import Pagination from "@/components/Pagination";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const ROLE_COLOR: Record<string, string> = {
   SUPER_ADMIN: "bg-red-100 text-red-700",
@@ -20,6 +21,7 @@ const ROLE_COLOR: Record<string, string> = {
 const EMPTY = { username: "", email: "", password: "", role: "STAFF" };
 
 export default function UsersPage() {
+  const ask = useConfirm();
   const { user: me } = useAuth();
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
@@ -127,7 +129,7 @@ export default function UsersPage() {
       {isAdmin && security && (
         <label className="flex items-center gap-2 mb-4 text-sm bg-white border border-gray-200 rounded-xl px-4 py-3" data-testid="require-two-factor">
           <input type="checkbox" checked={security.twoFactorRequired} disabled={require2fa.isPending}
-            onChange={e => { if (!e.target.checked || confirm("Require two-step sign-in? Everyone without it sets it up at their next sign-in.")) require2fa.mutate(e.target.checked); }} />
+            onChange={async e => { if (!e.target.checked || await ask({ title: "Require two-step sign-in? Everyone without it sets it up at their next sign-in.", action: "Require" })) require2fa.mutate(e.target.checked); }} />
           <span><b>Two-step sign-in required</b> for everyone in {me?.tenantName} (a code from an authenticator app after the password)</span>
         </label>
       )}
@@ -190,7 +192,7 @@ export default function UsersPage() {
                       <ClientDate iso={u.createdAt} />
                       {isAdmin && u.username !== me?.username && (
                         <button type="button" className="ml-3 text-xs text-red-600 hover:underline"
-                          onClick={() => { if (confirm(`Reset two-step sign-in for ${u.username}? Use it when they lost their phone.`)) reset2fa.mutate(u.id); }}>
+                          onClick={async () => { if (await ask({ title: `Reset two-step sign-in for ${u.username}? Use it when they lost their phone.`, action: "Reset", danger: true })) reset2fa.mutate(u.id); }}>
                           Reset two-step sign-in
                         </button>
                       )}
