@@ -3,6 +3,7 @@
 Open items gathered from `PROGRESS.md` (where each one is explained under its step). Tick here and there when done.
 
 ## Needs the owner (an account, a login or a decision)
+- [ ] **Expert Safety's website address**: to compare what the site offers with what the ERP covers (not found online on 2026-11-09)
 - [ ] **Review before anything new** ([`review-and-test-plan.md`](review-and-test-plan.md), 2026-11-08): decide S1–S12 (menu structure: keep / merge / move / rename) to agree a target menu, then flow tests F1–F10 and the page-by-page recheck
 - [ ] **Xero developer app** at developer.xero.com (phase L is built against a fake Xero): client ID + client secret, redirect URI `https://<server>/finance/xero/callback`; then set APP_XERO_MODE=live, APP_XERO_CLIENT_ID, APP_XERO_CLIENT_SECRET, APP_XERO_REDIRECT_URI
 - [ ] **Xero webhook key** (from the Xero developer app, Webhooks: delivery URL `https://<server>/api/webhooks/xero`, events Invoices) → APP_XERO_WEBHOOK_KEY; without it payments from Xero are still polled every 5 minutes
@@ -63,6 +64,53 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
   - [ ] Animations (owner 2026-11-09), small and quick (under 300 ms), one style set in phase 1, off when the device asks for reduced motion: loading placeholder rows, "Saved" message and button spinner, pop-ups and side panels fade in, changed rows highlight / removed rows fade out, tab counts, order progress step, smooth menu and "More details", dashboard charts and numbers on first load, hover and keyboard focus. Tailwind first; a library such as `motion` only with the owner's OK
 - [x] R6 Window scrolled the app off the top (fixed daee4ae, 2026-11-09)
 
+## Next phases after the review (owner, 2026-11-09: business review, to plan as phases)
+Already in the ERP (the base to build on): Cin7's minimum-based Reorder list, top and worst sellers and the low-stock count on the dashboard, the Stock Value Inventory Aging report (by FIFO layers, 0–30 … 180+ days), nightly Xero and Shopify jobs.
+
+**S1 Stock health (owner's idea), run every night**
+- [ ] First: store the **supplier lead time** (per supplier, and per product–supplier when different), pack size and minimum order quantity
+- [ ] First: **import Cin7's sales history** (needed: without it every product looks slow; part of the cutover data)
+- [ ] Per product and warehouse: units sold in the last 30 and 90 days (shipments minus returns, kit components counted), average daily sales, **typical order size** (8 in 10 order lines are this size or smaller) and the largest recent order, **days of cover** = available ÷ daily sales
+- [ ] **Low stock by sales, not only near 0**: available + on order below the reorder point (daily sales × lead time + safety stock, safety stock at least one typical large order); also flagged when available is less than one typical order even above the minimum
+- [ ] **Suggested quantity**: covers the lead time plus the review period, rounded up to the pack size and minimum order; shown next to Cin7's minimum-based suggestion on the Reorder page
+- [ ] **Slow and dead stock**: days since the last sale per product, months of cover; dead = stock but no sale in X days (setting, e.g. 180), slow = more than X months of cover; each with its stock value (money tied up)
+- [ ] **ABC classes** (A = products making about 80 % of sales value, watched most closely)
+- [ ] Where it shows: a dashboard panel, a report with CSV export, the Reorder page, and a **weekly e-mail digest** (once live e-mail is on)
+
+**S2 Safety-supplier (PPE) functions**
+- [ ] **Batch / serial / expiry tracking**: batch and expiry on receipt (first-aid kits, filters, spill kits), serial numbers (harnesses, lanyards); sell earliest expiry first; recall trace: which customers got a batch; expiry warning list
+- [ ] **Embroidery / logo jobs**: an order line "to embroider" becomes a job: garments to the embroiderer, logo charge, extra lead time, stock coming back
+- [ ] **Call-off and recurring orders** for contract customers (same kit every month)
+
+**S3 Spec gaps (Should)**
+- [ ] Drop-ship, and purchase orders made automatically from backorders
+- [ ] Supplier price-list import; multi-currency purchasing
+- [ ] Quotes pipeline with follow-up reminders; CRM activity log (calls, notes) on customers
+- [ ] Notifications and automation rules (e.g. alert when the Shopify sync fails, approval for large orders)
+- [ ] Stock transfers with an "in transit" status
+- [ ] Custom fields
+- Later (Could): B2B ordering portal, card payment links on invoices, Amazon / eBay sync, trade counter sales
+
+**S4 Robustness before go-live**
+- [ ] **Nightly reconciliation checks** with an alert when they drift: stock value vs the ledger's inventory account, FIFO layers vs stock on hand, ERP stock vs Shopify stock, ERP balances vs Xero
+- [ ] **Monitoring and alerts**: error tracking, and alerts when the Xero, Shopify, e-mail or courier queues hold failed items (more than an uptime check)
+- [ ] **Load test** at the spec's volumes (2,500+ products, 10,000+ orders a year, 5 years of history), including the ledger recalculation (Phase K item) and the big-data findings R1, R5, R10
+- [ ] **Security review**: login rate limits and lock-out, session timeout, password rules, dependency scanning, a basic OWASP check, secrets out of the server image
+- [ ] **GDPR**: export or delete a customer's personal data; data retention rules
+- [ ] **Restore drill**: restore a backup onto a fresh server and time it
+- [ ] **User acceptance testing**: each of the 5 staff runs their real daily jobs on the rehearsal copy and signs off
+
+**S5 Product track (selling the ERP to other companies)**
+- [ ] Self-service onboarding (set-up wizard, then imports), Stripe billing, modules switched on per plan
+- [ ] Per-company data export, deletion and restore
+- [ ] Support tools: "log in as" for support with audit logging; a status page
+- [ ] More than one server: scheduled jobs locked so two servers don't run the same job
+- [ ] QuickBooks connector; importers for systems other than Cin7
+- [ ] Other countries' tax and currency rules (if sold outside the UK)
+- [ ] Legal documents: terms of service, data processing agreement
+
+**Suggested order**: finish the review (fixes above, flow tests) → S4 robustness → go-live (with the Cin7 sales history import) → S1 stock health and S2 PPE functions → S3 spec gaps → S5 product track. Each becomes a phase in `next-phases.md` (same format as L–Q) when its turn comes.
+
 ## Needs the owner's OK
 - [ ] **Mail library** for live e-mail (phase M): `spring-boot-starter-mail` (Jakarta Mail / Angus Mail) so `SmtpMailSender` can send by SMTP; until then e-mails are kept in the outbox (fake mode)
 - [ ] **Camera barcode scanning** on the phone page (phase N4): a library such as `@zxing/browser` (npm) to read barcodes with the phone camera; meanwhile a handheld scanner (acting as a keyboard) or typing the SKU works
@@ -82,7 +130,7 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
 - [ ] Sale / purchase task import, not like Cin7 yet: credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
 - [ ] Payments on account (customer credit / supplier deposits) in the Xero files and the Xero API link (Xero overpayments / prepayments)
 - [ ] Xero API link: a document changed after it was sent (Xero has no edit once paid): today it is listed by the CSV export's "changed after export" check, to correct in Xero by hand
-- [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product, Stock Value Inventory Aging (phase I)
+- [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product (Stock Value Inventory Aging is built, Reports)
 - [ ] Roles: Cin7's other ticks when those modules exist (Settings tick and several roles per user done in Q5, 2026-11-07)
 - [ ] Expert Safety's real users: set their roles at cutover (in Cin7 all 5 are on FULL)
 - [ ] API key rate limits (calls per minute per Application Key)
@@ -94,5 +142,5 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
 - [ ] Shopify orders imported before the VAT split keep their old lines
 - [ ] Product: Combined view (families), alternative products, channels, Merge products (images and units of measure: phase P)
 - [ ] Accounting tab on sale orders; supplier tax-rule field on the supplier form
-- [ ] Reorder by sales velocity / lead time / minimum order value; multi-currency; supplier price-list import
-- [ ] Custom fields and dynamic forms
+- [ ] Reorder by sales velocity / lead time / minimum order value; multi-currency; supplier price-list import (now planned below: Stock health S1, Spec gaps S3)
+- [ ] Custom fields and dynamic forms (planned below: Spec gaps S3)
