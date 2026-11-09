@@ -36,12 +36,15 @@ Output of Part 1: a short **target menu** (new tree) agreed with the owner befor
 2. **Right people**: hidden from the menu and refused by the API (403) for a role without the permission; works for a role that has it.
 3. **Lists**: search, every filter, sort, paging, column choice, CSV export, empty state. Totals match the rows.
 4. **Records**: create, edit, required fields and validation messages, delete/void (and blocked when not allowed), status changes.
+   **Rule D1**: the list page has no create/edit form; "+ New" opens a separate page (`/x/new`) laid out like the record page.
 5. **Numbers**: amounts, VAT, totals, stock and costs are right. Check at least one record by hand.
 6. **Trail**: the change shows in the Audit log; the document shows its history (e-mails, payments).
 7. **Other organisation**: a second tenant sees nothing (by URL and by API).
 8. **Print/e-mail**: PDF opens with the right template; the e-mail lands in the outbox with the attachment.
 9. **Look**: same layout as the Cin7-style pages; usable at phone width where the warehouse uses it.
-10. **Speed**: opens in under 2 s on Expert Safety's data (13,959 products).
+10. **Speed**: opens in under 2 s on Expert Safety's data (13,959 products) **and on a big fake dataset** (about 1 million orders, invoices and stock movements over many organisations). Searches and lists use their indexes (EXPLAIN). Look out for work that grows with the data on every read: the ledger brought up to date before each read, the FIFO rebuild at start-up, reports.
+
+**For each page, in this order: detail, then fix.** First write the detailed finding in [`review-findings.md`](review-findings.md) (what was checked, what is wrong, evidence, impact, proposed fix) and show it to the owner. Only then make the fix. Example: R1, search not using its indexes.
 
 E2E column = e2e spec files that open the page by URL. A 0 can still mean the page is reached by clicking, so check it.
 
@@ -124,7 +127,7 @@ Also for every flow: **the audit log** has each step, and **nothing goes below z
 
 ## Part 4: Findings log and order of work
 
-Every problem goes into `docs/review-findings.md`: page or flow, what happened, expected, severity (**Blocker**: wrong money/stock or data leak · **Major**: function broken · **Minor**: layout/wording), status.
+Every problem goes into [`review-findings.md`](review-findings.md) in detail before it is fixed: where, what is wrong, evidence, impact, proposed fix, severity (**Blocker**: wrong money/stock or data leak · **Major**: function broken or very slow · **Minor**: layout/wording), status (Found → Agreed → Fixed).
 
 Order:
 1. **Part 1 structure**: write the target menu, owner agrees (no code yet).
@@ -132,4 +135,23 @@ Order:
 3. **F1, F2, F4** (money and stock), then F3, F5, F7, F8, F9, F10.
 4. **Part 2 page recheck**, module by module (Sale → Purchase → Inventory → Finance → Accounting → Admin/Settings), with the owner looking at the screens alongside.
 5. Fix Blockers straight away. Group Majors and Minors per module. Move pages to the agreed menu (S1–S12).
-6. Only then go back to the *Later* list or cutover.
+6. **Part 5 tutorials**, once every function is finished and the pages have stopped moving (after step 5).
+7. Only then go back to the *Later* list or cutover.
+
+---
+
+## Part 5: Tutorials (after all functions are finished)
+
+Written last, so the screens they show don't change afterwards. Audience: the people who use the ERP every day (sales, purchasing, warehouse, accounts), new staff, and later other companies buying the ERP.
+
+- **Guides by role and job**, step by step with screenshots:
+  - *Sales*: quote → order → ship → invoice → payment, credit notes and returns, customers and prices, credit hold
+  - *Purchasing*: reorder → PO → receive → bill → pay, supplier credits
+  - *Warehouse*: bins, pick and pack, courier labels, the phone scanner, stock takes, adjustments
+  - *Accounts*: payments, statements and reminders, VAT return, bank reconciliation, month end, Xero
+  - *Admin*: users and roles, two-step sign-in, settings, templates, e-mail, Shopify
+- **Screenshots made automatically**: the flow tests F1–F10 already click through every step. A tutorial mode takes a screenshot at each step on the seeded test organisation, so the pictures can be made again with one command whenever a screen changes.
+- **"Coming from Cin7"**: where each Cin7 screen and action is in the ERP (a table by Cin7 menu), for Expert Safety's staff at cutover.
+- **Help in the app**: a "?" on each page linking to its guide.
+- **Format**: pages inside the app (or a help site) that print to PDF. Short screen videos only if the owner wants them.
+- **Done means**: every page has a guide, and a member of staff who has never used the ERP can complete each job using only the guide.

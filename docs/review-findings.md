@@ -1,0 +1,95 @@
+# Review findings
+
+Part of [`review-and-test-plan.md`](review-and-test-plan.md). **Each page or area is done in two steps: first the detail (this file), then the fix.** Nothing is fixed until its finding has been written here and shown to the owner.
+
+Each finding records:
+- **Where**: the page or area, with code references
+- **What is wrong**: in plain words
+- **Evidence**: code lines, EXPLAIN plans, screenshots, figures
+- **Impact**: who is affected, and how badly (money, stock, data leak, speed, layout)
+- **Proposed fix**: the steps, and the test that proves the fix
+- **Severity**: Blocker (wrong money or stock, data leak) · Major (function broken or very slow) · Minor (layout, wording)
+- **Status**: Found → Agreed → Fixed (commit)
+
+## Design rules agreed in the review (apply to every page)
+
+- **D1 List and creation are separate pages** (2026-11-08). A list page only lists: search, filters, columns, bulk actions, and a "+ New" button that goes to a separate page. Creating happens on its own page (`/x/new`), with the same layout as the record page (`/x/{id}`), where viewing and editing also happen. No create or edit forms inside list pages, and no `?edit=` links back to a list. Only small set-up records (a few fields, no lines) may use a short pop-up. See R2 and R3.
+
+---
+
+## R1 Search does not use its indexes (slow with big data)
+
+- **Where**: the top-bar search (`SearchService`) and the list searches in `SaleOrderRepository`, `InvoiceRepository`, `PurchaseOrderRepository`, `ProductRepository`, `CustomerRepository`, `SupplierRepository` and `StockMovementRepository`. Pages: Sale orders, Invoices, Purchase orders, Products, Customers, Suppliers, Movements log, and the top bar.
+- **What is wrong**: migration V36 added trigram indexes for "contains" searches, but Postgres doesn't use them. It reads every row of the organisation and checks each one.
+  1. Queries wrap empty values, e.g. `lower(coalesce(invoice_number, ''))`, while the index is on `lower(invoice_number)`, so the two don't match. The wrapping isn't needed in WHERE, because a NULL never matches a LIKE.
+  2. Some searched columns have no index at all: sale orders' customer and external reference, POs' supplier reference, products' supplier product code, suppliers' contact name and e-mail, customer contacts' name and e-mail. With one unindexed column in an `A OR B OR C` search, the whole table is scanned.
+- **Evidence** (2026-11-08):
+  - On the local database, EXPLAIN shows a tenant index scan with the search as a *Filter* for products, invoices and sale orders, even with `enable_seqscan = off`.
+  - On a throwaway table of 1,000,000 orders:
+
+    | Query | Time |
+    |---|---|
+    | As written today | 73 ms |
+    | Indexes added, wrapping kept | 80 ms (indexes ignored) |
+    | No wrapping, every column indexed | 6 ms (BitmapOr of the three indexes) |
+
+- **Impact**: not visible on today's data (26k products, 3k orders, 633 invoices). Each search grows with the table, the top bar runs about 7 such queries per key typed, and organisations share one database. Expect about a second per search at around a million rows. Speed only: the results are correct.
+- **Proposed fix**:
+  1. Remove `coalesce` from the WHERE parts of the searches (sort orders can keep it).
+  2. One Flyway migration with trigram indexes for the missing columns.
+  3. A backend test that runs EXPLAIN on each search and fails if an index isn't used.
+- **Severity**: Major (speed with big data)
+- **Status**: Found
+
+## R2 "New" opens a form on top of the list, not on its own page like Cin7 (rule D1)
+
+- **Where**: the "+ New" buttons on Sale orders (`sale-orders-page.tsx:81`), Purchase orders (`purchase-orders-page.tsx:83`), Products (`products-page.tsx`), Customers (`customers-page.tsx:161`), Suppliers (`suppliers-page.tsx:56`), Invoices (`invoices-page.tsx:147`), Warehouses, Manual journals, Document templates.
+- **What is wrong**: "+ New" opens the form inside the list page, above the list, and the button turns into "Cancel".
+  - Sale orders and purchase orders jump to the record page after saving. Editing them uses the same form again, inside the record page (`sale-order-view.tsx:127`, `purchase-order-view.tsx:88`).
+  - Products and customers are edited on the **list** page too: the record page's Edit button goes back to `/products?edit=ID` and `/customers?edit=ID` (`product-view.tsx:60`, `customer-view.tsx:59`).
+  - In Cin7, "New" opens the record page itself, empty, with the same layout and tabs as an existing record. Creating, viewing and editing all happen on that one page.
+- **Evidence**: the code above. The forms are large: sale order form 390 lines, products page 447, customers page 379. All of that sits in the list page.
+- **Impact** (no money or stock risk; how the system is to use and to keep up):
+  - There's no address for a new record (`/sale-orders/new`), so you can't bookmark it, open it in a new tab or use the browser Back button.
+  - A long form, such as an order with many lines, pushes the list down. Refreshing the list or a filter can lose what was typed.
+  - It works differently from Cin7, which the staff know.
+  - Products and customers have two places with the same fields: the list form and the record page.
+- **Proposed fix**:
+  1. A `/new` page for the main records, laid out like the record page (header, tabs, lines), saving to the same page with its ID: `/sale-orders/new` (quote or order), `/purchase-orders/new`, `/products/new`, `/customers/new`, `/suppliers/new` (with a supplier record page, see S6 in the plan), `/invoices/new` (hand-typed invoice or bill), `/accounting/manual-journals/new`.
+  2. Edit happens on the record page itself (no more `?edit=` back to the list). One form component per record type, used for both new and edit.
+  3. Small set-up records (warehouses, bins, templates, chart accounts) keep a short form or pop-up, like Cin7's settings screens.
+  4. Update the e2e tests that click "+ New …" (7 files, e.g. "+ New SO" in 10 places) and add one test per new page: open `/x/new` directly, save, land on `/x/{id}`, then Back.
+- **Severity**: Minor to Major (no wrong data; it affects daily use and matching Cin7)
+- **Design agreed (2026-11-08)**: a new page for records with lines or tabs (sale orders and quotes, purchase orders, products, customers, suppliers, hand-typed invoices and bills, manual journals); a short form or pop-up only for small set-up records (warehouses, bins, templates, chart of accounts, payment accounts, roles, API keys).
+- **Status**: Agreed, implement later. Belongs with the Part 1 structure decisions (target menu and pages).
+
+## R3 Credit notes and returns: where they start, and two buttons that overlap
+
+- **Where**: invoice page "Credit note & restock" (`invoices/credit-note-form.tsx`), bill page "Supplier credit note" (`invoices/supplier-credit-note-form.tsx`), both opened inside `invoice-view.tsx:118`; sale order page **Return** (`sale-order-view.tsx`, `createSaleReturn`); Invoices list (`invoices-page.tsx`), where credit notes are mixed in with a "Credit note" label.
+- **What is wrong / could be better**:
+  1. A credit note can only be started from the invoice or bill page, not from the order, which is where staff usually start (in Cin7 it is a stage of the sale or purchase).
+  2. The credit note form opens inside the invoice page. It has lines, so under R2's rule it belongs on its own page.
+  3. **Return** on the order (stock back, no money) and **Credit note & restock** on the invoice (money, optional stock back) are two separate buttons for related jobs, and they can be mixed up.
+  4. There's no list of credit notes or supplier credits of their own (see S5 and S7 in the plan).
+  5. **To check (not tested yet)**: can the same goods be returned on the order *and* restocked on a credit note, so the stock and its cost come back twice? Test both orders of doing it, on stock, FIFO cost, All COGS (Q4) and the ledger.
+- **Evidence**: the code above; PROGRESS.md D4b (credit notes), H2 (supplier credit notes), Q3 and Q4.
+- **Impact**: daily use and matching Cin7. If point 5 fails, it would mean wrong stock and wrong cost (Blocker).
+- **Proposed fix** (implement later):
+  1. Keep credit notes always linked to an invoice or bill. No "+ New credit note" on a list (needed for VAT, balances, restock cost and Xero).
+  2. Add a **Credit note** button on the sale order and purchase order pages that asks which invoice or bill to credit.
+  3. Give the credit note form its own page, `/invoices/{id}/credit-note`, which opens the credit note's page once saved.
+  4. Make Return and Credit note one **Return / credit** action with two ticks: *put goods back in stock* and *give money back or credit*. That covers goods + money, goods only and money only.
+  5. Add lists Sale → Credit notes and Purchase → Supplier credits.
+  6. Tests: the three cases of point 4; double restock refused (point 5); e2e from the order page.
+- **Severity**: Minor (layout and flow); Blocker if point 5 fails
+- **Status**: Found, implement later. Point 5 is checked first in flow test F1.
+
+## R4 Simple and Advanced purchases and sales (Cin7) — decision to confirm
+
+- **Where**: purchase order and sale order record pages.
+- **What**: Cin7 makes you choose *Simple* (one receipt and one invoice, or one shipment and one invoice) or *Advanced* (several of each) when an order is created. The ERP has one kind that already does both (several receipts and bills per PO; several shipments and invoices per sale order; part, over and short deliveries).
+- **Recommendation**: keep one kind, and copy how Simple *feels*:
+  - show the Receipts / Bills (Shipments / Invoices) cards only once they're used
+  - one button, **Receive and bill all** for purchases and **Ship and invoice all** for sales, for an order done in one go
+- **To check first**: in Cin7 (read-only), which kind Expert Safety uses, and whether staff rely on anything only Simple has.
+- **Status**: Recommendation, waiting for the owner's OK and the Cin7 check; implement later with the purchase and sale page review.
