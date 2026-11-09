@@ -32,6 +32,7 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final SaleOrderRepository saleOrderRepository;
     private final AuditService auditService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @Transactional(readOnly = true)
     public Page<CustomerResponse> findAll(String search, int page, int size) {
@@ -254,5 +255,19 @@ public class CustomerService {
         r.setCreatedAt(c.getCreatedAt());
         r.setUpdatedAt(c.getUpdatedAt());
         return r;
+    }
+
+    /**
+     * The sales reps to choose from (like Cin7's Sales Representative list): every name already used on a customer or a
+     * sale order, plus the organisation's web sales rep, A-Z.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<String> salesReps() {
+        Long t = com.experterp.backend.multitenancy.TenantContext.get();
+        return jdbc.queryForList(
+                "SELECT name FROM (SELECT trim(sales_representative) AS name FROM customers WHERE tenant_id = ?"
+                        + " UNION SELECT trim(sales_rep) FROM sale_orders WHERE tenant_id = ?"
+                        + " UNION SELECT trim(web_sales_rep) FROM tenants WHERE id = ?) n"
+                        + " WHERE name IS NOT NULL AND name <> '' ORDER BY lower(name)", String.class, t, t, t);
     }
 }

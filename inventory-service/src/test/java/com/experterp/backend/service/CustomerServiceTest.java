@@ -93,6 +93,22 @@ class CustomerServiceTest {
     }
 
     @Test
+    void salesRepsListsEveryNameUsedOnCustomersOnceAToZWithTheWebSalesRep() {
+        CustomerRequest a = request("Rep A Ltd", null);
+        a.setSalesRepresentative("Tom");
+        customerService.create(a);
+        CustomerRequest b = request("Rep B Ltd", null);
+        b.setSalesRepresentative(" anna ");
+        customerService.create(b);
+        CustomerRequest c = request("Rep C Ltd", null);
+        c.setSalesRepresentative("Tom");
+        customerService.create(c);
+        customerService.create(request("No rep Ltd", null));
+        // Trimmed, once each, A-Z ignoring case; the organisation's web sales rep is in the list too
+        assertThat(customerService.salesReps()).containsSubsequence("anna", "Tom").contains("Web Sales").doesNotHaveDuplicates();
+    }
+
+    @Test
     void searchFindsCustomersByContactDetailsAndKeepsOneDefaultContact() {
         CustomerRequest req = request("Builders Co", null);
         req.getContacts().add(contact("Jo Smith", "jo@builders.test", false));

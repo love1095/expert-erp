@@ -72,4 +72,21 @@ test.describe('Product selection list', () => {
       await page.getByLabel('Customer *').fill('Walk-in cash sale');
       await expect(page.getByText('New customer — will be added to Customers')).toBeVisible();
     });
+
+  test('PICK-004 the sales rep is picked from a list of the names used on customers, like Cin7', { tag: ['@P2', '@sale-orders', '@customers'] },
+    async ({ page, api }) => {
+      const rep = `Rep ${uid()}`;
+      await api.http.post('/api/customers', { data: { name: `Acme ${uid()}`, salesRepresentative: rep } });
+      await page.goto('/sale-orders/new');
+      await page.getByLabel('Sales rep').click();
+      const list = page.getByRole('listbox', { name: 'Sales reps' });
+      await expect(list).toContainText('Web Sales');
+      await list.getByRole('option').filter({ hasText: rep }).click();
+      await expect(page.getByLabel('Sales rep')).toHaveValue(rep);
+
+      // The customer form uses the same list
+      await page.goto('/customers/new');
+      await page.getByLabel('Sales Representative').click();
+      await expect(page.getByRole('listbox', { name: 'Sales reps' })).toContainText(rep);
+    });
 });

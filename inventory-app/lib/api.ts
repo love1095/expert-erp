@@ -64,6 +64,8 @@ export const getCustomers     = () => api.get("/customers", { params: { size: 99
 export const getCustomersPage = (params?: { search?: string; page?: number; size?: number }) =>
   api.get("/customers", { params: { size: 20, ...params } }).then(r => r.data);
 export const getCustomer    = (id: number) => api.get(`/customers/${id}`).then(r => r.data);
+// The sales rep names to choose from (customers, orders and the web sales rep)
+export const getSalesReps = () => api.get("/customers/sales-reps").then(r => r.data as string[]);
 export const createCustomer = (data: unknown) => api.post("/customers", data).then(r => r.data);
 export const updateCustomer = ({ id, data }: { id: number; data: unknown }) => api.put(`/customers/${id}`, data).then(r => r.data);
 export const deleteCustomer = (id: number) => api.delete(`/customers/${id}`);

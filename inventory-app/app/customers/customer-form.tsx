@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCustomer, getPriceTiers, updateCustomer } from "@/lib/api";
+import { createCustomer, getPriceTiers, getSalesReps, updateCustomer } from "@/lib/api";
+import NameCombobox from "@/components/NameCombobox";
 import { AddressType, Customer, CustomerAddress, CustomerContact, PriceTier } from "@/types";
 import { ADDRESS_TYPES, AddressFields, EMPTY_ADDRESS } from "@/components/AddressFields";
 
@@ -39,6 +40,8 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
 }) {
   const qc = useQueryClient();
   const { data: tiers = [] } = useQuery<PriceTier[]>({ queryKey: ["price-tiers"], queryFn: getPriceTiers });
+  // Like Cin7: the sales rep is picked from a list (names used on customers and orders)
+  const { data: salesReps = [] } = useQuery<string[]>({ queryKey: ["sales-reps"], queryFn: getSalesReps });
   const [form, setForm] = useState<Form>(() => (editing ? toForm(editing) : EMPTY_FORM));
   const [contacts, setContacts] = useState<CustomerContact[]>(() =>
     editing ? editing.contacts.map(x => ({ ...x })) : [{ ...EMPTY_CONTACT, defaultContact: true }]);
@@ -62,6 +65,7 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
     onSuccess: (saved: Customer) => {
       qc.invalidateQueries({ queryKey: ["customers-page"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["sales-reps"] });
       qc.invalidateQueries({ queryKey: ["customer", saved?.id ?? editing?.id] });
       onSaved(saved);
     },
@@ -112,7 +116,11 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
         <Field id="customers-tax-rule" label="Tax Rule" value={form.taxRule} onChange={v => set("taxRule", v)} placeholder="e.g. 20% (VAT on Income)" />
         <Field id="customers-tax-number" label="Tax Number" value={form.taxNumber} onChange={v => set("taxNumber", v)} placeholder="VAT number" />
         <Field id="customers-carrier" label="Carrier" value={form.carrier} onChange={v => set("carrier", v)} />
-        <Field id="customers-sales-rep" label="Sales Representative" value={form.salesRepresentative} onChange={v => set("salesRepresentative", v)} />
+        <div>
+          <label htmlFor="customers-sales-rep" className="block text-xs font-medium text-gray-600 mb-1">Sales Representative</label>
+          <NameCombobox id="customers-sales-rep" value={form.salesRepresentative} onChange={v => set("salesRepresentative", v)} listLabel="Sales reps"
+            placeholder="Pick or type a name" className={INPUT} options={salesReps.map(r => ({ key: r, name: r }))} />
+        </div>
         <Field id="customers-location" label="Location" value={form.location} onChange={v => set("location", v)} />
         <div className="col-span-3">
           <Field id="customers-tags" label="Tags" value={form.tags} onChange={v => set("tags", v)} placeholder="Comma-separated" />

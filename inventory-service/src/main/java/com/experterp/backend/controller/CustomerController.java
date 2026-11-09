@@ -32,6 +32,12 @@ public class CustomerController {
         return customerService.findAll(search, page, size);
     }
 
+    // The sales rep list on the sale order and customer forms
+    @GetMapping("/sales-reps")
+    public java.util.List<String> salesReps() {
+        return customerService.salesReps();
+    }
+
     @GetMapping("/{id}")
     public CustomerResponse get(@PathVariable Long id) {
         return customerService.findById(id);
