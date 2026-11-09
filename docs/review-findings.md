@@ -189,8 +189,17 @@ Each finding records:
      - The rarely used fields are inside "More details", closed by default.
      - A **sticky bar** at the bottom: "Cancel" (quiet) and "Save" (brand colour), always in view; a warning when leaving with unsaved changes (shared with R7 b).
      - Labels in sentence case, help text under the field, no "None" placeholders.
-  4. **Design rule D3** (to agree): every page is built from these blocks only. New colours, sizes or one-off buttons are not allowed in pages.
-  5. **Tests**: the e2e tests use labels and roles, so most keep working; screenshots of each page before and after go in the review notes.
+  4. **Animations** (owner, 2026-11-09): small ones that show what happened, not decoration.
+     - Loading: grey placeholder rows instead of "Loading…".
+     - Feedback: a "Saved ✓" message that fades out after 3 s; a spinner on the button while it works (no double clicks).
+     - Pop-ups and the Filters side panel: quick fade with a slight scale or slide (about 150 ms), background dimmed.
+     - Lists: a new or changed row flashes a light highlight; a removed row fades out; status tab counts change smoothly.
+     - The order progress step fills in when the status moves on; the menu groups and "More details" open smoothly.
+     - Dashboard: charts grow in and the big numbers count up, once, on first load.
+     - Hover and keyboard focus: gentle row highlight, clear focus outline.
+     - Rules: nothing longer than about 300 ms, no bouncing or whole-page slides, no row-by-row animation of long lists; one set of speeds in the building blocks (phase 1); everything off when the device is set to reduce motion (`prefers-reduced-motion`); Tailwind first, a library such as `motion` only with the owner's OK.
+  5. **Design rule D3** (to agree): every page is built from these blocks only. New colours, sizes or one-off buttons are not allowed in pages.
+  6. **Tests**: the e2e tests use labels and roles, so most keep working; screenshots of each page before and after go in the review notes.
 - **How the design work is done** (owner, 2026-11-09): no separate design tool (Figma) for now. The pages are changed directly in the code on the dev environment and approved page by page:
   1. **Building blocks first**: built once on dev, the owner approves them, every page then uses them.
   2. **Each page**: the detail first (what will change), then the change on dev, then screenshots before and after (desktop and phone) for the owner to OK or mark up, then the commit. Each page is one commit, so it can be undone.

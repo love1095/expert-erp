@@ -53,6 +53,7 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
   - [ ] Phase 2: three model pages: Sale orders list (status tabs with counts, Filters panel, empty columns hidden, clear progress), New sale order (Customer → Lines → Delivery → Notes, "More details", sticky Save), sale order page (one main button, others under "More")
   - [ ] Phase 3: the other pages module by module with the page recheck, together with R2 (`/new` pages) and R7 (pop-ups)
   - [ ] UK date format everywhere (a US-English browser shows 11/9/2026 for 9 November)
+  - [ ] Animations (owner 2026-11-09), small and quick (under 300 ms), one style set in phase 1, off when the device asks for reduced motion: loading placeholder rows, "Saved" message and button spinner, pop-ups and side panels fade in, changed rows highlight / removed rows fade out, tab counts, order progress step, smooth menu and "More details", dashboard charts and numbers on first load, hover and keyboard focus. Tailwind first; a library such as `motion` only with the owner's OK
 - [x] R6 Window scrolled the app off the top (fixed daee4ae, 2026-11-09)
 
 ## Needs the owner's OK
