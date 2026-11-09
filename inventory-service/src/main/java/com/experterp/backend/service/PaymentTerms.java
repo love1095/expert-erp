@@ -28,4 +28,15 @@ public final class PaymentTerms {
         if (days.find()) return invoiceDate.plusDays(Long.parseLong(days.group(1)));
         return invoiceDate;
     }
+
+    /** What a term means, in words, for the terms list (e.g. "30 days after the end of the invoice month"). */
+    public static String describe(String term) {
+        if (term == null || term.isBlank()) return "Due on the invoice date";
+        String t = term.trim().toLowerCase(Locale.ROOT);
+        Matcher eom = EOM.matcher(t);
+        if (eom.find()) return eom.group(1) + " days after the end of the invoice month";
+        Matcher days = DAYS.matcher(t);
+        if (days.find()) return days.group(1) + " days after the invoice date";
+        return "Due on the invoice date";
+    }
 }

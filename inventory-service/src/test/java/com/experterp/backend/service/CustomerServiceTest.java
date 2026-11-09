@@ -108,6 +108,30 @@ class CustomerServiceTest {
         assertThat(customerService.salesReps()).containsSubsequence("anna", "Tom").contains("Web Sales").doesNotHaveDuplicates();
     }
 
+    @Autowired com.experterp.backend.controller.ListsController lists;
+
+    @Test
+    void paymentTermsListsTheTermsUsedOnceEachWithTheirMeaningOrCin7sUsualOnesWhenNone() {
+        // No terms used yet: Cin7's usual ones
+        assertThat(lists.paymentTerms()).extracting(com.experterp.backend.controller.ListsController.Term::name)
+                .contains("Cash", "30 Day EOM");
+        CustomerRequest a = request("Terms A Ltd", null);
+        a.setPaymentTerm("30 Day EOM");
+        customerService.create(a);
+        CustomerRequest b = request("Terms B Ltd", null);
+        b.setPaymentTerm("30 day eom");
+        customerService.create(b);
+        CustomerRequest c = request("Terms C Ltd", null);
+        c.setPaymentTerm("14 Days");
+        customerService.create(c);
+        CustomerRequest d = request("Terms D Ltd", null);     // the most-used spelling is kept
+        d.setPaymentTerm("30 Day EOM");
+        customerService.create(d);
+        assertThat(lists.paymentTerms()).containsExactly(
+                new com.experterp.backend.controller.ListsController.Term("14 Days", "14 days after the invoice date"),
+                new com.experterp.backend.controller.ListsController.Term("30 Day EOM", "30 days after the end of the invoice month"));
+    }
+
     @Test
     void searchFindsCustomersByContactDetailsAndKeepsOneDefaultContact() {
         CustomerRequest req = request("Builders Co", null);

@@ -3,7 +3,7 @@
 import UnitSelect from "@/components/UnitSelect";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder, getPriceTiers, getSalesReps } from "@/lib/api";
+import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder, getPriceTiers, getSalesReps, getPaymentTerms } from "@/lib/api";
 import { Customer, CustomerAddress, PostalAddress, PriceTier, SaleOrder, TaxRate, Warehouse } from "@/types";
 import { AddressFields, EMPTY_ADDRESS, oneLine } from "@/components/AddressFields";
 import { formatGBP } from "@/lib/currency";
@@ -54,6 +54,8 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   const { user } = useAuth();
   const mayChangeVat = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "SALE"], queryFn: () => getTaxRates("SALE") });
+  // Like Cin7: terms are picked from a list, each with what it means for the due date
+  const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
   // Like Cin7: the sales rep is picked from a list (names used on customers and orders)
   const { data: salesReps = [] } = useQuery<string[]>({ queryKey: ["sales-reps"], queryFn: getSalesReps });
 
@@ -198,8 +200,9 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         <Section title="Accounting details" testId="so-form-accounting">
           <div className="space-y-3">
             {field("sale-orders-terms", "Terms",
-              <input id="sale-orders-terms" value={header.paymentTerm} onChange={e => setHeader({ ...header, paymentTerm: e.target.value })}
-                placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (customer's)` : "Customer's terms"} autoComplete="off" className={`${INPUT} w-full`} />)}
+              <NameCombobox id="sale-orders-terms" value={header.paymentTerm} onChange={v => setHeader({ ...header, paymentTerm: v })} listLabel="Payment terms"
+                placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (customer's)` : "Customer's terms"} className={`${INPUT} w-full`}
+                options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />)}
             {/* Like Cin7: the customer's tier unless changed for this order; lines without a typed price follow it (G1) */}
             {field("sale-orders-price-tier", "Price tier",
               <select id="sale-orders-price-tier" value={header.priceTier} onChange={e => setHeader({ ...header, priceTier: e.target.value })}

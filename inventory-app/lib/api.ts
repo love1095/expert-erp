@@ -64,6 +64,8 @@ export const getCustomers     = () => api.get("/customers", { params: { size: 99
 export const getCustomersPage = (params?: { search?: string; page?: number; size?: number }) =>
   api.get("/customers", { params: { size: 20, ...params } }).then(r => r.data);
 export const getCustomer    = (id: number) => api.get(`/customers/${id}`).then(r => r.data);
+// Payment terms to choose from, each with what it means (terms used on customers, suppliers and orders)
+export const getPaymentTerms = () => api.get("/lists/payment-terms").then(r => r.data as { name: string; meaning: string }[]);
 // The sales rep names to choose from (customers, orders and the web sales rep)
 export const getSalesReps = () => api.get("/customers/sales-reps").then(r => r.data as string[]);
 export const createCustomer = (data: unknown) => api.post("/customers", data).then(r => r.data);

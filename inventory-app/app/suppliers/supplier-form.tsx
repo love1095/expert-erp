@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createSupplier, updateSupplier } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createSupplier, updateSupplier, getPaymentTerms } from "@/lib/api";
 import { Supplier } from "@/types";
+import NameCombobox from "@/components/NameCombobox";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const EMPTY_FORM = { name: "", status: "Active", currency: "GBP", paymentTerm: "", taxNumber: "", website: "", contactName: "", phone: "", email: "", comments: "" };
@@ -26,6 +27,8 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
   const qc = useQueryClient();
   const [form, setForm] = useState<Form>(() => (editing ? toForm(editing) : EMPTY_FORM));
   const [error, setError] = useState("");
+  // Like Cin7: terms are picked from a list, each with what it means for the due date
+  const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
   const set = (k: keyof Form, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const save = useMutation({
@@ -34,6 +37,7 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
     onSuccess: (saved: Supplier) => {
       qc.invalidateQueries({ queryKey: ["suppliers-page"] });
       qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["payment-terms"] });
       qc.invalidateQueries({ queryKey: ["supplier", saved?.id ?? editing?.id] });
       onSaved(saved);
     },
@@ -68,7 +72,11 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
 
       <div className="grid grid-cols-3 gap-4">
         {field("currency", "Currency", { placeholder: "GBP" })}
-        {field("paymentTerm", "Payment Term", { placeholder: "e.g. 30 Day EOM" })}
+        <div>
+          <label htmlFor="suppliers-paymentTerm" className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
+          <NameCombobox id="suppliers-paymentTerm" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} listLabel="Payment terms"
+            placeholder="e.g. 30 Day EOM" className={INPUT} options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+        </div>
         {field("taxNumber", "Tax Number", { placeholder: "VAT number" })}
       </div>
 

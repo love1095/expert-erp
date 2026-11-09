@@ -56,7 +56,7 @@ export default function NameCombobox({ id, value, onChange, options, placeholder
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
         value={value} required={required} autoComplete="off" placeholder={placeholder}
         onChange={e => { onChange(e.target.value); setTyped(true); setOpen(true); setActive(0); }}
-        onFocus={() => setOpen(true)} onClick={() => setOpen(true)} onKeyDown={onKey}
+        onFocus={() => setOpen(true)} onClick={() => setOpen(true)} onKeyDown={onKey} onBlur={() => setOpen(false)}
         className={`${className} pr-8`} />
       <button type="button" aria-label="Show the list" tabIndex={-1}
         onMouseDown={e => e.preventDefault()} onClick={() => { setOpen(o => !o); setTyped(false); input.current?.focus(); }}

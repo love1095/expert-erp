@@ -21,4 +21,12 @@ class PaymentTermsTest {
         assertThat(PaymentTerms.dueDate("14 days", LocalDate.of(2026, 2, 20))).isEqualTo(LocalDate.of(2026, 3, 6));
         assertThat(PaymentTerms.dueDate("30 Days EOM", LocalDate.of(2028, 2, 3))).isEqualTo(LocalDate.of(2028, 3, 30));
     }
+
+    @Test
+    void eachTermIsDescribedInWordsForTheTermsList() {
+        assertThat(PaymentTerms.describe("30 Day EOM")).isEqualTo("30 days after the end of the invoice month");
+        assertThat(PaymentTerms.describe("60 Day")).isEqualTo("60 days after the invoice date");
+        assertThat(PaymentTerms.describe("Cash")).isEqualTo("Due on the invoice date");
+        assertThat(PaymentTerms.describe("Proforma")).isEqualTo("Due on the invoice date");
+    }
 }

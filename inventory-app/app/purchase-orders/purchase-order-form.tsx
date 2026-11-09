@@ -3,7 +3,7 @@
 import UnitSelect from "@/components/UnitSelect";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createPurchaseOrder, getSuppliers, getTaxRates, previewPurchaseOrder, updatePurchaseOrder } from "@/lib/api";
+import { createPurchaseOrder, getSuppliers, getTaxRates, previewPurchaseOrder, updatePurchaseOrder, getPaymentTerms } from "@/lib/api";
 import { PurchaseOrder, Supplier, TaxRate, Warehouse } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,6 +40,8 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   const mayChangeVat = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "PURCHASE"], queryFn: () => getTaxRates("PURCHASE") });
   const { data: suppliers = [] } = useQuery<Supplier[]>({ queryKey: ["suppliers"], queryFn: getSuppliers });
+  // Like Cin7: terms are picked from a list, each with what it means for the due date
+  const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
 
   const str = (v: unknown) => (v == null ? "" : String(v));
   const [supplierName, setSupplierName] = useState(editing?.supplierName ?? "");
@@ -152,8 +154,9 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
               </div>
               <div>
                 <label htmlFor="po-terms" className={LABEL}>Terms</label>
-                <input id="po-terms" value={header.paymentTerm} onChange={e => setHeader({ ...header, paymentTerm: e.target.value })}
-                  placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (supplier's)` : "Supplier's terms"} autoComplete="off" className={`${INPUT} w-full`} />
+                <NameCombobox id="po-terms" value={header.paymentTerm} onChange={v => setHeader({ ...header, paymentTerm: v })} listLabel="Payment terms"
+                  placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (supplier's)` : "Supplier's terms"} className={`${INPUT} w-full`}
+                  options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
               </div>
             </div>
           </div>

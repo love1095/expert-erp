@@ -89,4 +89,15 @@ test.describe('Product selection list', () => {
       await page.getByLabel('Sales Representative').click();
       await expect(page.getByRole('listbox', { name: 'Sales reps' })).toContainText(rep);
     });
+
+  test('PICK-005 terms are picked from a list that says what each one means for the due date', { tag: ['@P2', '@sale-orders'] },
+    async ({ page, api }) => {
+      await api.http.post('/api/customers', { data: { name: `Acme ${uid()}`, paymentTerm: '30 Day EOM' } });
+      await page.goto('/sale-orders/new');
+      await page.getByLabel('Terms', { exact: true }).click();
+      const option = page.getByRole('listbox', { name: 'Payment terms' }).getByRole('option').filter({ hasText: '30 Day EOM' });
+      await expect(option).toContainText('30 days after the end of the invoice month');
+      await option.click();
+      await expect(page.getByLabel('Terms', { exact: true })).toHaveValue('30 Day EOM');
+    });
 });
