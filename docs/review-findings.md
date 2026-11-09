@@ -119,4 +119,4 @@ Each finding records:
   2. The signed-in frame does not let the window scroll at all (`overflow-hidden` on the frame / `body` for signed-in pages only; login and register keep normal scrolling for phones).
   3. An e2e test: open every menu page at 1500×800 and at phone size, scroll with the wheel, and fail if the window scrolls or is taller than the screen.
 - **Severity**: Minor (layout), but every user sees it
-- **Status**: Found, waiting for the owner's go
+- **Status**: Fixed 2026-11-09: `main` is `relative`, and the window can't scroll while signed in. e2e LAY-001 (desktop) and LAY-002 (phone) open every menu page, scroll with the wheel and check the window: both pass.

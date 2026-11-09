@@ -24,6 +24,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, user, pathname, router, isPublic]);
 
+  // Signed in, only <main> scrolls: the window itself never does, so the top bar and the menu stay in view
+  // (review R6). Login and register keep normal window scrolling for phones.
+  const framed = !isPublic && !!user;
+  useEffect(() => {
+    if (!framed) return;
+    const html = document.documentElement;
+    html.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => { html.style.overflow = ""; document.body.style.overflow = ""; };
+  }, [framed]);
+
   if (isPublic) {
     return <>{children}</>;
   }
@@ -41,7 +52,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <TopBar />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        {/* relative: hidden labels, file inputs and pop-ups are placed inside the page area, not against the window (R6) */}
+        <main className="relative flex-1 overflow-auto p-6">{children}</main>
       </div>
     </>
   );
