@@ -18,6 +18,35 @@ import java.time.LocalDate;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final com.experterp.backend.service.DashboardLayoutService layoutService;
+
+    // Manage dashboard (like Cin7): the signed-in user's layout, else the organisation's default, else the standard one
+    @GetMapping("/layout")
+    public com.experterp.backend.service.DashboardLayoutService.Result layout(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.experterp.backend.security.UserDetailsImpl me) {
+        return layoutService.forUser(me.getId());
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/layout")
+    public com.experterp.backend.service.DashboardLayoutService.Result saveLayout(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.experterp.backend.security.UserDetailsImpl me,
+            @org.springframework.web.bind.annotation.RequestBody com.experterp.backend.service.DashboardLayoutService.Layout layout) {
+        return layoutService.save(me.getId(), layout);
+    }
+
+    // Reset layout: back to the organisation's default
+    @org.springframework.web.bind.annotation.DeleteMapping("/layout")
+    public com.experterp.backend.service.DashboardLayoutService.Result resetLayout(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.experterp.backend.security.UserDetailsImpl me) {
+        return layoutService.reset(me.getId());
+    }
+
+    // An admin makes their layout the default for everyone who has not chosen their own (empty body: remove it)
+    @org.springframework.web.bind.annotation.PutMapping("/layout/default")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public void saveDefault(@org.springframework.web.bind.annotation.RequestBody(required = false) com.experterp.backend.service.DashboardLayoutService.Layout layout) {
+        layoutService.saveDefault(layout);
+    }
 
     // The period is from–to (both included); without them, the last `days` days, today included
     @GetMapping

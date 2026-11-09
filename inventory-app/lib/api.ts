@@ -354,6 +354,11 @@ export const updateOrganisationSettings = (data: unknown) => api.put("/settings/
 
 // Dashboard
 export const getDashboard = (period: { from: string; to: string }) => api.get("/dashboard", { params: period }).then(r => r.data);
+// Manage dashboard (like Cin7): the signed-in user's layout, else the organisation's default
+export const getDashboardLayout   = () => api.get("/dashboard/layout").then(r => r.data);
+export const saveDashboardLayout  = (layout: unknown) => api.put("/dashboard/layout", layout).then(r => r.data);
+export const resetDashboardLayout = () => api.delete("/dashboard/layout").then(r => r.data);
+export const saveDashboardDefault = (layout: unknown) => api.put("/dashboard/layout/default", layout).then(r => r.data);
 export const getDashboardReorder = (params: { search?: string; page?: number; size?: number }) =>
   api.get("/dashboard/reorder", { params }).then(r => r.data);
 // Reorder screen: products at or below their minimum by supplier, raised as one draft PO per supplier
