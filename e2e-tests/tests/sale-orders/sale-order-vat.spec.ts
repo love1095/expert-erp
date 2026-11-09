@@ -9,7 +9,7 @@ test.describe('Sale order VAT and totals', () => {
       const helmet = await api.createProduct({ costPrice: 4 });
 
       await page.goto('/sale-orders');
-      await page.getByRole('button', { name: '+ New SO' }).click();
+      await page.getByRole('link', { name: '+ New SO' }).click();
       const form = page.getByTestId('sale-order-form');
       await form.getByLabel('Customer *').fill(customer.name);
       await form.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));

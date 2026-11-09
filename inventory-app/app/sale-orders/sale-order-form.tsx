@@ -357,6 +357,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
               className="border border-violet-300 text-violet-700 px-5 py-2 rounded-md text-sm font-medium hover:bg-violet-50 disabled:opacity-50">
               Create quote
             </button>
+            {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>}
             <span className="text-xs text-gray-400">A quote reserves no stock and becomes the order when the customer accepts it.</span>
           </>
         )}

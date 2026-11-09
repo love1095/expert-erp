@@ -50,7 +50,7 @@ test.describe('Customers', () => {
       const product = await api.createProduct();
 
       await page.goto('/sale-orders');
-      await page.getByRole('button', { name: '+ New SO' }).click();
+      await page.getByRole('link', { name: '+ New SO' }).click();
       // Different case on purpose: matching ignores case
       await page.getByLabel('Customer *').fill(customer.name.toUpperCase());
       await page.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));
@@ -59,7 +59,7 @@ test.describe('Customers', () => {
       await page.getByPlaceholder('Qty').fill('2');
       await page.getByRole('button', { name: 'Create Sale Order' }).click();
 
-      await expect(page.getByRole('button', { name: '+ New SO' })).toBeVisible();
+      await expect(page).toHaveURL(/\/sale-orders\/\d+$/);
       expect((await api.getCustomer(customer.id)).orderCount).toBe(1);
       expect(await api.findCustomers(customer.name)).toHaveLength(1);
     });
@@ -70,7 +70,7 @@ test.describe('Customers', () => {
       const product = await api.createProduct();
 
       await page.goto('/sale-orders');
-      await page.getByRole('button', { name: '+ New SO' }).click();
+      await page.getByRole('link', { name: '+ New SO' }).click();
       await page.getByLabel('Customer *').fill(name);
       await expect(page.getByText('New customer — will be added to Customers')).toBeVisible();
       await page.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));
@@ -79,7 +79,7 @@ test.describe('Customers', () => {
       await page.getByPlaceholder('Qty').fill('1');
       await page.getByRole('button', { name: 'Create Sale Order' }).click();
 
-      await expect(page.getByRole('button', { name: '+ New SO' })).toBeVisible();
+      await expect(page).toHaveURL(/\/sale-orders\/\d+$/);
       await expect.poll(async () => (await api.findCustomers(name)).map(c => c.orderCount)).toEqual([1]);
     });
 

@@ -19,7 +19,7 @@ test('PO-002 a PO takes the supplier\'s terms and purchase VAT, is placed with t
     const fleece = await api.createProduct();
 
     await page.goto('/purchase-orders');
-    await page.getByRole('button', { name: '+ New PO' }).click();
+    await page.getByRole('link', { name: '+ New PO' }).click();
     const form = page.getByTestId('purchase-order-form');
     await form.getByLabel('Supplier *').fill(supplier.name);
     await form.getByLabel('Deliver to *').selectOption(String(warehouses.main.id));

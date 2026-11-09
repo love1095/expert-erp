@@ -9,7 +9,7 @@ test.describe('Quotes', () => {
       await api.addStock(helmet, warehouses.main, 10);
 
       await page.goto('/sale-orders');
-      await page.getByRole('button', { name: '+ New SO' }).click();
+      await page.getByRole('link', { name: '+ New SO' }).click();
       const form = page.getByTestId('sale-order-form');
       await form.getByLabel('Customer *').fill(customer.name);
       await form.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));

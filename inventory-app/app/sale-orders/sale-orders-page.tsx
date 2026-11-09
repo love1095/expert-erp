@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSaleOrders, getWarehouses, getCustomers, confirmSaleOrder, undoSaleOrder, cancelSaleOrder } from "@/lib/api";
-import { SaleOrder, Warehouse, Customer, Page } from "@/types";
+import { getSaleOrders, getCustomers, confirmSaleOrder, undoSaleOrder, cancelSaleOrder } from "@/lib/api";
+import { SaleOrder, Customer, Page } from "@/types";
 import { useEffect, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
@@ -12,7 +12,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { STATUS_COLOR, FULFILMENT_LABEL } from "./sale-order-view";
 import SaleStages, { OrderDocuments } from "./sale-stages";
-import SaleOrderForm from "./sale-order-form";
 import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
 import { useAuth } from "@/contexts/AuthContext";
 import { printMany } from "@/components/PrintButton";
@@ -53,40 +52,26 @@ export default function SaleOrdersPage() {
     queryKey: ["sale-orders", page, size, statusFilter, search, customerId],
     queryFn: () => getSaleOrders({ page, size, customerId, status: statusFilter || undefined, q: search || undefined }),
   });
-  const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["customers"], queryFn: getCustomers });
 
   const orders: SaleOrder[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements;
 
-  const [showForm, setShowForm] = useState(false);
   const router = useRouter();
   const selection = useSelection(orders);
-
-  const onCreated = (so: SaleOrder) => {
-    qc.invalidateQueries({ queryKey: ["sale-orders"] });
-    qc.invalidateQueries({ queryKey: ["customers"] });
-    qc.invalidateQueries({ queryKey: ["customers-page"] });
-    setShowForm(false);
-    router.push(`/sale-orders/${so.id}`);
-  };
 
   return (
     <div>
       <PageHeader title="Sale Orders" subtitle="Quotes and orders, newest first">
         {isAdmin && <ShopifyImportButton onOpen={() => setShowShopifyImport(true)} />}
-        <button onClick={() => setShowForm(!showForm)}
+        <Link href="/sale-orders/new"
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
-          {showForm ? "Cancel" : "+ New SO"}
-        </button>
+          + New SO
+        </Link>
       </PageHeader>
 
       {isAdmin && showShopifyImport && <ShopifyImportPanel onClose={() => setShowShopifyImport(false)} />}
-
-      {showForm && (
-        <SaleOrderForm customers={customers} warehouses={warehouses} onCreated={onCreated} />
-      )}
 
       <ListToolbar
         search={search} onSearch={q => { setSearch(q); setPage(0); }}

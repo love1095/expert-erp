@@ -8,7 +8,7 @@ test.describe('Plan limits (FREE plan)', () => {
     for (let i = 0; i < 50; i++) await api.createProduct();
 
     await page.goto('/products');
-    await page.getByRole('button', { name: '+ Add Product' }).click();
+    await page.getByRole('link', { name: '+ Add Product' }).click();
     await page.getByLabel('SKU').fill(`E2E-${uid()}`);
     await page.getByLabel('Name').fill('One too many');
     await page.getByLabel('Unit').fill('pcs');

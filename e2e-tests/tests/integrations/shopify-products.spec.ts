@@ -30,7 +30,7 @@ test.describe('Shopify products', () => {
       await expect(page).toHaveURL(/\/sale-orders$/);
       await expect(page.getByRole('heading', { name: 'Sale Orders' })).toBeVisible();
       // The fake store does not answer, so the connection is "Not working": no import button
-      await expect(page.getByRole('button', { name: '+ New SO' })).toBeVisible();
+      await expect(page.getByRole('link', { name: '+ New SO' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Import from Shopify' })).toHaveCount(0);
     });
 });

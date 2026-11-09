@@ -46,7 +46,7 @@ test.describe('Customer pricing', () => {
 
       // On a new order the tier starts as the customer's and can be changed for that order (like Cin7)
       await page.goto('/sale-orders');
-      await page.getByRole('button', { name: '+ New SO' }).click();
+      await page.getByRole('link', { name: '+ New SO' }).click();
       await page.getByLabel('Customer *').fill(customer.name);
       await page.getByLabel('Ship from Warehouse *').selectOption(String(warehouses.main.id));
       await page.getByLabel('Product for line 1').fill(gloves.sku);
@@ -57,6 +57,6 @@ test.describe('Customer pricing', () => {
       await page.getByLabel('Price tier').selectOption('Retail');
       await expect(page.getByTestId('so-form-price-source-0')).toHaveText('Retail price £4.50');
       await page.getByRole('button', { name: 'Create Sale Order' }).click();
-      await expect(page.getByRole('button', { name: '+ New SO' })).toBeVisible();
+      await expect(page).toHaveURL(/\/sale-orders\/\d+$/);
     });
 });

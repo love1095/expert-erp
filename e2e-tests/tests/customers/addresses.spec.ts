@@ -21,7 +21,7 @@ test.describe('Customer addresses', () => {
 
       // A new order fills in the defaults; deliver to the other saved address instead, for a named contact
       await page.goto('/sale-orders');
-      await page.getByRole('button', { name: '+ New SO' }).click();
+      await page.getByRole('link', { name: '+ New SO' }).click();
       const form = page.getByTestId('sale-order-form');
       await form.getByLabel('Customer *').fill(customer.name);
       await expect(form.getByLabel('Billing address line 1')).toHaveValue('Barlow Fold');

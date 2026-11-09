@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getProductsPage, getProduct, createProduct, updateProduct, deleteProduct, getCategories, importProducts, exportProducts,
+  getProductsPage, deleteProduct, getCategories, importProducts, exportProducts,
   deleteDeprecatedProducts,
 } from "@/lib/api";
 import { useRouter } from "next/navigation";
@@ -13,35 +13,11 @@ import MoreActions from "@/components/MoreActions";
 import { TickBox, useSelection } from "@/components/BulkActions";
 import { Product, Category, Page, ProductImportResult } from "@/types";
 import { formatGBP } from "@/lib/currency";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 
-const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const BUTTON_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
-
-const EMPTY_FORM = {
-  sku: "", name: "", unit: "", categoryId: "", status: "ACTIVE", type: "STOCK", brand: "", barcode: "",
-  costPrice: "", sellPrice: "", tradePrice: "", minStock: "", reorderQuantity: "", supplierProductCode: "",
-  shortDescription: "", description: "",
-};
-type Form = typeof EMPTY_FORM;
-
-const TEXT_FIELDS: { label: string; key: keyof Form; placeholder?: string }[] = [
-  { label: "SKU *", key: "sku", placeholder: "e.g. PROD-001" },
-  { label: "Name *", key: "name", placeholder: "Product name" },
-  { label: "Unit *", key: "unit", placeholder: "e.g. Each, Pair, Box of 10" },
-  { label: "Brand", key: "brand" },
-  { label: "Barcode", key: "barcode" },
-  { label: "Supplier product code", key: "supplierProductCode" },
-];
-const NUMBER_FIELDS: { label: string; key: keyof Form; placeholder?: string }[] = [
-  { label: "Cost price (£)", key: "costPrice", placeholder: "What you pay" },
-  { label: "Selling price (£)", key: "sellPrice", placeholder: "Price on Shopify" },
-  { label: "Trade price (£)", key: "tradePrice", placeholder: "Cin7 price tier 2" },
-  { label: "Min stock", key: "minStock", placeholder: "Reorder at this level" },
-  { label: "Reorder quantity", key: "reorderQuantity", placeholder: "How many to order" },
-];
 
 const STATUS_BADGE: Record<Product["status"], string> = {
   ACTIVE: "bg-emerald-50 text-emerald-700",
@@ -61,11 +37,6 @@ export default function ProductsPage() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
-  const [form, setForm] = useState<Form>(EMPTY_FORM);
-  // The full product being edited (keeps fields the form does not show); null = adding a new product
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [deprecateMissing, setDeprecateMissing] = useState(false);
   const [importResult, setImportResult] = useState<ProductImportResult | null>(null);
@@ -96,56 +67,9 @@ export default function ProductsPage() {
     qc.invalidateQueries({ queryKey: ["categories"] });
   };
 
-  const closeForm = () => {
-    setShowForm(false);
-    setEditing(null);
-    setForm(EMPTY_FORM);
-    setError("");
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: (data: unknown) => (editing == null ? createProduct(data) : updateProduct(editing.id, data)),
-    onSuccess: (saved: Product) => {
-      refresh();
-      qc.invalidateQueries({ queryKey: ["product", saved?.id] });
-      closeForm();
-      // Edited from the product's page: back to it
-      if (returnTo != null) router.push(`/products/${returnTo}`);
-    },
-    onError: (e: any) => {
-      const fields = e.response?.data?.fields;
-      setError(fields ? Object.values(fields).join(", ") : e.response?.data?.error || "Failed to save product");
-    },
-  });
-
-  const startEdit = async (p: Product) => {
-    // The list leaves out long texts; load the whole product
-    const full: Product = await getProduct(p.id);
-    const str = (v: unknown) => (v == null ? "" : String(v));
-    setEditing(full);
-    setForm({
-      sku: full.sku, name: full.name, unit: full.unit, categoryId: str(full.categoryId), status: full.status, type: full.type,
-      brand: str(full.brand), barcode: str(full.barcode),
-      costPrice: str(full.costPrice), sellPrice: str(full.sellPrice), tradePrice: str(full.tradePrice),
-      minStock: str(full.minStock), reorderQuantity: str(full.reorderQuantity),
-      supplierProductCode: str(full.supplierProductCode),
-      shortDescription: str(full.shortDescription), description: str(full.description),
-    });
-    setError("");
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const [returnTo, setReturnTo] = useState<number | null>(null);
   // What a More action did, shown above the list
   const [actionResult, setActionResult] = useState<{ ok: boolean; lines: string[] } | null>(null);
   const router = useRouter();
-
-  // Arriving from a product page's Edit (/products?edit=ID): open the form for it, and go back there once saved
-  useEffect(() => {
-    const id = Number(new URLSearchParams(window.location.search).get("edit"));
-    if (id) { setReturnTo(id); startEdit({ id } as Product).catch(() => {}); }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Delete the ticked products one by one; a product with history is refused and reported
   const deleteTicked = async (rows: Product[]) => {
@@ -191,28 +115,12 @@ export default function ProductsPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const num = (v: string) => (v.trim() === "" ? null : Number(v));
-    const text = (v: string) => (v.trim() === "" ? null : v);
-    saveMutation.mutate({
-      // Fields the form does not show (family, options, Cin7 details, type...) are sent back unchanged
-      ...(editing ?? {}),
-      sku: form.sku, name: form.name, unit: form.unit, status: form.status, type: form.type,
-      categoryId: form.categoryId ? Number(form.categoryId) : null,
-      brand: text(form.brand), barcode: text(form.barcode), supplierProductCode: text(form.supplierProductCode),
-      costPrice: num(form.costPrice), sellPrice: num(form.sellPrice), tradePrice: num(form.tradePrice),
-      minStock: num(form.minStock), reorderQuantity: num(form.reorderQuantity),
-      shortDescription: text(form.shortDescription), description: text(form.description),
-    });
-  };
-
   return (
     <div>
       <PageHeader title="Products" count={data?.totalElements} noun="products">
           {/* Cin7: More actions acts on the ticked products, plus Delete deprecated products */}
           <MoreActions actions={[
-            { label: "Edit", onClick: () => startEdit(selection.selected[0]),
+            { label: "Edit", onClick: () => router.push(`/products/${selection.selected[0].id}?edit=1`),
               disabledReason: selection.selected.length === 1 ? undefined : "Tick one product" },
             { label: `Delete${selection.selected.length ? ` (${selection.selected.length})` : ""}`, danger: true,
               disabledReason: selection.selected.length ? undefined : "Tick the products to delete",
@@ -226,12 +134,10 @@ export default function ProductsPage() {
           <button onClick={handleExport} disabled={exporting} className={BUTTON_SECONDARY}>
             {exporting ? "Exporting..." : "Export"}
           </button>
-          <button
-            onClick={() => (showForm ? closeForm() : setShowForm(true))}
-            className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition-colors"
-          >
-            {showForm ? "Cancel" : "+ Add Product"}
-          </button>
+          <Link href="/products/new"
+            className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition-colors">
+            + Add Product
+          </Link>
       </PageHeader>
 
       {showImport && (
@@ -272,74 +178,6 @@ export default function ProductsPage() {
             </div>
           )}
         </section>
-      )}
-
-      {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 mb-6 grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <h2 className="col-span-2 lg:col-span-3 font-semibold text-gray-800">{editing == null ? "New Product" : `Edit ${form.sku}`}</h2>
-          {error && <p className="col-span-2 lg:col-span-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
-          {editing?.familySku && (
-            <p className="col-span-2 lg:col-span-3 text-xs text-gray-500">
-              Part of family <b>{editing.familyName ?? editing.familySku}</b>
-              {editing.variantOptions?.length ? <> — {editing.variantOptions.map(o => `${o.name}: ${o.value}`).join(", ")}</> : null}.
-              On Shopify the family is one product with a variant per SKU.
-            </p>
-          )}
-          {TEXT_FIELDS.map(({ label, key, placeholder }) => (
-            <div key={key}>
-              <label htmlFor={`products-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-              <input id={`products-${key}`} value={form[key]} placeholder={placeholder}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })} className={INPUT} />
-            </div>
-          ))}
-          <div>
-            <label htmlFor="products-category" className="block text-xs font-medium text-gray-600 mb-1">Category</label>
-            <select id="products-category" value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })} className={INPUT}>
-              <option value="">— None —</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="products-status" className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-            <select id="products-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={INPUT}>
-              <option value="ACTIVE">Active</option>
-              <option value="DISCONTINUED">Discontinued (sold while stock lasts, not reordered)</option>
-              <option value="DEPRECATED">Archived (hidden, not sent to Shopify; Cin7: Deprecated)</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="products-type" className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-            <select id="products-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={INPUT}>
-              <option value="STOCK">Stock</option>
-              <option value="SERVICE">Service</option>
-              <option value="KIT">Kit (made of other products)</option>
-            </select>
-          </div>
-          {NUMBER_FIELDS.filter(f => seeCost || f.key !== "costPrice").map(({ label, key, placeholder }) => (
-            <div key={key}>
-              <label htmlFor={`products-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-              <input id={`products-${key}`} type="number" step="any" min={0} value={form[key]} placeholder={placeholder}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })} className={INPUT} />
-            </div>
-          ))}
-          <div className="col-span-2 lg:col-span-3">
-            <label htmlFor="products-shortDescription" className="block text-xs font-medium text-gray-600 mb-1">Short description</label>
-            <input id="products-shortDescription" value={form.shortDescription}
-              onChange={(e) => setForm({ ...form, shortDescription: e.target.value })} className={INPUT} />
-          </div>
-          <div className="col-span-2 lg:col-span-3">
-            <label htmlFor="products-description" className="block text-xs font-medium text-gray-600 mb-1">Description (text or HTML)</label>
-            <textarea id="products-description" rows={4} value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })} className={`${INPUT} font-mono text-xs`} />
-          </div>
-          <div className="col-span-2 lg:col-span-3 flex justify-end">
-            <button type="submit" disabled={saveMutation.isPending}
-              className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
-              {saveMutation.isPending ? "Saving..." : "Save Product"}
-            </button>
-          </div>
-        </form>
       )}
 
       <ListToolbar

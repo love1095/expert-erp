@@ -4,12 +4,16 @@ import { uid } from '../../fixtures/api';
 test('PRD-001 create a product', { tag: ['@P0', '@products'] }, async ({ page }) => {
   const sku = `E2E-${uid()}`;
   await page.goto('/products');
-  await page.getByRole('button', { name: '+ Add Product' }).click();
+  await page.getByRole('link', { name: '+ Add Product' }).click();
   await page.getByLabel('SKU').fill(sku);
   await page.getByLabel('Name').fill('Safety Helmet');
   await page.getByLabel('Unit').fill('pcs');
   await page.getByRole('button', { name: 'Save Product' }).click();
 
+  // Saving a new product opens its page (review R2)
+  await expect(page).toHaveURL(/\/products\/\d+$/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(sku);
+  await page.goto('/products');
   await expect(page.getByRole('cell', { name: sku, exact: true })).toBeVisible();
 });
 
@@ -17,7 +21,7 @@ test('PRD-002 duplicate SKU is rejected', { tag: ['@P1', '@products'] }, async (
   const existing = await api.createProduct();
 
   await page.goto('/products');
-  await page.getByRole('button', { name: '+ Add Product' }).click();
+  await page.getByRole('link', { name: '+ Add Product' }).click();
   await page.getByLabel('SKU').fill(existing.sku);
   await page.getByLabel('Name').fill('Duplicate');
   await page.getByLabel('Unit').fill('pcs');
@@ -35,12 +39,16 @@ test('PRD-003 a product is edited: cost and selling price are saved and listed',
   await row.getByLabel(`Select ${product.sku}`).check();
   await page.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
-  await expect(page.getByRole('heading', { name: `Edit ${product.sku}` })).toBeVisible();
+  // Edit opens on the product's own page (review R2)
+  await expect(page).toHaveURL(new RegExp(`/products/${product.id}\\?edit=1$`));
+  await expect(page.getByTestId('product-form')).toBeVisible();
   await expect(page.getByLabel('Cost price (£)')).toHaveValue('4');
   await page.getByLabel('Name').fill('Renamed helmet');
   await page.getByLabel('Selling price (£)').fill('12.50');
   await page.getByRole('button', { name: 'Save Product' }).click();
+  await expect(page.getByTestId(`product-page-${product.id}`)).toContainText('Renamed helmet');
 
+  await page.goto('/products');
   await expect(row).toContainText('Renamed helmet');
   await expect(row).toContainText('£4.00');
   await expect(row).toContainText('£12.50');
@@ -118,7 +126,7 @@ test('PRD-008 a product opens on its own page: stock per warehouse, what is on o
     await expect(page.getByTestId('product-section')).toContainText('On order: 10');
 
     // Edit from the page, then back to it with the change in the activity log
-    await page.getByRole('link', { name: 'Edit' }).click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await page.getByLabel('Selling price (£)').fill('6');
     await page.getByRole('button', { name: 'Save Product' }).click();
     await expect(page.getByTestId(`product-page-${product.id}`)).toBeVisible();

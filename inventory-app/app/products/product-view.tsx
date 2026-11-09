@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import { BackLink, RecordHeader, Card, Field, BTN_PRIMARY, TH, TD } from "@/comp
 import { ComplianceSection, FilesSection } from "./product-compliance";
 import { ComponentsSection } from "./product-kit";
 import { UnitsSection } from "./product-units";
+import ProductForm from "./product-form";
 
 // Cin7's product sections (left), those the ERP has data for; the rest come later
 const SECTIONS = ["General", "Components", "Units", "Prices", "Stock", "Suppliers", "Reorder levels", "Compliance", "Images and files", "Movements", "Activity log"] as const;
@@ -29,6 +30,12 @@ export default function ProductView({ productId }: { productId: number }) {
   const qc = useQueryClient();
   const [section, setSection] = useState<Section>("General");
   const [error, setError] = useState("");
+  // Edit happens here, on the product's page (review R2); ?edit=1 opens it straight away (the list's More → Edit)
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("edit")) setEditing(true);
+  }, []);
+  const stopEditing = () => { setEditing(false); router.replace(`/products/${productId}`); };
   const { data: p, isLoading } = useQuery<Product>({ queryKey: ["product", productId], queryFn: () => getProduct(productId) });
 
   const remove = useMutation({
@@ -52,16 +59,17 @@ export default function ProductView({ productId }: { productId: number }) {
             <span className="text-xs text-gray-500">{p.type === "STOCK" ? "Stock" : p.type === "KIT" ? "Kit" : "Service"}{p.categoryName ? ` · ${p.categoryName}` : ""}</span>
           </div>
         }
-        actions={<>
+        actions={editing ? undefined : <>
           <MoreActions actions={[
             { label: "Delete product", danger: true,
               onClick: () => { if (confirm(`Delete ${p.sku}? Only a product without stock movements or orders can be deleted.`)) remove.mutate(); } },
           ]} />
-          <Link href={`/products?edit=${p.id}`} className={BTN_PRIMARY}>Edit</Link>
+          <button type="button" onClick={() => setEditing(true)} className={BTN_PRIMARY}>Edit</button>
         </>}
       />
       {error && <p role="alert" data-testid="product-error" className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
+      {editing ? <ProductForm editing={p} onSaved={stopEditing} onCancel={stopEditing} /> : (
       <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)] gap-5 items-start">
         <nav aria-label="Product sections" className="bg-white border border-gray-200 rounded-lg py-1">
           {SECTIONS.filter(s => (s !== "Components" || p.type === "KIT") && (s !== "Units" || p.type !== "SERVICE")).map(s => (
@@ -86,6 +94,7 @@ export default function ProductView({ productId }: { productId: number }) {
           {section === "Activity log" && <Activity p={p} />}
         </div>
       </div>
+      )}
     </div>
   );
 }

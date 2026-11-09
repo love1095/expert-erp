@@ -1,10 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, getWarehouses, orderPurchaseOrder, undoPurchaseOrder } from "@/lib/api";
-import { PurchaseOrder, Warehouse, Page } from "@/types";
+import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, orderPurchaseOrder, undoPurchaseOrder } from "@/lib/api";
+import { PurchaseOrder, Page } from "@/types";
 import { PO_STATUS_COLOR as STATUS_COLOR, RECEIVING_LABEL, BILLING_LABEL } from "./purchase-order-view";
-import PurchaseOrderForm from "./purchase-order-form";
 import PurchaseStages from "./purchase-stages";
 import BillsList from "./bills-list";
 import { useEffect, useState } from "react";
@@ -50,13 +49,11 @@ export default function PurchaseOrdersPage() {
     queryKey: ["purchase-orders", page, size, statusFilter, search],
     queryFn: () => getPurchaseOrders({ page, size, status: statusFilter || undefined, q: search || undefined }),
   });
-  const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
 
   const orders: PurchaseOrder[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements;
 
-  const [showForm, setShowForm] = useState(false);
   const selection = useSelection(orders);
 
   const receiveMutation = useMutation({
@@ -78,10 +75,10 @@ export default function PurchaseOrdersPage() {
   return (
     <div>
       <PageHeader title="Purchase Orders" subtitle={tab === "general" ? "Orders to suppliers, newest first" : "Supplier bills: what is owed and when"}>
-        <button onClick={() => { setShowForm(!showForm); setTab("general"); }}
+        <Link href="/purchase-orders/new"
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
-          {showForm ? "Cancel" : "+ New PO"}
-        </button>
+          + New PO
+        </Link>
       </PageHeader>
 
       <div role="tablist" aria-label="Purchases view" className="flex gap-6 border-b border-gray-200 mb-4">
@@ -109,10 +106,6 @@ export default function PurchaseOrdersPage() {
           </select>
         </>} />
 
-      {showForm && (
-        <PurchaseOrderForm warehouses={warehouses} onCancel={() => setShowForm(false)}
-          onSaved={po => { qc.invalidateQueries({ queryKey: ["purchase-orders"] }); setShowForm(false); router.push(`/purchase-orders/${po.id}`); }} />
-      )}
 
       <BulkActionBar selected={selection.selected} name={o => o.orderNumber} actions={PURCHASE_ACTIONS}
         onClear={selection.clear} onDone={() => qc.invalidateQueries({ queryKey: ["purchase-orders"] })} />
