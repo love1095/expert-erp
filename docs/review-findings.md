@@ -191,6 +191,12 @@ Each finding records:
      - Labels in sentence case, help text under the field, no "None" placeholders.
   4. **Design rule D3** (to agree): every page is built from these blocks only. New colours, sizes or one-off buttons are not allowed in pages.
   5. **Tests**: the e2e tests use labels and roles, so most keep working; screenshots of each page before and after go in the review notes.
-- **Order of work**: 1) a clickable mock-up of three pages (Sale orders list, New sale order, Customer form) for the owner to choose the look; 2) the building blocks; 3) pages moved module by module with the page recheck, together with R2 (`/new` pages) and R7 (pop-ups).
+- **How the design work is done** (owner, 2026-11-09): no separate design tool (Figma) for now. The pages are changed directly in the code on the dev environment and approved page by page:
+  1. **Building blocks first**: built once on dev, the owner approves them, every page then uses them.
+  2. **Each page**: the detail first (what will change), then the change on dev, then screenshots before and after (desktop and phone) for the owner to OK or mark up, then the commit. Each page is one commit, so it can be undone.
+  3. **Three model pages first**: Sale orders (list), New sale order (creation), the sale order page (record). Once agreed, the other pages follow them and only need a quick look.
+  4. **Big layout changes** (e.g. the new sale order page): a rough screenshot or sketch of the layout before building.
+  - Figma only later, if a designer is hired or a brand look is wanted for selling the ERP.
+- **Order of work** (later, in phases, owner 2026-11-09): 1) building blocks; 2) the three model pages; 3) the other pages module by module with the page recheck, together with R2 (`/new` pages) and R7 (pop-ups).
 - **Severity**: Minor (look and ease of use)
-- **Status**: Found, plan written; waiting for the owner on the mock-up.
+- **Status**: Found, plan agreed; **do later in phases** (on the to-do list in `docs/TODO.md`).
