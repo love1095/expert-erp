@@ -103,3 +103,20 @@ Each finding records:
 - **Proposed fix**: use the same type-to-search product picker as the order lines (server search with `q`, 20 results), on all four pages. Test: the pages no longer call `/products/options` (e2e network check).
 - **Severity**: Major (speed with big data)
 - **Status**: Found, fix in the Inventory page recheck (with S4, which merges two of these pages).
+
+## R6 The whole window scrolls and the app slides off the top (owner's screenshot, 2026-11-09)
+
+- **Where**: the app frame (`inventory-app/components/AppShell.tsx`): `<main className="flex-1 overflow-auto p-6">`. Seen on Sale orders (owner's screenshot) and reproduced on Settings → Organisation.
+- **What is wrong**: the page is meant to scroll inside `main` only, with the top bar and the menu fixed. But `main` is not `position: relative`. So any element inside a page that is `position: absolute` without a positioned parent is placed against the browser window, not against `main`. That's common: `sr-only` hidden labels and file inputs, drop-downs. When such an element sits low on a long page, the window itself becomes taller than the screen. A mouse-wheel scroll then moves the whole window: the top bar, the logo, the first menu items and the page title disappear off the top, and an empty grey band appears at the bottom.
+- **Evidence**:
+  - Owner's screenshot (`~/Pictures/Screenshots/expert/Screenshot from 2026-11-09 15-05-35.png`): no top bar, menu starts at "Purchase", list title and "+ New" gone, empty band under the app, and two scroll bars.
+  - Playwright, 1500×800 window, every menu page checked: Settings → Organisation makes the window **1630 px** tall for an 800 px screen. The cause is the hidden logo file input (`company-details.tsx:85`, `sr-only`). After 10 wheel turns the window had scrolled **830 px** and the screen was blank grey.
+  - Same page with `main` set to `position: relative` (changed in the browser): window **800 px**, wheel scrolling moves only the page content (window scroll 0, content scroll 1888).
+  - Sale orders with 7 to 9 test orders did not overflow in the test browser. On the owner's screen it may come from the Shopify import panel or other data-dependent elements (only shown with Shopify connected), from browser extensions adding elements to the page, or from a page opened before. The fix below covers all of these.
+- **Impact**: all users, any page. Nothing is lost (layout only), but the menu and the page buttons go out of reach until the user scrolls back up, and it looks broken.
+- **Proposed fix**:
+  1. `AppShell.tsx`: `main` gets `relative`, so hidden and absolute elements stay inside the scrolling page area.
+  2. The signed-in frame does not let the window scroll at all (`overflow-hidden` on the frame / `body` for signed-in pages only; login and register keep normal scrolling for phones).
+  3. An e2e test: open every menu page at 1500×800 and at phone size, scroll with the wheel, and fail if the window scrolls or is taller than the screen.
+- **Severity**: Minor (layout), but every user sees it
+- **Status**: Found, waiting for the owner's go
