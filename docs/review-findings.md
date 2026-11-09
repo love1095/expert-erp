@@ -252,4 +252,19 @@ Each finding records:
   7. Tests: the existing e2e tests keep working (same label and list names); new e2e: the list opens on click with no typing, scrolling loads more, keyboard picking, PO shows cost.
 - **To check first**: in Cin7 (read-only), exactly what its product list shows on a sale line and a purchase line (columns, order), to copy it.
 - **Severity**: Minor to Major (daily order entry)
-- **Status**: Found, waiting for the owner's go
+- **Status**: Fixed 2026-11-09 (owner: "go ahead"):
+  - Backend `GET /api/products/picker?q=&supplierId=&page=&size=` (`ProductPickerService`): active products A–Z by SKU, the supplier's products first, search on SKU, name or barcode, one page with `more` (no count), on hand / available / on order / prices for that page only; cost hidden without the cost permission. Allowed for product viewers **and** sale/purchase editors and the Customers permission: the old search called `/api/products`, which needs "Product view", so a sales-only user saw no products on order lines.
+  - `product-picker.tsx` rewritten as a selection list: "Select a product ▾", the name with the SKU small under it (owner), opens on click, scroll loads 20 more, typing narrows from the first letter, ↑ ↓ Enter Tab Esc, quick fade. Sale lines: available + price; purchase lines: on hand, on order, cost, "Supplier's" tag.
+  - Used on sale order lines, purchase order lines (with the PO's supplier) and contract prices.
+  - Tests: backend `ProductPickerTest` (A–Z paging, archived left out, barcode search, supplier first, on hand/available/on order); e2e PICK-001 (opens with no typing, 20 then 25 on scroll, narrows, keyboard, Esc), PICK-002 (PO: supplier's product first with on order and cost); SO-008 updated.
+  - **Not done**: the Cin7 look-only check (the Chrome extension was not connected), so columns may still be adjusted; the four full drop-downs of R5 stay for the Inventory recheck (S4 merges two of those pages).
+
+## R10 The platform's Organisations page draws every organisation at once (slow with big data)
+
+- **Where**: Platform → Organisations (`inventory-app/app/platform/organisations/organisations-page.tsx`), `GET /api/tenants`.
+- **What is wrong**: the API sends every organisation and the page draws one row per organisation, each with two drop-downs (plan, subscription). Search filters in the browser.
+- **Evidence** (2026-11-09, local database after many e2e runs: each test registers its own organisation): **7,973** organisations; `GET /api/tenants` 0.07 s but **2.1 MB**; the page takes long enough to draw that e2e PLAT-001 timed out waiting for the redirect after the super admin signs in (the page shows correctly a few seconds later).
+- **Impact**: only the platform super admin; grows with every organisation that subscribes. No wrong data.
+- **Proposed fix**: server-side paging and search for `/api/tenants` (50 per page, search by name or slug), the page asks for one page at a time; counts (users, products, warehouses) only for that page. Test: an EXPLAIN-backed backend test, and PLAT-001 passes with thousands of organisations.
+- **Severity**: Major (speed with big data, platform admin only)
+- **Status**: Found

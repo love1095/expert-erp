@@ -28,6 +28,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final ProductImportService importService;
+    private final com.experterp.backend.service.ProductPickerService pickerService;
 
     // status: ACTIVE / DEPRECATED, omitted = all; q: part of the SKU or name
     @GetMapping
@@ -41,6 +42,14 @@ public class ProductController {
     }
 
     // Every product, minimal fields, for dropdowns; active ones unless a status is given ("ALL" = both)
+    // Review R9: the selection list on order lines; supplierId puts that supplier's products first
+    @GetMapping("/picker")
+    public com.experterp.backend.service.ProductPickerService.Result picker(@RequestParam(required = false) String q,
+            @RequestParam(required = false) Long supplierId, @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return pickerService.page(q, supplierId, page, size);
+    }
+
     @GetMapping("/options")
     public List<ProductService.ProductOption> options(@RequestParam(defaultValue = "ACTIVE") String status) {
         return productService.options("ALL".equalsIgnoreCase(status) ? null : Product.Status.valueOf(status.toUpperCase(Locale.ROOT)));

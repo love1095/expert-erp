@@ -27,7 +27,7 @@ export default function ContractPrices({ customer }: { customer: Customer }) {
   const { user } = useAuth();
   const canEdit = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const { data: prices = [] } = useQuery<ContractPrice[]>({ queryKey: ["contract-prices", customer.id], queryFn: () => getContractPrices(customer.id) });
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<Pick<Product, "id" | "sku" | "name"> | null>(null);
   const [form, setForm] = useState({ unitPrice: "", validFrom: today(), validTo: "", note: "" });
   const [error, setError] = useState<string | null>(null);
   const [showEnded, setShowEnded] = useState(false);

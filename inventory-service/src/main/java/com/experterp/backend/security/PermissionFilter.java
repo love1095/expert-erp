@@ -92,6 +92,7 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("POST", "/api/products/import", DATA_IMPORT),
             r("POST", "/api/products/delete-deprecated", DATA_IMPORT),
             r("GET", "/api/products/options", PRODUCT_VIEW, SALE_EDIT, PURCHASE_EDIT),
+            r("GET", "/api/products/picker", PRODUCT_VIEW, SALE_EDIT, PURCHASE_EDIT, CUSTOMERS),
             r("GET", "/api/products/**", PRODUCT_VIEW),
             r("GET", "/api/products", PRODUCT_VIEW),
             r("*", "/api/products/**", PRODUCT_EDIT),

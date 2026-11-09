@@ -13,6 +13,9 @@ export const getProducts    = (params?: { status?: "ACTIVE" | "DEPRECATED" | "AL
 // Products — Page for the products list view; status omitted = all, q = part of SKU or name
 export const getProductsPage = (params?: { categoryId?: number; status?: string; q?: string; page?: number; size?: number }) =>
   api.get("/products", { params: { size: 20, ...params } }).then(r => r.data);
+// Review R9: the product selection list on order lines (A-Z, the supplier's products first, one page of 20 at a time)
+export const getProductPicker = (params: { q?: string; supplierId?: number; page?: number; size?: number }) =>
+  api.get("/products/picker", { params: { size: 20, ...params } }).then(r => r.data);
 // Cin7 Core InventoryList CSV; deprecateMissing marks active products not in the file as deprecated
 export const importProducts = ({ file, deprecateMissing }: { file: File; deprecateMissing: boolean }) => {
   const body = new FormData();

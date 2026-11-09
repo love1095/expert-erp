@@ -18,7 +18,7 @@ test.describe('Sale order VAT and totals', () => {
       // Search by SKU and pick the match: it shows the stock available and fills in the shop price (none here)
       await form.getByLabel('Product for line 1').fill(helmet.sku);
       const match = form.getByRole('listbox', { name: 'Product for line 1 matches' }).getByRole('option').filter({ hasText: helmet.sku });
-      await expect(match).toContainText('7 available');
+      await expect(match.getByTestId('picker-available')).toHaveText('7');
       await match.getByRole('button').click();
       await form.getByLabel('Quantity for line 1').fill('2');
       await form.getByLabel('Unit price for line 1').fill('10');

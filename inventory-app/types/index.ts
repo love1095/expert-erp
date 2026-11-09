@@ -1393,3 +1393,11 @@ export interface KitBuildable { warehouseId: number; warehouse: string; onHand: 
 
 // Phase P3: units of measure
 export interface ProductUnit { id: number; name: string; factor: number; barcode: string | null; sellPrice: number | null; buyPrice: number | null }
+
+// Review R9: one row of the product selection list (GET /products/picker)
+export interface PickerProduct {
+  id: number; sku: string; name: string; unit?: string; barcode?: string | null;
+  sellPrice?: number | null; costPrice?: number | null;
+  onHand: number; available: number; onOrder: number; supplierProduct: boolean;
+}
+export interface PickerPage { rows: PickerProduct[]; more: boolean }
