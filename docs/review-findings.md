@@ -14,6 +14,7 @@ Each finding records:
 ## Design rules agreed in the review (apply to every page)
 
 - **D1 List and creation are separate pages** (2026-11-08). A list page only lists: search, filters, columns, bulk actions, and a "+ New" button that goes to a separate page. Creating happens on its own page (`/x/new`), with the same layout as the record page (`/x/{id}`), where viewing and editing also happen. No create or edit forms inside list pages, and no `?edit=` links back to a list. Only small set-up records (a few fields, no lines) may use a short pop-up. See R2 and R3.
+- **D2 Ask before doing** (2026-11-09). Actions that delete, cancel, void, move stock or money, or send something outside the ERP ask first in the app's own pop-up (not the browser box), with a red button for the dangerous ones. See R7.
 
 ---
 
@@ -120,3 +121,41 @@ Each finding records:
   3. An e2e test: open every menu page at 1500×800 and at phone size, scroll with the wheel, and fail if the window scrolls or is taller than the screen.
 - **Severity**: Minor (layout), but every user sees it
 - **Status**: Fixed 2026-11-09: `main` is `relative`, and the window can't scroll while signed in. e2e LAY-001 (desktop) and LAY-002 (phone) open every menu page, scroll with the wheel and check the window: both pass.
+
+## R7 Ask before doing: a confirmation pop-up before create, update, delete and other actions (owner, 2026-11-09)
+
+- **Where**: every page with a button that changes data. The app has **225 actions** (`useMutation` in 60+ page files).
+- **What is wrong today**:
+  1. Only **23 actions ask first** (delete product/customer/supplier/contract price, cancel invoice/PO/quote, reject quote, close PO short, receive all, undo Xero export, switch off an organisation…). The others run on the first click, including ones that move stock or money or go outside the ERP, for example:
+     - *Stock*: ship, pick/pack, post a stock take, stock adjustment, stock transfer, bin move, scanner receive, stock import
+     - *Money*: issue invoice, record/void payment, allocate credit, use customer credit, supplier deposit, credit notes, bank reconciliation match/undo, manual journal post, ledger run
+     - *Outside the ERP*: send e-mail, send stock to Shopify, apply Shopify refund, run Xero sync, book a courier, VAT disconnect
+     - *Removing*: delete warehouse, bin, role, template, chart account, product file, logo; revoke API key; reset two-step sign-in; disconnect Xero/Shopify/HMRC
+  2. The 23 that ask use the browser's own box (`confirm()`): grey, headed "localhost:3000 says", no red for dangerous actions, and the text can't be laid out (no list of what will change). Chrome also offers a "Don't allow this site to show more dialogs" tick; once ticked, those boxes stop showing, and the actions are refused without a message.
+- **Evidence**: `grep "confirm(" inventory-app` = 23; `grep "useMutation"` = 225. Mutation list per page kept in the review notes.
+- **Impact**: one wrong click can ship an order, post a stock take, void a payment or send an e-mail to a customer. Most can be put right afterwards, but only with extra documents (credit note, adjustment, journal) and the audit trail shows the mistake.
+- **Proposed fix**:
+  1. **One shared pop-up**, `ConfirmDialog` with a `useConfirm()` hook, in the app's style. It has a title, one short sentence on what will happen, the key figures (e.g. "3 lines · 12 units leave Main warehouse · £1,240.00"), and two buttons: *Cancel* and the action word (e.g. "Ship", "Delete"). Escape or a click outside means Cancel. It replaces all 23 browser boxes.
+  2. **Three kinds**, so people are not asked too often:
+
+     | Kind | Pop-up | Examples |
+     |---|---|---|
+     | **Danger**: removes, cancels, voids, disconnects or can't be undone | Red button; focus starts on *Cancel*; for the worst ones (delete organisation data, reset 2FA, disconnect HMRC/Xero) the name must be typed | delete, cancel, void, reverse, revoke, disconnect, reset, undo export, close short |
+     | **Posting**: moves stock or money, or sends something outside | Normal button with a summary of what changes | confirm order, ship, receive, issue invoice, payment, stock take post, adjustment, transfer, send e-mail, Shopify/Xero runs, courier booking, imports, raise POs from reorder |
+     | **Save**: create or update from a form the user has just filled in | **Owner to choose**, see below | new/edit customer, product, order header, settings |
+
+  3. **Saves: owner to choose**:
+     - **a)** a pop-up on every save ("Create customer *ACME Ltd*?")
+     - **b)** *(recommended)* no pop-up, but a clear "Saved" message, and a warning when leaving a page with unsaved changes. A pop-up only when the edit changes money or stock already booked, e.g. editing lines on a confirmed order, changing a price on an issued invoice, or changing a product's cost or unit.
+     Cin7 doesn't ask on plain saves; asking every time trains people to click OK without reading.
+  4. **Bulk actions** (ticked rows) always ask, and say how many rows: "Delete 12 products? Products with stock movements are kept."
+  5. **The server checks don't change**: the pop-up is only for people; the API still refuses what isn't allowed.
+  6. **Tests**:
+     - The e2e fixture accepts browser boxes on its own today (`page.on('dialog')` in `fixtures/test.ts`). Add a helper `confirmAction(page, 'Ship')` and update the tests that click these buttons.
+     - New e2e tests: Cancel leaves everything as it was; the action word runs it; Escape cancels; every danger button opens the red pop-up (one test walks every page and checks).
+- **Order of work**:
+  1. The shared pop-up, then replace the 23 browser boxes. Small; can be done straight away.
+  2. Danger and Posting actions, module by module with the Part 2 page recheck (Sale → Purchase → Inventory → Finance → Accounting → Settings), so each page is touched once.
+  3. Saves, as the owner chooses in point 3.
+- **Severity**: Major (a wrong click changes stock or money with no warning)
+- **Status**: Found, plan written. **Waiting for the owner**: choose a) or b) for saves; OK to start step 1.

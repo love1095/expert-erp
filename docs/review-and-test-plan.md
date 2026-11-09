@@ -76,6 +76,7 @@ Nothing moves until the owner agrees. Moving pages is done in step 5 of Part 4, 
 2. **Right people**: hidden from the menu and refused by the API (403) for a role without the permission; works for a role that has it.
 3. **Lists**: search, every filter, sort, paging, column choice, CSV export, empty state. Totals match the rows.
 4. **Records**: create, edit, required fields and validation messages, delete/void (and blocked when not allowed), status changes.
+   **Rule D2** (R7): every action that deletes, cancels, moves stock or money, or sends something outside asks first in the app's own pop-up.
    **Rule D1**: the list page has no create/edit form; "+ New" opens a separate page (`/x/new`) laid out like the record page.
 5. **Numbers**: amounts, VAT, totals, stock and costs are right. Check at least one record by hand.
 6. **Trail**: the change shows in the Audit log; the document shows its history (e-mails, payments).
