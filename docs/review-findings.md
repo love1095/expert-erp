@@ -158,4 +158,4 @@ Each finding records:
   2. Danger and Posting actions, module by module with the Part 2 page recheck (Sale → Purchase → Inventory → Finance → Accounting → Settings), so each page is touched once.
   3. Saves, as the owner chooses in point 3.
 - **Severity**: Major (a wrong click changes stock or money with no warning)
-- **Status**: Found, plan written. **Waiting for the owner**: choose a) or b) for saves; OK to start step 1.
+- **Status**: Found, plan written. Owner (2026-11-09): do it later; on the to-do list in `docs/TODO.md` (Review fixes to do). Still to choose a) or b) for saves.

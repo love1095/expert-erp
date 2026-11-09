@@ -40,6 +40,16 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Couriers, live**: once built for the owner's couriers — book a real parcel, print its label on the warehouse printer, cancel one, follow tracking
 - [ ] **Xero, first real import** (Demo Company first): credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines
 
+## Review fixes to do (found in the review, details in [`review-findings.md`](review-findings.md))
+Done module by module with the page recheck (Part 4 step 5 of the review plan), so each page is touched once.
+- [ ] **R7 Confirmation pop-ups** (rule D2, owner 2026-11-09: later): one shared app pop-up replacing the 23 browser `confirm()` boxes; then Danger (red) and Posting (summary of stock/money changed) pop-ups on the other actions, module by module; ticked-row actions always ask; e2e helper `confirmAction` and tests. **Owner to choose for saves**: a) pop-up on every save, or b) (recommended) no pop-up, "Saved" message, unsaved-changes warning, pop-up only when editing money or stock already booked
+- [ ] **R1 Search uses its indexes**: drop `coalesce` in search WHERE parts, trigram indexes for the missing columns, EXPLAIN test
+- [ ] **R2 "+ New" on its own page** (rule D1): `/x/new` laid out like the record page for orders, products, customers, suppliers, hand-typed invoices and bills, manual journals; edit on the record page
+- [ ] **R3 Credit notes and returns**: own page, start from the order, one Return / credit action, lists; check double restock first (flow test F1)
+- [ ] **R4 Simple vs Advanced**: keep one kind with "Receive and bill all" / "Ship and invoice all" (after the owner's OK and the Cin7 check)
+- [ ] **R5 Product drop-downs**: type-to-search picker on Stock history, Movements Log, Transfer and Invoices
+- [x] R6 Window scrolled the app off the top (fixed daee4ae, 2026-11-09)
+
 ## Needs the owner's OK
 - [ ] **Mail library** for live e-mail (phase M): `spring-boot-starter-mail` (Jakarta Mail / Angus Mail) so `SmtpMailSender` can send by SMTP; until then e-mails are kept in the outbox (fake mode)
 - [ ] **Camera barcode scanning** on the phone page (phase N4): a library such as `@zxing/browser` (npm) to read barcodes with the phone camera; meanwhile a handheld scanner (acting as a keyboard) or typing the SKU works
