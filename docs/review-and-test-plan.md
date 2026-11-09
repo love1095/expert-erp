@@ -27,6 +27,46 @@ Things already visible from the menu (`inventory-app/components/nav.ts`) and the
 
 Output of Part 1: a short **target menu** (new tree) agreed with the owner before any page moves.
 
+### Proposed target menu (2026-11-09, waiting for the owner's OK)
+
+What was checked for the proposal:
+- **S1**: the MTD page (`MtdVatService.review`) builds its nine boxes by calling the same `VatReturnService.vatReturn(from, to)` as Finance → VAT return, so the two pages **always give the same figures**. The MTD page adds the ledger check, the declaration, filing and the list of returns filed. Two pages = two places to look at the same numbers.
+- **S4**: *History* and *Movements Log* both call the same `getMovementsPage` with the same filters. The only difference: Movements Log also has a form to add a stock movement by hand, which does the same job as *Adjustments*. History has a CSV export. Both load the whole product list into a drop-down (see R5).
+
+```
+Dashboard
+Sale         Quotes* · Sale orders · Pick & pack · Invoices · Credit notes* · Customer payments* · Customers
+Purchase     Purchase orders · Reorder · Bills* · Supplier credits* · Supplier payments* · Suppliers (+ record page, S6)
+Inventory    Stock overview · Products · Stock movements (History + Movements Log merged) · Transfers ·
+             Adjustments · Stock takes · Certificates expiring
+Reports      Sales profit summary · Profit by sales rep · Sales by product · Inventory movement summary ·
+             Aged debtors · Aged creditors · Overdue · Profit and loss · Balance sheet · Trial balance
+             (one Reports page with these as cards, like Cin7; the menu shows the same list)
+Accounting   Bank accounts · Chart of accounts · Manual journals · VAT returns (one page: boxes + transactions + MTD filing) ·
+             Account transactions · Journal report · Xero (one page: API or CSV, whichever is on)
+Settings     Organisation · Users & roles · Audit log · Warehouses & bins · Document templates · E-mail ·
+             Integrations · Subscription · Import sales & purchases · Go-live check · Ledger settings
+Phone        Scanner: shown on phones only (bottom bar), not in the desktop Inventory menu
+```
+`*` new list pages (S7), each with search and filters; their records already exist.
+
+| # | Proposal |
+|---|---|
+| S1 | **Merge.** One *VAT returns* page under Accounting: pick the period, see the boxes and the transactions behind them (today's Finance page), then file through MTD or record it as filed. Finance → VAT return becomes a link to it. |
+| S2 | **One Reports menu** for every report, money and stock; Accounting keeps only ledger work. The ACCOUNTING / REPORTS_FINANCIAL permissions stay on each report as today. |
+| S3 | **Merge** into one *Xero* page: shows the mode that is on (API or CSV) and its screens; switching mode from there. |
+| S4 | **Merge** into *Stock movements* (History's CSV export + Movements Log's filters). Remove the hand-made movement form; *Adjustments* is the one way to change stock by hand. Move to the new layout. |
+| S5 | **Split**: Sale → Invoices and Credit notes; Purchase → Bills and Supplier credits. Same records and record page; only the lists are filtered. |
+| S6 | **Add** a supplier record page like the customer page (contacts, addresses, bills, deposits, statement). With R2 (`/suppliers/new`). |
+| S7 | **Add** list pages for quotes, credit notes, bills, supplier credits and payments (Cin7 has them; accounts staff look for them). |
+| S8 | Warehouses move to Settings (admin and SETTINGS permission). Invoices get SALE_VIEW; Bills get PURCHASE_VIEW. |
+| S9 | **One Settings menu** with Users & roles and Audit log in it; the Admin menu goes. |
+| S10 | Scanner only on phones (bottom bar or the phone home screen); a QR link on the Stock overview page for desktop users. |
+| S11 | List pages without the new `PageHeader` (checked in the code), to move during the page recheck: Stock history, Movements Log, Transfer, Warehouses, Users, Audit log, Settings → Organisation, Subscription, Integrations, Platform → Organisations. The three Cin7 profit reports use their own header from `report-parts.tsx`: check they match. |
+| S12 | Menu name = page title everywhere: *Stock movements*, *Stock transfers*, *Stock adjustments*, *Stock takes*. |
+
+Nothing moves until the owner agrees. Moving pages is done in step 5 of Part 4, after the flow tests.
+
 ---
 
 ## Part 2: Page-by-page recheck

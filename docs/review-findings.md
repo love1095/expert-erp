@@ -93,3 +93,13 @@ Each finding records:
   - one button, **Receive and bill all** for purchases and **Ship and invoice all** for sales, for an order done in one go
 - **To check first**: in Cin7 (read-only), which kind Expert Safety uses, and whether staff rely on anything only Simple has.
 - **Status**: Recommendation, waiting for the owner's OK and the Cin7 check; implement later with the purchase and sale page review.
+
+## R5 Stock pages load every product into a drop-down (slow with big data)
+
+- **Where**: Stock history (`stock-history-page.tsx:28`), Movements Log (`stock-movements-page.tsx:26`), Transfer (`stock-transfer-page.tsx:18`) and Invoices (`invoices-page.tsx:65`) call `getProducts()` → `GET /products/options`, which returns **every** active product of the organisation.
+- **What is wrong**: the product filter or picker is a plain `<select>` filled with the whole list. Other pages (sale and purchase order lines) already search products as you type.
+- **Evidence**: the code lines above; Expert Safety has 13,959 products (26k in the local copy with deprecated ones). Measure in the Inventory page recheck: response size and time to open each page.
+- **Impact**: each of these pages downloads and draws thousands of options before it can be used; with a big catalogue (or several organisations of that size) the pages get slow and the drop-down is hard to use. Speed and ease of use only; data is right.
+- **Proposed fix**: use the same type-to-search product picker as the order lines (server search with `q`, 20 results), on all four pages. Test: the pages no longer call `/products/options` (e2e network check).
+- **Severity**: Major (speed with big data)
+- **Status**: Found, fix in the Inventory page recheck (with S4, which merges two of these pages).
