@@ -73,7 +73,7 @@ export default function GlobalSearch() {
         className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
         value={text} onChange={e => { setText(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={onKey} />
       {showing && (
-        <div id="global-search-results" role="listbox" className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-[70vh] overflow-y-auto text-sm">
+        <div id="global-search-results" role="listbox" className="erp-drop-in absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-[70vh] overflow-y-auto text-sm">
           {hits.length === 0 && <p className="px-3 py-3 text-gray-500">{isFetching ? "Searching…" : `Nothing found for “${q}”`}</p>}
           {(Object.keys(KIND) as SearchKind[]).filter(k => hits.some(h => h.kind === k)).map(k => (
             <div key={k}>

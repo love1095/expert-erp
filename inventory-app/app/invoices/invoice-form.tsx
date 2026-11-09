@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createInvoice, getProducts, getSaleOrders, getPurchaseOrders } from "@/lib/api";
 import { Invoice, InvoiceType, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
+import { useToast } from "@/components/ui/Toast";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "VND"];
 const emptyItem = () => ({ productId: "", description: "", quantity: "", unitPrice: "" });
@@ -11,6 +12,7 @@ const emptyItem = () => ({ productId: "", description: "", quantity: "", unitPri
 /** A hand-typed invoice or bill (not from an order), on its own page /invoices/new (review R2, rule D1). */
 export default function InvoiceForm({ onCreated, onCancel }: { onCreated: (inv: Invoice) => void; onCancel: () => void }) {
   const qc = useQueryClient();
+  const toast = useToast();
   const [formType, setFormType] = useState<InvoiceType>("SALES");
   const [partyName, setPartyName]     = useState("");
   const [saleOrderId, setSaleOrderId] = useState("");
@@ -36,7 +38,7 @@ export default function InvoiceForm({ onCreated, onCancel }: { onCreated: (inv: 
 
   const createMut = useMutation({
     mutationFn: createInvoice,
-    onSuccess:  (inv: Invoice) => { qc.invalidateQueries({ queryKey: ["invoices"] }); onCreated(inv); },
+    onSuccess:  (inv: Invoice) => { qc.invalidateQueries({ queryKey: ["invoices"] }); toast("Invoice created"); onCreated(inv); },
     onError:    (e: any) => setFormError(e.response?.data?.error || "Failed to create invoice"),
   });
 
@@ -203,7 +205,7 @@ export default function InvoiceForm({ onCreated, onCancel }: { onCreated: (inv: 
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
-        <button type="submit" disabled={createMut.isPending}
+        <button type="submit" disabled={createMut.isPending} aria-busy={createMut.isPending}
           className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
           {createMut.isPending ? "Creating..." : "Create Invoice"}
         </button>

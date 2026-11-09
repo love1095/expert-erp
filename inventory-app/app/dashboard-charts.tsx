@@ -63,7 +63,7 @@ export function DailyBars({ data, format, label }: {
           <div className="absolute inset-0 flex items-end gap-[2px]" role="img" aria-label={label}>
             {data.map((d, i) => (
               <div key={d.date} className="relative flex-1 h-full flex items-end" onMouseEnter={() => setHover(i)}>
-                <div className={`w-full rounded-t-[4px] ${hover === i ? "opacity-80" : ""}`}
+                <div className={`w-full rounded-t-[4px] erp-grow-y ${hover === i ? "opacity-80" : ""}`}
                   style={{ height: `${(d.value / max) * 100}%`, background: SERIES_IN, minHeight: d.value > 0 ? 2 : 0 }} />
               </div>
             ))}
@@ -103,10 +103,10 @@ export function InOutBars({ data }: { data: { date: string; unitsIn: number; uni
             {data.map((d, i) => (
               <div key={d.date} className={`flex-1 h-full flex flex-col ${hover === i ? "opacity-80" : ""}`} onMouseEnter={() => setHover(i)}>
                 <div className="h-1/2 flex items-end pb-px">
-                  <div className="w-full rounded-t-[4px]" style={{ height: `${(d.unitsIn / max) * 100}%`, background: SERIES_IN }} />
+                  <div className="w-full rounded-t-[4px] erp-grow-y" style={{ height: `${(d.unitsIn / max) * 100}%`, background: SERIES_IN }} />
                 </div>
                 <div className="h-1/2 flex items-start pt-px">
-                  <div className="w-full rounded-b-[4px]" style={{ height: `${(d.unitsOut / max) * 100}%`, background: SERIES_OUT }} />
+                  <div className="w-full rounded-b-[4px] erp-grow-y" style={{ height: `${(d.unitsOut / max) * 100}%`, background: SERIES_OUT, transformOrigin: "top" }} />
                 </div>
               </div>
             ))}

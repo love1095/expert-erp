@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "./product-picker";
 import NameCombobox from "@/components/NameCombobox";
 import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
+import { useToast } from "@/components/ui/Toast";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
@@ -52,6 +53,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   onCancel?: () => void;
 }) {
   const { user } = useAuth();
+  const toast = useToast();
   const mayChangeVat = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "SALE"], queryFn: () => getTaxRates("SALE") });
   // Like Cin7: terms are picked from a list, each with what it means for the due date
@@ -142,7 +144,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
       const data = { ...request, quote: asQuote, quoteValidUntil: asQuote ? text(quoteValidUntil) : undefined };
       return editing ? updateSaleOrder({ id: editing.id, data }) : createSaleOrder(data);
     },
-    onSuccess: (so: SaleOrder) => onCreated(so),
+    onSuccess: (so: SaleOrder) => { toast(editing ? "Order saved" : so.status === "QUOTE" ? "Quote created" : "Sale order created"); onCreated(so); },
     onError: (e: any) => setError(e.response?.data?.error || "Could not save"),
   });
   const isQuote = editing?.status === "QUOTE";
@@ -350,7 +352,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         {!editing && <span className="hidden md:inline text-xs text-gray-400 ml-3">A quote reserves no stock and becomes the order when the customer accepts it.</span>}</>}>
         {onCancel && <button type="button" onClick={onCancel} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-2">Cancel</button>}
         {editing ? (
-          <button type="submit" disabled={save.isPending}
+          <button type="submit" disabled={save.isPending} aria-busy={save.isPending}
             className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {save.isPending ? "Saving..." : "Save changes"}
           </button>
@@ -360,7 +362,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
               className="border border-violet-300 bg-white text-violet-700 px-5 py-2 rounded-md text-sm font-medium hover:bg-violet-50 disabled:opacity-50">
               Create quote
             </button>
-            <button type="submit" value="order" disabled={save.isPending}
+            <button type="submit" value="order" disabled={save.isPending} aria-busy={save.isPending}
               className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               {save.isPending ? "Saving..." : "Create Sale Order"}
             </button>

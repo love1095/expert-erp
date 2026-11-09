@@ -81,7 +81,10 @@ export default function Sidebar() {
                   <NavIcon name="chevron" className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
                 </>}
               </button>
-              {!collapsed && expanded && (
+              {!collapsed && (
+                <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+                  inert={!expanded} aria-hidden={!expanded}>
+                <div className="overflow-hidden">
                 <div className="mt-0.5 mb-1">
                   {m.items!.map(i => {
                     const active = isActive(i.href, pathname);
@@ -94,6 +97,8 @@ export default function Sidebar() {
                       </Link>
                     );
                   })}
+                </div>
+                </div>
                 </div>
               )}
             </div>

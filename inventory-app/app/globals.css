@@ -36,11 +36,55 @@
 .list-table td { white-space: nowrap; padding: 0.5rem 0.625rem; vertical-align: middle; }
 .list-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 
-/* Confirm pop-up (review R7): quick fade and scale in, off when the device asks for less motion */
+/* Motion (review R8): small and quick, one set of speeds for the whole app.
+   Everything here is switched off when the device asks for less motion (bottom of the file). */
+:root {
+  --erp-fast: 120ms;
+  --erp-normal: 180ms;
+  --erp-slow: 280ms;
+}
+
 @keyframes erp-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes erp-pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-.erp-fade-in { animation: erp-fade-in 120ms ease-out; }
-.erp-pop-in { animation: erp-pop-in 150ms ease-out; }
+@keyframes erp-drop-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes erp-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes erp-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes erp-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@keyframes erp-spin { to { transform: rotate(360deg); } }
+@keyframes erp-flash { from { background-color: #fef9c3; } to { background-color: transparent; } }
+
+.erp-fade-in { animation: erp-fade-in var(--erp-fast) ease-out; }
+.erp-pop-in { animation: erp-pop-in var(--erp-normal) ease-out; }
+.erp-drop-in { animation: erp-drop-in var(--erp-normal) ease-out; }
+.erp-toast-in { animation: erp-toast-in var(--erp-normal) ease-out; }
+.erp-grow-y { transform-origin: bottom; animation: erp-grow-y var(--erp-slow) ease-out; }
+.erp-flash { animation: erp-flash 1.2s ease-out; }
+
+/* Grey placeholder bars while a list loads */
+.erp-skeleton {
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 37%, #f3f4f6 63%);
+  background-size: 400% 100%;
+  animation: erp-shimmer 1.4s ease infinite;
+}
+
+/* A small spinner in a busy button: add aria-busy="true" while it works, so nobody clicks twice */
+button[aria-busy="true"] { position: relative; cursor: progress; }
+button[aria-busy="true"]::before {
+  content: ""; display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.45em; vertical-align: -0.1em;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 9999px;
+  animation: erp-spin 0.7s linear infinite;
+}
+
+/* Gentle hover on buttons, links and list rows */
+a, button, .list-table tbody tr { transition: background-color var(--erp-fast) ease, color var(--erp-fast) ease, border-color var(--erp-fast) ease, box-shadow var(--erp-fast) ease; }
+
+/* A clear outline when moving with the keyboard (not on mouse clicks) */
+a:focus-visible, button:focus-visible, [role="tab"]:focus-visible, summary:focus-visible {
+  outline: 2px solid #2563eb; outline-offset: 2px; border-radius: 4px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .erp-fade-in, .erp-pop-in { animation: none; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  .erp-skeleton { animation: none; }
 }

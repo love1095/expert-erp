@@ -6,6 +6,7 @@ import { createCustomer, getPriceTiers, getSalesReps, updateCustomer, getPayment
 import NameCombobox from "@/components/NameCombobox";
 import { AddressType, Customer, CustomerAddress, CustomerContact, PriceTier } from "@/types";
 import { ADDRESS_TYPES, AddressFields, EMPTY_ADDRESS } from "@/components/AddressFields";
+import { useToast } from "@/components/ui/Toast";
 
 const EMPTY_CONTACT: CustomerContact = {
   name: "", jobTitle: "", phone: "", mobilePhone: "", email: "",
@@ -39,6 +40,7 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
   onCancel: () => void;
 }) {
   const qc = useQueryClient();
+  const toast = useToast();
   const { data: tiers = [] } = useQuery<PriceTier[]>({ queryKey: ["price-tiers"], queryFn: getPriceTiers });
   // Like Cin7: terms are picked from a list, each with what it means for the due date
   const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
@@ -65,6 +67,7 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
   const save = useMutation({
     mutationFn: (body: unknown) => (editing ? updateCustomer({ id: editing.id, data: body }) : createCustomer(body)),
     onSuccess: (saved: Customer) => {
+      toast(editing ? "Customer saved" : "Customer created");
       qc.invalidateQueries({ queryKey: ["customers-page"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["sales-reps"] });
@@ -197,7 +200,7 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
-        <button type="submit" disabled={saving}
+        <button type="submit" disabled={saving} aria-busy={saving}
           className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
           {saving ? "Saving..." : editing ? "Save Customer" : "Create Customer"}
         </button>

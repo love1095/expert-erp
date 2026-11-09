@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import CompanyDetailsCard from "./company-details";
 import PriceTiersCard from "./price-tiers";
 import PaymentAccountsCard from "./payment-accounts";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-50";
 const LABEL = "block text-xs font-medium text-gray-600 mb-1";
@@ -31,7 +32,7 @@ export default function OrganisationPage() {
     onError: (e: any) => setMessage({ ok: false, text: e.response?.data?.error || "Could not save" }),
   });
 
-  if (!form) return <p className="text-gray-400 text-sm">Loading...</p>;
+  if (!form) return <SkeletonRows />;
 
   return (
     <div className="max-w-3xl space-y-6">

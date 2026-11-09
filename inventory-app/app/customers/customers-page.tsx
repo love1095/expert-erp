@@ -11,6 +11,7 @@ import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, ListHead } from "@/components/ListToolbar";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 // Cin7 Core's customer files, on the Import and Export menus
 const FILE_TYPES: { value: CustomerFileType; label: string }[] = [
@@ -114,7 +115,7 @@ export default function CustomersPage() {
         searchLabel="Search customers" placeholder="Name, contact, email or phone"
         onRefresh={() => refetch()} refreshing={isFetching} />
 
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">

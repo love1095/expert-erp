@@ -8,6 +8,7 @@ import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 import StockImport from "./stock-import";
 import { formatGBP } from "@/lib/currency";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 export default function StockOverviewPage() {
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
@@ -65,7 +66,7 @@ export default function StockOverviewPage() {
         </>} />
 
       {isLoading ? (
-        <p className="text-gray-400 text-sm">Loading...</p>
+        <SkeletonRows />
       ) : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">

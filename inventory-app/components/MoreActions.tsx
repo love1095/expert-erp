@@ -33,7 +33,7 @@ export default function MoreActions({ actions, label = "More actions" }: { actio
         </svg>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 mt-1 w-60 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-40 text-sm">
+        <div role="menu" className="erp-drop-in absolute right-0 mt-1 w-60 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-40 text-sm">
           {actions.map(a => (
             <div key={a.label}>
               {a.divider && <div className="my-1 border-t border-gray-100" />}

@@ -7,6 +7,7 @@ import { getShopifyEvents, retryShopifyEvent } from "@/lib/api";
 import { ShopifyWebhookEvent } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const EVENT_COLOR: Record<ShopifyWebhookEvent["status"], string> = {
   PROCESSED: "bg-emerald-100 text-emerald-700",
@@ -54,7 +55,7 @@ export default function ShopifyWebhooks() {
         </button>
       </div>
       {message && <p role="status" className={`text-sm mb-3 ${message.ok ? "text-emerald-700" : "text-red-600"}`}>{message.ok ? "✓ " : "✕ "}{message.text}</p>}
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm" data-testid="shopify-events">
             <thead className="bg-gray-50 border-b border-gray-200">

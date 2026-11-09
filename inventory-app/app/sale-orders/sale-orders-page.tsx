@@ -16,6 +16,7 @@ import { ShopifyImportButton, ShopifyImportPanel } from "./shopify-import";
 import { useAuth } from "@/contexts/AuthContext";
 import { printMany } from "@/components/PrintButton";
 import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_EMAIL } from "@/components/BulkActions";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 // Cin7's actions on ticked sales
 const SALE_ACTIONS: BulkAction<SaleOrder>[] = [
@@ -100,7 +101,7 @@ export default function SaleOrdersPage() {
       <BulkActionBar selected={selection.selected} name={o => o.orderNumber} actions={SALE_ACTIONS}
         onClear={selection.clear} onDone={() => qc.invalidateQueries({ queryKey: ["sale-orders"] })} />
 
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">

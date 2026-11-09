@@ -10,6 +10,8 @@ import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
 import { PERIOD_LABELS, Period, PeriodKey, periodFor, ukDate } from "@/lib/periods";
 import { DailyBars, InOutBars, RankedBars, dayLabel } from "./dashboard-charts";
+import { SkeletonRows } from "@/components/ui/Skeleton";
+import { CountUp } from "@/components/ui/CountUp";
 
 const STATUS_COLOR: Record<SaleOrderStatus, string> = {
   QUOTE:     "bg-violet-100 text-violet-700",
@@ -21,7 +23,7 @@ const STATUS_COLOR: Record<SaleOrderStatus, string> = {
 };
 
 function Tile({ label, value, hint, href, testId, warn }: {
-  label: string; value: string; hint?: string; href?: string; testId: string; warn?: boolean;
+  label: string; value: React.ReactNode; hint?: string; href?: string; testId: string; warn?: boolean;
 }) {
   const body = (
     <>
@@ -70,7 +72,7 @@ export default function DashboardPage() {
       </div>
 
       {isError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">Could not load the dashboard</p>}
-      {isLoading || !data ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading || !data ? <SkeletonRows /> : (
         <DashboardBody data={data} periodLabel={periodKey === "custom" ? `${ukDate(data.from)} – ${ukDate(data.to)}` : PERIOD_LABELS[periodKey]} />
       )}
     </div>
@@ -123,13 +125,13 @@ function DashboardBody({ data, periodLabel }: { data: Dashboard; periodLabel: st
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Tile testId="kpi-sales" label={`Revenue ex VAT, ${periodLabel}`} value={formatGBP(k.salesValueInPeriod)} hint={`${k.ordersInPeriod} order${k.ordersInPeriod !== 1 ? "s" : ""}`} href="/sale-orders" />
-        <Tile testId="kpi-to-ship" label="Orders to ship" value={String(k.ordersToShip)} hint={`${k.draftOrders} draft${k.draftOrders !== 1 ? "s" : ""} to confirm`} href="/sale-orders" />
-        <Tile testId="kpi-stock-value" label="Stock value (at cost)" value={formatGBP(k.stockValue)} hint={`${k.products} products · ${k.warehouses} warehouses`} href="/stock-overview" />
-        <Tile testId="kpi-reorder" label="Products to reorder" value={String(k.productsToReorder)} hint="Stock + on order at or below minimum" warn={k.productsToReorder > 0} />
-        <Tile testId="kpi-shipped" label={`Units shipped, ${periodLabel}`} value={k.unitsShippedInPeriod.toLocaleString()} />
-        <Tile testId="kpi-receivables" label="Unpaid sales invoices" value={formatGBP(k.receivablesOutstanding)} href="/invoices" />
-        <Tile testId="kpi-customers" label="Active customers" value={k.customers.toLocaleString()} href="/customers" />
+        <Tile testId="kpi-sales" label={`Revenue ex VAT, ${periodLabel}`} value={<CountUp value={Number(k.salesValueInPeriod)} format={formatGBP} />} hint={`${k.ordersInPeriod} order${k.ordersInPeriod !== 1 ? "s" : ""}`} href="/sale-orders" />
+        <Tile testId="kpi-to-ship" label="Orders to ship" value={<CountUp value={k.ordersToShip} />} hint={`${k.draftOrders} draft${k.draftOrders !== 1 ? "s" : ""} to confirm`} href="/sale-orders" />
+        <Tile testId="kpi-stock-value" label="Stock value (at cost)" value={<CountUp value={Number(k.stockValue)} format={formatGBP} />} hint={`${k.products} products · ${k.warehouses} warehouses`} href="/stock-overview" />
+        <Tile testId="kpi-reorder" label="Products to reorder" value={<CountUp value={k.productsToReorder} />} hint="Stock + on order at or below minimum" warn={k.productsToReorder > 0} />
+        <Tile testId="kpi-shipped" label={`Units shipped, ${periodLabel}`} value={<CountUp value={Number(k.unitsShippedInPeriod)} />} />
+        <Tile testId="kpi-receivables" label="Unpaid sales invoices" value={<CountUp value={Number(k.receivablesOutstanding)} format={formatGBP} />} href="/invoices" />
+        <Tile testId="kpi-customers" label="Active customers" value={<CountUp value={k.customers} />} href="/customers" />
         <div data-testid="orders-by-status" className="bg-white border border-gray-200 rounded-xl px-5 py-4">
           <p className="text-xs font-medium text-gray-500 mb-2">Sale orders by status</p>
           <div className="flex flex-wrap gap-1.5">

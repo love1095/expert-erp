@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { createProduct, getCategories, updateProduct } from "@/lib/api";
 import { Category, Product } from "@/types";
+import { useToast } from "@/components/ui/Toast";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 
@@ -54,6 +55,7 @@ export default function ProductForm({ editing, onSaved, onCancel }: {
   onCancel: () => void;
 }) {
   const qc = useQueryClient();
+  const toast = useToast();
   // Phase I1: cost price only for roles with "Product - Prices: cost price"
   const { can } = useAuth();
   const seeCost = can("PRODUCT_COST");
@@ -64,6 +66,7 @@ export default function ProductForm({ editing, onSaved, onCancel }: {
   const save = useMutation({
     mutationFn: (data: unknown) => (editing == null ? createProduct(data) : updateProduct(editing.id, data)),
     onSuccess: (saved: Product) => {
+      toast(editing ? "Product saved" : "Product created");
       qc.invalidateQueries({ queryKey: ["products-page"] });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["categories"] });
@@ -152,7 +155,7 @@ export default function ProductForm({ editing, onSaved, onCancel }: {
       </div>
       <div className="col-span-2 lg:col-span-3 flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
-        <button type="submit" disabled={save.isPending}
+        <button type="submit" disabled={save.isPending} aria-busy={save.isPending}
           className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
           {save.isPending ? "Saving..." : "Save Product"}
         </button>

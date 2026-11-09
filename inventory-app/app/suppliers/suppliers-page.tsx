@@ -9,6 +9,7 @@ import { useState } from "react";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar } from "@/components/ListToolbar";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 export default function SuppliersPage({ initialSearch = "" }: { initialSearch?: string }) {
   const ask = useConfirm();
@@ -49,7 +50,7 @@ export default function SuppliersPage({ initialSearch = "" }: { initialSearch?: 
         searchLabel="Search suppliers" placeholder="Name, email or contact"
         onRefresh={() => refetch()} refreshing={isFetching} />
 
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">

@@ -17,6 +17,7 @@ import { useRef, useState } from "react";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const BUTTON_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
 
@@ -224,7 +225,7 @@ export default function ProductsPage() {
       )}
 
       {isLoading ? (
-        <p className="text-gray-400 text-sm">Loading...</p>
+        <SkeletonRows />
       ) : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">

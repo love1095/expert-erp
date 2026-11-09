@@ -7,6 +7,7 @@ import { StockMovement, Product, Warehouse, Category, Page } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const TYPE_COLORS: Record<string, string> = {
   PURCHASE_IN:    "bg-emerald-100 text-emerald-700",
@@ -105,7 +106,7 @@ export default function StockHistoryPage() {
         </select>
       </div>
 
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">

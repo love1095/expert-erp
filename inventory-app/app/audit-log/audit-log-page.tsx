@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ShopifyWebhooks from "./shopify-webhooks";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const ACTION_COLOR: Record<string, string> = {
   CREATE:  "bg-emerald-100 text-emerald-700",
@@ -88,7 +89,7 @@ export default function AuditLogPage() {
           className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-48" />
       </div>
 
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">

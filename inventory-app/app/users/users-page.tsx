@@ -10,6 +10,7 @@ import { Page } from "@/types";
 import { useState } from "react";
 import Pagination from "@/components/Pagination";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const ROLE_COLOR: Record<string, string> = {
   SUPER_ADMIN: "bg-red-100 text-red-700",
@@ -133,7 +134,7 @@ export default function UsersPage() {
           <span><b>Two-step sign-in required</b> for everyone in {me?.tenantName} (a code from an authenticator app after the password)</span>
         </label>
       )}
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">

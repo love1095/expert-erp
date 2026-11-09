@@ -66,7 +66,7 @@ export function StageIcons({ stages, testId }: { stages: { key: string; label: s
       {stages.map(s => (
         <span key={s.key} title={`${s.label}: ${WORD[s.state]}`} data-stage={s.key} data-state={s.state}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"
-            aria-hidden="true" className={`w-4 h-4 ${COLOR[s.state]}`}>
+            aria-hidden="true" className={`w-4 h-4 transition-colors duration-300 ${COLOR[s.state]}`}>
             <path d={ICON[s.key]} />
           </svg>
         </span>

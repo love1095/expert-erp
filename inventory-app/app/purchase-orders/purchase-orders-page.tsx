@@ -16,6 +16,7 @@ import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/compon
 import { printMany } from "@/components/PrintButton";
 import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_EMAIL } from "@/components/BulkActions";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 // Cin7's actions on ticked purchases
 const PURCHASE_ACTIONS: BulkAction<PurchaseOrder>[] = [
@@ -112,7 +113,7 @@ export default function PurchaseOrdersPage() {
       <BulkActionBar selected={selection.selected} name={o => o.orderNumber} actions={PURCHASE_ACTIONS}
         onClear={selection.clear} onDone={() => qc.invalidateQueries({ queryKey: ["purchase-orders"] })} />
 
-      {isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      {isLoading ? <SkeletonRows /> : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
             <table className="list-table">

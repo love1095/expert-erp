@@ -44,6 +44,9 @@ test.describe('New records on their own pages', () => {
       await page.getByLabel('Payment Term').fill('30 Day EOM');
       await page.getByLabel('Email').fill('sales@orn.test');
       await page.getByRole('button', { name: 'Create Supplier' }).click();
+      // A short message confirms it (review R8), then goes away
+      await expect(page.getByTestId('toast')).toContainText('Supplier created');
+      await expect(page.getByTestId('toast')).toHaveCount(0, { timeout: 6000 });
 
       await expect(page).toHaveURL(/\/suppliers\/\d+$/);
       const id = Number(page.url().split('/').pop());

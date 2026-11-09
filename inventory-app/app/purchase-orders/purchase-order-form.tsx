@@ -11,6 +11,7 @@ import ProductPicker from "../sale-orders/product-picker";
 import NameCombobox from "@/components/NameCombobox";
 import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitCost: string; discountPercent: string; supplierSku: string; taxRule: string; taxReason: string };
@@ -35,6 +36,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   editing?: PurchaseOrder;
   onCancel?: () => void;
 }) {
+  const toast = useToast();
   const ask = useConfirm();
   const { user } = useAuth();
   const mayChangeVat = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
@@ -105,7 +107,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
       const data = { ...request, ordered };
       return editing ? updatePurchaseOrder({ id: editing.id, data }) : createPurchaseOrder(data);
     },
-    onSuccess: (po: PurchaseOrder) => onSaved(po),
+    onSuccess: (po: PurchaseOrder) => { toast(editing ? "Purchase order saved" : "Purchase order created"); onSaved(po); },
     onError: (e: any) => setError(e.response?.data?.error || "Could not save"),
   });
 
@@ -266,7 +268,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
           className="border border-gray-300 bg-white text-gray-700 px-5 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
           {editing ? "Save draft" : "Save as draft"}
         </button>
-        <button type="submit" value="ordered" disabled={save.isPending}
+        <button type="submit" value="ordered" disabled={save.isPending} aria-busy={save.isPending}
           className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
           {save.isPending ? "Saving..." : editing ? "Save & mark ordered" : "Create & mark ordered"}
         </button>

@@ -10,6 +10,7 @@ import ShopifyOrders from "./shopify-orders";
 import ShopifyProducts from "./shopify-products";
 import ShopifyHealthCard from "./shopify-health";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400";
 
@@ -78,7 +79,7 @@ export default function ShopifyPage() {
 
       {forbidden ? (
         <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">Only an ADMIN can manage the Shopify connection.</p>
-      ) : isLoading ? <p className="text-gray-400 text-sm">Loading...</p> : (
+      ) : isLoading ? <SkeletonRows /> : (
         <div className="space-y-5">
           {result && (
             <p role="status" data-testid="shopify-test-result"

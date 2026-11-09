@@ -8,6 +8,7 @@ import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 
 export default function StockMovementsPage() {
   const ask = useConfirm();
@@ -200,7 +201,7 @@ export default function StockMovementsPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-gray-400 text-sm">Loading...</p>
+        <SkeletonRows />
       ) : (
         <>
           <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">

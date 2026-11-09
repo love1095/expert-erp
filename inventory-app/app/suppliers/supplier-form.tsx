@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createSupplier, updateSupplier, getPaymentTerms } from "@/lib/api";
 import { Supplier } from "@/types";
 import NameCombobox from "@/components/NameCombobox";
+import { useToast } from "@/components/ui/Toast";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const EMPTY_FORM = { name: "", status: "Active", currency: "GBP", paymentTerm: "", taxNumber: "", website: "", contactName: "", phone: "", email: "", comments: "" };
@@ -25,6 +26,7 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
   onCancel: () => void;
 }) {
   const qc = useQueryClient();
+  const toast = useToast();
   const [form, setForm] = useState<Form>(() => (editing ? toForm(editing) : EMPTY_FORM));
   const [error, setError] = useState("");
   // Like Cin7: terms are picked from a list, each with what it means for the due date
@@ -35,6 +37,7 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
     // Fields the form does not show (discount) are sent back unchanged
     mutationFn: (data: Form) => (editing ? updateSupplier(editing.id, { ...editing, ...data }) : createSupplier(data)),
     onSuccess: (saved: Supplier) => {
+      toast(editing ? "Supplier saved" : "Supplier created");
       qc.invalidateQueries({ queryKey: ["suppliers-page"] });
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       qc.invalidateQueries({ queryKey: ["payment-terms"] });
@@ -94,7 +97,7 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
-        <button type="submit" disabled={save.isPending}
+        <button type="submit" disabled={save.isPending} aria-busy={save.isPending}
           className="bg-brand-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
           {save.isPending ? "Saving..." : editing ? "Save Supplier" : "Create Supplier"}
         </button>
