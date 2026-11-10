@@ -11,9 +11,10 @@ import { BTN_SECONDARY, Card } from "@/components/DetailParts";
 import { openPdf } from "@/components/PrintButton";
 import EmailButton, { SentEmails } from "@/components/EmailButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { isoDay } from "@/lib/dates";
 
 // yyyy-mm-dd in local time
-export const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+export { isoDay };
 // Like the server: the first day of the month two months back, so the last three months
 export const defaultFrom = () => { const d = new Date(); return isoDay(new Date(d.getFullYear(), d.getMonth() - 2, 1)); };
 

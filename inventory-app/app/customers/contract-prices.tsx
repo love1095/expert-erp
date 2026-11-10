@@ -9,9 +9,10 @@ import { Card, TH, TD } from "@/components/DetailParts";
 import ProductPicker from "../sale-orders/product-picker";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { todayIso } from "@/lib/dates";
 
 const INPUT = "border border-gray-300 rounded-md px-2 py-1 text-sm";
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayIso;
 
 function errorText(e: unknown) {
   return (e as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ?? "Something went wrong";

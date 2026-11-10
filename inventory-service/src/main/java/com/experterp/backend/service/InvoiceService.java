@@ -42,6 +42,7 @@ public class InvoiceService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final TaxService taxService;
     private final CostingService costingService;
+    private final PaymentTermService paymentTermService;
 
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(int page, int size, Invoice.InvoiceType type) {
@@ -224,7 +225,7 @@ public class InvoiceService {
         inv.setInvoiceNumber(settingsService.nextInvoiceNumber());
         LocalDate today = LocalDate.now();
         inv.setIssueDate(today);
-        inv.setDueDate(PaymentTerms.dueDate(so.getPaymentTerm(), today));
+        inv.setDueDate(paymentTermService.dueDate(so.getPaymentTerm(), today));
         if (issue) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
         Invoice saved = invoiceRepository.save(inv);
         if (issue) paidInShopify(saved);
@@ -311,7 +312,7 @@ public class InvoiceService {
         LocalDate issued = req.getIssueDate() != null ? req.getIssueDate() : LocalDate.now();
         periodService.check(issued, "a bill");
         inv.setIssueDate(issued);
-        inv.setDueDate(req.getDueDate() != null ? req.getDueDate() : PaymentTerms.dueDate(po.getPaymentTerm(), issued));
+        inv.setDueDate(req.getDueDate() != null ? req.getDueDate() : paymentTermService.dueDate(po.getPaymentTerm(), issued));
         if (!req.isDraft()) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
         Invoice saved = invoiceRepository.save(inv);
         // Bill prices other than the PO's correct the stock received and the COGS already taken from it (FIFO)

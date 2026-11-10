@@ -113,7 +113,7 @@ class CustomerServiceTest {
     @Test
     void paymentTermsListsTheTermsUsedOnceEachWithTheirMeaningOrCin7sUsualOnesWhenNone() {
         // No terms used yet: Cin7's usual ones
-        assertThat(lists.paymentTerms()).extracting(com.experterp.backend.controller.ListsController.Term::name)
+        assertThat(lists.paymentTerms()).extracting(PaymentTermService.Term::name)
                 .contains("Cash", "30 Day EOM");
         CustomerRequest a = request("Terms A Ltd", null);
         a.setPaymentTerm("30 Day EOM");
@@ -128,8 +128,8 @@ class CustomerServiceTest {
         d.setPaymentTerm("30 Day EOM");
         customerService.create(d);
         assertThat(lists.paymentTerms()).containsExactly(
-                new com.experterp.backend.controller.ListsController.Term("14 Days", "14 days after the invoice date"),
-                new com.experterp.backend.controller.ListsController.Term("30 Day EOM", "30 days after the end of the invoice month"));
+                new PaymentTermService.Term("14 Days", "14 days after the invoice date"),
+                new PaymentTermService.Term("30 Day EOM", "30 days after the end of the invoice month"));
     }
 
     @Test

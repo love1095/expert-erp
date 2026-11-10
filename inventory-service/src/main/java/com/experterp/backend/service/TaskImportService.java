@@ -73,6 +73,7 @@ public class TaskImportService {
     private final PickPackService pickPack;
     private final AccountingExportService accountingExportService;
     private final JdbcTemplate jdbc;
+    private final PaymentTermService paymentTermService;
 
     public enum Kind { SALES, PURCHASES }
 
@@ -365,7 +366,7 @@ public class TaskImportService {
             invoice.setInvoiceNumber(t.number);
             invoice.setIssueDate(date);
             LocalDate due = date(c.get(h, "InvoiceDueDate"), "InvoiceDueDate");
-            invoice.setDueDate(due != null ? due : PaymentTerms.dueDate(so.getPaymentTerm(), date));
+            invoice.setDueDate(due != null ? due : paymentTermService.dueDate(so.getPaymentTerm(), date));
             invoiceRepository.save(invoice);
             invoiceIds.add(invoice.getId());
         }

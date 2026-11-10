@@ -7,6 +7,7 @@ import { Invoice, PurchaseOrder } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { BTN_PRIMARY, BTN_SECONDARY, TH, TD } from "@/components/DetailParts";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { todayIso } from "@/lib/dates";
 
 type ChargeForm = { description: string; quantity: string; unitPrice: string };
 
@@ -21,7 +22,7 @@ const qty = (n: number) => Number(n).toLocaleString();
 export default function BillForm({ po, onSaved, onCancel }: { po: PurchaseOrder; onSaved: (bill: Invoice) => void; onCancel: () => void }) {
   const ask = useConfirm();
   const [number, setNumber] = useState("");
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
+  const [issueDate, setIssueDate] = useState(todayIso());
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Record<number, { quantity: string; unitPrice: string }>>(Object.fromEntries(po.lines.map(l => {

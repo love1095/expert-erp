@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { buttonClass } from "@/components/ui/Button";
 
 // Building blocks of the record pages (sale order, invoice, purchase order, customer), laid out like Cin7:
 // a title row with actions, a left-hand trail of related documents and the record itself on the right.
 
-export const BTN_PRIMARY = "bg-brand-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50";
-export const BTN_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
-export const BTN_DANGER = "border border-red-200 bg-white text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-50 disabled:opacity-50";
+// The same look as <Button> (components/ui/Button), for places that still write the class by hand
+export const BTN_PRIMARY = buttonClass("primary");
+export const BTN_SECONDARY = buttonClass("secondary");
+export const BTN_DANGER = buttonClass("danger");
 
 export function BackLink({ href }: { href: string }) {
   return <Link href={href} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-3">‹ Back to list</Link>;

@@ -176,6 +176,9 @@ public class SaleOrderService {
         so.setNotes(built.getNotes());
         so.setCustomerReference(built.getCustomerReference());
         so.setSalesRep(built.getSalesRep());
+        so.setContactName(built.getContactName());
+        so.setContactPhone(built.getContactPhone());
+        so.setContactEmail(built.getContactEmail());
         so.setPriceTier(built.getPriceTier());
         so.setPaymentTerm(built.getPaymentTerm());
         so.setShipBy(built.getShipBy());
@@ -580,6 +583,17 @@ public class SaleOrderService {
         so.setCustomerReference(blankToNull(req.getCustomerReference()));
         so.setSalesRep(orElse(req.getSalesRep(), customer != null ? customer.getSalesRepresentative() : null));
         so.setPaymentTerm(orElse(req.getPaymentTerm(), customer != null ? customer.getPaymentTerm() : null));
+        // The contact chosen on the order, else the customer's default contact (first in the list)
+        if (blankToNull(req.getContactName()) != null || blankToNull(req.getContactPhone()) != null || blankToNull(req.getContactEmail()) != null) {
+            so.setContactName(blankToNull(req.getContactName()));
+            so.setContactPhone(blankToNull(req.getContactPhone()));
+            so.setContactEmail(blankToNull(req.getContactEmail()));
+        } else if (customer != null && !customer.getContacts().isEmpty()) {
+            var contact = customer.getContacts().get(0);
+            so.setContactName(contact.getName());
+            so.setContactPhone(contact.getPhone() != null ? contact.getPhone() : contact.getMobilePhone());
+            so.setContactEmail(contact.getEmail());
+        }
         so.setShipBy(req.getShipBy());
         so.setCarrier(orElse(req.getCarrier(), customer != null ? customer.getCarrier() : null));
         so.setShippingNotes(blankToNull(req.getShippingNotes()));
@@ -876,6 +890,9 @@ public class SaleOrderService {
         r.setNotes(so.getNotes());
         r.setCustomerReference(so.getCustomerReference());
         r.setSalesRep(so.getSalesRep());
+        r.setContactName(so.getContactName());
+        r.setContactPhone(so.getContactPhone());
+        r.setContactEmail(so.getContactEmail());
         r.setPriceTier(so.getPriceTier());
         r.setPaymentTerm(so.getPaymentTerm());
         r.setShipBy(so.getShipBy());

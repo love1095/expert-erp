@@ -17,6 +17,9 @@ public class SaleOrderResponse {
     private String orderNumber;
     private String customerReference;
     private String salesRep;
+    private String contactName;
+    private String contactPhone;
+    private String contactEmail;
     // Phase G1: the tier the order is priced at
     private String priceTier;
     private String paymentTerm;

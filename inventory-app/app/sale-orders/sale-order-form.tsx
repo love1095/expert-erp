@@ -3,8 +3,8 @@
 import UnitSelect from "@/components/UnitSelect";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createSaleOrder, getTaxRates, previewSaleOrder, updateSaleOrder, getPriceTiers, getSalesReps, getPaymentTerms } from "@/lib/api";
-import { Customer, CustomerAddress, PostalAddress, PriceTier, SaleOrder, TaxRate, Warehouse } from "@/types";
+import { createSaleOrder, getOrganisationSettings, getTaxRates, previewSaleOrder, updateSaleOrder, getPriceTiers, getSalesReps, getPaymentTerms } from "@/lib/api";
+import { Customer, CustomerAddress, CustomerContact, PostalAddress, PriceTier, SaleOrder, TaxRate, Warehouse } from "@/types";
 import { AddressFields, EMPTY_ADDRESS, oneLine } from "@/components/AddressFields";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,8 @@ import ProductPicker from "./product-picker";
 import NameCombobox from "@/components/NameCombobox";
 import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
 import { useToast } from "@/components/ui/Toast";
+import { daysFromToday, todayIso } from "@/lib/dates";
+import { NewContactDialog, NewCustomerDialog, PaymentTermDialog, SalesRepDialog, WithAdd } from "@/components/QuickAdd";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
@@ -67,13 +69,25 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   const [header, setHeader] = useState({
     customerReference: str(editing?.customerReference), salesRep: str(editing?.salesRep), paymentTerm: str(editing?.paymentTerm),
     priceTier: str(editing?.priceTier),
-    shipBy: str(editing?.shipBy), carrier: str(editing?.carrier), shippingNotes: str(editing?.shippingNotes), notes: str(editing?.notes),
+    // A new sale starts on today's date (the owner's rule for date boxes on creation pages)
+    shipBy: editing ? str(editing.shipBy) : todayIso(), carrier: str(editing?.carrier), shippingNotes: str(editing?.shippingNotes), notes: str(editing?.notes),
   });
   // G4: billing and shipping addresses on the order, from the customer's defaults unless changed
   const [billing, setBilling] = useState<PostalAddress>(plain(editing?.billingAddress ?? EMPTY_ADDRESS));
   const [shipping, setShipping] = useState<PostalAddress>(plain(editing?.shippingAddress ?? EMPTY_ADDRESS));
   const [shipTo, setShipTo] = useState({ company: str(editing?.shipToCompany), contact: str(editing?.shipToContact) });
+  // The customer's contact for this order: empty = the customer's default contact (worked out by the server)
+  const [contact, setContact] = useState({ name: str(editing?.contactName), phone: str(editing?.contactPhone), email: str(editing?.contactEmail) });
+  // Which "+" pop-up is open (like Cin7: New customer, New contact, Add a payment term, Add a sales representative)
+  const [adding, setAdding] = useState<"customer" | "contact" | "term" | "rep" | null>(null);
+  // A customer just added in the pop-up, until the customer list has loaded again
+  const [added, setAdded] = useState<Customer | null>(null);
   const [quoteValidUntil, setQuoteValidUntil] = useState(str(editing?.quoteValidUntil));
+  // New sale: the box shows the date a quote would run to (today + the organisation's quote days) until it is changed
+  const [validTouched, setValidTouched] = useState(false);
+  const { data: org } = useQuery<{ quoteValidDays: number }>({ queryKey: ["organisation-settings"], queryFn: getOrganisationSettings, enabled: !editing, retry: false });
+  const defaultValidUntil = !editing && org?.quoteValidDays ? daysFromToday(org.quoteValidDays) : "";
+  const shownValidUntil = !editing && !validTouched ? defaultValidUntil : quoteValidUntil;
   const [lines, setLines] = useState<LineForm[]>(editing ? editing.lines.map(l => ({
     productSku: l.productSku, productName: l.productName, productId: String(l.productId), unitName: l.unitName ?? "", quantity: str(l.quantity),
     unitPrice: str(l.unitPrice), discountPercent: str(l.discountPercent), taxRule: l.taxOverridden ? str(l.taxName) : "", taxReason: "",
@@ -84,10 +98,15 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
   })) : []);
   const [error, setError] = useState("");
 
-  const existing = customers.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
+  const sameName = (c: Customer) => c.name.toLowerCase() === customerName.trim().toLowerCase();
+  const existing = customers.find(sameName) ?? (added && sameName(added) ? added : undefined);
+  const contactLabel = (c: CustomerContact) => c.name || c.email || c.phone || c.mobilePhone || "";
+  const pickContact = (c: CustomerContact) => setContact({ name: contactLabel(c), phone: c.phone || c.mobilePhone || "", email: c.email || "" });
   // Another customer chosen: their addresses (an order being changed keeps its own until then)
   const [addressesOf, setAddressesOf] = useState<number | undefined>(editing?.customerId ?? undefined);
   if (existing && existing.id !== addressesOf) {
+    // Another customer than the order's: their default contact again (empty = the server picks it)
+    if (addressesOf !== undefined || !editing) setContact({ name: "", phone: "", email: "" });
     setAddressesOf(existing.id);
     setBilling(defaultBilling(existing));
     setShipping(defaultShipping(existing));
@@ -101,6 +120,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
     warehouseId: warehouseId ? Number(warehouseId) : undefined,
     customerReference: text(header.customerReference), salesRep: text(header.salesRep), paymentTerm: text(header.paymentTerm),
     priceTier: text(header.priceTier),
+    contactName: text(contact.name), contactPhone: text(contact.phone), contactEmail: text(contact.email),
     shipBy: text(header.shipBy), carrier: text(header.carrier), shippingNotes: text(header.shippingNotes), notes: text(header.notes),
     billingAddress: sendAddress(billing), shippingAddress: sendAddress(shipping),
     shipToCompany: text(shipTo.company), shipToContact: text(shipTo.contact),
@@ -141,7 +161,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
 
   const save = useMutation({
     mutationFn: ({ asQuote }: { asQuote: boolean }) => {
-      const data = { ...request, quote: asQuote, quoteValidUntil: asQuote ? text(quoteValidUntil) : undefined };
+      const data = { ...request, quote: asQuote, quoteValidUntil: asQuote ? text(shownValidUntil) : undefined };
       return editing ? updateSaleOrder({ id: editing.id, data }) : createSaleOrder(data);
     },
     onSuccess: (so: SaleOrder) => { toast(editing ? "Order saved" : so.status === "QUOTE" ? "Quote created" : "Sale order created"); onCreated(so); },
@@ -185,11 +205,29 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
       <div className="grid gap-5 lg:grid-cols-3 items-start">
         <Section title="Customer details" testId="so-form-customer">
           <div className="space-y-3">
-            {field("sale-orders-customer", "Customer *", <>
-              <NameCombobox id="sale-orders-customer" value={customerName} onChange={setCustomerName} required listLabel="Customers"
-                placeholder="Pick a customer or type a new name" className={`${INPUT} w-full`}
-                options={customers.filter(c => c.status === "ACTIVE").map(c => ({ key: c.id, name: c.name, sub: c.contacts[0]?.email }))} />
-            </>, customerName.trim() && !existing ? "New customer — will be added to Customers" : undefined)}
+            {field("sale-orders-customer", "Customer *",
+              <WithAdd label="New customer" onAdd={() => setAdding("customer")}>
+                <NameCombobox id="sale-orders-customer" value={customerName} onChange={setCustomerName} required listLabel="Customers"
+                  placeholder="Pick a customer or type a new name" className={`${INPUT} w-full`}
+                  options={customers.filter(c => c.status === "ACTIVE").map(c => ({ key: c.id, name: c.name, sub: c.contacts[0]?.email }))} />
+              </WithAdd>, customerName.trim() && !existing ? "New customer — will be added to Customers (use + to add their details now)" : undefined)}
+            {/* Like Cin7: the customer's contact for this order, with their phone and e-mail */}
+            {field("sale-orders-contact", "Contact",
+              <WithAdd label="New contact" onAdd={() => setAdding("contact")} disabled={!existing} disabledHint="Pick a customer first">
+                <NameCombobox id="sale-orders-contact" value={contact.name} listLabel="Contacts"
+                  onChange={name => {
+                    const c = (existing?.contacts ?? []).find(x => contactLabel(x) === name);
+                    if (c) pickContact(c); else setContact({ name, phone: "", email: "" });
+                  }}
+                  placeholder={preview?.contactName ? `${preview.contactName} (default contact)` : existing ? "Customer's default contact" : "Pick a customer first"}
+                  className={`${INPUT} w-full`}
+                  options={(existing?.contacts ?? []).filter(c => contactLabel(c)).map((c, i) => ({
+                    key: c.id ?? i, name: contactLabel(c), sub: [c.jobTitle, c.email, c.phone || c.mobilePhone].filter(Boolean).join(" · "),
+                  }))} />
+              </WithAdd>,
+              <span data-testid="so-form-contact-details">
+                {[contact.name ? contact.phone : preview?.contactPhone, contact.name ? contact.email : preview?.contactEmail].filter(Boolean).join(" · ")}
+              </span>)}
             {field("sale-orders-reference", "Customer reference",
               <input id="sale-orders-reference" value={header.customerReference} onChange={e => setHeader({ ...header, customerReference: e.target.value })}
                 placeholder="Their PO number" autoComplete="off" className={`${INPUT} w-full`} />)}
@@ -202,9 +240,11 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
         <Section title="Accounting details" testId="so-form-accounting">
           <div className="space-y-3">
             {field("sale-orders-terms", "Terms",
-              <NameCombobox id="sale-orders-terms" value={header.paymentTerm} onChange={v => setHeader({ ...header, paymentTerm: v })} listLabel="Payment terms"
-                placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (customer's)` : "Customer's terms"} className={`${INPUT} w-full`}
-                options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />)}
+              <WithAdd label="Add a payment term" onAdd={() => setAdding("term")}>
+                <NameCombobox id="sale-orders-terms" value={header.paymentTerm} onChange={v => setHeader({ ...header, paymentTerm: v })} listLabel="Payment terms"
+                  placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (customer's)` : "Customer's terms"} className={`${INPUT} w-full`}
+                  options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+              </WithAdd>)}
             {/* Like Cin7: the customer's tier unless changed for this order; lines without a typed price follow it (G1) */}
             {field("sale-orders-price-tier", "Price tier",
               <select id="sale-orders-price-tier" value={header.priceTier} onChange={e => setHeader({ ...header, priceTier: e.target.value })}
@@ -213,12 +253,14 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
                 {tiers.map(t => <option key={t.number} value={t.name}>{t.name}</option>)}
               </select>)}
             {field("sale-orders-rep", "Sales rep",
-              <NameCombobox id="sale-orders-rep" value={header.salesRep} onChange={v => setHeader({ ...header, salesRep: v })} listLabel="Sales reps"
-                placeholder={preview?.salesRep ? `${preview.salesRep} (customer's)` : "Customer's sales rep"} className={`${INPUT} w-full`}
-                options={salesReps.map(r => ({ key: r, name: r }))} />)}
+              <WithAdd label="Add a sales representative" onAdd={() => setAdding("rep")}>
+                <NameCombobox id="sale-orders-rep" value={header.salesRep} onChange={v => setHeader({ ...header, salesRep: v })} listLabel="Sales reps"
+                  placeholder={preview?.salesRep ? `${preview.salesRep} (customer's)` : "Customer's sales rep"} className={`${INPUT} w-full`}
+                  options={salesReps.map(r => ({ key: r, name: r }))} />
+              </WithAdd>)}
             {(!editing || isQuote) && field("sale-orders-valid-until", "Quote valid until",
-              <input id="sale-orders-valid-until" type="date" value={quoteValidUntil} onChange={e => setQuoteValidUntil(e.target.value)} className={`${INPUT} w-full`} />,
-              !editing ? "Quotes only; empty = the organisation's default" : undefined)}
+              <input id="sale-orders-valid-until" type="date" value={shownValidUntil} onChange={e => { setValidTouched(true); setQuoteValidUntil(e.target.value); }} className={`${INPUT} w-full`} />,
+              !editing ? `Quotes only${org?.quoteValidDays ? `; starts at today + ${org.quoteValidDays} days (the organisation's default)` : "; empty = the organisation's default"}` : undefined)}
           </div>
         </Section>
 
@@ -369,6 +411,22 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
           </>
         )}
       </StickyActions>
+
+      {/* The "+" pop-ups: what is added is chosen in its field at once */}
+      {adding === "customer" && (
+        <NewCustomerDialog initialName={existing ? "" : customerName.trim()} onClose={() => setAdding(null)}
+          onCreated={c => { setAdded(c); setCustomerName(c.name); setAdding(null); }} />
+      )}
+      {adding === "contact" && existing && (
+        <NewContactDialog customer={existing} onClose={() => setAdding(null)}
+          onAdded={(c, customer) => { setAdded(customer); pickContact(c); setAdding(null); }} />
+      )}
+      {adding === "term" && (
+        <PaymentTermDialog onClose={() => setAdding(null)} onAdded={name => { setHeader(h => ({ ...h, paymentTerm: name })); setAdding(null); }} />
+      )}
+      {adding === "rep" && (
+        <SalesRepDialog onClose={() => setAdding(null)} onAdded={name => { setHeader(h => ({ ...h, salesRep: name })); setAdding(null); }} />
+      )}
     </form>
   );
 }

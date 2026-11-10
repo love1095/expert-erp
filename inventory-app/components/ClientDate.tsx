@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { DateText } from "@/components/ui/DateText";
 
+/** Older name of DateText, kept for the pages that use it: the same UK date (09/11/2026) on every computer. */
 export function ClientDate({ iso, showTime = false }: { iso: string; showTime?: boolean }) {
-  const [label, setLabel] = useState("");
-
-  useEffect(() => {
-    const d = new Date(iso);
-    setLabel(showTime ? d.toLocaleString() : d.toLocaleDateString());
-  }, [iso, showTime]);
-
-  return <span>{label || "—"}</span>;
+  return <DateText iso={iso} showTime={showTime} />;
 }

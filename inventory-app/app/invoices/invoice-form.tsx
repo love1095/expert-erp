@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createInvoice, getProducts, getSaleOrders, getPurchaseOrders } from "@/lib/api";
 import { Invoice, InvoiceType, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
 import { useToast } from "@/components/ui/Toast";
+import { todayIso } from "@/lib/dates";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "VND"];
 const emptyItem = () => ({ productId: "", description: "", quantity: "", unitPrice: "" });
@@ -17,7 +18,7 @@ export default function InvoiceForm({ onCreated, onCancel }: { onCreated: (inv: 
   const [partyName, setPartyName]     = useState("");
   const [saleOrderId, setSaleOrderId] = useState("");
   const [poId, setPoId]               = useState("");
-  const [issueDate, setIssueDate]     = useState(new Date().toISOString().slice(0, 10));
+  const [issueDate, setIssueDate]     = useState(todayIso());
   const [dueDate, setDueDate]         = useState("");
   const [currency, setCurrency]       = useState("USD");
   const [notes, setNotes]             = useState("");

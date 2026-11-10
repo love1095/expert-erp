@@ -78,11 +78,11 @@ test.describe('Product selection list', () => {
       const rep = `Rep ${uid()}`;
       await api.http.post('/api/customers', { data: { name: `Acme ${uid()}`, salesRepresentative: rep } });
       await page.goto('/sale-orders/new');
-      await page.getByLabel('Sales rep').click();
+      await page.getByLabel('Sales rep', { exact: true }).click();
       const list = page.getByRole('listbox', { name: 'Sales reps' });
       await expect(list).toContainText('Web Sales');
       await list.getByRole('option').filter({ hasText: rep }).click();
-      await expect(page.getByLabel('Sales rep')).toHaveValue(rep);
+      await expect(page.getByLabel('Sales rep', { exact: true })).toHaveValue(rep);
 
       // The customer form uses the same list
       await page.goto('/customers/new');

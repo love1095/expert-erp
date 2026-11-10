@@ -86,6 +86,16 @@ public class SaleOrder {
     @Column(length = 100)
     private String salesRep;
 
+    // The customer's contact for this order (Cin7: Contact, Phone, Email), copied from the customer's contact
+    @Column(name = "contact_name", length = 255)
+    private String contactName;
+
+    @Column(name = "contact_phone", length = 100)
+    private String contactPhone;
+
+    @Column(name = "contact_email", length = 255)
+    private String contactEmail;
+
     // Phase G1: the tier the order is priced at (the customer's unless changed on the order, like Cin7)
     @Column(name = "price_tier", length = 100)
     private String priceTier;

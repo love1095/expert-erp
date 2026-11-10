@@ -5,12 +5,13 @@ import Link from "next/link";
 import { formatGBP } from "@/lib/currency";
 import { ledgerExport } from "@/lib/api";
 import { download } from "@/app/reports/report-parts";
+import { todayIso } from "@/lib/dates";
 
 export const INPUT = "border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white";
 export const CLASS_LABEL: Record<string, string> = { ASSET: "Assets", LIABILITY: "Liabilities", EQUITY: "Equity", REVENUE: "Revenue", EXPENSE: "Expenses" };
 
 export const money = (v: number | null | undefined) => (v == null || Number(v) === 0 ? "" : formatGBP(Number(v)));
-export const today = () => new Date().toISOString().slice(0, 10);
+export const today = todayIso;
 export const errorOf = (e: unknown, fallback = "Something went wrong") =>
   (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback;
 

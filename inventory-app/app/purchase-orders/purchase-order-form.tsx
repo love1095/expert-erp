@@ -12,6 +12,7 @@ import NameCombobox from "@/components/NameCombobox";
 import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
+import { todayIso } from "@/lib/dates";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitCost: string; discountPercent: string; supplierSku: string; taxRule: string; taxReason: string };
@@ -50,7 +51,8 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   const [warehouseId, setWarehouseId] = useState(str(editing?.warehouseId ?? (warehouses.length === 1 ? warehouses[0].id : "")));
   const [header, setHeader] = useState({
     supplierReference: str(editing?.supplierReference), paymentTerm: str(editing?.paymentTerm),
-    requiredBy: str(editing?.requiredBy), notes: str(editing?.notes),
+    // A new purchase order starts on today's date (the owner's rule for date boxes on creation pages)
+    requiredBy: editing ? str(editing.requiredBy) : todayIso(), notes: str(editing?.notes),
   });
   const [lines, setLines] = useState<LineForm[]>(editing ? editing.lines.map(l => ({
     productSku: l.productSku, productName: l.productName, productId: String(l.productId), unitName: l.unitName ?? "", quantity: str(l.quantity),

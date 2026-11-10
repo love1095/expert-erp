@@ -514,6 +514,10 @@ export interface SaleOrder {
   // The customer's own reference (their PO number)
   customerReference?: string;
   salesRep?: string;
+  // The customer's contact for this order (the default contact unless another is chosen)
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
   paymentTerm?: string;
   shipBy?: string;
   carrier?: string;

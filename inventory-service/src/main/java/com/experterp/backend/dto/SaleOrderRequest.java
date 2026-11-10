@@ -31,6 +31,14 @@ public class SaleOrderRequest {
     @Size(max = 100)
     private String salesRep;
 
+    // Empty = the customer's default contact (with its phone and e-mail)
+    @Size(max = 255)
+    private String contactName;
+    @Size(max = 100)
+    private String contactPhone;
+    @Size(max = 255)
+    private String contactEmail;
+
     // Empty = the customer's price tier; lines without a typed price are priced at it (phase G1)
     @Size(max = 100)
     private String priceTier;

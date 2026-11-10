@@ -68,6 +68,11 @@ export const getCustomer    = (id: number) => api.get(`/customers/${id}`).then(r
 export const getPaymentTerms = () => api.get("/lists/payment-terms").then(r => r.data as { name: string; meaning: string }[]);
 // The sales rep names to choose from (customers, orders and the web sales rep)
 export const getSalesReps = () => api.get("/customers/sales-reps").then(r => r.data as string[]);
+// "+" buttons on forms (like Cin7): add to a pick list without leaving the form
+export const addPaymentTerm = (data: { name: string; method: "ON_INVOICE" | "DAYS" | "DAYS_EOM"; days: number | null }) =>
+  api.post("/lists/payment-terms", data).then(r => r.data as { name: string; meaning: string });
+export const addSalesRep = (name: string) => api.post("/lists/sales-reps", { name }).then(r => r.data as { name: string });
+export const addCustomerContact = (customerId: number, data: unknown) => api.post(`/customers/${customerId}/contacts`, data).then(r => r.data);
 export const createCustomer = (data: unknown) => api.post("/customers", data).then(r => r.data);
 export const updateCustomer = ({ id, data }: { id: number; data: unknown }) => api.put(`/customers/${id}`, data).then(r => r.data);
 export const deleteCustomer = (id: number) => api.delete(`/customers/${id}`);

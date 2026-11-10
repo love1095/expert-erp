@@ -50,6 +50,10 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("*", "/api/customers/*/contract-prices", CUSTOMER_PRICES),
             r("POST", "/api/customers/*/credits/*/void", SALE_VOID),
             r("POST", "/api/customers/import", DATA_IMPORT),
+            // "+" buttons on the sale form: a contact for the customer, a payment term, a sales representative
+            r("POST", "/api/customers/*/contacts", CUSTOMERS, SALE_EDIT),
+            r("POST", "/api/lists/payment-terms", CUSTOMERS, SALE_EDIT, PURCHASE_EDIT),
+            r("POST", "/api/lists/sales-reps", CUSTOMERS, SALE_EDIT),
             // Phase J: Cin7 sale / purchase task import and the go-live check
             r("*", "/api/import/**", DATA_IMPORT),
             // Phase K: the ERP's own accounting

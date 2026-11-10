@@ -267,7 +267,38 @@ public class CustomerService {
         return jdbc.queryForList(
                 "SELECT name FROM (SELECT trim(sales_representative) AS name FROM customers WHERE tenant_id = ?"
                         + " UNION SELECT trim(sales_rep) FROM sale_orders WHERE tenant_id = ?"
-                        + " UNION SELECT trim(web_sales_rep) FROM tenants WHERE id = ?) n"
-                        + " WHERE name IS NOT NULL AND name <> '' ORDER BY lower(name)", String.class, t, t, t);
+                        + " UNION SELECT trim(web_sales_rep) FROM tenants WHERE id = ?"
+                        + " UNION SELECT name FROM sales_reps WHERE tenant_id = ?) n"
+                        + " WHERE name IS NOT NULL AND name <> '' ORDER BY lower(name)", String.class, t, t, t, t);
+    }
+
+    /** "+" next to a Sales rep field (like Cin7's Add a sales representative): the name joins the list before it is used. */
+    @Transactional
+    public String addSalesRep(String name) {
+        String n = name == null ? "" : name.trim();
+        if (n.isEmpty()) throw new IllegalArgumentException("Enter the sales representative's name");
+        if (n.length() > 100) throw new IllegalArgumentException("The name is too long (100 characters at most)");
+        if (salesReps().stream().anyMatch(n::equalsIgnoreCase)) {
+            throw new IllegalArgumentException("There is already a sales representative called " + n);
+        }
+        jdbc.update("INSERT INTO sales_reps (tenant_id, name) VALUES (?, ?)", com.experterp.backend.multitenancy.TenantContext.get(), n);
+        return n;
+    }
+
+    /** "+" next to the Contact field of a sale: one more contact for the customer, the others are left as they are. */
+    @Transactional
+    public CustomerResponse addContact(Long id, CustomerRequest.Contact req) {
+        Customer c = getCustomer(id);
+        CustomerContact cc = toContact(req);
+        if (!hasDetails(cc)) throw new IllegalArgumentException("Enter the contact's name, e-mail or phone");
+        // The first contact of a customer is the default one; a new default takes over from the old one
+        if (c.getContacts().isEmpty()) cc.setDefaultContact(true);
+        else if (cc.isDefaultContact()) c.getContacts().forEach(x -> x.setDefaultContact(false));
+        cc.setCustomer(c);
+        c.getContacts().add(cc);
+        c.setUpdatedAt(LocalDateTime.now());
+        customerRepository.saveAndFlush(c);
+        auditService.log("CUSTOMER", id, "UPDATE", Map.of("contactAdded", cc.getName() != null ? cc.getName() : cc.getEmail() != null ? cc.getEmail() : cc.getPhone() != null ? cc.getPhone() : cc.getMobilePhone()));
+        return toResponse(c, saleOrderRepository.countByCustomerId(id));
     }
 }

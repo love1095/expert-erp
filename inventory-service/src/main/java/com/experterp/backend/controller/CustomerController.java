@@ -43,6 +43,12 @@ public class CustomerController {
         return customerService.findById(id);
     }
 
+    // "+" next to the Contact field of a sale: adds one contact, the others stay
+    @PostMapping("/{id}/contacts")
+    public ResponseEntity<CustomerResponse> addContact(@PathVariable Long id, @Valid @RequestBody CustomerRequest.Contact req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(customerService.addContact(id, req));
+    }
+
     @PostMapping
     public ResponseEntity<CustomerResponse> create(@Valid @RequestBody CustomerRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(customerService.create(req));

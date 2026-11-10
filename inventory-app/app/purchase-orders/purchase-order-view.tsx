@@ -19,6 +19,7 @@ import PurchaseOrderForm from "./purchase-order-form";
 import BillForm from "./bill-form";
 import SupplierDeposits from "./supplier-deposits";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { todayIso } from "@/lib/dates";
 
 export const PO_STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -108,7 +109,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
 
   const startReceiving = () => {
     setAmounts(Object.fromEntries(po.lines.map(l => [l.id, Number(l.outstandingQuantity) > 0 ? String(l.outstandingQuantity) : ""])));
-    setReceipt({ receivedOn: new Date().toISOString().slice(0, 10), warehouseId: String(po.warehouseId), notes: "", key: newKey() });
+    setReceipt({ receivedOn: todayIso(), warehouseId: String(po.warehouseId), notes: "", key: newKey() });
     setError("");
     setReceiving(true);
   };

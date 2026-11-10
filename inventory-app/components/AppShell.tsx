@@ -12,7 +12,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isPublic = pathname === "/login" || pathname === "/register";
+  // /ui-kit: the sample page of the shared building blocks (review R8), no data, so it needs no sign-in
+  const isPublic = pathname === "/login" || pathname === "/register" || pathname === "/ui-kit";
 
   useEffect(() => {
     if (!isLoading && !user && !isPublic) {

@@ -459,6 +459,8 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
               <h3 className="text-sm font-semibold text-gray-800 mb-3">Customer details</h3>
               <dl className="space-y-2.5">
                 <Field label="Customer" value={order.customerName} />
+                <Field label="Contact" value={order.contactName || order.contactPhone || order.contactEmail
+                  ? <span data-testid={`so-contact-${orderId}`}>{[order.contactName, order.contactPhone, order.contactEmail].filter(Boolean).join(" · ")}</span> : undefined} />
                 <Field label="Reference" value={order.customerReference} />
                 <Field label="Order" value={order.orderNumber} />
                 <div data-testid={`so-billing-${orderId}`}><Field label="Billing address" value={<AddressText address={order.billingAddress} />} /></div>
