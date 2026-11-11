@@ -20,6 +20,7 @@ import BillForm from "./bill-form";
 import SupplierDeposits from "./supplier-deposits";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { todayIso } from "@/lib/dates";
+import { AddressText, isBlankAddress } from "@/components/AddressFields";
 
 export const PO_STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
   DRAFT:     "bg-amber-100 text-amber-700",
@@ -106,9 +107,12 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
   const canBill = (po.status === "ORDERED" || po.status === "RECEIVED") && po.lines.some(l =>
     Math.max(Number(l.quantity) - Number(l.closedShortQuantity), Number(l.receivedQuantity)) - Number(l.billedQuantity) > 0);
   const busyMode = receiving || billing;
+  // Blind receipt while receiving: what was ordered is not shown
+  const blind = po.blindReceipt && receiving;
 
   const startReceiving = () => {
-    setAmounts(Object.fromEntries(po.lines.map(l => [l.id, Number(l.outstandingQuantity) > 0 ? String(l.outstandingQuantity) : ""])));
+    // Blind receipt: nothing filled in, the warehouse counts what arrived
+    setAmounts(po.blindReceipt ? {} : Object.fromEntries(po.lines.map(l => [l.id, Number(l.outstandingQuantity) > 0 ? String(l.outstandingQuantity) : ""])));
     setReceipt({ receivedOn: todayIso(), warehouseId: String(po.warehouseId), notes: "", key: newKey() });
     setError("");
     setReceiving(true);
@@ -244,20 +248,31 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
             }} />
         )}
 
+        {/* Like Cin7: Supplier details · Accounting details · Shipping details */}
         <DetailColumns testId={`po-details-${po.id}`} columns={[
           { title: "Supplier details", fields: <>
             <Field label="Supplier" value={po.supplierName} />
+            <Field label="Contact" value={[po.contactName, po.contactPhone].filter(Boolean).join(" · ") || undefined} />
+            <Field label="Vendor address" value={isBlankAddress(po.vendorAddress) ? undefined : <AddressText address={po.vendorAddress} />} />
             <Field label="Supplier reference" value={po.supplierReference} />
             <Field label="Order" value={po.orderNumber} />
           </> },
           { title: "Accounting details", fields: <>
             <Field label="Terms" value={po.paymentTerm} />
+            <Field label="Required by" value={po.requiredBy} />
+            <Field label="Inventory account" value={po.inventoryAccount} />
+            <Field label="Tax rule" value={po.taxRule ?? (po.defaultTaxRule ? `${po.defaultTaxRule} (supplier's)` : undefined)} />
             <Field label="Total" value={formatGBP(po.total)} />
           </> },
-          { title: "Delivery", fields: <>
-            <Field label="Into warehouse" value={po.warehouseName} />
-            <Field label="Required by" value={po.requiredBy} />
-            <Field label="Units" value={qty(units)} />
+          { title: "Shipping details", fields: <>
+            <Field label="Date" value={po.orderDate} />
+            <Field label="Location" value={po.warehouseName} />
+            <Field label="Ship to" value={po.shipToCompany || !isBlankAddress(po.shippingAddress) ? <>
+              {po.shipToCompany && <span className="block font-medium">{po.shipToCompany}</span>}
+              <AddressText address={po.shippingAddress} empty="" />
+            </> : undefined} />
+            <Field label="Blind receipt" value={po.blindReceipt ? "Yes: receiving does not show what was ordered" : undefined} />
+            <Field label="Units" value={blind ? undefined : qty(units)} />
           </> },
         ]} />
 
@@ -278,13 +293,13 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
                     <td className="text-gray-800"><Clip text={`${l.productSku}: ${l.productName}`} width="10rem" /></td>
                     <td className="font-mono text-xs text-gray-600">{l.supplierSku ?? "—"}</td>
                     <td className="text-gray-600"><Clip text={l.unit} width="5.5rem" /></td>
-                    <td className="num">{qty(l.quantity)}</td>
+                    <td className="num">{blind ? "—" : qty(l.quantity)}</td>
                     <td className={`num ${Number(l.overQuantity) > 0 ? "text-orange-700 font-semibold" : "text-emerald-700"}`}
                       title={Number(l.overQuantity) > 0 ? `${qty(l.overQuantity)} more than ordered` : undefined}>
                       {qty(l.receivedQuantity)}{Number(l.overQuantity) > 0 && " ▲"}
                     </td>
                     <td className="num font-medium">
-                      {qty(l.outstandingQuantity)}
+                      {blind ? "—" : qty(l.outstandingQuantity)}
                       {Number(l.closedShortQuantity) > 0 && <span className="block text-[11px] font-normal text-gray-500">{qty(l.closedShortQuantity)} closed short</span>}
                     </td>
                     <td className="num text-gray-600">{qty(l.billedQuantity)}</td>
@@ -300,7 +315,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
                           <input type="number" min="0" step="any" aria-label={`Received quantity for ${l.productSku}`}
                             value={amounts[l.id] ?? ""} placeholder="0" onChange={e => setAmounts({ ...amounts, [l.id]: e.target.value })}
                             className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
-                          {typed > 0 && over > 0 && <span className="block text-[11px] text-orange-700">{qty(over)} more than outstanding</span>}
+                          {!blind && typed > 0 && over > 0 && <span className="block text-[11px] text-orange-700">{qty(over)} more than outstanding</span>}
                         </td>
                       );
                     })()}
@@ -311,7 +326,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
                 <tr>
                   <td className="text-right">Total:</td>
                   <td colSpan={2}></td>
-                  <td className="num">{qty(units)}</td>
+                  <td className="num">{blind ? "—" : qty(units)}</td>
                   <td colSpan={PO_LINE_COLS.length - 5}></td>
                   <td className="num">{formatGBP(po.lines.reduce((t, l) => t + Number(l.netAmount), 0))}</td>
                   {receiving && <td></td>}

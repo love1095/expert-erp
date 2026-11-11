@@ -85,9 +85,16 @@ public class TaxService {
     /** Product's purchase rule, else supplier's, else the organisation default (product and supplier may be null). */
     @Transactional
     public TaxRate resolvePurchase(Product product, Supplier supplier) {
+        return resolvePurchase(product, null, supplier);
+    }
+
+    /** Product's rule, else the purchase order's own rule, else the supplier's, else the organisation default. */
+    @Transactional
+    public TaxRate resolvePurchase(Product product, String orderRule, Supplier supplier) {
         ensureDefaults();
         List<String> names = new ArrayList<>();
         if (product != null && product.getDetails() != null) names.add(product.getDetails().getPurchaseTaxRule());
+        if (orderRule != null && !orderRule.isBlank()) names.add(orderRule);
         if (supplier != null) names.add(supplier.getTaxRule());
         String fallback = tenantRepository.findById(TenantContext.get()).map(Tenant::getDefaultPurchaseTaxRule)
                 .orElse("20% (VAT on Expenses)");

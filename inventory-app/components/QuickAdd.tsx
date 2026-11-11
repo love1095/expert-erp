@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addCustomerContact, addPaymentTerm, addSalesRep, createCustomer, getPaymentTerms, getPriceTiers, getSalesReps } from "@/lib/api";
-import { Customer, CustomerContact, PostalAddress, PriceTier } from "@/types";
+import { addCustomerContact, addPaymentTerm, addSalesRep, createCustomer, createSupplier, getPaymentTerms, getPriceTiers, getSalesReps, getTaxRates } from "@/lib/api";
+import { Customer, CustomerContact, PostalAddress, PriceTier, Supplier, TaxRate } from "@/types";
 import { AddressFields, EMPTY_ADDRESS, isBlankAddress } from "@/components/AddressFields";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -128,6 +128,79 @@ export function NewCustomerDialog({ initialName = "", onClose, onCreated }: {
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Add customer" /></div>
+      </form>
+    </Modal>
+  );
+}
+
+/** New supplier from the purchase form: what an order needs; the rest on the supplier's page. */
+export function NewSupplierDialog({ initialName = "", onClose, onCreated }: {
+  initialName?: string;
+  onClose: () => void;
+  onCreated: (s: Supplier) => void;
+}) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
+  const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "PURCHASE"], queryFn: () => getTaxRates("PURCHASE") });
+  const [form, setForm] = useState({ name: initialName, contactName: "", phone: "", email: "", taxNumber: "", paymentTerm: "", taxRule: "" });
+  const [address, setAddress] = useState<PostalAddress>(EMPTY_ADDRESS);
+  const [error, setError] = useState("");
+  const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+
+  const save = useMutation({
+    mutationFn: () => createSupplier({
+      name: form.name.trim(), status: "Active", currency: "GBP", contactName: form.contactName, phone: form.phone, email: form.email,
+      taxNumber: form.taxNumber, paymentTerm: form.paymentTerm || null, taxRule: form.taxRule || null,
+      address: isBlankAddress(address) ? null : address,
+    }),
+    onSuccess: (s: Supplier) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["suppliers-page"] });
+      toast("Supplier added");
+      onCreated(s);
+    },
+    onError: e => setError(errorOf(e, "Could not add the supplier")),
+  });
+
+  return (
+    <Modal title="New supplier" hint="The rest can be added later on the supplier's page." onClose={onClose} width="max-w-2xl" testId="quick-new-supplier">
+      <form onSubmit={e => { e.preventDefault(); setError(""); save.mutate(); }}>
+        <ErrorLine text={error} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Name" required className="sm:col-span-2">
+            {p => <Input {...p} value={form.name} onChange={e => set({ name: e.target.value })} maxLength={255} autoComplete="off" />}
+          </FormField>
+          <FormField label="Contact name">
+            {p => <Input {...p} value={form.contactName} onChange={e => set({ contactName: e.target.value })} autoComplete="off" />}
+          </FormField>
+          <FormField label="Phone">
+            {p => <Input {...p} value={form.phone} onChange={e => set({ phone: e.target.value })} autoComplete="off" />}
+          </FormField>
+          <FormField label="E-mail">
+            {p => <Input {...p} type="email" value={form.email} onChange={e => set({ email: e.target.value })} autoComplete="off" />}
+          </FormField>
+          <FormField label="VAT number">
+            {p => <Input {...p} value={form.taxNumber} onChange={e => set({ taxNumber: e.target.value })} autoComplete="off" />}
+          </FormField>
+          <FormField label="Payment terms">
+            {p => <Select {...p} value={form.paymentTerm} onChange={e => set({ paymentTerm: e.target.value })}>
+              <option value="">None</option>
+              {terms.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </Select>}
+          </FormField>
+          <FormField label="Tax rule">
+            {p => <Select {...p} value={form.taxRule} onChange={e => set({ taxRule: e.target.value })}>
+              <option value="">The organisation default</option>
+              {rates.filter(r => r.active).map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+            </Select>}
+          </FormField>
+          <div className="sm:col-span-2">
+            <p className="block text-xs font-medium text-gray-600 mb-1">Address</p>
+            <AddressFields label="New supplier address" value={address} onChange={setAddress} inputClass={inputClass("md")} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Add supplier" /></div>
       </form>
     </Modal>
   );

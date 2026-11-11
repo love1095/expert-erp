@@ -22,7 +22,7 @@ test('PO-002 a PO takes the supplier\'s terms and purchase VAT, is placed with t
     await page.getByRole('link', { name: '+ New PO' }).click();
     const form = page.getByTestId('purchase-order-form');
     await form.getByLabel('Supplier *').fill(supplier.name);
-    await form.getByLabel('Deliver to *').selectOption(String(warehouses.main.id));
+    await form.getByLabel('Location *').selectOption(String(warehouses.main.id));
     await form.getByLabel('Supplier reference').fill('ORN-55');
     await form.getByLabel('Product for line 1').fill(fleece.sku);
     await form.getByRole('listbox', { name: 'Product for line 1 matches' }).getByRole('button').filter({ hasText: fleece.sku }).click();
@@ -97,4 +97,41 @@ test('PO-002 a PO takes the supplier\'s terms and purchase VAT, is placed with t
     await billRow.click();
     await expect(page.getByText('Billed 6, ordered 5')).toBeVisible();
     await expect(page.getByText('Charge (expense)')).toBeVisible();
+  });
+
+// New purchase like Cin7: Supplier details, Accounting details, Shipping details
+test('PO-020 a new PO fills the supplier\'s contact and address and the warehouse address; blind receipt hides what was ordered', { tag: ['@P1', '@purchase-orders'] },
+  async ({ page, api, warehouses }) => {
+    const supplier = await (await api.http.post('/api/suppliers', { data: { name: `Orn Clothing ${Date.now()}`, contactName: 'Mark Fyffe',
+      phone: '01295 221350', address: { line1: 'Tingewick Industrial Estate', city: 'Milton Keynes', postcode: 'MK18 1SU' } } })).json();
+    await api.http.put(`/api/warehouses/${warehouses.main.id}`, { data: { name: warehouses.main.name,
+      address: { line1: 'Unit 3 Halfpenny Bridge Ind Est', city: 'Rochdale', postcode: 'OL11 1NS' } } });
+    const fleece = await api.createProduct({ costPrice: 4 });
+
+    await page.goto('/purchase-orders/new');
+    const form = page.getByTestId('purchase-order-form');
+    await expect(form.getByTestId('po-form-supplier')).toBeVisible();
+    await expect(form.getByTestId('po-form-accounting')).toContainText('Inventory account');
+    await expect(form.getByLabel('Tax inclusive')).toBeDisabled();
+    await form.getByLabel('Supplier *').fill(supplier.name);
+    await expect(form.getByLabel('Contact', { exact: true })).toHaveValue('Mark Fyffe');
+    await expect(form.getByLabel('Phone', { exact: true })).toHaveValue('01295 221350');
+    await expect(form.getByLabel('Vendor address line 1')).toHaveValue('Tingewick Industrial Estate');
+    await form.getByLabel('Location *').selectOption(String(warehouses.main.id));
+    await expect(form.getByLabel('Shipping address line 1')).toHaveValue('Unit 3 Halfpenny Bridge Ind Est');
+    await form.getByLabel('Blind receipt').check();
+    await form.getByLabel('Product for line 1').fill(fleece.sku);
+    await form.getByRole('listbox', { name: 'Product for line 1 matches' }).getByRole('button').filter({ hasText: fleece.sku }).click();
+    await form.getByLabel('Quantity for line 1').fill('6');
+    await form.getByRole('button', { name: 'Create & mark ordered' }).click();
+
+    const details = page.locator('[data-testid^="po-details-"]');
+    await expect(details).toContainText('Mark Fyffe');
+    await expect(details).toContainText('MK18 1SU');
+    await expect(details).toContainText('OL11 1NS');
+    await expect(details).toContainText('Blind receipt');
+
+    // Receiving: nothing filled in, ordered and outstanding not shown
+    await page.getByRole('button', { name: 'Receive stock' }).click();
+    await expect(page.getByLabel(`Received quantity for ${fleece.sku}`)).toHaveValue('');
   });

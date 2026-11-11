@@ -258,7 +258,8 @@ public class DocumentService {
             default -> null;
         };
         List<Field> fields = new ArrayList<>();
-        field(fields, "Order date", date(po.getOrderedAt() != null ? po.getOrderedAt() : po.getCreatedAt()));
+        field(fields, "Order date", po.getOrderDate() != null ? date(po.getOrderDate())
+                : date(po.getOrderedAt() != null ? po.getOrderedAt() : po.getCreatedAt()));
         field(fields, "Required by", date(po.getRequiredBy()));
         field(fields, "Your reference", po.getSupplierReference());
         field(fields, "Terms", po.getPaymentTerm());
@@ -285,21 +286,29 @@ public class DocumentService {
 
         List<Party> parties = new ArrayList<>();
         Supplier s = po.getSupplierId() == null ? null : supplierRepository.findById(po.getSupplierId()).orElse(null);
+        // Supplier details as on the order (contact and phone may differ from the supplier's), then its address
         List<String> supplierLines = new ArrayList<>();
-        if (s != null) {
-            add(supplierLines, s.getContactName());
-            add(supplierLines, s.getEmail());
-            add(supplierLines, s.getPhone());
-            if (s.getTaxNumber() != null && !s.getTaxNumber().isBlank()) supplierLines.add("VAT no. " + s.getTaxNumber());
-        }
+        add(supplierLines, po.getContactName() != null ? po.getContactName() : s == null ? null : s.getContactName());
+        if (s != null) add(supplierLines, s.getEmail());
+        add(supplierLines, po.getContactPhone() != null ? po.getContactPhone() : s == null ? null : s.getPhone());
+        Address vendor = Address.clean(po.getVendorAddress());
+        if (vendor != null) supplierLines.addAll(vendor.lines());
+        if (s != null && s.getTaxNumber() != null && !s.getTaxNumber().isBlank()) supplierLines.add("VAT no. " + s.getTaxNumber());
         parties.add(new Party("Supplier", po.getSupplierName(), supplierLines));
-        // Deliver to: the warehouse, at the company's address
-        Warehouse w = po.getWarehouseId() == null ? null : warehouseRepository.findById(po.getWarehouseId()).orElse(null);
-        List<String> deliver = new ArrayList<>();
-        add(deliver, company.name());
-        deliver.addAll(company.address());
-        if (w != null && w.getLocation() != null && company.address().isEmpty()) add(deliver, w.getLocation());
-        parties.add(new Party("Deliver to", po.getWarehouseName(), deliver));
+        // Deliver to: the order's shipping address (a different company when set), else the warehouse at the company's address
+        Address shipping = Address.clean(po.getShippingAddress());
+        if (shipping != null || po.getShipToCompany() != null) {
+            List<String> deliver = new ArrayList<>();
+            if (shipping != null) deliver.addAll(shipping.lines());
+            parties.add(new Party("Deliver to", po.getShipToCompany() != null ? po.getShipToCompany() : company.name(), deliver));
+        } else {
+            Warehouse w = po.getWarehouseId() == null ? null : warehouseRepository.findById(po.getWarehouseId()).orElse(null);
+            List<String> deliver = new ArrayList<>();
+            add(deliver, company.name());
+            deliver.addAll(company.address());
+            if (w != null && w.getLocation() != null && company.address().isEmpty()) add(deliver, w.getLocation());
+            parties.add(new Party("Deliver to", po.getWarehouseName(), deliver));
+        }
 
         return new DocumentModel("Purchase order", po.getOrderNumber(), stamp, company.forPrint(), parties, fields,
                 true, lines.stream().anyMatch(l -> l.supplierCode() != null), anyDiscount(lines), lines, totals,

@@ -18,6 +18,19 @@ public class PurchaseOrderResponse {
     private String supplierReference;
     private String paymentTerm;
     private LocalDate requiredBy;
+    // Like Cin7's New purchase: supplier, accounting and shipping details
+    private String contactName;
+    private String contactPhone;
+    private com.experterp.backend.entity.Address vendorAddress;
+    private LocalDate orderDate;
+    // The order's own tax rule (null = the supplier's), and the rule its lines start from
+    private String taxRule;
+    private String defaultTaxRule;
+    // e.g. "631: Inventory Control", from the accounting settings
+    private String inventoryAccount;
+    private boolean blindReceipt;
+    private String shipToCompany;
+    private com.experterp.backend.entity.Address shippingAddress;
     private Long warehouseId;
     private String warehouseName;
     private Status status;

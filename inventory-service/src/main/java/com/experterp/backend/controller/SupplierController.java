@@ -60,6 +60,7 @@ public class SupplierController {
         if (repo.existsByName(supplier.getName())) {
             return ResponseEntity.badRequest().body(Map.of("error", "Supplier name already exists"));
         }
+        supplier.setAddress(com.experterp.backend.entity.Address.clean(supplier.getAddress()));
         return ResponseEntity.ok(repo.save(supplier));
     }
 
@@ -77,6 +78,7 @@ public class SupplierController {
             s.setPhone(body.getPhone());
             s.setEmail(body.getEmail());
             s.setComments(body.getComments());
+            s.setAddress(com.experterp.backend.entity.Address.clean(body.getAddress()));
             return ResponseEntity.ok(repo.save(s));
         }).orElse(ResponseEntity.notFound().build());
     }

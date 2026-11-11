@@ -4,7 +4,9 @@ import UnitSelect from "@/components/UnitSelect";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createPurchaseOrder, getSuppliers, getTaxRates, previewPurchaseOrder, updatePurchaseOrder, getPaymentTerms } from "@/lib/api";
-import { PurchaseOrder, Supplier, TaxRate, Warehouse } from "@/types";
+import { PostalAddress, PurchaseOrder, Supplier, TaxRate, Warehouse } from "@/types";
+import { AddressFields, EMPTY_ADDRESS, isBlankAddress } from "@/components/AddressFields";
+import { NewSupplierDialog, PaymentTermDialog, WithAdd } from "@/components/QuickAdd";
 import { formatGBP } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import ProductPicker from "../sale-orders/product-picker";
@@ -63,14 +65,48 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
     description: c.description, reference: str(c.reference), quantity: str(c.quantity), unitPrice: str(c.unitPrice), taxRule: "", taxReason: "",
   })) : []);
   const [error, setError] = useState("");
+  // Like Cin7's New purchase: supplier, accounting and shipping details
+  const addr = (a?: PostalAddress | null): PostalAddress => ({ ...EMPTY_ADDRESS, ...(a ?? {}) });
+  const warehouseAddress = (id: string) => addr(warehouses.find(w => String(w.id) === id)?.address);
+  const [details, setDetails] = useState({
+    contactName: str(editing?.contactName), contactPhone: str(editing?.contactPhone),
+    orderDate: editing ? str(editing.orderDate) : todayIso(),
+    taxRule: str(editing?.taxRule), taxReason: "", blindReceipt: editing?.blindReceipt ?? false,
+    shipToDifferent: !!editing?.shipToCompany, shipToCompany: str(editing?.shipToCompany),
+  });
+  const [vendorAddress, setVendorAddress] = useState<PostalAddress>(addr(editing?.vendorAddress));
+  const [shippingAddress, setShippingAddress] = useState<PostalAddress>(editing ? addr(editing.shippingAddress) : warehouseAddress(warehouseId));
+  // The "+" pop-ups
+  const [adding, setAdding] = useState<"supplier" | "term" | null>(null);
+  const [added, setAdded] = useState<Supplier | null>(null);
 
-  const supplier = suppliers.find(s => s.name.toLowerCase() === supplierName.trim().toLowerCase());
+  // Picking a supplier fills its contact, phone and address (they can still be changed on the order)
+  const pickSupplier = (name: string, list: Supplier[] = suppliers) => {
+    setSupplierName(name);
+    const s = list.find(x => x.name.toLowerCase() === name.trim().toLowerCase());
+    if (s) {
+      setDetails(d => ({ ...d, contactName: s.contactName ?? "", contactPhone: s.phone ?? "" }));
+      setVendorAddress(addr(s.address));
+    }
+  };
+  const pickWarehouse = (id: string) => {
+    setWarehouseId(id);
+    if (!details.shipToDifferent) setShippingAddress(warehouseAddress(id));
+  };
+
+  const supplier = (added && added.name.toLowerCase() === supplierName.trim().toLowerCase() ? added : undefined) ?? suppliers.find(s => s.name.toLowerCase() === supplierName.trim().toLowerCase());
   const request = {
     supplierId: supplier?.id ?? editing?.supplierId,
     supplierName: supplier ? undefined : text(supplierName),
     warehouseId: warehouseId ? Number(warehouseId) : undefined,
     supplierReference: text(header.supplierReference), paymentTerm: text(header.paymentTerm),
     requiredBy: text(header.requiredBy), notes: text(header.notes),
+    contactName: text(details.contactName), contactPhone: text(details.contactPhone),
+    vendorAddress: isBlankAddress(vendorAddress) ? undefined : vendorAddress,
+    orderDate: text(details.orderDate), taxRule: text(details.taxRule), taxReason: text(details.taxReason),
+    blindReceipt: details.blindReceipt,
+    shipToCompany: details.shipToDifferent ? text(details.shipToCompany) : undefined,
+    shippingAddress: isBlankAddress(shippingAddress) ? undefined : shippingAddress,
     lines: lines.map(l => ({
       productId: l.productId ? Number(l.productId) : undefined, unitName: text(l.unitName ?? ""), quantity: num(l.quantity), unitCost: num(l.unitCost) ?? null,
       discountPercent: num(l.discountPercent), supplierSku: text(l.supplierSku), taxRule: text(l.taxRule), taxReason: text(l.taxReason),
@@ -137,50 +173,133 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
       {editing && <p className="text-sm text-gray-600">Editing draft <b>{editing.orderNumber}</b></p>}
       {error && <p role="alert" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
-      {/* Like Cin7's purchase screen: supplier and delivery details side by side */}
-      <div className="grid gap-5 lg:grid-cols-2 items-start">
+      {/* Like Cin7's New purchase: Supplier details · Accounting details · Shipping details, then Comments */}
+      <div className="grid gap-5 lg:grid-cols-3 items-start">
         <Section title="Supplier details" testId="po-form-supplier">
           <div className="space-y-3">
             <div>
               <label htmlFor="po-supplier" className={LABEL}>Supplier *</label>
-              <NameCombobox id="po-supplier" value={supplierName} onChange={setSupplierName} required listLabel="Suppliers"
-                placeholder="Pick a supplier" className={`${INPUT} w-full`}
-                options={suppliers.map(s => ({ key: s.id, name: s.name, sub: [s.contactName, s.email].filter(Boolean).join(" · ") }))} />
+              <WithAdd label="New supplier" onAdd={() => setAdding("supplier")}>
+                <NameCombobox id="po-supplier" value={supplierName} onChange={v => pickSupplier(v)} required listLabel="Suppliers"
+                  placeholder="Pick a supplier" className={`${INPUT} w-full`}
+                  options={suppliers.map(s => ({ key: s.id, name: s.name, sub: [s.contactName, s.email].filter(Boolean).join(" · ") }))} />
+              </WithAdd>
               {supplierName.trim() && !supplier && !editing && (
-                <p className="text-[11px] text-amber-700 mt-1">Not a supplier on file: terms, codes and prices won&apos;t be filled in</p>
+                <p className="text-[11px] text-amber-700 mt-1">Not a supplier on file: use + to add it with its terms and address</p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="po-supplier-reference" className={LABEL}>Supplier reference</label>
-                <input id="po-supplier-reference" value={header.supplierReference} onChange={e => setHeader({ ...header, supplierReference: e.target.value })}
-                  placeholder="Their order confirmation" autoComplete="off" className={`${INPUT} w-full`} />
+                <label htmlFor="po-contact" className={LABEL}>Contact</label>
+                <input id="po-contact" value={details.contactName} onChange={e => setDetails({ ...details, contactName: e.target.value })}
+                  placeholder={supplier?.contactName ?? ""} autoComplete="off" className={`${INPUT} w-full`} />
               </div>
               <div>
-                <label htmlFor="po-terms" className={LABEL}>Terms</label>
-                <NameCombobox id="po-terms" value={header.paymentTerm} onChange={v => setHeader({ ...header, paymentTerm: v })} listLabel="Payment terms"
-                  placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (supplier's)` : "Supplier's terms"} className={`${INPUT} w-full`}
-                  options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+                <label htmlFor="po-phone" className={LABEL}>Phone</label>
+                <input id="po-phone" value={details.contactPhone} onChange={e => setDetails({ ...details, contactPhone: e.target.value })}
+                  placeholder={supplier?.phone ?? ""} autoComplete="off" className={`${INPUT} w-full`} />
               </div>
+            </div>
+            <div>
+              <p className={LABEL}>Vendor address</p>
+              <AddressFields label="Vendor address" value={vendorAddress} onChange={setVendorAddress} inputClass={`${INPUT} w-full`} />
+            </div>
+            <div>
+              <label htmlFor="po-supplier-reference" className={LABEL}>Supplier reference</label>
+              <input id="po-supplier-reference" value={header.supplierReference} onChange={e => setHeader({ ...header, supplierReference: e.target.value })}
+                placeholder="Their order confirmation" autoComplete="off" className={`${INPUT} w-full`} />
             </div>
           </div>
         </Section>
-        <Section title="Delivery details" testId="po-form-delivery">
-          <div className="grid grid-cols-2 gap-3">
+
+        <Section title="Accounting details" testId="po-form-accounting">
+          <div className="space-y-3">
             <div>
-              <label htmlFor="po-warehouse" className={LABEL}>Deliver to *</label>
-              <select id="po-warehouse" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} required className={`${INPUT} w-full`}>
-                <option value="">Select warehouse</option>
-                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              <label htmlFor="po-terms" className={LABEL}>Terms</label>
+              <WithAdd label="Add a payment term" onAdd={() => setAdding("term")}>
+                <NameCombobox id="po-terms" value={header.paymentTerm} onChange={v => setHeader({ ...header, paymentTerm: v })} listLabel="Payment terms"
+                  placeholder={preview?.paymentTerm ? `${preview.paymentTerm} (supplier's)` : "Supplier's terms"} className={`${INPUT} w-full`}
+                  options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+              </WithAdd>
             </div>
             <div>
               <label htmlFor="po-required-by" className={LABEL}>Required by</label>
               <input id="po-required-by" type="date" value={header.requiredBy} onChange={e => setHeader({ ...header, requiredBy: e.target.value })} className={`${INPUT} w-full`} />
             </div>
+            <div>
+              <label htmlFor="po-inventory-account" className={LABEL}>Inventory account</label>
+              <input id="po-inventory-account" value={preview?.inventoryAccount ?? editing?.inventoryAccount ?? "631: Inventory Control"} readOnly disabled
+                title="Set in Accounting → Ledger settings" className={`${INPUT} w-full bg-gray-50 text-gray-500`} />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-400" title="Comes later: prices are entered before VAT for now">
+              <input type="checkbox" disabled checked={false} readOnly aria-label="Tax inclusive" /> Tax inclusive
+              <span className="text-[11px]">(later)</span>
+            </label>
+            <div>
+              <label htmlFor="po-tax-rule" className={LABEL}>Tax rule</label>
+              <select id="po-tax-rule" value={details.taxRule} onChange={e => setDetails({ ...details, taxRule: e.target.value, taxReason: "" })}
+                disabled={!mayChangeVat} title={mayChangeVat ? "Each line starts from it, unless its product has its own" : "Only a manager or admin can change the VAT"}
+                className={`${INPUT} w-full disabled:bg-gray-50 disabled:text-gray-500`}>
+                <option value="">{`Supplier's: ${preview && !details.taxRule ? preview.defaultTaxRule ?? "" : supplier?.taxRule ?? "organisation default"}`}</option>
+                {rates.filter(r => r.active).map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+              </select>
+              {details.taxRule && (
+                <input aria-label="Reason for the order's tax rule" value={details.taxReason} onChange={e => setDetails({ ...details, taxReason: e.target.value })}
+                  placeholder="Reason (needed for less VAT)" className={`${INPUT} w-full mt-1.5`} />
+              )}
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Shipping details" testId="po-form-shipping">
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-sm text-gray-700" title="Receiving does not show what was ordered: the warehouse counts what arrived">
+              <input type="checkbox" checked={details.blindReceipt} onChange={e => setDetails({ ...details, blindReceipt: e.target.checked })} /> Blind receipt
+            </label>
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="po-order-date" className={LABEL}>Date *</label>
+                <input id="po-order-date" type="date" value={details.orderDate} required onChange={e => setDetails({ ...details, orderDate: e.target.value })} className={`${INPUT} w-full`} />
+              </div>
+              <div>
+                <label htmlFor="po-warehouse" className={LABEL}>Location *</label>
+                <select id="po-warehouse" value={warehouseId} onChange={e => pickWarehouse(e.target.value)} required className={`${INPUT} w-full`}>
+                  <option value="">Select warehouse</option>
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={details.shipToDifferent}
+                onChange={e => {
+                  const on = e.target.checked;
+                  setDetails({ ...details, shipToDifferent: on, shipToCompany: on ? details.shipToCompany : "" });
+                  setShippingAddress(on ? EMPTY_ADDRESS : warehouseAddress(warehouseId));
+                }} /> Ship to different company
+            </label>
+            {details.shipToDifferent && (
+              <div>
+                <label htmlFor="po-ship-to-company" className={LABEL}>Company</label>
+                <input id="po-ship-to-company" value={details.shipToCompany} onChange={e => setDetails({ ...details, shipToCompany: e.target.value })}
+                  placeholder="e.g. the embroiderer" autoComplete="off" className={`${INPUT} w-full`} />
+              </div>
+            )}
+            <div>
+              <p className={LABEL}>Shipping address</p>
+              <AddressFields label="Shipping address" value={shippingAddress} onChange={setShippingAddress} inputClass={`${INPUT} w-full`} />
+              {!details.shipToDifferent && isBlankAddress(shippingAddress) && warehouseId && (
+                <p className="text-[11px] text-gray-400 mt-1">The warehouse has no address yet: add it under Warehouses, or type one here</p>
+              )}
+            </div>
           </div>
         </Section>
       </div>
+
+      <Section title="Comments">
+        <label htmlFor="po-notes" className="sr-only">Comments</label>
+        <textarea id="po-notes" rows={2} value={header.notes} onChange={e => setHeader({ ...header, notes: e.target.value })}
+          placeholder="Write your note here…" className={`${INPUT} w-full`} />
+      </Section>
 
       <Section title={editing ? "Order lines *" : "Products *"} testId="po-form-lines"
         actions={<button type="button" onClick={() => setLines([...lines, emptyLine()])} className={ADD_BUTTON}>+ Add line</button>}>
@@ -247,11 +366,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
       </Section>
 
       <div className="grid gap-5 lg:grid-cols-3 items-start">
-        <Section title="Memo" className="lg:col-span-2">
-          <label htmlFor="po-notes" className="sr-only">Memo</label>
-          <textarea id="po-notes" rows={3} value={header.notes} onChange={e => setHeader({ ...header, notes: e.target.value })}
-            placeholder="Notes for this purchase order (optional)" className={`${INPUT} w-full`} />
-        </Section>
+        <div className="lg:col-span-2" />
         <Section title="Totals">
           <dl data-testid="po-form-totals" className="text-sm grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums">
             <dt className="text-gray-500">Before tax</dt><dd className="text-right">{formatGBP(preview?.subtotal ?? 0)}</dd>
@@ -275,6 +390,15 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
           {save.isPending ? "Saving..." : editing ? "Save & mark ordered" : "Create & mark ordered"}
         </button>
       </StickyActions>
+
+      {/* The "+" pop-ups: what is added is chosen in its field at once */}
+      {adding === "supplier" && (
+        <NewSupplierDialog initialName={supplier ? "" : supplierName.trim()} onClose={() => setAdding(null)}
+          onCreated={s => { setAdded(s); pickSupplier(s.name, [s]); setAdding(null); }} />
+      )}
+      {adding === "term" && (
+        <PaymentTermDialog onClose={() => setAdding(null)} onAdded={name => { setHeader(h => ({ ...h, paymentTerm: name })); setAdding(null); }} />
+      )}
     </form>
   );
 }

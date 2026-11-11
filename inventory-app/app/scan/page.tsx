@@ -106,6 +106,8 @@ function Receive() {
     <div className="space-y-3">
       <button className="text-brand-700 text-sm" onClick={() => setPoId(null)}>← Purchase orders</button>
       <p className="font-medium">{po?.orderNumber} <span className="text-gray-500 font-normal">{po?.supplierName}</span></p>
+      {/* Blind receipt: what was ordered is not shown, the warehouse counts what arrived */}
+      {po?.blindReceipt && <p className="text-xs text-gray-500">Blind receipt: scan everything that arrived</p>}
       <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (code.trim()) scan.mutate(code.trim()); }}>
         <input ref={box} autoFocus className="border rounded px-3 py-3 flex-1 text-base" placeholder="Scan barcode or type SKU" aria-label="Scan"
                value={code} onChange={e => setCode(e.target.value)} />
@@ -113,11 +115,11 @@ function Receive() {
       </form>
       {msg && <p role="alert" className={`text-sm ${msg.ok ? "text-green-700" : "text-red-700"}`}>{msg.text}</p>}
       <table className="w-full text-sm bg-white border border-gray-200 rounded-lg" data-testid="receive-lines">
-        <thead className="text-xs text-gray-500 text-left"><tr><th className="px-3 py-2">Product</th><th className="text-right">To come</th><th className="text-right px-3">Scanned</th></tr></thead>
+        <thead className="text-xs text-gray-500 text-left"><tr><th className="px-3 py-2">Product</th><th className="text-right">{po?.blindReceipt ? "" : "To come"}</th><th className="text-right px-3">Scanned</th></tr></thead>
         <tbody className="divide-y divide-gray-100">
           {(po?.lines ?? []).map(l => (
-            <tr key={l.id}><td className="px-3 py-2">{l.productSku}</td><td className="text-right">{q(l.outstandingQuantity)}</td>
-              <td className={`text-right px-3 ${(scanned[l.id] ?? 0) > l.outstandingQuantity ? "text-amber-700" : ""}`}>{scanned[l.id] ?? 0}</td></tr>
+            <tr key={l.id}><td className="px-3 py-2">{l.productSku}</td><td className="text-right">{po?.blindReceipt ? "" : q(l.outstandingQuantity)}</td>
+              <td className={`text-right px-3 ${!po?.blindReceipt && (scanned[l.id] ?? 0) > l.outstandingQuantity ? "text-amber-700" : ""}`}>{scanned[l.id] ?? 0}</td></tr>
           ))}
         </tbody>
       </table>

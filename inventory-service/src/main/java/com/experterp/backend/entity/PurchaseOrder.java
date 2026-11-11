@@ -45,6 +45,47 @@ public class PurchaseOrder {
 
     private LocalDate requiredBy;
 
+    // ---- like Cin7's New purchase: supplier, accounting and shipping details ----
+    @Column(length = 255)
+    private String contactName;
+
+    @Column(length = 100)
+    private String contactPhone;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "vendor_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "vendor_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "vendor_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "vendor_state")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "vendor_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "vendor_country"))})
+    private Address vendorAddress;
+
+    // The day the order is dated (Cin7's Date); created_at is when it was typed in
+    private LocalDate orderDate;
+
+    // The order's tax rule: each line starts from it unless the product has its own (empty = the supplier's)
+    @Column(length = 100)
+    private String taxRule;
+
+    // Receiving does not show what was ordered: the warehouse counts what arrived
+    @Column(nullable = false)
+    private boolean blindReceipt;
+
+    @Column(length = 255)
+    private String shipToCompany;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "shipping_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "shipping_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "shipping_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "shipping_state")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "shipping_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "shipping_country"))})
+    private Address shippingAddress;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;

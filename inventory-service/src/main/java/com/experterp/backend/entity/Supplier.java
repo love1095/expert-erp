@@ -52,6 +52,17 @@ public class Supplier {
     @Column(length = 100)
     private String taxRule;
 
+    // One postal address for now (Cin7 keeps a list); copied onto new purchase orders as the vendor address
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "address_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "address_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "address_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "address_state")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "address_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "address_country"))})
+    private Address address;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

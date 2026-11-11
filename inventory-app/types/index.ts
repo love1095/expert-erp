@@ -158,6 +158,10 @@ export interface Supplier {
   phone?: string;
   email?: string;
   comments?: string;
+  // Purchase tax rule for its orders when the product has none
+  taxRule?: string;
+  // One postal address for now; copied onto new purchase orders
+  address?: PostalAddress | null;
   createdAt: string;
 }
 
@@ -250,6 +254,8 @@ export interface Warehouse {
   id: number;
   name: string;
   location?: string;
+  // Where purchases for this warehouse are shipped to
+  address?: PostalAddress | null;
   createdAt: string;
 }
 
@@ -378,6 +384,19 @@ export interface PurchaseOrder {
   supplierReference?: string;
   paymentTerm?: string;
   requiredBy?: string;
+  // Like Cin7's New purchase: supplier, accounting and shipping details
+  contactName?: string | null;
+  contactPhone?: string | null;
+  vendorAddress?: PostalAddress | null;
+  orderDate?: string | null;
+  // The order's own tax rule (null = the supplier's) and the rule its lines start from
+  taxRule?: string | null;
+  defaultTaxRule?: string;
+  // e.g. "631: Inventory Control"
+  inventoryAccount?: string;
+  blindReceipt: boolean;
+  shipToCompany?: string | null;
+  shippingAddress?: PostalAddress | null;
   warehouseId: number;
   warehouseName: string;
   status: PurchaseOrderStatus;

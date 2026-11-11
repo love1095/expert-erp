@@ -32,6 +32,17 @@ public class Warehouse {
     @Column
     private String location;
 
+    // Postal address: where purchases for this warehouse are shipped to
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "address_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "address_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "address_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "address_state")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "address_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "address_country"))})
+    private Address address;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

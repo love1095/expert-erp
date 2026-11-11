@@ -2,6 +2,7 @@ package com.experterp.backend.service;
 
 import com.experterp.backend.dto.PurchaseOrderRequest;
 import com.experterp.backend.dto.PurchaseOrderResponse;
+import com.experterp.backend.entity.Address;
 import com.experterp.backend.entity.*;
 import com.experterp.backend.entity.StockMovement.MovementType;
 import com.experterp.backend.entity.StockMovement.ReferenceType;
@@ -48,6 +49,7 @@ public class PurchaseOrderService {
     private final PurchaseReceiptRepository receiptRepository;
     private final InvoiceService invoiceService;
     private final ProductUnitService unitService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> findAll(int page, int size, PurchaseOrder.Status status, String q) {
@@ -89,8 +91,22 @@ public class PurchaseOrderService {
         }
     }
 
+    /** The rule the lines start from, and the inventory account stock is booked to (Cin7's Accounting details). */
+    private PurchaseOrderResponse withAccounting(PurchaseOrderResponse r, PurchaseOrder po) {
+        r.setDefaultTaxRule(taxService.resolvePurchase(null, po.getTaxRule(), po.getSupplier()).getName());
+        List<String> account = jdbc.query("""
+                SELECT COALESCE(s.inventory_account, '631') AS code, a.name
+                  FROM (SELECT ? AS tenant_id) t
+                  LEFT JOIN accounting_settings s ON s.tenant_id = t.tenant_id
+                  LEFT JOIN ledger_accounts a ON a.tenant_id = t.tenant_id AND a.code = COALESCE(s.inventory_account, '631')""",
+                (rs, n) -> rs.getString("code") + (rs.getString("name") == null ? "" : ": " + rs.getString("name")),
+                com.experterp.backend.multitenancy.TenantContext.get());
+        r.setInventoryAccount(account.isEmpty() ? "631" : account.get(0));
+        return r;
+    }
+
     private PurchaseOrderResponse toDetailResponse(PurchaseOrder po) {
-        PurchaseOrderResponse r = toResponse(po);
+        PurchaseOrderResponse r = withAccounting(toResponse(po), po);
         setBills(r, invoiceService.forPurchaseOrder(po.getId()));
         r.setReceipts(receiptRepository.findByPurchaseOrderIdOrderByCreatedAtAscIdAsc(po.getId()).stream().map(rc -> {
             PurchaseOrderResponse.Receipt e = new PurchaseOrderResponse.Receipt();
@@ -123,7 +139,8 @@ public class PurchaseOrderService {
             po.setStatus(PurchaseOrder.Status.ORDERED);
             po.setOrderedAt(LocalDateTime.now());
         }
-        PurchaseOrderResponse saved = toResponse(poRepository.save(po));
+        PurchaseOrder stored = poRepository.save(po);
+        PurchaseOrderResponse saved = withAccounting(toResponse(stored), stored);
         Map<String, Object> audit = new LinkedHashMap<>(Map.of("number", po.getOrderNumber(), "supplier", po.getSupplierName(),
                 "lines", po.getLines().size(), "status", po.getStatus().name()));
         if (!taxOverrides.isEmpty()) audit.put("taxOverrides", taxOverrides);
@@ -169,7 +186,8 @@ public class PurchaseOrderService {
     /** What the order would look like (defaults, VAT, totals) without saving it; for the form. */
     @Transactional
     public PurchaseOrderResponse preview(PurchaseOrderRequest req) {
-        return toResponse(build(new PurchaseOrder(), req, new ArrayList<>()));
+        PurchaseOrder po = build(new PurchaseOrder(), req, new ArrayList<>());
+        return withAccounting(toResponse(po), po);
     }
 
     /** A draft can be changed until it is placed with the supplier. */
@@ -187,7 +205,8 @@ public class PurchaseOrderService {
             po.setStatus(PurchaseOrder.Status.ORDERED);
             po.setOrderedAt(LocalDateTime.now());
         }
-        PurchaseOrderResponse saved = toResponse(poRepository.save(po));
+        PurchaseOrder stored = poRepository.save(po);
+        PurchaseOrderResponse saved = withAccounting(toResponse(stored), stored);
         Map<String, Object> audit = new LinkedHashMap<>(Map.of("lines", po.getLines().size(), "status", po.getStatus().name()));
         if (!taxOverrides.isEmpty()) audit.put("taxOverrides", taxOverrides);
         auditService.log("PURCHASE_ORDER", id, "UPDATE", audit);
@@ -256,6 +275,25 @@ public class PurchaseOrderService {
         po.setPaymentTerm(blankToNull(req.getPaymentTerm()) != null ? req.getPaymentTerm().trim()
                 : supplier != null ? blankToNull(supplier.getPaymentTerm()) : null);
         po.setRequiredBy(req.getRequiredBy());
+        // Supplier details: contact, phone and address from the supplier unless typed on the order
+        po.setContactName(blankToNull(req.getContactName()) != null ? req.getContactName().trim() : supplier != null ? blankToNull(supplier.getContactName()) : null);
+        po.setContactPhone(blankToNull(req.getContactPhone()) != null ? req.getContactPhone().trim() : supplier != null ? blankToNull(supplier.getPhone()) : null);
+        Address vendor = Address.clean(req.getVendorAddress());
+        po.setVendorAddress(vendor != null ? vendor : supplier != null && supplier.getAddress() != null ? Address.clean(supplier.getAddress()) : null);
+        // Shipping details: dated today unless given; shipped to the warehouse's address unless another is typed
+        if (req.getOrderDate() != null) po.setOrderDate(req.getOrderDate());
+        else if (po.getOrderDate() == null) po.setOrderDate(java.time.LocalDate.now());
+        po.setBlindReceipt(req.isBlindReceipt());
+        po.setShipToCompany(blankToNull(req.getShipToCompany()) != null ? req.getShipToCompany().trim() : null);
+        Address ship = Address.clean(req.getShippingAddress());
+        po.setShippingAddress(ship != null ? ship : warehouse.getAddress() != null ? Address.clean(warehouse.getAddress()) : null);
+        // Accounting details: the order's tax rule, a change from the supplier's as for a line (manager, reason if lower)
+        po.setTaxRule(null);
+        if (blankToNull(req.getTaxRule()) != null) {
+            TaxService.Choice orderTax = taxService.choose(TaxRate.Usage.PURCHASE, req.getTaxRule(), req.getTaxReason(),
+                    taxService.resolvePurchase(null, supplier), "the order", taxOverrides);
+            if (orderTax.overridden()) po.setTaxRule(orderTax.rate().getName());
+        }
 
         for (PurchaseOrderRequest.Line l : req.getLines()) {
             Product product = productService.getProduct(l.getProductId());
@@ -277,7 +315,7 @@ public class PurchaseOrderService {
             line.setSupplierSku(blankToNull(l.getSupplierSku()) != null ? l.getSupplierSku().trim()
                     : ownSupplier ? blankToNull(product.getSupplierProductCode()) : null);
             TaxService.Choice tax = taxService.choose(TaxRate.Usage.PURCHASE, l.getTaxRule(), l.getTaxReason(),
-                    taxService.resolvePurchase(product, supplier), product.getSku(), taxOverrides);
+                    taxService.resolvePurchase(product, po.getTaxRule(), supplier), product.getSku(), taxOverrides);
             line.setTaxName(tax.rate().getName());
             line.setTaxRate(tax.rate().getRate());
             line.setTaxOverridden(tax.overridden());
@@ -293,7 +331,7 @@ public class PurchaseOrderService {
                 cost.setUnitPrice(c.getUnitPrice());
                 cost.setDiscountPercent(c.getDiscountPercent() != null ? c.getDiscountPercent() : BigDecimal.ZERO);
                 TaxService.Choice tax = taxService.choose(TaxRate.Usage.PURCHASE, c.getTaxRule(), c.getTaxReason(),
-                        taxService.resolvePurchase(null, supplier), cost.getDescription(), taxOverrides);
+                        taxService.resolvePurchase(null, po.getTaxRule(), supplier), cost.getDescription(), taxOverrides);
                 cost.setTaxName(tax.rate().getName());
                 cost.setTaxRate(tax.rate().getRate());
                 po.getCosts().add(cost);
@@ -465,6 +503,14 @@ public class PurchaseOrderService {
         r.setSupplierReference(po.getSupplierReference());
         r.setPaymentTerm(po.getPaymentTerm());
         r.setRequiredBy(po.getRequiredBy());
+        r.setContactName(po.getContactName());
+        r.setContactPhone(po.getContactPhone());
+        r.setVendorAddress(po.getVendorAddress());
+        r.setOrderDate(po.getOrderDate());
+        r.setTaxRule(po.getTaxRule());
+        r.setBlindReceipt(po.isBlindReceipt());
+        r.setShipToCompany(po.getShipToCompany());
+        r.setShippingAddress(po.getShippingAddress());
         r.setWarehouseId(po.getWarehouse().getId());
         r.setWarehouseName(po.getWarehouse().getName());
         r.setStatus(po.getStatus());

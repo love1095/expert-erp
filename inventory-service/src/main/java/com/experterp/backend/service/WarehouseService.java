@@ -42,6 +42,7 @@ public class WarehouseService {
         Warehouse w = new Warehouse();
         w.setName(req.getName());
         w.setLocation(req.getLocation());
+        w.setAddress(com.experterp.backend.entity.Address.clean(req.getAddress()));
         return warehouseRepository.save(w);
     }
 
@@ -54,6 +55,7 @@ public class WarehouseService {
         });
         w.setName(req.getName());
         w.setLocation(req.getLocation());
+        w.setAddress(com.experterp.backend.entity.Address.clean(req.getAddress()));
         return warehouseRepository.save(w);
     }
 

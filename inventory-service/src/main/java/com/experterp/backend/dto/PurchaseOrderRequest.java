@@ -33,6 +33,26 @@ public class PurchaseOrderRequest {
 
     private String notes;
 
+    // ---- like Cin7's New purchase ----
+    // Empty = the supplier's contact and phone
+    @Size(max = 255)
+    private String contactName;
+    @Size(max = 100)
+    private String contactPhone;
+    // Empty = the supplier's address
+    private com.experterp.backend.entity.Address vendorAddress;
+    // Empty = today (a new order) or the order's own date (an edit)
+    private LocalDate orderDate;
+    // The order's tax rule (empty = the supplier's); a lower rate than the supplier's needs a reason, as on a line
+    @Size(max = 100)
+    private String taxRule;
+    private String taxReason;
+    private boolean blindReceipt;
+    @Size(max = 255)
+    private String shipToCompany;
+    // Empty = the warehouse's address
+    private com.experterp.backend.entity.Address shippingAddress;
+
     // Place it with the supplier straight away (Cin7's Authorise) instead of saving a draft
     private boolean ordered;
 

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createSupplier, updateSupplier, getPaymentTerms } from "@/lib/api";
-import { Supplier } from "@/types";
+import { PostalAddress, Supplier } from "@/types";
+import { AddressFields, EMPTY_ADDRESS, isBlankAddress } from "@/components/AddressFields";
 import NameCombobox from "@/components/NameCombobox";
 import { useToast } from "@/components/ui/Toast";
 
@@ -28,6 +29,8 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
   const qc = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState<Form>(() => (editing ? toForm(editing) : EMPTY_FORM));
+  // One address per supplier for now: copied onto new purchase orders as the vendor address
+  const [address, setAddress] = useState<PostalAddress>({ ...EMPTY_ADDRESS, ...(editing?.address ?? {}) });
   const [error, setError] = useState("");
   // Like Cin7: terms are picked from a list, each with what it means for the due date
   const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
@@ -35,7 +38,10 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
 
   const save = useMutation({
     // Fields the form does not show (discount) are sent back unchanged
-    mutationFn: (data: Form) => (editing ? updateSupplier(editing.id, { ...editing, ...data }) : createSupplier(data)),
+    mutationFn: (data: Form) => {
+      const body = { ...data, address: isBlankAddress(address) ? null : address };
+      return editing ? updateSupplier(editing.id, { ...editing, ...body }) : createSupplier(body);
+    },
     onSuccess: (saved: Supplier) => {
       toast(editing ? "Supplier saved" : "Supplier created");
       qc.invalidateQueries({ queryKey: ["suppliers-page"] });
@@ -88,6 +94,11 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
         {field("phone", "Phone")}
         {field("email", "Email", { type: "email" })}
         {field("website", "Website", { placeholder: "https://" })}
+      </div>
+
+      <div>
+        <p className="block text-xs font-medium text-gray-600 mb-1">Address</p>
+        <AddressFields label="Supplier address" value={address} onChange={setAddress} inputClass={INPUT} />
       </div>
 
       <div>
