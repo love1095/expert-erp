@@ -65,6 +65,7 @@ test('PRD-004 a negative selling price is refused', { tag: ['@P2', '@products'] 
 test('PRD-005 a Cin7 inventory list is imported; deprecated products are hidden by default', { tag: ['@P1', '@products'] }, async ({ page }) => {
   await page.goto('/products');
   await page.getByRole('button', { name: 'Import' }).click();
+  await page.getByRole('menuitem', { name: 'Inventory list' }).click();
   await page.getByLabel('CSV file').setInputFiles('fixtures/files/cin7-inventory.csv');
 
   const result = page.getByTestId('products-import-result');
@@ -93,8 +94,9 @@ test('PRD-006 export downloads the products as a re-importable CSV', { tag: ['@P
   await page.goto('/products');
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export' }).click();
+  await page.getByRole('menuitem', { name: 'Inventory list', exact: true }).click();
   const file = await download;
-  expect(file.suggestedFilename()).toMatch(/^products_\d{4}-\d{2}-\d{2}\.csv$/);
+  expect(file.suggestedFilename()).toMatch(/^InventoryList_\d{4}-\d{2}-\d{2}\.csv$/);
   const csv = await (await import('node:fs/promises')).readFile(await file.path(), 'utf8');
   expect(csv).toContain('ProductCode,Name,Category,Brand');
   expect(csv).toContain(`${product.sku},${product.name},`);
@@ -104,8 +106,9 @@ test('PRD-006 export downloads the products as a re-importable CSV', { tag: ['@P
 test('PRD-007 a file that is not an inventory list is refused with a reason', { tag: ['@P2', '@products'] }, async ({ page }) => {
   await page.goto('/products');
   await page.getByRole('button', { name: 'Import' }).click();
+  await page.getByRole('menuitem', { name: 'Inventory list' }).click();
   await page.getByLabel('CSV file').setInputFiles({ name: 'wrong.csv', mimeType: 'text/csv', buffer: Buffer.from('Name,Price\nX,1\n') });
-  await expect(page.getByTestId('products-import-error')).toContainText("needs 'ProductCode' and 'Name' columns");
+  await expect(page.getByTestId('products-import-error')).toContainText("not Cin7's inventory list file");
 });
 
 test('PRD-008 a product opens on its own page: stock per warehouse, what is on order, and its changes in the activity log', { tag: ['@P1', '@products'] },

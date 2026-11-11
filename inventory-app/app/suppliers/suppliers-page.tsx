@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSuppliersPage, deleteSupplier } from "@/lib/api";
+import { getSuppliersPage, deleteSupplier, exportSuppliers, importSuppliers } from "@/lib/api";
+import { ExportMenu, ImportMenu } from "@/components/FileMenus";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Supplier, Page } from "@/types";
+import { Supplier, Page, SupplierImportResult } from "@/types";
 import { useState } from "react";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar } from "@/components/ListToolbar";
@@ -36,14 +37,45 @@ export default function SuppliersPage({ initialSearch = "" }: { initialSearch?: 
     },
   });
 
+  // Cin7's Suppliers file (addresses and contacts come with the supplier's address and contact lists)
+  const [importResult, setImportResult] = useState<SupplierImportResult | null>(null);
+  const [fileError, setFileError] = useState("");
+  const importMutation = useMutation({
+    mutationFn: importSuppliers,
+    onSuccess: (r: SupplierImportResult) => {
+      setImportResult(r); setFileError("");
+      qc.invalidateQueries({ queryKey: ["suppliers-page"] });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+    onError: (e: any) => { setImportResult(null); setFileError(e.response?.data?.error || "Import failed"); },
+  });
+
   return (
     <div>
       <PageHeader title="Suppliers" count={totalElements} noun="suppliers">
+        <ImportMenu items={[{ value: "SUPPLIERS", label: "Suppliers" }]} inputLabel="Supplier CSV file" busy={importMutation.isPending}
+          onFile={file => importMutation.mutate(file)} />
+        <ExportMenu items={[{ label: "Suppliers", file: exportSuppliers }]} onError={setFileError} />
         <Link href="/suppliers/new"
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
           + New Supplier
         </Link>
       </PageHeader>
+
+      {fileError && <p role="alert" data-testid="supplier-file-error" className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{fileError}</p>}
+      {importResult && (
+        <div role="status" data-testid="supplier-import-result" className="mb-4 text-sm bg-emerald-50 text-emerald-800 px-4 py-3 rounded-lg">
+          <div className="flex items-start justify-between">
+            <p>Imported {importResult.rows} rows: {importResult.created} suppliers created, {importResult.updated} updated, {importResult.unchanged} unchanged.</p>
+            <button onClick={() => setImportResult(null)} className="text-xs text-emerald-700 hover:underline ml-4">Dismiss</button>
+          </div>
+          {importResult.warnings.length > 0 && (
+            <ul className="list-disc ml-5 mt-1 text-xs text-amber-800 space-y-0.5">
+              {importResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
 
       <ListToolbar
         search={search} onSearch={q => { setSearch(q); setPage(0); }}

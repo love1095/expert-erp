@@ -4,14 +4,15 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getProductsPage, deleteProduct, getCategories, importProducts, exportProducts,
+  getProductsPage, deleteProduct, getCategories, importProductFile, exportProductFile, ProductFileType,
   deleteDeprecatedProducts,
 } from "@/lib/api";
+import { ExportMenu } from "@/components/FileMenus";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import MoreActions from "@/components/MoreActions";
 import { TickBox, useSelection } from "@/components/BulkActions";
-import { Product, Category, Page, ProductImportResult } from "@/types";
+import { Product, Category, Page, ProductImportResult, StockImportResult, CustomerImportResult, FileImportResult } from "@/types";
 import { formatGBP } from "@/lib/currency";
 import { useRef, useState } from "react";
 import Pagination from "@/components/Pagination";
@@ -19,7 +20,38 @@ import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/compon
 import { useConfirm } from "@/components/ConfirmDialog";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 
-const BUTTON_SECONDARY = "border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50";
+
+// Cin7's product files (Products → Export / Import), in Cin7's columns
+const EXPORT_FILES: { value: ProductFileType; label: string }[] = [
+  { value: "INVENTORY_LIST", label: "Inventory list" },
+  { value: "INVENTORY_LIST_NO_DESCRIPTIONS", label: "Inventory list (without descriptions)" },
+  { value: "STOCK_ON_HAND", label: "Stock on hand" },
+  { value: "UNITS_OF_MEASURE", label: "Units of measure" },
+  { value: "ASSEMBLY_BOM", label: "Assembly BOM" },
+  { value: "SIMPLE_PRICES", label: "Simple prices" },
+  { value: "CUSTOM_PRICES", label: "Custom prices" },
+];
+const IMPORT_FILES = EXPORT_FILES.filter(f => f.value !== "INVENTORY_LIST_NO_DESCRIPTIONS");
+
+// What each file does when imported
+const IMPORT_HELP: Record<ProductFileType, string> = {
+  INVENTORY_LIST: "A Cin7 Core inventory list (Products → Export → Inventory list, InventoryList_….csv), or a file exported here. "
+    + "Products are matched by SKU (ProductCode): new ones are created, existing ones updated. Categories and suppliers are created "
+    + "when missing. Prices of 0 or 9999.99 are treated as not set.",
+  INVENTORY_LIST_NO_DESCRIPTIONS: "",
+  STOCK_ON_HAND: "Cin7's Stock on hand file (StockOnHand_….csv), or one exported here: each Location is the warehouse of that name, and "
+    + "its stock is set to the file's quantities (rows of the same product added up), costed at the file's AverageCost. Warehouses not in "
+    + "the file are left alone. You see the changes first and apply them after.",
+  UNITS_OF_MEASURE: "Cin7's units of measure file (AdditionalUOM_….csv): for each product in the file, its extra units become the file's "
+    + "(a unit already there keeps its barcode and prices). Action \"Delete\" removes a unit.",
+  ASSEMBLY_BOM: "Cin7's Assembly BOM file (AssemblyBOM_….csv): each kit in the file gets the file's components. The product must already "
+    + "be a kit (made on its page); a kit on open orders is not changed.",
+  SIMPLE_PRICES: "Cin7's Simple prices file (SimplePrices_….csv): price tiers 1 to 4 of products that exist (no product is created). "
+    + "0 or 9999.99 = no price; tiers 5 to 10 are not used here.",
+  CUSTOM_PRICES: "Cin7's Custom prices file (CustomPrices_….csv): each becomes a contract price for that customer from today, with no end.",
+};
+
+type AnyImportResult = ProductImportResult | StockImportResult | CustomerImportResult | FileImportResult;
 
 const STATUS_BADGE: Record<Product["status"], string> = {
   ACTIVE: "bg-emerald-50 text-emerald-700",
@@ -40,11 +72,13 @@ export default function ProductsPage() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
-  const [showImport, setShowImport] = useState(false);
+  // The file type chosen on the Import menu (null: the import panel is closed)
+  const [importType, setImportType] = useState<ProductFileType | null>(null);
   const [deprecateMissing, setDeprecateMissing] = useState(false);
-  const [importResult, setImportResult] = useState<ProductImportResult | null>(null);
+  const [importResult, setImportResult] = useState<AnyImportResult | null>(null);
   const [importError, setImportError] = useState("");
-  const [exporting, setExporting] = useState(false);
+  // Stock on hand: the file previewed, kept to apply it
+  const [stockFile, setStockFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const { data: categories = [] } = useQuery<Category[]>({
@@ -97,25 +131,18 @@ export default function ProductsPage() {
   });
 
   const importMutation = useMutation({
-    mutationFn: importProducts,
-    onSuccess: (r: ProductImportResult) => { setImportResult(r); setImportError(""); refresh(); },
-    onError: (e: any) => { setImportResult(null); setImportError(e.response?.data?.error || "Import failed"); },
+    mutationFn: importProductFile,
+    onSuccess: (r: AnyImportResult, v) => {
+      setImportResult(r); setImportError("");
+      setStockFile(v.type === "STOCK_ON_HAND" && !v.apply ? v.file : null);
+      refresh();
+    },
+    onError: (e: any) => { setImportResult(null); setStockFile(null); setImportError(e.response?.data?.error || "Import failed"); },
     onSettled: () => { if (fileInput.current) fileInput.current.value = ""; },
   });
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const blob = await exportProducts({ status: status === "ALL" ? undefined : status });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `products_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      setExporting(false);
-    }
+  const openImport = (type: ProductFileType) => {
+    setImportType(type); setImportResult(null); setImportError(""); setStockFile(null);
   };
 
   return (
@@ -131,48 +158,50 @@ export default function ProductsPage() {
             { label: "Delete deprecated products", danger: true, divider: true,
               onClick: async () => { if (await ask({ title: "Delete every deprecated product that has no stock movements or orders?", action: "Delete", danger: true })) deleteDeprecated.mutate(); } },
           ]} />
-          <button onClick={() => { setShowImport(!showImport); setImportError(""); }} className={BUTTON_SECONDARY}>
-            Import
-          </button>
-          <button onClick={handleExport} disabled={exporting} className={BUTTON_SECONDARY}>
-            {exporting ? "Exporting..." : "Export"}
-          </button>
+          <MoreActions label={importMutation.isPending ? "Importing…" : "Import"}
+            actions={IMPORT_FILES.map(f => ({ label: f.label, onClick: () => openImport(f.value) }))} />
+          <ExportMenu items={EXPORT_FILES.map(f => ({ label: f.label, file: () => exportProductFile(f.value) }))} onError={setImportError} />
           <Link href="/products/new"
             className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition-colors">
             + Add Product
           </Link>
       </PageHeader>
 
-      {showImport && (
+      {importError && !importType && <p role="alert" data-testid="products-export-error" className="mb-4 text-sm text-red-700 bg-red-50 px-3 py-2 rounded">✕ {importError}</p>}
+      {importType && (
         <section data-testid="products-import" className="bg-white border border-gray-200 rounded-xl p-6 mb-6 space-y-3">
-          <h2 className="font-semibold text-gray-800">Import products</h2>
-          <p className="text-xs text-gray-500">
-            A Cin7 Core inventory list (Inventory → Export → <b>InventoryList_….csv</b>), or a file exported here.
-            Products are matched by SKU (ProductCode): new ones are created, existing ones updated. Categories and suppliers
-            are created when missing. Prices of 0 or 9999.99 are treated as not set.
-          </p>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={deprecateMissing} onChange={e => setDeprecateMissing(e.target.checked)} />
-            Mark active products that are not in the file as Deprecated (use with a full export)
-          </label>
+          <div className="flex items-start justify-between">
+            <h2 className="font-semibold text-gray-800">Import: {EXPORT_FILES.find(f => f.value === importType)?.label}</h2>
+            <button type="button" onClick={() => setImportType(null)} className="text-xs text-gray-500 hover:underline">Close</button>
+          </div>
+          <p className="text-xs text-gray-500">{IMPORT_HELP[importType]}</p>
+          {importType === "INVENTORY_LIST" && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={deprecateMissing} onChange={e => setDeprecateMissing(e.target.checked)} />
+              Mark active products that are not in the file as Deprecated (use with a full export)
+            </label>
+          )}
           <div className="flex items-center gap-3">
             <label htmlFor="products-import-file" className="sr-only">CSV file</label>
             <input id="products-import-file" ref={fileInput} type="file" accept=".csv,text/csv" disabled={importMutation.isPending}
-              onChange={e => { const f = e.target.files?.[0]; if (f) importMutation.mutate({ file: f, deprecateMissing }); }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) importMutation.mutate({ file: f, type: importType, deprecateMissing }); }}
               className="text-sm" />
             {importMutation.isPending && <span className="text-sm text-gray-500">Importing… large files take a minute</span>}
           </div>
           {importError && <p role="alert" data-testid="products-import-error" className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded">✕ {importError}</p>}
           {importResult && (
             <div data-testid="products-import-result" className="text-sm bg-gray-50 rounded-lg px-4 py-3">
-              <p>
-                ✓ {importResult.rows.toLocaleString()} rows: {importResult.created.toLocaleString()} created,{" "}
-                {importResult.updated.toLocaleString()} updated, {importResult.unchanged.toLocaleString()} unchanged
-                {importResult.deprecated > 0 && <>, {importResult.deprecated.toLocaleString()} not in the file marked Deprecated</>}.
-                {(importResult.categoriesCreated > 0 || importResult.suppliersCreated > 0) && (
-                  <> New: {importResult.categoriesCreated} categories, {importResult.suppliersCreated} suppliers.</>
-                )}
-              </p>
+              <ImportSummary type={importType} r={importResult} />
+              {stockFile && (importResult as StockImportResult).changed > 0 && (
+                <button type="button" disabled={importMutation.isPending}
+                  onClick={async () => {
+                    if (await ask({ title: `Change the stock of ${(importResult as StockImportResult).changed} product(s) to the file's quantities?`, action: "Apply" }))
+                      importMutation.mutate({ file: stockFile, type: "STOCK_ON_HAND", apply: true });
+                  }}
+                  className="mt-2 bg-brand-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+                  Apply these changes
+                </button>
+              )}
               {importResult.warnings.length > 0 && (
                 <ul className="mt-2 text-xs text-amber-800 list-disc ml-5 space-y-0.5 max-h-40 overflow-y-auto">
                   {importResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
@@ -285,4 +314,35 @@ export default function ProductsPage() {
       )}
     </div>
   );
+}
+
+// One line on what an import did, in the words of its file type
+function ImportSummary({ type, r }: { type: ProductFileType; r: AnyImportResult }) {
+  if (type === "INVENTORY_LIST") {
+    const p = r as ProductImportResult;
+    return (
+      <p>
+        ✓ {p.rows.toLocaleString()} rows: {p.created.toLocaleString()} created,{" "}
+        {p.updated.toLocaleString()} updated, {p.unchanged.toLocaleString()} unchanged
+        {p.deprecated > 0 && <>, {p.deprecated.toLocaleString()} not in the file marked Deprecated</>}.
+        {(p.categoriesCreated > 0 || p.suppliersCreated > 0) && <> New: {p.categoriesCreated} categories, {p.suppliersCreated} suppliers.</>}
+      </p>
+    );
+  }
+  if (type === "STOCK_ON_HAND") {
+    const s = r as StockImportResult;
+    return (
+      <p>
+        {s.applied ? "✓ Applied" : "Preview, nothing changed yet"}: {s.rows.toLocaleString()} products in {s.warehouseName || "no warehouse"};{" "}
+        {s.changed.toLocaleString()} to change, {s.unchanged.toLocaleString()} unchanged
+        {s.unknownSkus > 0 && <>, {s.unknownSkus} not products here</>}. Units {s.unitsBefore} → {s.unitsAfter}.
+      </p>
+    );
+  }
+  if (type === "CUSTOM_PRICES") {
+    const c = r as CustomerImportResult;
+    return <p>✓ {c.rows.toLocaleString()} rows: {c.prices.toLocaleString()} contract prices.</p>;
+  }
+  const f = r as FileImportResult;
+  return <p>✓ {f.rows.toLocaleString()} rows: {f.changed.toLocaleString()} products changed, {f.unchanged.toLocaleString()} unchanged.</p>;
 }

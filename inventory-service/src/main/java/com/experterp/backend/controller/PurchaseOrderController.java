@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;
+    private final com.experterp.backend.service.OrderListExportService listExport;
     private final com.experterp.backend.service.InvoiceService invoiceService;
 
     @GetMapping
@@ -26,6 +27,24 @@ public class PurchaseOrderController {
             @RequestParam(required = false) com.experterp.backend.entity.PurchaseOrder.Status status,
             @RequestParam(required = false) String q) {
         return purchaseOrderService.findAll(page, size, status, q);
+    }
+
+    // "Export to CSV format": every order of the list's search and filter, not only the page shown
+    @GetMapping(value = "/export", produces = "text/csv")
+    public void export(@RequestParam(required = false) com.experterp.backend.entity.PurchaseOrder.Status status,
+                       @RequestParam(required = false) String q,
+                       jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"Purchases_" + java.time.LocalDate.now() + ".csv\"");
+        listExport.purchases(status, q, response.getWriter());
+    }
+
+    // "Export accounts payable": what is owed to each supplier, one row per open bill, credit note or deposit
+    @GetMapping(value = "/export/accounts-payable", produces = "text/csv")
+    public void exportAccountsPayable(jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"AccountsPayable_" + java.time.LocalDate.now() + ".csv\"");
+        listExport.accountsPayable(response.getWriter());
     }
 
     @GetMapping("/{id}")

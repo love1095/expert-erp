@@ -2,6 +2,7 @@ package com.experterp.backend.controller;
 
 import com.experterp.backend.entity.Supplier;
 import com.experterp.backend.repository.SupplierRepository;
+import com.experterp.backend.service.SupplierFileService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -15,9 +16,29 @@ import java.util.Map;
 public class SupplierController {
 
     private final SupplierRepository repo;
+    private final SupplierFileService fileService;
 
-    public SupplierController(SupplierRepository repo) {
+    public SupplierController(SupplierRepository repo, SupplierFileService fileService) {
         this.repo = repo;
+        this.fileService = fileService;
+    }
+
+    // Cin7's Suppliers file, so it can be imported back (here or into Cin7)
+    @GetMapping(value = "/export", produces = "text/csv")
+    public void export(@RequestParam(defaultValue = "SUPPLIERS") SupplierFileService.Kind type,
+                       jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + fileService.fileName(type) + "\"");
+        fileService.export(type, response.getWriter());
+    }
+
+    // Creates or updates suppliers by name; a file of another type is refused
+    @PostMapping(value = "/import", consumes = "multipart/form-data")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('PERM_DATA_IMPORT')")
+    public SupplierFileService.ImportResult importCsv(@RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                                      @RequestParam(defaultValue = "SUPPLIERS") SupplierFileService.Kind type) throws java.io.IOException {
+        if (file.isEmpty()) throw new IllegalArgumentException("The file is empty");
+        return fileService.importCsv(type, file.getBytes());
     }
 
     @GetMapping

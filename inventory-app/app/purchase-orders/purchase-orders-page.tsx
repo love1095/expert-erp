@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, orderPurchaseOrder, undoPurchaseOrder } from "@/lib/api";
+import { getPurchaseOrders, receivePurchaseOrder, cancelPurchaseOrder, orderPurchaseOrder, undoPurchaseOrder, exportPurchaseList, exportAccountsPayable } from "@/lib/api";
 import { PurchaseOrder, Page } from "@/types";
 import { PO_STATUS_COLOR as STATUS_COLOR, RECEIVING_LABEL, BILLING_LABEL } from "./purchase-order-view";
 import PurchaseStages from "./purchase-stages";
@@ -14,6 +14,7 @@ import { formatGBP } from "@/lib/currency";
 import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT, ListHead, Clip } from "@/components/ListToolbar";
 import { printMany } from "@/components/PrintButton";
+import { ExportMenu } from "@/components/FileMenus";
 import { BulkActionBar, BulkAction, TickBox, useSelection, downloadCsv, UNDO_WARNING, NOT_YET_EMAIL } from "@/components/BulkActions";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { SkeletonRows } from "@/components/ui/Skeleton";
@@ -39,6 +40,7 @@ export default function PurchaseOrdersPage() {
   const [size, setSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [exportError, setExportError] = useState("");
   // Cin7's two views of purchases: General (one row per order) and Accounting (one row per supplier bill)
   const [tab, setTab] = useState<"general" | "accounting">("general");
   const router = useRouter();
@@ -78,11 +80,17 @@ export default function PurchaseOrdersPage() {
   return (
     <div>
       <PageHeader title="Purchase Orders" subtitle={tab === "general" ? "Orders to suppliers, newest first" : "Supplier bills: what is owed and when"}>
+        {/* Cin7: every purchase of the current search and filter, and what is owed to suppliers */}
+        <ExportMenu onError={setExportError} items={[
+          { label: "Export to CSV format", file: () => exportPurchaseList({ status: statusFilter || undefined, q: search || undefined }) },
+          { label: "Export accounts payable", file: exportAccountsPayable },
+        ]} />
         <Link href="/purchase-orders/new"
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
           + New PO
         </Link>
       </PageHeader>
+      {exportError && <p role="alert" data-testid="po-export-error" className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{exportError}</p>}
 
       <div role="tablist" aria-label="Purchases view" className="flex gap-6 border-b border-gray-200 mb-4">
         {([["general", "General"], ["accounting", "Accounting"]] as const).map(([key, label]) => (

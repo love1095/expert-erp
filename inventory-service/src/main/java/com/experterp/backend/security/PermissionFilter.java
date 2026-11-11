@@ -80,6 +80,8 @@ public class PermissionFilter extends OncePerRequestFilter {
             // Purchase
             r("POST", "/api/purchase-orders/*/cancel", PURCHASE_VOID),
             r("POST", "/api/purchase-orders/*/undo", PURCHASE_VOID),
+            // What is owed to suppliers: the aged creditors figures, one row per open bill
+            r("GET", "/api/purchase-orders/export/accounts-payable", PURCHASE_PRICES, REPORTS_FINANCIAL),
             r("GET", "/api/purchase-orders/**", PURCHASE_VIEW),
             r("GET", "/api/purchase-orders", PURCHASE_VIEW),
             r("*", "/api/purchase-orders/**", PURCHASE_EDIT),

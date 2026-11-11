@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class SaleOrderController {
 
     private final SaleOrderService saleOrderService;
+    private final com.experterp.backend.service.OrderListExportService listExport;
     private final InvoiceService invoiceService;
 
     @GetMapping
@@ -54,6 +55,17 @@ public class SaleOrderController {
     @PostMapping("/{id}/reject")
     public SaleOrderResponse rejectQuote(@PathVariable Long id) {
         return saleOrderService.rejectQuote(id);
+    }
+
+    // "Export to CSV format": every order of the list's search and filter, not only the page shown
+    @GetMapping(value = "/export", produces = "text/csv")
+    public void export(@RequestParam(required = false) Long customerId,
+                       @RequestParam(required = false) com.experterp.backend.entity.SaleOrder.Status status,
+                       @RequestParam(required = false) String q,
+                       jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"Sales_" + java.time.LocalDate.now() + ".csv\"");
+        listExport.sales(customerId, status, q, response.getWriter());
     }
 
     @GetMapping("/{id}")

@@ -2,9 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCustomersPage, deleteCustomer, importCustomers, exportCustomers, CustomerFileType } from "@/lib/api";
-import MoreActions from "@/components/MoreActions";
+import { ExportMenu, ImportMenu } from "@/components/FileMenus";
 import { Customer, CustomerImportResult, Page } from "@/types";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatGBP } from "@/lib/currency";
@@ -30,10 +30,6 @@ export default function CustomersPage() {
   const router = useRouter();
   const [importResult, setImportResult] = useState<CustomerImportResult | null>(null);
   const [importError, setImportError] = useState("");
-  const fileInput = useRef<HTMLInputElement>(null);
-  // Which of Cin7's files the Import menu asked for (the file must be that one)
-  const [importType, setImportType] = useState<CustomerFileType>("CUSTOMERS");
-  const [exporting, setExporting] = useState(false);
 
   const { data, isLoading, isFetching, refetch } = useQuery<Page<Customer>>({
     queryKey: ["customers-page", search, page, size],
@@ -57,29 +53,14 @@ export default function CustomersPage() {
     mutationFn: importCustomers,
     onSuccess: (r: CustomerImportResult) => { setImportResult(r); setImportError(""); refresh(); },
     onError: (e: any) => { setImportResult(null); setImportError(e.response?.data?.error || "Import failed"); },
-    onSettled: () => { if (fileInput.current) fileInput.current.value = ""; },
   });
 
   return (
     <div>
       <PageHeader title="Customers" count={totalElements} noun="customers">
-          <input ref={fileInput} type="file" accept=".csv,text/csv" className="hidden" aria-label="Customer CSV file"
-            onChange={e => { const f = e.target.files?.[0]; if (f) importMutation.mutate({ file: f, type: importType }); }} />
-          <MoreActions label={importMutation.isPending ? "Importing…" : "Import"}
-            actions={FILE_TYPES.map(t => ({ label: t.label, onClick: () => { setImportType(t.value); fileInput.current?.click(); } }))} />
-          <MoreActions label={exporting ? "Exporting…" : "Export"}
-            actions={FILE_TYPES.map(t => ({ label: t.label, onClick: async () => {
-              setExporting(true);
-              try {
-                const { blob, fileName } = await exportCustomers(t.value);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = fileName;
-                a.click();
-                URL.revokeObjectURL(url);
-              } catch { setImportError("Could not export"); } finally { setExporting(false); }
-            } }))} />
+          <ImportMenu items={FILE_TYPES} inputLabel="Customer CSV file" busy={importMutation.isPending}
+            onFile={(file, type) => importMutation.mutate({ file, type })} />
+          <ExportMenu items={FILE_TYPES.map(t => ({ label: t.label, file: () => exportCustomers(t.value) }))} onError={setImportError} />
           <Link href="/customers/new"
             className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
             + New Customer

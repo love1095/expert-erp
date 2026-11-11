@@ -207,10 +207,26 @@ public class ProductImportService {
     /** Writes products (all, or only one status) as a Cin7-style CSV. */
     @Transactional(readOnly = true)
     public void exportCsv(Product.Status status, Writer out) throws IOException {
+        exportCsv(status, true, out);
+    }
+
+    /**
+     * The inventory list; {@code descriptions = false} is Cin7's "Inventory list (without descriptions)". Without the
+     * permission to see costs the cost columns are left out of the file (not emptied), so importing it back keeps the costs.
+     */
+    @Transactional(readOnly = true)
+    public void exportCsv(Product.Status status, boolean descriptions, Writer out) throws IOException {
+        boolean costs = com.experterp.backend.security.Permission.current(com.experterp.backend.security.Permission.PRODUCT_COST);
+        Set<String> dropped = new HashSet<>();
+        if (!descriptions) dropped.addAll(List.of("Description", "ShortDescription"));
+        if (!costs) dropped.addAll(List.of("AverageCost", "SupplierFixedPrice"));
+        int[] keep = java.util.stream.IntStream.range(0, COLUMNS.size()).filter(i -> !dropped.contains(COLUMNS.get(i))).toArray();
+
         Writer buffered = new BufferedWriter(out);
         // BOM so Excel opens it as UTF-8
-        buffered.write('﻿');
-        CSVPrinter printer = new CSVPrinter(buffered, CSVFormat.DEFAULT.builder().setHeader(COLUMNS.toArray(String[]::new)).build());
+        buffered.write('\uFEFF');
+        CSVPrinter printer = new CSVPrinter(buffered, CSVFormat.DEFAULT.builder()
+                .setHeader(java.util.Arrays.stream(keep).mapToObj(COLUMNS::get).toArray(String[]::new)).build());
         int page = 0;
         Slice<Product> slice;
         do {
@@ -226,7 +242,9 @@ public class ProductImportService {
                 row.add(c == null ? "" : nz(c.certificateNumber()));
                 row.add(c == null ? "" : nz(c.certificateIssuer()));
                 row.add(c == null || c.certificateExpiry() == null ? "" : c.certificateExpiry().toString());
-                printer.printRecord(row);
+                List<Object> kept = new ArrayList<>(keep.length);
+                for (int i : keep) kept.add(row.get(i));
+                printer.printRecord(kept);
             }
             printer.flush();
             em.clear();

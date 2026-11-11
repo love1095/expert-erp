@@ -69,6 +69,10 @@ public class StockImportService {
 
     private record Row(String sku, BigDecimal onHand, BigDecimal value) {}
 
+    /** The differences worked out for one warehouse, not written yet. */
+    private record Plan(Warehouse warehouse, List<StockMovement> movements, List<Change> changes, int rows, int unchanged, int unknown,
+                        BigDecimal unitsBefore, BigDecimal unitsAfter, BigDecimal valueAfter) {}
+
     @Transactional
     public ImportResult importCsv(InputStream in, String fileName, Long warehouseId, boolean apply) throws IOException {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)
@@ -80,7 +84,44 @@ public class StockImportService {
             throw new IllegalArgumentException("The file has stock for several locations (" + String.join(", ", locations)
                     + "). Export one location at a time from Cin7.");
         }
+        String reference = reference(fileName);
+        Plan plan = plan(rows, warehouse, reference, warnings);
+        return finish(List.of(plan), warehouse.getName(), locations.isEmpty() ? null : locations.iterator().next(), reference, apply, warnings);
+    }
 
+    /**
+     * Cin7's "Stock on hand" file (Products → Export → Stock on hand, StockOnHand_YYYY-MM-DD.csv: ProductCode, Quantity,
+     * AverageCost, Location, Bin, …), also what {@link ProductFileService} exports. One row per batch of stock (it may
+     * repeat a product); each Location is the warehouse of that name, and every warehouse in the file gets the file's
+     * quantities the same way as {@link #importCsv}. Stock in a warehouse that the file does not name is left alone.
+     */
+    @Transactional
+    public ImportResult importStockOnHand(InputStream in, String fileName, boolean apply) throws IOException {
+        List<String> warnings = new ArrayList<>();
+        Map<String, Map<String, Row>> byLocation = readStockOnHand(in, warnings);
+        Map<String, Warehouse> warehouses = new HashMap<>();
+        warehouseRepository.findAll().forEach(w -> warehouses.putIfAbsent(w.getName().trim().toLowerCase(Locale.ROOT), w));
+        List<String> unknown = byLocation.keySet().stream().filter(l -> !warehouses.containsKey(l.toLowerCase(Locale.ROOT))).toList();
+        if (!unknown.isEmpty()) {
+            throw new IllegalArgumentException("No warehouse called " + String.join(", ", unknown)
+                    + ": add it under Warehouses first (or rename it to match), nothing was imported");
+        }
+        String reference = reference(fileName);
+        List<Plan> plans = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Row>> e : byLocation.entrySet()) {
+            plans.add(plan(e.getValue(), warehouses.get(e.getKey().toLowerCase(Locale.ROOT)), reference, warnings));
+        }
+        String names = String.join(", ", plans.stream().map(pl -> pl.warehouse().getName()).toList());
+        return finish(plans, names, names.isEmpty() ? null : names, reference, apply, warnings);
+    }
+
+    private static String reference(String fileName) {
+        String reference = fileName == null || fileName.isBlank() ? "Stock import" : fileName;
+        return reference.length() > 255 ? reference.substring(0, 255) : reference;
+    }
+
+    private Plan plan(Map<String, Row> rows, Warehouse warehouse, String reference, List<String> warnings) {
+        Long warehouseId = warehouse.getId();
         // Products by SKU (exact), locked so nothing else changes their stock while we post the differences
         Long tenantId = TenantContext.get();
         Map<String, Long> idsBySku = new HashMap<>();
@@ -106,8 +147,6 @@ public class StockImportService {
         BigDecimal unitsBefore = BigDecimal.ZERO, unitsAfter = BigDecimal.ZERO, valueAfter = BigDecimal.ZERO;
         List<Change> changes = new ArrayList<>();
         List<StockMovement> movements = new ArrayList<>();
-        String reference = fileName == null || fileName.isBlank() ? "Stock import" : fileName;
-        if (reference.length() > 255) reference = reference.substring(0, 255);
 
         for (Row row : rows.values()) {
             Long id = idsBySku.get(row.sku());
@@ -142,11 +181,25 @@ public class StockImportService {
             if (diff.signum() > 0) m.setUnitCost(unitCost);
             movements.add(m);
         }
+        return new Plan(warehouse, movements, changes, rows.size(), unchanged, unknown, unitsBefore, unitsAfter, valueAfter);
+    }
 
+    private ImportResult finish(List<Plan> plans, String warehouseName, String fileLocation, String reference, boolean apply,
+                                List<String> warnings) {
+        int rows = 0, unchanged = 0, unknown = 0;
+        BigDecimal unitsBefore = BigDecimal.ZERO, unitsAfter = BigDecimal.ZERO, valueAfter = BigDecimal.ZERO;
+        List<Change> changes = new ArrayList<>();
+        List<StockMovement> movements = new ArrayList<>();
+        for (Plan p : plans) {
+            rows += p.rows(); unchanged += p.unchanged(); unknown += p.unknown();
+            unitsBefore = unitsBefore.add(p.unitsBefore()); unitsAfter = unitsAfter.add(p.unitsAfter()); valueAfter = valueAfter.add(p.valueAfter());
+            changes.addAll(p.changes());
+            movements.addAll(p.movements());
+        }
         changes.sort(Comparator.comparing((Change c) -> c.after().subtract(c.before()).abs()).reversed()
                 .thenComparing(Change::sku));
-        ImportResult result = new ImportResult(apply, warehouse.getName(), locations.isEmpty() ? null : locations.iterator().next(),
-                rows.size(), movements.size(), unchanged, unknown, unitsBefore, unitsAfter,
+        ImportResult result = new ImportResult(apply, warehouseName, fileLocation,
+                rows, movements.size(), unchanged, unknown, unitsBefore, unitsAfter,
                 valueAfter.setScale(2, RoundingMode.HALF_UP),
                 changes.subList(0, Math.min(MAX_CHANGES_LISTED, changes.size())), warnings);
 
@@ -159,14 +212,74 @@ public class StockImportService {
         for (StockMovement saved : movementRepository.saveAll(movements)) {
             costingService.record(saved);
             eventPublisher.publishEvent(new StockChangedEvent(this, saved.getProduct().getId(),
-                    warehouse.getId(), saved.getQuantity(), saved.getType(), saved.getReferenceId()));
+                    saved.getWarehouse().getId(), saved.getQuantity(), saved.getType(), saved.getReferenceId()));
         }
-        // One audit entry for the whole import (each movement is in the stock history)
-        auditService.log("STOCK_IMPORT", warehouse.getId(), "IMPORT", Map.of(
-                "file", reference, "warehouse", warehouse.getName(), "rows", rows.size(),
-                "changed", movements.size(), "unknownSkus", unknown,
-                "unitsBefore", unitsBefore, "unitsAfter", unitsAfter));
+        // One audit entry per warehouse (each movement is in the stock history)
+        for (Plan p : plans) {
+            auditService.log("STOCK_IMPORT", p.warehouse().getId(), "IMPORT", Map.of(
+                    "file", reference, "warehouse", p.warehouse().getName(), "rows", p.rows(),
+                    "changed", p.movements().size(), "unknownSkus", p.unknown(),
+                    "unitsBefore", p.unitsBefore(), "unitsAfter", p.unitsAfter()));
+        }
         return result;
+    }
+
+    /** Stock on hand rows per location, quantities and values added up per SKU. */
+    private static Map<String, Map<String, Row>> readStockOnHand(InputStream in, List<String> warnings) throws IOException {
+        CSVFormat format = CSVFormat.DEFAULT.builder()
+                .setHeader().setSkipHeaderRecord(true)
+                .setIgnoreEmptyLines(true)
+                .setAllowMissingColumnNames(true)
+                .build();
+        Reader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+        reader.mark(1);
+        if (reader.read() != '\uFEFF') reader.reset();
+
+        Map<String, Map<String, Row>> out = new LinkedHashMap<>();
+        // A SKU whose rows lack a cost in some row: its value is unknown (costed at the product's cost price)
+        Set<String> uncosted = new HashSet<>();
+        try (CSVParser parser = CSVParser.parse(reader, format)) {
+            CsvColumns cols = new CsvColumns(parser.getHeaderNames());
+            if (!cols.has("ProductCode") || !cols.has("Quantity") || !cols.has("Location")) {
+                throw new IllegalArgumentException("This is not a stock on hand file: it needs the columns ProductCode, Quantity and Location");
+            }
+            for (CSVRecord r : parser) {
+                String sku = cols.get(r, "ProductCode");
+                if (sku == null) continue;
+                String location = cols.get(r, "Location");
+                if (location == null) {
+                    warn(warnings, sku + ": no Location, row skipped");
+                    continue;
+                }
+                BigDecimal qty = number(cols.get(r, "Quantity"));
+                if (qty == null || qty.signum() < 0) {
+                    warn(warnings, sku + ": Quantity '" + cols.get(r, "Quantity") + "' is not a quantity, row skipped");
+                    continue;
+                }
+                BigDecimal cost = number(cols.get(r, "AverageCost"));
+                Map<String, Row> rows = out.computeIfAbsent(location, k -> new LinkedHashMap<>());
+                String key = location.toLowerCase(Locale.ROOT) + "|" + sku;
+                if (cost == null) uncosted.add(key);
+                Row was = rows.get(sku);
+                BigDecimal value = cost == null ? null : qty.multiply(cost);
+                if (was == null) {
+                    rows.put(sku, new Row(sku, qty, value));
+                } else {
+                    rows.put(sku, new Row(sku, was.onHand().add(qty), was.value() == null || value == null ? null : was.value().add(value)));
+                }
+                if (uncosted.contains(key)) rows.put(sku, new Row(sku, rows.get(sku).onHand(), null));
+            }
+        }
+        // Locations merged ignoring case (the last spelling is kept as the key)
+        Map<String, Map<String, Row>> merged = new LinkedHashMap<>();
+        Map<String, String> spelling = new HashMap<>();
+        for (Map.Entry<String, Map<String, Row>> e : out.entrySet()) {
+            String k = spelling.computeIfAbsent(e.getKey().toLowerCase(Locale.ROOT), x -> e.getKey());
+            Map<String, Row> target = merged.computeIfAbsent(k, x -> new LinkedHashMap<>());
+            e.getValue().forEach((sku, row) -> target.merge(sku, row, (x, y) -> new Row(sku, x.onHand().add(y.onHand()),
+                    x.value() == null || y.value() == null ? null : x.value().add(y.value()))));
+        }
+        return merged;
     }
 
     private static Map<String, Row> read(InputStream in, Set<String> locations, List<String> warnings) throws IOException {

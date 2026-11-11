@@ -212,6 +212,24 @@ export interface Customer {
   updatedAt: string;
 }
 
+// Product files without a result of their own (units of measure, assembly BOM, simple prices)
+export interface FileImportResult {
+  file: string;
+  rows: number;
+  changed: number;
+  unchanged: number;
+  warnings: string[];
+}
+
+// Cin7's Suppliers file
+export interface SupplierImportResult {
+  rows: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  warnings: string[];
+}
+
 export interface CustomerImportResult {
   rows: number;
   customersCreated: number;

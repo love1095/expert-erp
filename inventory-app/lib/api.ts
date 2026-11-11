@@ -16,19 +16,31 @@ export const getProductsPage = (params?: { categoryId?: number; status?: string;
 // Review R9: the product selection list on order lines (A-Z, the supplier's products first, one page of 20 at a time)
 export const getProductPicker = (params: { q?: string; supplierId?: number; page?: number; size?: number }) =>
   api.get("/products/picker", { params: { size: 20, ...params } }).then(r => r.data);
-// Cin7 Core InventoryList CSV; deprecateMissing marks active products not in the file as deprecated
-export const importProducts = ({ file, deprecateMissing }: { file: File; deprecateMissing: boolean }) => {
+// A file made on the server; its name comes from the server (e.g. StockOnHand_2026-11-11.csv)
+export type DownloadedFile = { blob: Blob; fileName: string };
+export const downloadFile = (path: string, params?: Record<string, unknown>, fallback = "export.csv"): Promise<DownloadedFile> =>
+  api.get(path, { params, responseType: "blob", timeout: 10 * 60 * 1000 }).then(r => ({
+    blob: r.data as Blob,
+    fileName: /filename="([^"]+)"/.exec(String(r.headers["content-disposition"] ?? ""))?.[1] ?? fallback,
+  }));
+// A CSV sent to an import; large files take a while
+export const uploadFile = (path: string, file: File, params?: Record<string, unknown>) => {
   const body = new FormData();
   body.append("file", file);
-  return api.post("/products/import", body, {
-    params: { deprecateMissing },
-    headers: { "Content-Type": "multipart/form-data" },
-    // ~15,000 rows take a while
-    timeout: 10 * 60 * 1000,
-  }).then(r => r.data);
+  return api.post(path, body, { params, headers: { "Content-Type": "multipart/form-data" }, timeout: 10 * 60 * 1000 }).then(r => r.data);
 };
-export const exportProducts = (params?: { status?: string }) =>
-  api.get("/products/export", { params, responseType: "blob" }).then(r => r.data);
+
+// The products' files on the Export / Import menus, in Cin7's columns (a file of another type than the one chosen is refused)
+export type ProductFileType = "INVENTORY_LIST" | "INVENTORY_LIST_NO_DESCRIPTIONS" | "STOCK_ON_HAND" | "UNITS_OF_MEASURE"
+  | "ASSEMBLY_BOM" | "SIMPLE_PRICES" | "CUSTOM_PRICES";
+export const exportProductFile = (type: ProductFileType) => downloadFile("/products/export", { type }, "products.csv");
+// deprecateMissing (inventory list): active products not in the file become deprecated; apply (stock on hand): false = preview
+export const importProductFile = ({ file, type, deprecateMissing = false, apply = false }:
+  { file: File; type: ProductFileType; deprecateMissing?: boolean; apply?: boolean }) =>
+  uploadFile("/products/import", file, { type, deprecateMissing, apply });
+// Cin7 Core InventoryList CSV; deprecateMissing marks active products not in the file as deprecated
+export const importProducts = ({ file, deprecateMissing }: { file: File; deprecateMissing: boolean }) =>
+  importProductFile({ file, type: "INVENTORY_LIST", deprecateMissing });
 
 export const getProduct     = (id: number) => api.get(`/products/${id}`).then(r => r.data);
 export const createProduct  = (data: unknown) => api.post("/products", data).then(r => r.data);
@@ -85,11 +97,16 @@ export const importCustomers = ({ file, type }: { file: File; type: CustomerFile
   return api.post("/customers/import", body, { params: { type }, headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
 };
 // Same files, in Cin7's columns; the file name comes from the server (e.g. CustomerAddresses_2026-11-04.csv)
-export const exportCustomers = (type: CustomerFileType) =>
-  api.get("/customers/export", { params: { type }, responseType: "blob" }).then(r => ({
-    blob: r.data as Blob,
-    fileName: /filename="([^"]+)"/.exec(String(r.headers["content-disposition"] ?? ""))?.[1] ?? `customers_${type.toLowerCase()}.csv`,
-  }));
+export const exportCustomers = (type: CustomerFileType) => downloadFile("/customers/export", { type }, `customers_${type.toLowerCase()}.csv`);
+
+// Cin7's Suppliers file, both ways
+export const exportSuppliers = () => downloadFile("/suppliers/export", { type: "SUPPLIERS" }, "suppliers.csv");
+export const importSuppliers = (file: File) => uploadFile("/suppliers/import", file, { type: "SUPPLIERS" });
+
+// "Export to CSV format" on the sale and purchase lists: every order of the current search and filter
+export const exportSaleList = (params: { status?: string; q?: string; customerId?: number }) => downloadFile("/sale-orders/export", params, "sales.csv");
+export const exportPurchaseList = (params: { status?: string; q?: string }) => downloadFile("/purchase-orders/export", params, "purchases.csv");
+export const exportAccountsPayable = () => downloadFile("/purchase-orders/export/accounts-payable", undefined, "accounts-payable.csv");
 
 // Stock movements — array for dropdowns (fetches all)
 export const getMovements   = (params?: { productId?: number; warehouseId?: number }) =>

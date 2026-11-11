@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSaleOrders, getCustomers, confirmSaleOrder, undoSaleOrder, cancelSaleOrder } from "@/lib/api";
+import { getSaleOrders, getCustomers, confirmSaleOrder, undoSaleOrder, cancelSaleOrder, exportSaleList } from "@/lib/api";
+import { ExportMenu } from "@/components/FileMenus";
 import { SaleOrder, Customer, Page } from "@/types";
 import { useEffect, useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
@@ -42,6 +43,7 @@ export default function SaleOrdersPage() {
   const [size, setSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [exportError, setExportError] = useState("");
   // Opened from a customer page with ?customer=ID
   const [customerId, setCustomerId] = useState<number | undefined>();
   useEffect(() => {
@@ -65,12 +67,17 @@ export default function SaleOrdersPage() {
   return (
     <div>
       <PageHeader title="Sale Orders" subtitle="Quotes and orders, newest first">
+        {/* Cin7: every sale of the current search and filter, not only the page shown */}
+        <ExportMenu onError={setExportError} items={[
+          { label: "Export to CSV format", file: () => exportSaleList({ status: statusFilter || undefined, q: search || undefined, customerId }) },
+        ]} />
         {isAdmin && <ShopifyImportButton onOpen={() => setShowShopifyImport(true)} />}
         <Link href="/sale-orders/new"
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700">
           + New SO
         </Link>
       </PageHeader>
+      {exportError && <p role="alert" data-testid="so-export-error" className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{exportError}</p>}
 
       {isAdmin && showShopifyImport && <ShopifyImportPanel onClose={() => setShowShopifyImport(false)} />}
 

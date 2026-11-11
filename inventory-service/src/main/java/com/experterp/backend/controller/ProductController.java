@@ -3,6 +3,7 @@ package com.experterp.backend.controller;
 import com.experterp.backend.dto.ProductRequest;
 import com.experterp.backend.dto.ProductResponse;
 import com.experterp.backend.entity.Product;
+import com.experterp.backend.service.ProductDataFileService;
 import com.experterp.backend.service.ProductImportService;
 import com.experterp.backend.service.ProductService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,7 +11,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import jakarta.validation.Valid;
@@ -28,6 +28,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final ProductImportService importService;
+    private final ProductDataFileService fileService;
     private final com.experterp.backend.service.ProductPickerService pickerService;
 
     // status: ACTIVE / DEPRECATED, omitted = all; q: part of the SKU or name
@@ -55,23 +56,30 @@ public class ProductController {
         return productService.options("ALL".equalsIgnoreCase(status) ? null : Product.Status.valueOf(status.toUpperCase(Locale.ROOT)));
     }
 
-    // Cin7 inventory list layout; re-importable
+    // The products' files on the Export menu, in Cin7's columns and file names (type: ProductDataFileService.Kind);
+    // without a type, the inventory list of one status (or all)
     @GetMapping(value = "/export", produces = "text/csv")
-    public void export(@RequestParam(required = false) Product.Status status, HttpServletResponse response) throws IOException {
+    public void export(@RequestParam(required = false) Product.Status status,
+                       @RequestParam(required = false) ProductDataFileService.Kind type,
+                       HttpServletResponse response) throws IOException {
+        ProductDataFileService.Kind kind = type == null ? ProductDataFileService.Kind.INVENTORY_LIST : type;
         response.setContentType("text/csv; charset=UTF-8");
-        response.setHeader("Content-Disposition", "attachment; filename=\"products_" + LocalDate.now() + ".csv\"");
-        importService.exportCsv(status, response.getWriter());
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + fileService.fileName(kind) + "\"");
+        if (type == null && status != null) importService.exportCsv(status, response.getWriter());
+        else fileService.export(kind, response.getWriter());
     }
 
-    // Cin7 Core InventoryList CSV; creates or updates products by SKU
+    // The products' files on the Import menu; a file of another type than the one chosen is refused.
+    // Inventory list: creates or updates products by SKU. Stock on hand: apply=false previews the stock changes.
     @PostMapping(value = "/import", consumes = "multipart/form-data")
     @PreAuthorize("hasAuthority('PERM_DATA_IMPORT')")
-    public ProductImportService.ImportResult importCsv(@RequestParam("file") MultipartFile file,
-                                                       @RequestParam(defaultValue = "false") boolean deprecateMissing) throws IOException {
+    public Object importCsv(@RequestParam("file") MultipartFile file,
+                            @RequestParam(required = false) ProductDataFileService.Kind type,
+                            @RequestParam(defaultValue = "false") boolean deprecateMissing,
+                            @RequestParam(defaultValue = "false") boolean apply) throws IOException {
         if (file.isEmpty()) throw new IllegalArgumentException("The file is empty");
-        try (var in = file.getInputStream()) {
-            return importService.importCsv(in, deprecateMissing);
-        }
+        return fileService.importFile(type == null ? ProductDataFileService.Kind.INVENTORY_LIST : type, file.getBytes(),
+                file.getOriginalFilename(), deprecateMissing, apply);
     }
 
     @GetMapping("/{id}")
