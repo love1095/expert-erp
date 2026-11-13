@@ -234,7 +234,7 @@ public class DocumentService {
 
     private List<Party> orderParties(String label, SaleOrderResponse so) {
         List<Party> parties = new ArrayList<>();
-        parties.add(customerParty(label, so.getCustomerId(), so.getCustomerName(), so.getBillingAddress()));
+        parties.add(customerParty(label, so.getCustomerId(), so.getCustomerName(), so.getBillingAddress(), orderContact(so)));
         Party ship = deliverTo(so.getShipToCompany(), so.getShipToContact(), so.getShippingAddress(), so.getCustomerName());
         if (ship != null) parties.add(ship);
         return parties;
@@ -243,7 +243,7 @@ public class DocumentService {
     private List<Party> invoiceParties(String label, Long customerId, String name, SaleOrderResponse so) {
         if (so == null) return List.of(customerParty(label, customerId, name));
         List<Party> parties = new ArrayList<>();
-        parties.add(customerParty(label, customerId, name, so.getBillingAddress()));
+        parties.add(customerParty(label, customerId, name, so.getBillingAddress(), orderContact(so)));
         Party ship = deliverTo(so.getShipToCompany(), so.getShipToContact(), so.getShippingAddress(), name);
         if (ship != null && !label.startsWith("Credit")) parties.add(ship);
         return parties;
@@ -340,11 +340,34 @@ public class DocumentService {
 
     /** The customer with an address: the one given (the order's), else their billing address (G4). */
     Party customerParty(String label, Long customerId, String fallbackName, Address address) {
+        return customerParty(label, customerId, fallbackName, address, null);
+    }
+
+    // The contact chosen on the sale order (name, e-mail, phone), null when the order has none
+    private static String[] orderContact(SaleOrderResponse so) {
+        boolean none = java.util.stream.Stream.of(so.getContactName(), so.getContactEmail(), so.getContactPhone()).allMatch(x -> x == null || x.isBlank());
+        return none ? null : new String[]{so.getContactName(), so.getContactEmail(), so.getContactPhone()};
+    }
+
+    /** As above; the order's own contact (the "+" Contact on the sale form) is printed instead of the customer's default one. */
+    Party customerParty(String label, Long customerId, String fallbackName, Address address, String[] contact) {
         Customer c = customerId == null ? null : customerRepository.findById(customerId).orElse(null);
         Address a = Address.clean(address);
-        if (c == null) return new Party(label, fallbackName, a == null ? List.of() : a.lines());
+        if (c == null) {
+            List<String> lines = new ArrayList<>(a == null ? List.of() : a.lines());
+            if (contact != null) {
+                if (contact[0] != null && !contact[0].isBlank() && !contact[0].equals(fallbackName)) add(lines, "Attn: " + contact[0]);
+                add(lines, contact[1]);
+                add(lines, contact[2]);
+            }
+            return new Party(label, fallbackName, lines);
+        }
         List<String> out = new ArrayList<>(a != null ? a.lines() : c.billingAddress().map(Address::lines).orElse(List.of()));
-        c.getContacts().stream().filter(CustomerContact::isDefaultContact).findFirst()
+        if (contact != null) {
+            if (contact[0] != null && !contact[0].isBlank() && !contact[0].equals(c.getName())) add(out, "Attn: " + contact[0]);
+            add(out, contact[1]);
+            add(out, contact[2]);
+        } else c.getContacts().stream().filter(CustomerContact::isDefaultContact).findFirst()
                 .or(() -> c.getContacts().stream().findFirst())
                 .ifPresent(ct -> {
                     if (ct.getName() != null && !ct.getName().equals(c.getName())) add(out, "Attn: " + ct.getName());

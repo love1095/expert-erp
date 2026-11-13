@@ -131,3 +131,42 @@ test.describe('New documents start on today', () => {
       await expect(page.getByLabel('Required by')).toHaveValue(today);
     });
 });
+
+test('SO-017 "+" on the customer and supplier forms; Settings renames a payment term where it is used and removes one nothing uses', { tag: ['@P2', '@customers', '@settings'] },
+  async ({ page, api }) => {
+    const term = `Net ${Date.now() % 100000}`;
+    await page.goto('/customers/new');
+    const form = page.getByTestId('customer-form');
+    await form.getByRole('button', { name: 'Add a payment term' }).click();
+    const dialog = page.getByTestId('quick-payment-term');
+    await dialog.getByLabel('Name').fill(term);
+    await dialog.getByLabel('Days').fill('45');
+    await dialog.getByRole('button', { name: 'Add payment term' }).click();
+    await expect(form.getByLabel('Payment Term')).toHaveValue(term);
+    await form.getByRole('button', { name: 'Add a sales representative' }).click();
+    const rep = `Rep ${Date.now() % 100000}`;
+    await page.getByTestId('quick-sales-rep').getByLabel('Name').fill(rep);
+    await page.getByTestId('quick-sales-rep').getByRole('button', { name: 'Add sales representative' }).click();
+    await expect(form.getByLabel('Sales Representative')).toHaveValue(rep);
+
+    await page.goto('/suppliers/new');
+    await expect(page.getByTestId('supplier-form').getByRole('button', { name: 'Add a payment term' })).toBeVisible();
+
+    // A supplier uses the term: renaming it in Settings renames it on the supplier
+    const supplier = await (await api.http.post('/api/suppliers', { data: { name: `Term Supplier ${Date.now()}`, paymentTerm: term } })).json();
+    await page.goto('/settings/organisation');
+    const list = page.getByTestId('payment-terms-list');
+    const row = list.getByRole('row').filter({ hasText: term });
+    await expect(row).toContainText('45 days after the invoice date');
+    await expect(row.getByRole('button', { name: 'Remove' })).toHaveCount(0);   // in use
+    await row.getByRole('button', { name: 'Rename' }).click();
+    await list.getByLabel(`New name for ${term}`).fill(`${term} days`);
+    await list.getByRole('button', { name: 'Rename' }).first().click();
+    await expect(list.getByRole('row').filter({ hasText: `${term} days` })).toBeVisible();
+    await expect.poll(async () => (await (await api.http.get(`/api/suppliers/${supplier.id}`)).json()).paymentTerm).toBe(`${term} days`);
+
+    // The sales rep nobody uses can be removed
+    const reps = page.getByTestId('sales-reps-list');
+    await reps.getByRole('row').filter({ hasText: rep }).getByRole('button', { name: 'Remove' }).click();
+    await expect(reps.getByRole('row').filter({ hasText: rep })).toHaveCount(0);
+  });

@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import CompanyDetailsCard from "./company-details";
 import PriceTiersCard from "./price-tiers";
 import PaymentAccountsCard from "./payment-accounts";
+import PickListCard from "./pick-lists";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-50";
@@ -165,6 +166,8 @@ export default function OrganisationPage() {
       <CompanyDetailsCard isAdmin={isAdmin} />
       <PriceTiersCard isAdmin={isAdmin} />
       <PaymentAccountsCard isAdmin={isAdmin} />
+      <PickListCard kind="payment-terms" isAdmin={isAdmin} />
+      <PickListCard kind="sales-reps" isAdmin={isAdmin} />
 
       <section className="bg-white border border-gray-200 rounded-xl p-6">
         <h2 className="font-semibold text-gray-800 mb-1">VAT rates</h2>

@@ -488,6 +488,9 @@ export interface SaleOrderCharge {
 export type VatType = "STANDARD" | "REDUCED" | "ZERO" | "EXEMPT" | "NO_VAT" | "REVERSE_CHARGE" | "EC_ACQUISITION" | "FULL_VAT";
 export interface TaxRate { id: number; name: string; rate: number; usage: "SALE" | "PURCHASE"; active: boolean; vatType?: VatType; reportRate?: number }
 
+/** An entry of a pick list in Settings (payment terms, sales reps): added = added by hand, uses = documents using it. */
+export interface PickListEntry { name: string; meaning?: string | null; added: boolean; uses: number }
+
 export type PurchaseApproach = "STOCK_FIRST" | "INVOICE_FIRST";
 
 /** Cin7's preset on a new purchase: the header saved under a name (no lines, no dates). */

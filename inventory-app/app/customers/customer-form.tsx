@@ -7,6 +7,7 @@ import NameCombobox from "@/components/NameCombobox";
 import { AddressType, Customer, CustomerAddress, CustomerContact, PriceTier } from "@/types";
 import { ADDRESS_TYPES, AddressFields, EMPTY_ADDRESS } from "@/components/AddressFields";
 import { useToast } from "@/components/ui/Toast";
+import { PaymentTermDialog, SalesRepDialog, WithAdd } from "@/components/QuickAdd";
 
 const EMPTY_CONTACT: CustomerContact = {
   name: "", jobTitle: "", phone: "", mobilePhone: "", email: "",
@@ -46,6 +47,8 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
   const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
   // Like Cin7: the sales rep is picked from a list (names used on customers and orders)
   const { data: salesReps = [] } = useQuery<string[]>({ queryKey: ["sales-reps"], queryFn: getSalesReps });
+  // The "+" pop-ups next to Payment Term and Sales Representative, like on the sale form
+  const [adding, setAdding] = useState<"term" | "rep" | null>(null);
   const [form, setForm] = useState<Form>(() => (editing ? toForm(editing) : EMPTY_FORM));
   const [contacts, setContacts] = useState<CustomerContact[]>(() =>
     editing ? editing.contacts.map(x => ({ ...x })) : [{ ...EMPTY_CONTACT, defaultContact: true }]);
@@ -108,8 +111,10 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
       <div className="grid grid-cols-4 gap-4">
         <div>
           <label htmlFor="customers-payment-term" className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
-          <NameCombobox id="customers-payment-term" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} listLabel="Payment terms"
-            placeholder="e.g. 30 Day EOM" className={INPUT} options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+          <WithAdd label="Add a payment term" onAdd={() => setAdding("term")}>
+            <NameCombobox id="customers-payment-term" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} listLabel="Payment terms"
+              placeholder="e.g. 30 Day EOM" className={INPUT} options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+          </WithAdd>
         </div>
         <div>
           <label htmlFor="customers-price-tier" className="block text-xs font-medium text-gray-600 mb-1">Price Tier</label>
@@ -128,8 +133,10 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
         <Field id="customers-carrier" label="Carrier" value={form.carrier} onChange={v => set("carrier", v)} />
         <div>
           <label htmlFor="customers-sales-rep" className="block text-xs font-medium text-gray-600 mb-1">Sales Representative</label>
-          <NameCombobox id="customers-sales-rep" value={form.salesRepresentative} onChange={v => set("salesRepresentative", v)} listLabel="Sales reps"
-            placeholder="Pick or type a name" className={INPUT} options={salesReps.map(r => ({ key: r, name: r }))} />
+          <WithAdd label="Add a sales representative" onAdd={() => setAdding("rep")}>
+            <NameCombobox id="customers-sales-rep" value={form.salesRepresentative} onChange={v => set("salesRepresentative", v)} listLabel="Sales reps"
+              placeholder="Pick or type a name" className={INPUT} options={salesReps.map(r => ({ key: r, name: r }))} />
+          </WithAdd>
         </div>
         <Field id="customers-location" label="Location" value={form.location} onChange={v => set("location", v)} />
         <div className="col-span-3">
@@ -205,6 +212,8 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
           {saving ? "Saving..." : editing ? "Save Customer" : "Create Customer"}
         </button>
       </div>
+      {adding === "term" && <PaymentTermDialog onClose={() => setAdding(null)} onAdded={name => { set("paymentTerm", name); setAdding(null); }} />}
+      {adding === "rep" && <SalesRepDialog onClose={() => setAdding(null)} onAdded={name => { set("salesRepresentative", name); setAdding(null); }} />}
     </form>
   );
 }

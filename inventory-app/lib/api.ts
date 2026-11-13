@@ -83,6 +83,10 @@ export const getSalesReps = () => api.get("/customers/sales-reps").then(r => r.d
 // "+" buttons on forms (like Cin7): add to a pick list without leaving the form
 export const addPaymentTerm = (data: { name: string; method: "ON_INVOICE" | "DAYS" | "DAYS_EOM"; days: number | null }) =>
   api.post("/lists/payment-terms", data).then(r => r.data as { name: string; meaning: string });
+// Settings: the lists behind the "+" buttons, with their use counts; rename and remove
+export const getSettingsList = (kind: "payment-terms" | "sales-reps") => api.get(`/lists/${kind}/manage`).then(r => r.data);
+export const renameSettingsListEntry = (kind: "payment-terms" | "sales-reps", from: string, to: string) => api.put(`/lists/${kind}/rename`, { from, to }).then(r => r.data);
+export const removeSettingsListEntry = (kind: "payment-terms" | "sales-reps", name: string) => api.delete(`/lists/${kind}`, { params: { name } }).then(r => r.data);
 export const addSalesRep = (name: string) => api.post("/lists/sales-reps", { name }).then(r => r.data as { name: string });
 export const addCustomerContact = (customerId: number, data: unknown) => api.post(`/customers/${customerId}/contacts`, data).then(r => r.data);
 export const createCustomer = (data: unknown) => api.post("/customers", data).then(r => r.data);

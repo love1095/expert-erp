@@ -251,7 +251,7 @@ public class MailService {
                 v.put("reference", nn(so.getCustomerReference()));
                 v.put("order_number", so.getOrderNumber());
                 DocType t = quote ? DocType.QUOTE : DocType.SALES_ORDER;
-                yield composed(t, "SO:" + so.getId(), (quote ? "Quote " : "Sales order ") + so.getOrderNumber(), customerEmail(so.getCustomerId()),
+                yield composed(t, "SO:" + so.getId(), (quote ? "Quote " : "Sales order ") + so.getOrderNumber(), orderContactEmail(so),
                         so.getCustomerName(), v, () -> documents.saleOrder(r.id()), null);
             }
             case "INVOICE", "CREDIT_NOTE" -> {
@@ -267,7 +267,9 @@ public class MailService {
                 v.put("due_date", inv.getDueDate() == null ? "" : inv.getDueDate().format(UK));
                 v.put("date", inv.getIssueDate() == null ? "" : inv.getIssueDate().format(UK));
                 DocType t = credit ? DocType.CREDIT_NOTE : DocType.INVOICE;
-                yield composed(t, "DOC:" + inv.getId(), (credit ? "Credit note " : "Invoice ") + inv.getInvoiceNumber(), customerEmail(inv.getCustomerId()),
+                yield composed(t, "DOC:" + inv.getId(), (credit ? "Credit note " : "Invoice ") + inv.getInvoiceNumber(),
+                        // The order's own contact when the invoice comes from a sale order that has one
+                        inv.getSaleOrderId() == null ? customerEmail(inv.getCustomerId()) : orderContactEmail(saleOrderService.findById(inv.getSaleOrderId())),
                         inv.getPartyName(), v, () -> documents.invoice(r.id()), null);
             }
             case "PURCHASE_ORDER" -> {
@@ -358,6 +360,11 @@ public class MailService {
     }
 
     // ---- shared ----
+
+    /** The contact chosen on the sale order ("+" Contact on the sale form) when it has an e-mail, else the customer's. */
+    private String orderContactEmail(SaleOrderResponse so) {
+        return so.getContactEmail() != null && !so.getContactEmail().isBlank() ? so.getContactEmail().trim() : customerEmail(so.getCustomerId());
+    }
 
     /** The customer's default contact's e-mail, else the first contact with one. */
     private String customerEmail(Long customerId) {

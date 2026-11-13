@@ -184,6 +184,22 @@ class DocumentTest {
     }
 
     @Test
+    void theContactChosenOnTheOrderIsPrintedOnTheOrderAndItsInvoice() throws IOException {
+        SaleOrderRequest req = order();
+        req.setContactName("Priya Site Manager");
+        req.setContactEmail("priya@loudfoot.test");
+        req.setContactPhone("0161 555 0101");
+        SaleOrderResponse so = saleOrderService.create(req);
+        assertThat(text(documentService.saleOrder(so.getId()).bytes())).contains(lc("Attn: Priya Site Manager", "priya@loudfoot.test", "0161 555 0101"));
+
+        saleOrderService.confirm(so.getId());
+        OrderInvoiceRequest all = new OrderInvoiceRequest();
+        all.setIssue(true);
+        InvoiceResponse inv = invoiceService.invoiceOrder(so.getId(), all);
+        assertThat(text(documentService.invoice(inv.getId()).bytes())).contains(lc("Attn: Priya Site Manager", "priya@loudfoot.test"));
+    }
+
+    @Test
     void aPurchaseOrderShowsTheSuppliersCodesAndWhereToDeliver() throws IOException {
         Supplier portwest = new Supplier();
         portwest.setName("Portwest");

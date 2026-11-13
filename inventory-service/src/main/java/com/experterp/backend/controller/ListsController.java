@@ -26,10 +26,56 @@ public class ListsController {
 
     private final PaymentTermService paymentTerms;
     private final CustomerService customers;
+    private final com.experterp.backend.service.PickListService pickLists;
 
     public record NewTerm(String name, PaymentTermService.Method method, Integer days) {}
 
     public record NewName(String name) {}
+
+    public record Rename(String from, String to) {}
+
+    static final String SETTINGS = "hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')";
+
+    // Settings → Organisation: the two lists with how often each entry is used; rename and remove (Settings only)
+    @GetMapping("/payment-terms/manage")
+    @org.springframework.security.access.prepost.PreAuthorize(SETTINGS)
+    public List<com.experterp.backend.service.PickListService.Entry> managePaymentTerms() {
+        return pickLists.paymentTerms();
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/payment-terms/rename")
+    @org.springframework.security.access.prepost.PreAuthorize(SETTINGS)
+    public List<com.experterp.backend.service.PickListService.Entry> renamePaymentTerm(@RequestBody Rename req) {
+        pickLists.renamePaymentTerm(req.from(), req.to());
+        return pickLists.paymentTerms();
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/payment-terms")
+    @org.springframework.security.access.prepost.PreAuthorize(SETTINGS)
+    public List<com.experterp.backend.service.PickListService.Entry> removePaymentTerm(@org.springframework.web.bind.annotation.RequestParam String name) {
+        pickLists.removePaymentTerm(name);
+        return pickLists.paymentTerms();
+    }
+
+    @GetMapping("/sales-reps/manage")
+    @org.springframework.security.access.prepost.PreAuthorize(SETTINGS)
+    public List<com.experterp.backend.service.PickListService.Entry> manageSalesReps() {
+        return pickLists.salesReps();
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/sales-reps/rename")
+    @org.springframework.security.access.prepost.PreAuthorize(SETTINGS)
+    public List<com.experterp.backend.service.PickListService.Entry> renameSalesRep(@RequestBody Rename req) {
+        pickLists.renameSalesRep(req.from(), req.to());
+        return pickLists.salesReps();
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/sales-reps")
+    @org.springframework.security.access.prepost.PreAuthorize(SETTINGS)
+    public List<com.experterp.backend.service.PickListService.Entry> removeSalesRep(@org.springframework.web.bind.annotation.RequestParam String name) {
+        pickLists.removeSalesRep(name);
+        return pickLists.salesReps();
+    }
 
     /** The payment terms to choose from, like Cin7's terms list, each with what it means for the due date. */
     @GetMapping("/payment-terms")

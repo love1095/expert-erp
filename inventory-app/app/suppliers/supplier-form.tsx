@@ -7,6 +7,7 @@ import { PostalAddress, Supplier } from "@/types";
 import { AddressFields, EMPTY_ADDRESS, isBlankAddress } from "@/components/AddressFields";
 import NameCombobox from "@/components/NameCombobox";
 import { useToast } from "@/components/ui/Toast";
+import { PaymentTermDialog, WithAdd } from "@/components/QuickAdd";
 
 const INPUT = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400";
 const EMPTY_FORM = { name: "", status: "Active", currency: "GBP", paymentTerm: "", taxNumber: "", website: "", contactName: "", phone: "", email: "", comments: "" };
@@ -29,6 +30,7 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
   const qc = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState<Form>(() => (editing ? toForm(editing) : EMPTY_FORM));
+  const [addingTerm, setAddingTerm] = useState(false);
   // One address per supplier for now: copied onto new purchase orders as the vendor address
   const [address, setAddress] = useState<PostalAddress>({ ...EMPTY_ADDRESS, ...(editing?.address ?? {}) });
   const [error, setError] = useState("");
@@ -83,8 +85,10 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
         {field("currency", "Currency", { placeholder: "GBP" })}
         <div>
           <label htmlFor="suppliers-paymentTerm" className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
-          <NameCombobox id="suppliers-paymentTerm" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} listLabel="Payment terms"
-            placeholder="e.g. 30 Day EOM" className={INPUT} options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+          <WithAdd label="Add a payment term" onAdd={() => setAddingTerm(true)}>
+            <NameCombobox id="suppliers-paymentTerm" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} listLabel="Payment terms"
+              placeholder="e.g. 30 Day EOM" className={INPUT} options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
+          </WithAdd>
         </div>
         {field("taxNumber", "Tax Number", { placeholder: "VAT number" })}
       </div>
@@ -113,6 +117,7 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
           {save.isPending ? "Saving..." : editing ? "Save Supplier" : "Create Supplier"}
         </button>
       </div>
+      {addingTerm && <PaymentTermDialog onClose={() => setAddingTerm(false)} onAdded={name => { set("paymentTerm", name); setAddingTerm(false); }} />}
     </form>
   );
 }
