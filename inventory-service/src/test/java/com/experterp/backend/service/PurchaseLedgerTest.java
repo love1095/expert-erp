@@ -130,6 +130,12 @@ class PurchaseLedgerTest {
         ledger.payDeposit(portwest.getId(), new PurchaseLedgerService.DepositRequest(new BigDecimal("100"), today.minusDays(5), null,
                 "Proforma 88", po.getId(), null));
         assertThat(ledger.balance(portwest.getId())).isEqualByComparingTo("-100");
+        // The supplier's statement (S6): the deposit is credit held with them
+        PurchaseLedgerService.Statement held = ledger.statement(portwest.getId(), null);
+        assertThat(held.credit()).isEqualByComparingTo("100");
+        assertThat(held.owed()).isEqualByComparingTo("0");
+        assertThat(held.balance()).isEqualByComparingTo("-100");
+        assertThat(held.items()).singleElement().satisfies(i -> assertThat(i.kind()).isEqualTo("DEPOSIT"));
         InvoiceResponse bill = bill(po, "INV-1");
         InvoiceResponse used = ledger.useSupplierCredit(bill.getId(), null);
         assertThat(used.getAmountPaid()).isEqualByComparingTo("100");
@@ -149,6 +155,14 @@ class PurchaseLedgerTest {
         InvoiceResponse second = bill(next, "INV-2");
         assertThat(ledger.useSupplierCredit(second.getId(), null).getAmountPaid()).isEqualByComparingTo("64.20");
         assertThat(ledger.balance(portwest.getId())).isEqualByComparingTo("14.40");    // 78.60 − 64.20
+        PurchaseLedgerService.Statement st = ledger.statement(portwest.getId(), today);
+        assertThat(st.supplierName()).isEqualTo(portwest.getName());
+        assertThat(st.owed()).isEqualByComparingTo("14.40");
+        assertThat(st.credit()).isEqualByComparingTo("0");
+        assertThat(st.balance()).isEqualByComparingTo("14.40");
+        assertThat(st.items()).singleElement().satisfies(i -> assertThat(i.number()).isEqualTo("INV-2"));
+        // Before anything happened: nothing open
+        assertThat(ledger.statement(portwest.getId(), today.minusDays(30)).items()).isEmpty();
     }
 
     @Test

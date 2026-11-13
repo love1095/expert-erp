@@ -524,6 +524,8 @@ export const createSupplierCreditNote = ({ id, data }: { id: number; data: unkno
 export const applySupplierCredit = (billId: number, amount?: number) => api.post(`/invoices/${billId}/use-supplier-credit`, { amount }).then(r => r.data);
 export const allocateSupplierCreditNote = (billId: number, creditNoteId: number) =>
   api.post(`/invoices/${billId}/allocate-supplier-credit-note`, { creditNoteId }).then(r => r.data);
+// The supplier's statement: open bills, unused credit notes and deposits on a day (today when left out)
+export const getSupplierStatement = (supplierId: number, asAt?: string) => api.get(`/suppliers/${supplierId}/statement`, { params: { asAt } }).then(r => r.data);
 export const getSupplierCredits = (supplierId: number) => api.get(`/suppliers/${supplierId}/credits`).then(r => r.data);
 export const paySupplierDeposit = (supplierId: number, body: { amount: number; paidOn?: string; accountId?: number; reference?: string; purchaseOrderId?: number }) =>
   api.post(`/suppliers/${supplierId}/credits`, body).then(r => r.data);

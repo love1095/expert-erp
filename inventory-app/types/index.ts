@@ -488,6 +488,14 @@ export interface SaleOrderCharge {
 export type VatType = "STANDARD" | "REDUCED" | "ZERO" | "EXEMPT" | "NO_VAT" | "REVERSE_CHARGE" | "EC_ACQUISITION" | "FULL_VAT";
 export interface TaxRate { id: number; name: string; rate: number; usage: "SALE" | "PURCHASE"; active: boolean; vatType?: VatType; reportRate?: number }
 
+/** A supplier's statement on a day: what is open with them (credit is negative in `open`). */
+export interface SupplierStatement {
+  supplierId: number; supplierName: string; asAt: string;
+  items: { invoiceId: number | null; kind: "INVOICE" | "CREDIT_NOTE" | "DEPOSIT" | string; number: string; date: string; dueDate?: string | null;
+    total: number; open: number; daysOverdue: number }[];
+  owed: number; overdue: number; credit: number; balance: number;
+}
+
 /** An entry of a pick list in Settings (payment terms, sales reps): added = added by hand, uses = documents using it. */
 export interface PickListEntry { name: string; meaning?: string | null; added: boolean; uses: number }
 

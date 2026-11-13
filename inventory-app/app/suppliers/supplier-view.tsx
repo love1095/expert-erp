@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { deleteSupplier, getInvoices, getPurchaseOrders, getSupplier } from "@/lib/api";
-import { Invoice, Page, PurchaseOrder, Supplier } from "@/types";
+import { deleteSupplier, getInvoices, getPurchaseOrders, getSupplier, getSupplierStatement } from "@/lib/api";
+import { Invoice, Page, PurchaseOrder, Supplier, SupplierStatement } from "@/types";
+import SupplierDeposits from "../purchase-orders/supplier-deposits";
+import { todayIso } from "@/lib/dates";
+import { DateText } from "@/components/ui/DateText";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
 import MoreActions from "@/components/MoreActions";
@@ -18,8 +21,11 @@ import { useConfirm } from "@/components/ConfirmDialog";
 
 /**
  * One supplier on its own page (review S6, like the customer page): details, what is owed, recent purchase orders and bills.
- * Edit happens here (review R2). Statement and supplier deposits come with the purchase page review.
+ * Edit happens here (review R2). What is owed, the statement (open bills, unused credit notes and deposits on a day,
+ * with a CSV) and the supplier deposits come from the purchase ledger, by the supplier's id (not its name).
  */
+const KIND: Record<string, string> = { INVOICE: "Bill", CREDIT_NOTE: "Credit note", DEPOSIT: "Deposit" };
+
 export default function SupplierView({ supplierId }: { supplierId: number }) {
   const ask = useConfirm();
   const router = useRouter();
@@ -45,6 +51,26 @@ export default function SupplierView({ supplierId }: { supplierId: number }) {
     enabled: !!s,
   });
 
+  // The statement: what is open with the supplier on a day (today to start with)
+  const [asAt, setAsAt] = useState(todayIso());
+  const { data: statement } = useQuery<SupplierStatement>({
+    queryKey: ["supplier-statement", supplierId, asAt], queryFn: () => getSupplierStatement(supplierId, asAt || undefined),
+  });
+  const { data: now } = useQuery<SupplierStatement>({ queryKey: ["supplier-statement", supplierId, "today"], queryFn: () => getSupplierStatement(supplierId) });
+  const downloadStatement = () => {
+    if (!statement) return;
+    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [["Type", "Number", "Date", "Due", "Total", "Open", "Days overdue"],
+      ...statement.items.map(i => [KIND[i.kind] ?? i.kind, i.number, i.date, i.dueDate ?? "", Number(i.total).toFixed(2), Number(i.open).toFixed(2), i.daysOverdue]),
+      ["", "", "", "", "Balance", Number(statement.balance).toFixed(2), ""]];
+    const blob = new Blob([rows.map(r => r.map(cell).join(",")).join("\r\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `Statement_${statement.supplierName.replace(/[^\w]+/g, "_")}_${statement.asAt}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   const remove = useMutation({
     mutationFn: () => deleteSupplier(supplierId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["suppliers-page"] }); qc.invalidateQueries({ queryKey: ["suppliers"] }); router.push("/suppliers"); },
@@ -55,10 +81,11 @@ export default function SupplierView({ supplierId }: { supplierId: number }) {
 
   const myOrders = (orders?.content ?? []).filter(o => o.supplierId === s.id);
   const myBills = (bills?.content ?? []).filter(b => b.partyName === s.name);
-  const open = myBills.filter(b => b.kind !== "CREDIT_NOTE" && b.status === "ISSUED");
-  const owed = open.reduce((t, b) => t + Number(b.totalAmount) - Number(b.amountPaid), 0);
-  const today = new Date().toISOString().slice(0, 10);
-  const overdue = open.filter(b => b.dueDate && b.dueDate < today).reduce((t, b) => t + Number(b.totalAmount) - Number(b.amountPaid), 0);
+  // From the purchase ledger (by supplier id): open bills, and the credit held with the supplier
+  const open = (now?.items ?? []).filter(i => Number(i.open) > 0);
+  const owed = Number(now?.owed ?? 0);
+  const overdue = Number(now?.overdue ?? 0);
+  const credit = Number(now?.credit ?? 0);
 
   return (
     <div data-testid={`supplier-page-${s.id}`}>
@@ -89,15 +116,17 @@ export default function SupplierView({ supplierId }: { supplierId: number }) {
             <span className="text-gray-500">Overdue</span>
             <span className={`tabular-nums font-medium ${overdue > 0 ? "text-red-600" : ""}`}>{formatGBP(overdue)}</span>
           </div>
+          {credit > 0 && <div className="flex justify-between"><span className="text-gray-500">Credit held</span><span className="tabular-nums font-medium text-emerald-700">{formatGBP(credit)}</span></div>}
+          <div className="flex justify-between border-t border-gray-100 pt-1"><span className="text-gray-500">Balance</span>
+            <span data-testid="supplier-balance" className="tabular-nums font-semibold">{formatGBP(Number(now?.balance ?? 0))}</span></div>
         </TrailCard>
+        <SupplierDeposits supplierId={s.id} />
         <TrailCard title="Open bills">
           {open.length === 0 && <p className="text-xs text-gray-400">Nothing to pay</p>}
           {open.map(b => (
-            <Link key={b.id} href={`/invoices/${b.id}`} className="flex justify-between text-xs hover:underline">
-              <span className="font-mono text-gray-700">{b.invoiceNumber}</span>
-              <span className={`tabular-nums ${b.dueDate && b.dueDate < today ? "text-red-600" : "text-gray-700"}`}>
-                {formatGBP(Number(b.totalAmount) - Number(b.amountPaid))}
-              </span>
+            <Link key={b.invoiceId} href={`/invoices/${b.invoiceId}`} className="flex justify-between text-xs hover:underline">
+              <span className="font-mono text-gray-700">{b.number}</span>
+              <span className={`tabular-nums ${b.daysOverdue > 0 ? "text-red-600" : "text-gray-700"}`}>{formatGBP(b.open)}</span>
             </Link>
           ))}
         </TrailCard>
@@ -121,6 +150,41 @@ export default function SupplierView({ supplierId }: { supplierId: number }) {
             <Field label="Comments" value={s.comments} />
           </> },
         ]} />
+
+        <Card title="Statement" flush testId={`supplier-statement-${s.id}`}
+          right={<span className="flex items-center gap-2">
+            <label htmlFor="supplier-statement-date" className="text-xs text-gray-500">As at</label>
+            <input id="supplier-statement-date" type="date" value={asAt} max={todayIso()} onChange={e => setAsAt(e.target.value)}
+              className="border border-gray-300 rounded-md px-2 py-1 text-xs" />
+            <button type="button" onClick={downloadStatement} disabled={!statement || statement.items.length === 0}
+              className="text-xs text-brand-700 hover:underline disabled:text-gray-300">Download CSV</button>
+          </span>}>
+          {!statement ? <p className="p-4 text-sm text-gray-400">Loading…</p> : statement.items.length === 0 ? <p className="p-4 text-sm text-gray-400">Nothing open with this supplier on that day</p> : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200"><tr>
+                <th className={TH}>Type</th><th className={TH}>Number</th><th className={TH}>Date</th><th className={TH}>Due</th>
+                <th className={`${TH} text-right`}>Total</th><th className={`${TH} text-right`}>Open</th>
+              </tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {statement.items.map((i, n) => (
+                  <tr key={`${i.kind}-${i.invoiceId ?? n}`}>
+                    <td className={`${TD} text-xs text-gray-600`}>{KIND[i.kind] ?? i.kind}</td>
+                    <td className={`${TD} font-mono text-xs`}>{i.invoiceId ? <Link href={`/invoices/${i.invoiceId}`} className="text-brand-700 hover:underline">{i.number}</Link> : i.number}</td>
+                    <td className={`${TD} text-gray-600`}><DateText iso={i.date} /></td>
+                    <td className={`${TD} text-gray-600`}>{i.dueDate ? <DateText iso={i.dueDate} /> : "—"}
+                      {i.daysOverdue > 0 && <span className="ml-1.5 text-[11px] text-red-600">{i.daysOverdue} days late</span>}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{formatGBP(i.total)}</td>
+                    <td className={`${TD} text-right tabular-nums ${Number(i.open) < 0 ? "text-emerald-700" : ""}`}>{formatGBP(i.open)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-gray-200 bg-gray-50 text-sm"><tr>
+                <td colSpan={5} className={`${TD} text-right font-medium`}>Balance owed to {statement.supplierName}</td>
+                <td data-testid="supplier-statement-balance" className={`${TD} text-right tabular-nums font-semibold`}>{formatGBP(statement.balance)}</td>
+              </tr></tfoot>
+            </table>
+          )}
+        </Card>
 
         <Card title="Recent purchase orders" flush testId={`supplier-orders-${s.id}`}
           right={<Link href={`/purchase-orders?q=${encodeURIComponent(s.name)}`} className="text-xs text-brand-700 hover:underline">All orders</Link>}>

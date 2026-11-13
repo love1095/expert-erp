@@ -394,6 +394,29 @@ public class PurchaseLedgerService {
         return new AgedCreditors(day, rows, totals);
     }
 
+    /**
+     * The supplier's statement on a day (review S6, like the customer's Outstanding statement): every open bill, unused
+     * credit note and deposit, what is owed and overdue, the credit held, and the balance.
+     */
+    public record Statement(Long supplierId, String supplierName, LocalDate asAt, List<OpenItem> items,
+                            BigDecimal owed, BigDecimal overdue, BigDecimal credit, BigDecimal balance) {}
+
+    @Transactional(readOnly = true)
+    public Statement statement(Long supplierId, LocalDate asAt) {
+        LocalDate on = asAt != null ? asAt : LocalDate.now();
+        String name = supplier(supplierId).getName();
+        List<OpenItem> items = openItems(supplierId, on);
+        BigDecimal owed = BigDecimal.ZERO, overdue = BigDecimal.ZERO, credit = BigDecimal.ZERO;
+        for (OpenItem i : items) {
+            if (i.open().signum() < 0) credit = credit.add(i.open().negate());
+            else {
+                owed = owed.add(i.open());
+                if (i.daysOverdue() > 0) overdue = overdue.add(i.open());
+            }
+        }
+        return new Statement(supplierId, name, on, items, money(owed), money(overdue), money(credit), money(owed.subtract(credit)));
+    }
+
     /** What the organisation owes the supplier today (bills less payments, credit notes and deposits). */
     @Transactional(readOnly = true)
     public BigDecimal balance(Long supplierId) {

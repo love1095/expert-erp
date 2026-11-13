@@ -60,6 +60,13 @@ public class PurchaseLedgerController {
         ledger.voidCredit(id, creditId, req.reason());
     }
 
+    // The supplier's statement: open bills, unused credit notes and deposits on a day (today when left out)
+    @GetMapping("/suppliers/{id}/statement")
+    public PurchaseLedgerService.Statement statement(@PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asAt) {
+        return ledger.statement(id, asAt);
+    }
+
     @GetMapping("/suppliers/{id}/open-credit-notes")
     public List<PurchaseLedgerService.OpenCreditNote> openCreditNotes(@PathVariable Long id) {
         return ledger.openCreditNotes(id);

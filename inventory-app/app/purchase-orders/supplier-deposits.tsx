@@ -15,7 +15,8 @@ const INPUT = "w-full border border-gray-300 rounded-md px-2 py-1 text-sm";
  * Phase H2: money paid to the supplier before the bill (a deposit, e.g. a proforma), or left over from an overpaid
  * bill. Used on a bill with "Use supplier deposit" (Cin7's button on the bill's payments).
  */
-export default function SupplierDeposits({ supplierId, purchaseOrderId }: { supplierId: number; purchaseOrderId: number }) {
+// purchaseOrderId: the order the deposit is paid for (left out on the supplier's own page)
+export default function SupplierDeposits({ supplierId, purchaseOrderId }: { supplierId: number; purchaseOrderId?: number }) {
   const ask = useConfirm();
   const qc = useQueryClient();
   const { data: credits = [] } = useQuery<SupplierCredit[]>({ queryKey: ["supplier-credits", supplierId], queryFn: () => getSupplierCredits(supplierId) });
@@ -30,7 +31,7 @@ export default function SupplierDeposits({ supplierId, purchaseOrderId }: { supp
   const pay = useMutation({
     mutationFn: () => paySupplierDeposit(supplierId, { amount: Number(form.amount), paidOn: form.paidOn,
       accountId: accountId ? Number(accountId) : undefined, reference: form.reference.trim() || undefined, purchaseOrderId }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["supplier-credits", supplierId] }); setOpen(false); setForm({ ...form, amount: "", reference: "" }); setError(""); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["supplier-credits", supplierId] }); qc.invalidateQueries({ queryKey: ["supplier-statement", supplierId] }); setOpen(false); setForm({ ...form, amount: "", reference: "" }); setError(""); },
     onError: (e: unknown) => setError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Could not save"),
   });
 

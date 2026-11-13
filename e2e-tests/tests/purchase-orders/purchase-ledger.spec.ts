@@ -48,3 +48,34 @@ test.describe('Purchase ledger', () => {
       await expect(row).toContainText('£40.00');
     });
 });
+
+test('PL-010 the supplier page shows what is owed, the statement on a day and the deposits (review S6)', { tag: ['@P2', '@purchase-orders'] },
+  async ({ page, api, warehouses }) => {
+    const vest = await api.createProduct({ costPrice: 10 });
+    const supplier = await (await api.http.post('/api/suppliers', { data: { name: `Statement Supplier ${Date.now()}` } })).json();
+    const po = await (await api.http.post('/api/purchase-orders', { data: { supplierId: supplier.id, warehouseId: warehouses.main.id, ordered: true,
+      lines: [{ productId: vest.id, quantity: 4, unitCost: 10 }] } })).json();
+    expect((await api.http.post(`/api/purchase-orders/${po.id}/receive`)).ok()).toBe(true);
+    const number = `ST-${Date.now()}`;
+    expect((await api.http.post(`/api/purchase-orders/${po.id}/bills`, { data: { supplierInvoiceNumber: number } })).ok()).toBe(true);
+
+    await page.goto(`/suppliers/${supplier.id}`);
+    // 4 × £10 + 20 % VAT
+    await expect(page.getByTestId('supplier-balance')).toHaveText('£48.00');
+    const statement = page.getByTestId(`supplier-statement-${supplier.id}`);
+    await expect(statement).toContainText(number);
+    await expect(page.getByTestId('supplier-statement-balance')).toHaveText('£48.00');
+
+    // A deposit paid to the supplier is credit held with them: the balance falls
+    await page.getByTestId('open-supplier-deposit').click();
+    await page.getByLabel('Deposit amount').fill('20');
+    await page.getByRole('button', { name: 'Record deposit' }).click();
+    await expect(page.getByTestId('supplier-deposit-available')).toHaveText('£20.00');
+    await expect(page.getByTestId('supplier-balance')).toHaveText('£28.00');
+    await expect(statement).toContainText('Deposit');
+
+    // The day before: nothing was open yet
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    await page.getByLabel('As at').fill(yesterday);
+    await expect(statement).toContainText('Nothing open with this supplier on that day');
+  });
