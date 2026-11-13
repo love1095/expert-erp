@@ -105,12 +105,16 @@ class SupplierBillTest {
 
     @Test
     void aDifferentPriceAndBillingAheadOfTheGoodsAreFlagged() {
-        PurchaseOrderResponse po = ordered(line(small, 3), line(xxxl, 2));
-        purchaseOrderService.receive(po.getId(), receipt(po, 0, 3));
+        // Billing ahead of the goods: an Invoice first order (Stock first bills only what came in)
+        PurchaseOrderRequest invoiceFirst = request(line(small, 3), line(xxxl, 2));
+        invoiceFirst.setApproach(com.experterp.backend.entity.PurchaseOrder.Approach.INVOICE_FIRST);
+        PurchaseOrderResponse po = purchaseOrderService.create(invoiceFirst);
 
         BillRequest req = bill("INV-77");
         req.setLines(List.of(billLine(po, 0, 3, "66.00"), billLine(po, 1, 2, null)));
-        InvoiceResponse bill = invoiceService.billPurchaseOrder(po.getId(), req);
+        InvoiceResponse billed = invoiceService.billPurchaseOrder(po.getId(), req);
+        purchaseOrderService.receive(po.getId(), receipt(po, 0, 3));
+        InvoiceResponse bill = invoiceService.findById(billed.getId());
 
         assertThat(bill.getMatchIssueCount()).isEqualTo(2);
         assertThat(bill.getItems().get(0).getMatchIssues()).containsExactly("Price £66.00 differs from the PO (£65.50)");

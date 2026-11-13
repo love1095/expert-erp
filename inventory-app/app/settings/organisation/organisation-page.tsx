@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getOrganisationSettings, getTaxRates, updateOrganisationSettings } from "@/lib/api";
-import { OrganisationSettings, TaxRate } from "@/types";
+import { getOrganisationSettings, getTaxRates, getWarehouses, updateOrganisationSettings } from "@/lib/api";
+import { OrganisationSettings, PurchaseApproach, TaxRate, Warehouse } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import CompanyDetailsCard from "./company-details";
 import PriceTiersCard from "./price-tiers";
@@ -21,6 +21,7 @@ export default function OrganisationPage() {
   const { data: settings } = useQuery<OrganisationSettings>({ queryKey: ["organisation-settings"], queryFn: getOrganisationSettings });
   const { data: saleRates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "SALE"], queryFn: () => getTaxRates("SALE") });
   const { data: purchaseRates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "PURCHASE"], queryFn: () => getTaxRates("PURCHASE") });
+  const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
 
   const [form, setForm] = useState<OrganisationSettings | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -127,6 +128,24 @@ export default function OrganisationPage() {
           <p className="text-[11px] text-gray-400 mt-1">Used when neither the product nor the supplier has a purchase tax rule.</p>
         </div>
         <div />
+        <div>
+          <label htmlFor="org-default-location" className={LABEL}>Default location for new purchases</label>
+          <select id="org-default-location" value={form.defaultWarehouseId ?? ""} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, defaultWarehouseId: e.target.value ? Number(e.target.value) : null })} className={INPUT}>
+            <option value="">None (chosen on each purchase)</option>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+          <p className="text-[11px] text-gray-400 mt-1">A new purchase starts on it; with one warehouse, that one is used anyway.</p>
+        </div>
+        <div>
+          <label htmlFor="org-purchase-approach" className={LABEL}>Default approach for new purchases</label>
+          <select id="org-purchase-approach" value={form.defaultPurchaseApproach ?? "STOCK_FIRST"} disabled={!isAdmin}
+            onChange={e => setForm({ ...form, defaultPurchaseApproach: e.target.value as PurchaseApproach })} className={INPUT}>
+            <option value="STOCK_FIRST">Stock first</option>
+            <option value="INVOICE_FIRST">Invoice first</option>
+          </select>
+          <p className="text-[11px] text-gray-400 mt-1">Stock first: the supplier&apos;s bill covers only what has come in. Invoice first: only what is billed can be received. Each purchase can change it.</p>
+        </div>
         <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700">
           <input type="checkbox" checked={form.autoInvoiceOnShipment} disabled={!isAdmin}
             onChange={e => setForm({ ...form, autoInvoiceOnShipment: e.target.checked })} />

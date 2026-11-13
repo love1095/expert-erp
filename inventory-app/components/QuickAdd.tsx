@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addCustomerContact, addPaymentTerm, addSalesRep, createCustomer, createSupplier, getPaymentTerms, getPriceTiers, getSalesReps, getTaxRates } from "@/lib/api";
-import { Customer, CustomerContact, PostalAddress, PriceTier, Supplier, TaxRate } from "@/types";
+import { addCustomerContact, addPaymentTerm, addSalesRep, createCustomer, createSupplier, createWarehouse, getPaymentTerms, getPriceTiers, getSalesReps, getTaxRates, updateSupplier } from "@/lib/api";
+import { Customer, CustomerContact, PostalAddress, PriceTier, Supplier, TaxRate, Warehouse } from "@/types";
 import { AddressFields, EMPTY_ADDRESS, isBlankAddress } from "@/components/AddressFields";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -333,6 +333,150 @@ export function SalesRepDialog({ onClose, onAdded }: { onClose: () => void; onAd
           {p => <Input {...p} value={name} onChange={e => setName(e.target.value)} maxLength={100} autoComplete="off" />}
         </FormField>
         <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Add sales representative" /></div>
+      </form>
+    </Modal>
+  );
+}
+
+export type SupplierContact = { contactName: string; contactPhone: string; email: string };
+
+/**
+ * "+" next to Contact on a purchase: a contact for this order. A supplier keeps one contact for now, so it can also be
+ * saved as the supplier's own (ticked when the supplier has none; unticked, only this order gets it).
+ */
+export function SupplierContactDialog({ supplier, onClose, onDone }: {
+  supplier: Supplier;
+  onClose: () => void;
+  onDone: (contact: SupplierContact) => void;
+}) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [form, setForm] = useState({ contactName: "", contactPhone: "", email: "", keep: !supplier.contactName?.trim() });
+  const [error, setError] = useState("");
+  const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const contact = { contactName: form.contactName.trim(), contactPhone: form.contactPhone.trim(), email: form.email.trim() };
+      if (form.keep) await updateSupplier(supplier.id, { ...supplier, contactName: contact.contactName, phone: contact.contactPhone, email: contact.email || supplier.email });
+      return contact;
+    },
+    onSuccess: contact => {
+      if (form.keep) {
+        qc.invalidateQueries({ queryKey: ["suppliers"] });
+        qc.invalidateQueries({ queryKey: ["suppliers-page"] });
+        toast(`Saved as ${supplier.name}'s contact`);
+      }
+      onDone(contact);
+    },
+    onError: e => setError(errorOf(e, "Could not save the contact")),
+  });
+
+  return (
+    <Modal title="New contact" hint={<>For <b className="text-gray-700">{supplier.name}</b></>} onClose={onClose} testId="quick-supplier-contact">
+      <form onSubmit={e => { e.preventDefault(); setError(""); save.mutate(); }}>
+        <ErrorLine text={error} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Name" required className="sm:col-span-2">
+            {p => <Input {...p} value={form.contactName} onChange={e => set({ contactName: e.target.value })} autoComplete="off" />}
+          </FormField>
+          <FormField label="Phone">
+            {p => <Input {...p} value={form.contactPhone} onChange={e => set({ contactPhone: e.target.value })} autoComplete="off" />}
+          </FormField>
+          <FormField label="E-mail">
+            {p => <Input {...p} type="email" value={form.email} onChange={e => set({ email: e.target.value })} autoComplete="off" />}
+          </FormField>
+        </div>
+        <div className="mt-3">
+          <Checkbox label={`Save as ${supplier.name}'s contact`}
+            hint={supplier.contactName?.trim() ? `Replaces ${supplier.contactName} on the supplier; unticked, only this order gets it` : "New purchases from this supplier then start with it"}
+            checked={form.keep} onChange={e => set({ keep: e.target.checked })} />
+        </div>
+        <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Use contact" /></div>
+      </form>
+    </Modal>
+  );
+}
+
+/** "+" next to Vendor address on a purchase: an address for this order, which can also become the supplier's own. */
+export function SupplierAddressDialog({ supplier, onClose, onDone }: {
+  supplier: Supplier;
+  onClose: () => void;
+  onDone: (address: PostalAddress) => void;
+}) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [address, setAddress] = useState<PostalAddress>(EMPTY_ADDRESS);
+  const [keep, setKeep] = useState(isBlankAddress(supplier.address));
+  const [error, setError] = useState("");
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (isBlankAddress(address)) throw { response: { data: { error: "Enter the address" } } };
+      if (keep) await updateSupplier(supplier.id, { ...supplier, address });
+      return address;
+    },
+    onSuccess: a => {
+      if (keep) {
+        qc.invalidateQueries({ queryKey: ["suppliers"] });
+        qc.invalidateQueries({ queryKey: ["suppliers-page"] });
+        toast(`Saved as ${supplier.name}'s address`);
+      }
+      onDone(a);
+    },
+    onError: e => setError(errorOf(e, "Could not save the address")),
+  });
+
+  return (
+    <Modal title="New vendor address" hint={<>For <b className="text-gray-700">{supplier.name}</b></>} onClose={onClose} width="max-w-xl" testId="quick-supplier-address">
+      <form onSubmit={e => { e.preventDefault(); setError(""); save.mutate(); }}>
+        <ErrorLine text={error} />
+        <AddressFields label="New vendor address" value={address} onChange={setAddress} inputClass={inputClass("md")} />
+        <div className="mt-3">
+          <Checkbox label={`Save as ${supplier.name}'s address`}
+            hint={isBlankAddress(supplier.address) ? "New purchases from this supplier then start with it" : "Replaces the supplier's address (one per supplier for now); unticked, only this order gets it"}
+            checked={keep} onChange={e => setKeep(e.target.checked)} />
+        </div>
+        <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Use address" /></div>
+      </form>
+    </Modal>
+  );
+}
+
+/** "+" next to Location on a purchase: a new warehouse with its address (purchases for it are shipped there). */
+export function NewLocationDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (w: Warehouse) => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [form, setForm] = useState({ name: "", location: "" });
+  const [address, setAddress] = useState<PostalAddress>(EMPTY_ADDRESS);
+  const [error, setError] = useState("");
+
+  const save = useMutation({
+    mutationFn: () => createWarehouse({ name: form.name.trim(), location: form.location.trim() || undefined, address: isBlankAddress(address) ? null : address }),
+    onSuccess: (w: Warehouse) => {
+      qc.invalidateQueries({ queryKey: ["warehouses"] });
+      qc.invalidateQueries({ queryKey: ["warehouses-page"] });
+      toast("Location added");
+      onCreated(w);
+    },
+    onError: e => setError(errorOf(e, "Could not add the location")),
+  });
+
+  return (
+    <Modal title="New location" hint="A warehouse stock is kept in; more can be changed under Warehouses." onClose={onClose} width="max-w-xl" testId="quick-new-location">
+      <form onSubmit={e => { e.preventDefault(); setError(""); save.mutate(); }}>
+        <ErrorLine text={error} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Name" required>
+            {p => <Input {...p} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} maxLength={255} autoComplete="off" />}
+          </FormField>
+          <FormField label="Description" hint="e.g. Unit 4, back store">
+            {p => <Input {...p} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} autoComplete="off" />}
+          </FormField>
+        </div>
+        <p className="block text-xs font-medium text-gray-600 mb-1 mt-3">Address</p>
+        <AddressFields label="New location address" value={address} onChange={setAddress} inputClass={inputClass("md")} />
+        <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Add location" /></div>
       </form>
     </Modal>
   );

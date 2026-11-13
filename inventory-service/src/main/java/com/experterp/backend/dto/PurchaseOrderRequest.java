@@ -48,6 +48,8 @@ public class PurchaseOrderRequest {
     private String taxRule;
     private String taxReason;
     private boolean blindReceipt;
+    // Stock first / Invoice first; empty = the organisation's default (a new order) or the order's own (an edit)
+    private com.experterp.backend.entity.PurchaseOrder.Approach approach;
     @Size(max = 255)
     private String shipToCompany;
     // Empty = the warehouse's address

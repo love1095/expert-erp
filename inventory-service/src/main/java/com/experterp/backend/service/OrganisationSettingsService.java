@@ -45,12 +45,15 @@ public class OrganisationSettingsService {
             @NotBlank @Size(max = 100) String defaultPurchaseTaxRule,
             // Q2: hand-typed supplier invoices; left out = unchanged
             @Size(max = 10) String billPrefix,
-            @Min(1) Long nextBillNumber) {
+            @Min(1) Long nextBillNumber,
+            // A new purchase: STOCK_FIRST or INVOICE_FIRST (left out = unchanged), and the location it starts on (none = empty)
+            String defaultPurchaseApproach,
+            Long defaultWarehouseId) {
         public Settings(String saleOrderPrefix, long nextSaleOrderNumber, String webSalesRep, String defaultSaleTaxRule, int quoteValidDays,
                         String invoicePrefix, long nextInvoiceNumber, boolean autoInvoiceOnShipment, String creditNotePrefix, long nextCreditNoteNumber,
                         String purchaseOrderPrefix, long nextPurchaseOrderNumber, String defaultPurchaseTaxRule) {
             this(saleOrderPrefix, nextSaleOrderNumber, webSalesRep, defaultSaleTaxRule, quoteValidDays, invoicePrefix, nextInvoiceNumber,
-                    autoInvoiceOnShipment, creditNotePrefix, nextCreditNoteNumber, purchaseOrderPrefix, nextPurchaseOrderNumber, defaultPurchaseTaxRule, null, null);
+                    autoInvoiceOnShipment, creditNotePrefix, nextCreditNoteNumber, purchaseOrderPrefix, nextPurchaseOrderNumber, defaultPurchaseTaxRule, null, null, null, null);
         }
     }
 
@@ -60,7 +63,8 @@ public class OrganisationSettingsService {
         return new Settings(t.getSaleOrderPrefix(), t.getNextSaleOrderNumber(), t.getWebSalesRep(), t.getDefaultSaleTaxRule(),
                 t.getQuoteValidDays(), t.getInvoicePrefix(), t.getNextInvoiceNumber(), t.isAutoInvoiceOnShipment(),
                 t.getCreditNotePrefix(), t.getNextCreditNoteNumber(),
-                t.getPurchaseOrderPrefix(), t.getNextPurchaseOrderNumber(), t.getDefaultPurchaseTaxRule(), t.getBillPrefix(), t.getNextBillNumber());
+                t.getPurchaseOrderPrefix(), t.getNextPurchaseOrderNumber(), t.getDefaultPurchaseTaxRule(), t.getBillPrefix(), t.getNextBillNumber(),
+                t.getDefaultPurchaseApproach(), t.getDefaultWarehouseId());
     }
 
     @Transactional
@@ -84,6 +88,13 @@ public class OrganisationSettingsService {
         t.setDefaultPurchaseTaxRule(purchaseRule);
         if (s.billPrefix() != null && !s.billPrefix().isBlank()) t.setBillPrefix(s.billPrefix().trim());
         if (s.nextBillNumber() != null) t.setNextBillNumber(s.nextBillNumber());
+        if (s.defaultPurchaseApproach() != null && !s.defaultPurchaseApproach().isBlank()) {
+            t.setDefaultPurchaseApproach(approach(s.defaultPurchaseApproach()).name());
+        }
+        if (s.defaultWarehouseId() != null && !ownWarehouse(s.defaultWarehouseId())) {
+            throw new IllegalArgumentException("The default location is not one of this organisation's warehouses");
+        }
+        t.setDefaultWarehouseId(s.defaultWarehouseId());
         Map<String, Object> audit = new java.util.LinkedHashMap<>();
         audit.put("saleOrderPrefix", t.getSaleOrderPrefix());
         audit.put("nextSaleOrderNumber", t.getNextSaleOrderNumber());
@@ -98,6 +109,8 @@ public class OrganisationSettingsService {
         audit.put("purchaseOrderPrefix", t.getPurchaseOrderPrefix());
         audit.put("nextPurchaseOrderNumber", t.getNextPurchaseOrderNumber());
         audit.put("defaultPurchaseTaxRule", purchaseRule);
+        audit.put("defaultPurchaseApproach", t.getDefaultPurchaseApproach());
+        audit.put("defaultWarehouseId", t.getDefaultWarehouseId());
         auditService.log("ORGANISATION", t.getId(), "UPDATE", audit);
         return get();
     }
@@ -168,6 +181,32 @@ public class OrganisationSettingsService {
 
     public String webSalesRep() {
         return tenant().getWebSalesRep();
+    }
+
+    /** Stock first or Invoice first for a new purchase, the organisation's choice. */
+    @Transactional(readOnly = true)
+    public com.experterp.backend.entity.PurchaseOrder.Approach defaultPurchaseApproach() {
+        return approach(tenant().getDefaultPurchaseApproach());
+    }
+
+    /** The location a new purchase starts on, if the organisation chose one and it still exists. */
+    @Transactional(readOnly = true)
+    public Long defaultWarehouseId() {
+        Long id = tenant().getDefaultWarehouseId();
+        return id != null && ownWarehouse(id) ? id : null;
+    }
+
+    // Through a query, so the organisation's own warehouses only (the tenant filter)
+    private boolean ownWarehouse(Long id) {
+        return em.createQuery("SELECT count(w) FROM Warehouse w WHERE w.id = :id", Long.class).setParameter("id", id).getSingleResult() > 0;
+    }
+
+    private static com.experterp.backend.entity.PurchaseOrder.Approach approach(String value) {
+        try {
+            return com.experterp.backend.entity.PurchaseOrder.Approach.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new IllegalArgumentException("The approach is STOCK_FIRST or INVOICE_FIRST");
+        }
     }
 
     public int quoteValidDays() {

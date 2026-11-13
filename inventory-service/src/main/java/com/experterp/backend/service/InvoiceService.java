@@ -244,6 +244,15 @@ public class InvoiceService {
      */
     @Transactional
     public InvoiceResponse billPurchaseOrder(Long purchaseOrderId, BillRequest req) {
+        return billPurchaseOrder(purchaseOrderId, req, true);
+    }
+
+    /**
+     * As {@link #billPurchaseOrder(Long, BillRequest)}; {@code followApproach} false only for history brought over from
+     * Cin7, where the bill and the receipt already happened in their own order.
+     */
+    @Transactional
+    public InvoiceResponse billPurchaseOrder(Long purchaseOrderId, BillRequest req, boolean followApproach) {
         PurchaseOrder po = purchaseOrderRepository.findByIdForUpdate(purchaseOrderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order not found: " + purchaseOrderId));
         if (po.getStatus() != PurchaseOrder.Status.ORDERED && po.getStatus() != PurchaseOrder.Status.RECEIVED) {
@@ -281,6 +290,13 @@ public class InvoiceService {
                 throw new IllegalStateException(String.format("Cannot bill %s of %s: only %s left to bill",
                         qty.stripTrailingZeros().toPlainString(), line.getProduct().getSku(),
                         line.getToBillQuantity().stripTrailingZeros().toPlainString()));
+            }
+            // Stock first (Cin7's Approach): the bill covers only what came in and is not billed yet
+            BigDecimal inNotBilled = line.getReceivedQuantity().subtract(line.getBilledQuantity()).max(BigDecimal.ZERO);
+            if (followApproach && po.getApproach() == PurchaseOrder.Approach.STOCK_FIRST && qty.compareTo(inNotBilled) > 0) {
+                throw new IllegalStateException(String.format(
+                        "%s is Stock first: only %s of %s has come in and is not billed yet. Receive the goods first",
+                        po.getOrderNumber(), inNotBilled.stripTrailingZeros().toPlainString(), line.getProduct().getSku()));
             }
             BigDecimal price = g != null && g.getUnitPrice() != null ? g.getUnitPrice() : line.getUnitCost();
             InvoiceItem item = item(inv, qty, price, line.getDiscountPercent(), line.getTaxName(), line.getTaxRate());

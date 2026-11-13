@@ -104,15 +104,23 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
   const receiving_ = RECEIVING_LABEL[po.receivingStatus];
   const billing_ = BILLING_LABEL[po.billingStatus];
   // Something can still be billed: received and not billed, or still expected
-  const canBill = (po.status === "ORDERED" || po.status === "RECEIVED") && po.lines.some(l =>
-    Math.max(Number(l.quantity) - Number(l.closedShortQuantity), Number(l.receivedQuantity)) - Number(l.billedQuantity) > 0);
+  // Stock first (Cin7's Approach): only what came in can be billed
+  const canBill = (po.status === "ORDERED" || po.status === "RECEIVED") && po.lines.some(l => po.approach === "STOCK_FIRST"
+    ? Number(l.receivedQuantity) - Number(l.billedQuantity) > 0
+    : Math.max(Number(l.quantity) - Number(l.closedShortQuantity), Number(l.receivedQuantity)) - Number(l.billedQuantity) > 0);
+  // Invoice first: only what is billed and not received yet can come in
+  const billedNotReceived = (l: PurchaseOrder["lines"][number]) => Math.max(Number(l.billedQuantity) - Number(l.receivedQuantity), 0);
+  const waitsForBill = po.approach === "INVOICE_FIRST" && !po.lines.some(l => billedNotReceived(l) > 0);
   const busyMode = receiving || billing;
   // Blind receipt while receiving: what was ordered is not shown
   const blind = po.blindReceipt && receiving;
 
   const startReceiving = () => {
     // Blind receipt: nothing filled in, the warehouse counts what arrived
-    setAmounts(po.blindReceipt ? {} : Object.fromEntries(po.lines.map(l => [l.id, Number(l.outstandingQuantity) > 0 ? String(l.outstandingQuantity) : ""])));
+    setAmounts(po.blindReceipt ? {} : Object.fromEntries(po.lines.map(l => {
+      const q = po.approach === "INVOICE_FIRST" ? Math.min(Number(l.outstandingQuantity), billedNotReceived(l)) : Number(l.outstandingQuantity);
+      return [l.id, q > 0 ? String(q) : ""];
+    })));
     setReceipt({ receivedOn: todayIso(), warehouseId: String(po.warehouseId), notes: "", key: newKey() });
     setError("");
     setReceiving(true);
@@ -160,7 +168,8 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
           )}
           {po.status === "DRAFT" && <button disabled={busy} onClick={() => setEditing(true)} className={BTN_SECONDARY}>Edit</button>}
           {po.status === "DRAFT" && <button disabled={busy} onClick={async () => { if (await ask({ title: `Mark ${po.orderNumber} as ordered?`, message: "It is placed with the supplier; its lines can no longer be changed freely.", action: "Mark as ordered" })) orderMut.mutate(po.id); }} className={BTN_SECONDARY}>Mark as ordered</button>}
-          <button disabled={busy} onClick={startReceiving} className={BTN_PRIMARY}>Receive stock</button>
+          <button disabled={busy || waitsForBill} onClick={startReceiving} className={BTN_PRIMARY}
+            title={waitsForBill ? "Invoice first: enter the supplier's bill before receiving" : undefined}>Receive stock</button>
           </>}
         </>}
       />
@@ -261,6 +270,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
             <Field label="Terms" value={po.paymentTerm} />
             <Field label="Required by" value={po.requiredBy} />
             <Field label="Inventory account" value={po.inventoryAccount} />
+            <Field label="Approach" value={po.approach === "INVOICE_FIRST" ? "Invoice first" : "Stock first"} />
             <Field label="Tax rule" value={po.taxRule ?? (po.defaultTaxRule ? `${po.defaultTaxRule} (supplier's)` : undefined)} />
             <Field label="Total" value={formatGBP(po.total)} />
           </> },

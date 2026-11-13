@@ -29,6 +29,7 @@ public class PurchaseOrderResponse {
     // e.g. "631: Inventory Control", from the accounting settings
     private String inventoryAccount;
     private boolean blindReceipt;
+    private com.experterp.backend.entity.PurchaseOrder.Approach approach;
     private String shipToCompany;
     private com.experterp.backend.entity.Address shippingAddress;
     private Long warehouseId;

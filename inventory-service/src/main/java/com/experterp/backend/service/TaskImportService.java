@@ -611,7 +611,7 @@ public class TaskImportService {
         if (o.generateReceived()) {
             PurchaseReceiptRequest r = new PurchaseReceiptRequest();
             r.setReceivedOn(date);
-            purchaseOrderService.receive(po.getId(), r);
+            purchaseOrderService.receive(po.getId(), r, false);
         } else if (o.alreadyReceived()) {
             PurchaseOrder locked = purchaseOrderRepository.findByIdForUpdate(po.getId()).orElseThrow();
             locked.getLines().forEach(l -> l.setReceivedQuantity(l.getQuantity()));
@@ -641,7 +641,7 @@ public class TaskImportService {
             }
             bill.setLines(billLines);
             bill.setCharges(billCharges);
-            InvoiceResponse inv = invoiceService.billPurchaseOrder(po.getId(), bill);
+            InvoiceResponse inv = invoiceService.billPurchaseOrder(po.getId(), bill, false);
             billNumber = inv.getInvoiceNumber();
             invoiceIds.add(inv.getId());
             paid = payments(payments, c, inv.getId(), "DatePaid/DateReceived");
@@ -704,7 +704,7 @@ public class TaskImportService {
                 l.setQuantity(qty);
                 r.getLines().add(l);
             });
-            purchaseOrderService.receive(poId, r);
+            purchaseOrderService.receive(poId, r, false);
         });
     }
 

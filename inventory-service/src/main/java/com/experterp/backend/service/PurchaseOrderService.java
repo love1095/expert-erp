@@ -284,6 +284,8 @@ public class PurchaseOrderService {
         if (req.getOrderDate() != null) po.setOrderDate(req.getOrderDate());
         else if (po.getOrderDate() == null) po.setOrderDate(java.time.LocalDate.now());
         po.setBlindReceipt(req.isBlindReceipt());
+        if (req.getApproach() != null) po.setApproach(req.getApproach());
+        else if (po.getId() == null) po.setApproach(settingsService.defaultPurchaseApproach());
         po.setShipToCompany(blankToNull(req.getShipToCompany()) != null ? req.getShipToCompany().trim() : null);
         Address ship = Address.clean(req.getShippingAddress());
         po.setShippingAddress(ship != null ? ship : warehouse.getAddress() != null ? Address.clean(warehouse.getAddress()) : null);
@@ -340,6 +342,10 @@ public class PurchaseOrderService {
         return po;
     }
 
+    private static BigDecimal billedNotReceived(PurchaseOrderLine l) {
+        return l.getBilledQuantity().subtract(l.getReceivedQuantity()).max(BigDecimal.ZERO);
+    }
+
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s;
     }
@@ -357,6 +363,15 @@ public class PurchaseOrderService {
      */
     @Transactional
     public PurchaseOrderResponse receive(Long id, PurchaseReceiptRequest req) {
+        return receive(id, req, true);
+    }
+
+    /**
+     * As {@link #receive(Long, PurchaseReceiptRequest)}. Invoice first (Cin7's Approach): only what is on the supplier's
+     * bills and not received yet can come in. {@code followApproach} false only for history brought over from Cin7.
+     */
+    @Transactional
+    public PurchaseOrderResponse receive(Long id, PurchaseReceiptRequest req, boolean followApproach) {
         PurchaseOrder po = poRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order not found: " + id));
         String key = blankToNull(req.getIdempotencyKey());
@@ -378,16 +393,29 @@ public class PurchaseOrderService {
 
         // What arrives: the given lines, or everything outstanding
         List<LineQty> incoming = new ArrayList<>();
+        boolean invoiceFirst = followApproach && po.getApproach() == PurchaseOrder.Approach.INVOICE_FIRST;
         if (req.getLines() == null || req.getLines().isEmpty()) {
-            po.getLines().stream().filter(l -> l.getOutstandingQuantity().signum() > 0)
-                    .forEach(l -> incoming.add(new LineQty(l, l.getOutstandingQuantity())));
-            if (incoming.isEmpty()) throw new IllegalStateException("Nothing is outstanding on " + po.getOrderNumber());
+            // Everything outstanding; Invoice first: as much of it as is billed
+            po.getLines().forEach(l -> {
+                BigDecimal q = invoiceFirst ? l.getOutstandingQuantity().min(billedNotReceived(l)) : l.getOutstandingQuantity();
+                if (q.signum() > 0) incoming.add(new LineQty(l, q));
+            });
+            if (incoming.isEmpty()) {
+                throw new IllegalStateException(invoiceFirst && po.getLines().stream().anyMatch(l -> l.getOutstandingQuantity().signum() > 0)
+                        ? po.getOrderNumber() + " is Invoice first: enter the supplier's bill before receiving"
+                        : "Nothing is outstanding on " + po.getOrderNumber());
+            }
         } else {
             Set<Long> seen = new HashSet<>();
             for (PurchaseReceiptRequest.Line rl : req.getLines()) {
                 PurchaseOrderLine line = po.getLines().stream().filter(l -> l.getId().equals(rl.getPurchaseOrderLineId())).findFirst()
                         .orElseThrow(() -> new ResourceNotFoundException("Line " + rl.getPurchaseOrderLineId() + " is not on " + po.getOrderNumber()));
                 if (!seen.add(line.getId())) throw new IllegalArgumentException(line.getProduct().getSku() + " appears more than once");
+                if (invoiceFirst && rl.getQuantity().compareTo(billedNotReceived(line)) > 0) {
+                    throw new IllegalStateException(String.format(
+                            "%s is Invoice first: only %s of %s is billed and not received yet. Enter the supplier's bill first",
+                            po.getOrderNumber(), billedNotReceived(line).stripTrailingZeros().toPlainString(), line.getProduct().getSku()));
+                }
                 incoming.add(new LineQty(line, rl.getQuantity()));
             }
         }
@@ -509,6 +537,7 @@ public class PurchaseOrderService {
         r.setOrderDate(po.getOrderDate());
         r.setTaxRule(po.getTaxRule());
         r.setBlindReceipt(po.isBlindReceipt());
+        r.setApproach(po.getApproach());
         r.setShipToCompany(po.getShipToCompany());
         r.setShippingAddress(po.getShippingAddress());
         r.setWarehouseId(po.getWarehouse().getId());

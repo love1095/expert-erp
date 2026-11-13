@@ -135,3 +135,99 @@ test('PO-020 a new PO fills the supplier\'s contact and address and the warehous
     await page.getByRole('button', { name: 'Receive stock' }).click();
     await expect(page.getByLabel(`Received quantity for ${fleece.sku}`)).toHaveValue('');
   });
+
+test('PO-021 Invoice first: receiving waits for the supplier\'s bill, then takes what it covers; Stock first bills only what came in', { tag: ['@P1', '@purchase-orders'] },
+  async ({ page, api, warehouses }) => {
+    const gloves = await api.createProduct({ costPrice: 2 });
+    await page.goto('/purchase-orders/new');
+    const form = page.getByTestId('purchase-order-form');
+    await form.getByLabel('Supplier *').fill(`Invoice First Ltd ${Date.now()}`);
+    await form.getByLabel('Location *').selectOption(String(warehouses.main.id));
+    await form.getByRole('radiogroup', { name: 'Approach' }).getByText('Invoice first').click();
+    await expect(form.getByText("Enter the supplier's bill, then receive what it covers")).toBeVisible();
+    await form.getByLabel('Product for line 1').fill(gloves.sku);
+    await form.getByRole('listbox', { name: 'Product for line 1 matches' }).getByRole('button').filter({ hasText: gloves.sku }).click();
+    await form.getByLabel('Quantity for line 1').fill('5');
+    await form.getByRole('button', { name: 'Create & mark ordered' }).click();
+
+    await expect(page.locator('[data-testid^="po-details-"]')).toContainText('Invoice first');
+    await expect(page.getByRole('button', { name: 'Receive stock' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Enter bill' }).click();
+    const bill = page.getByTestId('bill-form');
+    await bill.getByLabel("Supplier's invoice number *").fill(`IF-${Date.now()}`);
+    await expect(bill.getByLabel(`Billed quantity for ${gloves.sku}`)).toHaveValue('5');
+    await bill.getByLabel(`Billed quantity for ${gloves.sku}`).fill('3');
+    await bill.getByRole('button', { name: 'Enter bill' }).click();
+    await expect(page.locator('[data-testid^="po-bills-"]')).toBeVisible();
+    await page.getByRole('button', { name: 'Receive stock' }).click();
+    await expect(page.getByLabel(`Received quantity for ${gloves.sku}`)).toHaveValue('3');
+
+    // Stock first (the default): no bill before the goods
+    const po = await api.createPurchaseOrder(warehouses.main, [{ product: gloves, quantity: 4 }]);
+    await api.http.post(`/api/purchase-orders/${po.id}/order`);
+    const early = await api.http.post(`/api/purchase-orders/${po.id}/bills`, { data: { supplierInvoiceNumber: `SF-${Date.now()}`,
+      lines: [{ purchaseOrderLineId: (await (await api.http.get(`/api/purchase-orders/${po.id}`)).json()).lines[0].id, quantity: 4 }] } });
+    expect(early.status()).toBe(422);
+    expect((await early.json()).error).toContain('Stock first');
+  });
+
+test('PO-022 new purchase "+" for contact, vendor address and location; Save as preset fills a later purchase', { tag: ['@P2', '@purchase-orders'] },
+  async ({ page, api }) => {
+    const supplier = await (await api.http.post('/api/suppliers', { data: { name: `Preset Supplier ${Date.now()}` } })).json();
+    const presetName = `Monthly ${Date.now()}`;
+    await page.goto('/purchase-orders/new');
+    const form = page.getByTestId('purchase-order-form');
+    await expect(form.getByRole('button', { name: 'New contact' })).toBeDisabled();
+    await form.getByLabel('Supplier *').fill(supplier.name);
+
+    // Contact for this order only
+    await form.getByRole('button', { name: 'New contact' }).click();
+    const contact = page.getByTestId('quick-supplier-contact');
+    await contact.getByLabel('Name').fill('Jo Buyer');
+    await contact.getByLabel('Phone').fill('0161 000 111');
+    await contact.getByLabel(`Save as ${supplier.name}'s contact`).uncheck();
+    await contact.getByRole('button', { name: 'Use contact' }).click();
+    await expect(form.getByLabel('Contact', { exact: true })).toHaveValue('Jo Buyer');
+    expect((await (await api.http.get(`/api/suppliers/${supplier.id}`)).json()).contactName ?? null).toBeNull();
+
+    // Vendor address kept on the supplier
+    await form.getByRole('button', { name: 'New vendor address' }).click();
+    const address = page.getByTestId('quick-supplier-address');
+    await address.getByLabel('New vendor address line 1').fill('1 Mill Street');
+    await address.getByLabel('New vendor address postcode').fill('M1 1AA');
+    await address.getByRole('button', { name: 'Use address' }).click();
+    await expect(form.getByLabel('Vendor address line 1')).toHaveValue('1 Mill Street');
+    await expect.poll(async () => (await (await api.http.get(`/api/suppliers/${supplier.id}`)).json()).address?.postcode).toBe('M1 1AA');
+
+    // A new location, chosen at once, its address shipped to
+    const locationName = `E2E Store ${Date.now()}`;
+    await form.getByRole('button', { name: 'New location' }).click();
+    const location = page.getByTestId('quick-new-location');
+    await location.getByLabel('Name').fill(locationName);
+    await location.getByLabel('New location address line 1').fill('9 Dock Road');
+    await location.getByRole('button', { name: 'Add location' }).click();
+    await expect(form.getByLabel('Location *').locator('option:checked')).toHaveText(locationName);
+    await expect(form.getByLabel('Shipping address line 1')).toHaveValue('9 Dock Road');
+
+    await form.getByRole('radiogroup', { name: 'Approach' }).getByText('Invoice first').click();
+    await form.getByLabel('Blind receipt').check();
+    await page.getByRole('button', { name: 'Save as preset' }).click();
+    const save = page.getByTestId('po-save-preset');
+    await save.getByLabel('Preset name *').fill(presetName);
+    await save.getByRole('button', { name: 'Save preset' }).click();
+    await expect(page.getByLabel('Preset', { exact: true }).locator('option:checked')).toHaveText(presetName);
+
+    // A later purchase starts from the preset: header filled, lines empty
+    await page.goto('/purchase-orders/new');
+    await page.getByLabel('Preset', { exact: true }).selectOption({ label: presetName });
+    await expect(form.getByLabel('Supplier *')).toHaveValue(supplier.name);
+    await expect(form.getByLabel('Contact', { exact: true })).toHaveValue('Jo Buyer');
+    await expect(form.getByLabel('Location *').locator('option:checked')).toHaveText(locationName);
+    await expect(form.getByLabel('Blind receipt')).toBeChecked();
+    await expect(form.getByRole('radio', { name: 'Invoice first' })).toBeChecked();
+    await expect(form.getByLabel('Product for line 1')).toHaveValue('');
+
+    await page.getByRole('button', { name: 'Delete preset' }).click();
+    await page.getByRole('button', { name: 'Delete preset' }).last().click();
+    await expect(page.getByLabel('Preset', { exact: true }).locator(`option`, { hasText: presetName })).toHaveCount(0);
+  });

@@ -26,7 +26,10 @@ export default function BillForm({ po, onSaved, onCancel }: { po: PurchaseOrder;
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Record<number, { quantity: string; unitPrice: string }>>(Object.fromEntries(po.lines.map(l => {
-    const received = Math.max(Number(l.receivedQuantity) - Number(l.billedQuantity), 0);
+    // Stock first: what came in and is not billed; Invoice first: everything still to bill (the goods come after)
+    const received = po.approach === "INVOICE_FIRST"
+      ? Math.max(Math.max(Number(l.quantity) - Number(l.closedShortQuantity), Number(l.receivedQuantity)) - Number(l.billedQuantity), 0)
+      : Math.max(Number(l.receivedQuantity) - Number(l.billedQuantity), 0);
     return [l.id, { quantity: received > 0 ? String(received) : "", unitPrice: l.unitCost != null ? String(l.unitCost) : "" }];
   })));
   const [charges, setCharges] = useState<ChargeForm[]>([]);
@@ -108,7 +111,7 @@ export default function BillForm({ po, onSaved, onCancel }: { po: PurchaseOrder;
                   </td>
                   <td className={`${TD} text-[11px] text-amber-700`}>
                     {priceDiffers && <span className="block">PO price {formatGBP(l.unitCost!)}</span>}
-                    {aheadOfGoods && <span className="block">More than received</span>}
+                    {aheadOfGoods && <span className="block">{po.approach === "STOCK_FIRST" ? "More than received: not allowed on a Stock first order" : "More than received"}</span>}
                   </td>
                 </tr>
               );

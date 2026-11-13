@@ -94,4 +94,10 @@ public class Tenant {
     // Purchase tax rule used when neither the product nor the supplier has one
     @Column(nullable = false, length = 100)
     private String defaultPurchaseTaxRule = "20% (VAT on Expenses)";
+
+    // A new purchase: Stock first or Invoice first (Cin7's Approach), and the location it starts on
+    @Column(nullable = false, length = 20)
+    private String defaultPurchaseApproach = "STOCK_FIRST";
+
+    private Long defaultWarehouseId;
 }

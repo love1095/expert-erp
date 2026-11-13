@@ -122,11 +122,12 @@ class FifoCostingTest {
 
     @Test
     void aBillAheadOfTheGoodsPricesThemWhenTheyArrive() {
-        PurchaseOrderResponse po = orderedPo(10, "5.00");
-        purchaseOrderService.receive(po.getId(), receipt(po, 4));
+        // Invoice first: the bill comes before the goods, which then come in at the bill's price
+        PurchaseOrderResponse po = orderedPo(10, "5.00", com.experterp.backend.entity.PurchaseOrder.Approach.INVOICE_FIRST);
         InvoiceResponse bill = invoiceService.billPurchaseOrder(po.getId(), bill("INV-60", po, 10, "6.00"));
-        assertThat(bill.getItems().get(0).getCostMatchedQuantity()).isEqualByComparingTo("4");
-        assertThat(bill.getCostAdjustment()).isEqualByComparingTo("4.00");
+        assertThat(bill.getCostAdjustment()).isEqualByComparingTo("0.00");
+        purchaseOrderService.receive(po.getId(), receipt(po, 4));
+        assertThat(invoiceService.findById(bill.getId()).getCostAdjustment()).isEqualByComparingTo("4.00");
 
         purchaseOrderService.receive(po.getId(), receipt(po, 6));
         assertThat(productService.stock(boot.getId()).stockValue()).isEqualByComparingTo("60.00");
@@ -234,7 +235,12 @@ class FifoCostingTest {
     }
 
     private PurchaseOrderResponse orderedPo(int qty, String cost) {
+        return orderedPo(qty, cost, null);
+    }
+
+    private PurchaseOrderResponse orderedPo(int qty, String cost, com.experterp.backend.entity.PurchaseOrder.Approach approach) {
         PurchaseOrderRequest req = new PurchaseOrderRequest();
+        req.setApproach(approach);
         req.setSupplierId(portwest.getId());
         req.setWarehouseId(warehouse.getId());
         req.setOrdered(true);

@@ -136,6 +136,12 @@ export const receivePurchaseOrder = (id: number) => api.post(`/purchase-orders/$
 export const cancelPurchaseOrder  = (id: number) => api.post(`/purchase-orders/${id}/cancel`).then(r => r.data);
 export const undoPurchaseOrder    = (id: number) => api.post(`/purchase-orders/${id}/undo`).then(r => r.data);
 export const previewPurchaseOrder = (data: unknown) => api.post("/purchase-orders/preview", data).then(r => r.data);
+// What a new purchase starts from: the default location and approach, and Cin7's presets
+export const getPurchaseNewDefaults = () => api.get("/purchase-orders/new-defaults")
+  .then(r => r.data as { warehouseId: number | null; approach: "STOCK_FIRST" | "INVOICE_FIRST" });
+export const getPurchasePresets = () => api.get("/purchase-orders/presets").then(r => r.data);
+export const savePurchasePreset = (name: string, data: Record<string, unknown>) => api.post("/purchase-orders/presets", { name, data }).then(r => r.data);
+export const deletePurchasePreset = (id: number) => api.delete(`/purchase-orders/presets/${id}`);
 export const updatePurchaseOrder  = ({ id, data }: { id: number; data: unknown }) => api.put(`/purchase-orders/${id}`, data).then(r => r.data);
 // Placed with the supplier (Cin7's Authorise)
 export const orderPurchaseOrder   = (id: number) => api.post(`/purchase-orders/${id}/order`).then(r => r.data);

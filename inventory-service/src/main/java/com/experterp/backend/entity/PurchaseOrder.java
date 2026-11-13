@@ -73,6 +73,13 @@ public class PurchaseOrder {
     @Column(nullable = false)
     private boolean blindReceipt;
 
+    // Cin7's Approach. STOCK_FIRST: a bill covers only what came in. INVOICE_FIRST: only what is billed can be received.
+    public enum Approach { STOCK_FIRST, INVOICE_FIRST }
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Approach approach = Approach.STOCK_FIRST;
+
     @Column(length = 255)
     private String shipToCompany;
 
