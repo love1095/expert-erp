@@ -40,14 +40,33 @@ public class PlatformService {
                                String planTier, String planName, BigDecimal monthlyPrice, String status,
                                LocalDateTime endDate, long users, long products, long warehouses) {}
 
-    /** All organisations, newest first, read across organisations with plain SQL (not tenant-filtered). */
+    public record OrganisationPage(List<Organisation> content, long totalElements, int totalPages, int page, int size) {}
+
+    /**
+     * One page of organisations, newest first, narrowed by part of the name or slug (review R10: thousands of
+     * organisations were sent and drawn at once). The page is chosen first; users, products and warehouses are then
+     * counted for its organisations only.
+     */
     @Transactional(readOnly = true)
-    public List<Organisation> organisations() {
-        return organisations(null);
+    public OrganisationPage organisations(String q, int page, int size) {
+        int n = Math.min(Math.max(size, 1), 200);
+        int at = Math.max(page, 0);
+        String pattern = q == null || q.isBlank() ? null : "%" + q.trim().toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        String where = " WHERE (?::varchar IS NULL OR lower(name) LIKE ? OR lower(slug) LIKE ?)";
+        Long total = jdbc.queryForObject("SELECT count(*) FROM tenants" + where, Long.class, pattern, pattern, pattern);
+        List<Long> ids = jdbc.queryForList("SELECT id FROM tenants" + where + " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+                Long.class, pattern, pattern, pattern, n, (long) at * n);
+        long count = total == null ? 0 : total;
+        return new OrganisationPage(ids.isEmpty() ? List.of() : organisations(null, ids), count, (int) ((count + n - 1) / n), at, n);
     }
 
-    // One organisation (tenantId) or all; counts by grouping once, not three sub-queries per organisation
+    // One organisation (tenantId), or the given ones; counts by grouping once, not three sub-queries per organisation
     private List<Organisation> organisations(Long tenantId) {
+        return organisations(tenantId, List.of(tenantId));
+    }
+
+    private List<Organisation> organisations(Long tenantId, List<Long> ids) {
+        Long[] in = ids.toArray(new Long[0]);
         return jdbc.query("""
                 SELECT t.id, t.name, t.slug, t.active, t.created_at,
                        p.tier, p.display_name, p.monthly_price, s.status, s.end_date,
@@ -55,10 +74,10 @@ public class PlatformService {
                 FROM tenants t
                 LEFT JOIN subscriptions s ON s.tenant_id = t.id
                 LEFT JOIN plans p ON p.id = s.plan_id
-                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM users WHERE ?::bigint IS NULL OR tenant_id = ? GROUP BY tenant_id) u ON u.tenant_id = t.id
-                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM products WHERE ?::bigint IS NULL OR tenant_id = ? GROUP BY tenant_id) x ON x.tenant_id = t.id
-                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM warehouses WHERE ?::bigint IS NULL OR tenant_id = ? GROUP BY tenant_id) w ON w.tenant_id = t.id
-                WHERE ?::bigint IS NULL OR t.id = ?
+                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM users WHERE tenant_id = ANY (?) GROUP BY tenant_id) u ON u.tenant_id = t.id
+                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM products WHERE tenant_id = ANY (?) GROUP BY tenant_id) x ON x.tenant_id = t.id
+                LEFT JOIN (SELECT tenant_id, count(*) AS n FROM warehouses WHERE tenant_id = ANY (?) GROUP BY tenant_id) w ON w.tenant_id = t.id
+                WHERE t.id = ANY (?)
                 ORDER BY t.created_at DESC, t.id DESC""", (rs, i) -> new Organisation(
                 rs.getLong("id"), rs.getString("name"), rs.getString("slug"), rs.getBoolean("active"),
                 toLocal(rs.getTimestamp("created_at")),
@@ -68,7 +87,7 @@ public class PlatformService {
                 Optional.ofNullable(rs.getString("status")).orElse("ACTIVE"),
                 toLocal(rs.getTimestamp("end_date")),
                 rs.getLong("users"), rs.getLong("products"), rs.getLong("warehouses")),
-                tenantId, tenantId, tenantId, tenantId, tenantId, tenantId, tenantId, tenantId);
+                in, in, in, in);
     }
 
     /** Gives an organisation a plan (and status / end date); written to that organisation's audit log. */

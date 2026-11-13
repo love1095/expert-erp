@@ -73,9 +73,17 @@ class PlatformTest {
     @Test
     void theSuperAdminHasNoSubscriptionAndSeesEveryOrganisation() throws Exception {
         perform(get("/api/subscription"), superAdmin).andExpect(status().isNoContent());
-        perform(get("/api/tenants"), superAdmin).andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == " + org.getId() + ")].planTier").value("FREE"))
-                .andExpect(jsonPath("$[?(@.id == " + org.getId() + ")].users").value(1));
+        // R10: a page at a time, found by part of the name or slug, counts for the page's organisations only
+        perform(get("/api/tenants").param("q", org.getSlug().toUpperCase()), superAdmin).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(org.getId()))
+                .andExpect(jsonPath("$.content[0].planTier").value("FREE"))
+                .andExpect(jsonPath("$.content[0].users").value(1));
+        perform(get("/api/tenants").param("size", "1"), superAdmin).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.size").value(1));
+        perform(get("/api/tenants").param("q", "no-such-organisation-%"), superAdmin).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test

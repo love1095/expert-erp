@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Pagination from "@/components/Pagination";
 import { getOrganisations, setOrganisationSubscription, setOrganisationActive } from "@/lib/api";
 import { PlatformOrganisation } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
@@ -66,17 +67,23 @@ function Row({ org, onError }: { org: PlatformOrganisation; onError: (m: string)
 }
 
 export default function OrganisationsPage() {
-  const { data = [], isLoading, error } = useQuery<PlatformOrganisation[]>({
-    queryKey: ["platform-organisations"],
-    queryFn: getOrganisations,
-    retry: false,
-  });
+  // Review R10: a page at a time, searched on the server (thousands of organisations were sent and drawn at once)
   const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(25);
+  useEffect(() => {
+    const t = setTimeout(() => { setQ(search.trim()); setPage(0); }, 250);
+    return () => clearTimeout(t);
+  }, [search]);
+  const { data, isLoading, error } = useQuery<{ content: PlatformOrganisation[]; totalElements: number; totalPages: number }>({
+    queryKey: ["platform-organisations", q, page, size],
+    queryFn: () => getOrganisations({ q: q || undefined, page, size }),
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
   const [message, setMessage] = useState<string | null>(null);
-  const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return q ? data.filter(o => o.name.toLowerCase().includes(q) || o.slug.includes(q)) : data;
-  }, [data, search]);
+  const shown = data?.content ?? [];
   const forbidden = (error as { response?: { status?: number } } | null)?.response?.status === 403;
 
   return (
@@ -92,7 +99,7 @@ export default function OrganisationsPage() {
           <div className="flex items-center gap-3 mb-3">
             <input aria-label="Search organisations" placeholder="Search organisations" value={search} onChange={e => setSearch(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-72" />
-            <span className="text-sm text-gray-500">{shown.length} of {data.length}</span>
+            <span className="text-sm text-gray-500" data-testid="organisations-count">{(data?.totalElements ?? 0).toLocaleString()} organisation{data?.totalElements === 1 ? "" : "s"}</span>
             {message && <span role="alert" className="text-sm text-red-600">{message}</span>}
           </div>
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -111,10 +118,13 @@ export default function OrganisationsPage() {
               </thead>
               <tbody>
                 {isLoading && <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-400">Loading...</td></tr>}
+                {!isLoading && shown.length === 0 && <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-400">{q ? `No organisation matches "${q}"` : "No organisations yet"}</td></tr>}
                 {shown.map(o => <Row key={o.id} org={o} onError={setMessage} />)}
               </tbody>
             </table>
           </div>
+          <Pagination page={page} totalPages={data?.totalPages ?? 0} totalElements={data?.totalElements ?? 0} onPageChange={setPage}
+            size={size} onSizeChange={n => { setSize(n); setPage(0); }} />
         </>
       )}
     </div>

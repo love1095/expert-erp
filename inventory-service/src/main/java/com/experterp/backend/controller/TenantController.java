@@ -6,7 +6,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /** Platform → Organisations (SUPER_ADMIN only): every organisation, its plan and whether it is switched on. */
 @RestController
@@ -21,9 +20,12 @@ public class TenantController {
 
     public record ActiveRequest(boolean active) {}
 
+    /** One page, newest first; q narrows by part of the name or slug. */
     @GetMapping
-    public List<PlatformService.Organisation> list() {
-        return platformService.organisations();
+    public PlatformService.OrganisationPage list(@RequestParam(required = false) String q,
+                                                 @RequestParam(defaultValue = "0") int page,
+                                                 @RequestParam(defaultValue = "25") int size) {
+        return platformService.organisations(q, page, size);
     }
 
     @PutMapping("/{id}/subscription")

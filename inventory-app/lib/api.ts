@@ -444,7 +444,8 @@ export const createApiKey = (body: { name: string; role: string }) => api.post("
 export const revokeApiKey = (id: number) => api.delete(`/settings/api-keys/${id}`).then(r => r.data);
 
 // ---- Platform (SUPER_ADMIN): every organisation and its subscription ----
-export const getOrganisations = () => api.get("/tenants").then(r => r.data);
+// One page of organisations, narrowed by part of the name or slug on the server (review R10)
+export const getOrganisations = (params: { q?: string; page?: number; size?: number }) => api.get("/tenants", { params }).then(r => r.data);
 export const setOrganisationSubscription = (id: number, body: { planTier: string; status?: string; endDate?: string | null }) =>
   api.put(`/tenants/${id}/subscription`, body).then(r => r.data);
 export const setOrganisationActive = (id: number, active: boolean) => api.put(`/tenants/${id}/active`, { active }).then(r => r.data);
