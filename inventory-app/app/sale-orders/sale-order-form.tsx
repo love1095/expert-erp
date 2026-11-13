@@ -306,7 +306,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
               <div className="grid grid-cols-12 gap-2 items-center">
                 <div className="col-span-4">
                   {/* No typed price: the server prices it for the customer (contract price, else tier, else Retail; G1) */}
-                  <ProductPicker label={`Product for line ${i + 1}`}
+                  <ProductPicker label={`Product for line ${i + 1}`} warehouseId={warehouseId ? Number(warehouseId) : undefined}
                     selected={l.productSku ? { id: Number(l.productId), sku: l.productSku, name: l.productName ?? "" } : undefined}
                     onSelect={pr => setLine(i, { productId: String(pr.id), unitName: "" })} />
                   <UnitSelect productId={l.productId ? Number(l.productId) : undefined} value={l.unitName ?? ""}

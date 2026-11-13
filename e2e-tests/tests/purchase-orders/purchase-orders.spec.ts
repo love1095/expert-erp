@@ -231,3 +231,40 @@ test('PO-022 new purchase "+" for contact, vendor address and location; Save as 
     await page.getByRole('button', { name: 'Delete preset' }).last().click();
     await expect(page.getByLabel('Preset', { exact: true }).locator(`option`, { hasText: presetName })).toHaveCount(0);
   });
+
+test('PO-023 the product list on a line: "SKU: name" rows, "+ Add a new item" adds a product and picks it, the information box shows its stock', { tag: ['@P2', '@purchase-orders'] },
+  async ({ page, api, warehouses }) => {
+    const visor = await api.createProduct({ name: 'Blue Eagle FC48 clear visor with a long name that runs onto a second line of the list', costPrice: 3 });
+    await api.addStock(visor, warehouses.main, 4);
+    await page.goto('/purchase-orders/new');
+    const form = page.getByTestId('purchase-order-form');
+    await form.getByLabel('Supplier *').fill(`Picker Supplier ${Date.now()}`);
+    await form.getByLabel('Location *').selectOption(String(warehouses.main.id));
+
+    // Rows read "SKU: full name"
+    await form.getByLabel('Product for line 1').fill(visor.sku);
+    const list = form.getByRole('listbox', { name: 'Product for line 1 matches' });
+    await expect(list.getByRole('option').first()).toContainText(`${visor.sku}: Blue Eagle FC48 clear visor`);
+    await list.getByRole('button').filter({ hasText: visor.sku }).click();
+
+    // Resting the mouse on the chosen product shows its details and stock in the order's warehouse
+    await form.getByLabel('Product for line 1').hover();
+    const info = page.getByTestId('product-info');
+    await expect(info).toContainText('Unit of measure');
+    await expect(info).toContainText(`Stock in ${warehouses.main.name}`);
+    await expect(info).toContainText('Available in other locations');
+    await page.mouse.move(5, 5);
+    await expect(info).toHaveCount(0);
+
+    // A product that does not exist yet is added from the list and chosen on the line
+    const sku = `NEW-${Date.now()}`;
+    await form.getByRole('button', { name: '+ Add line' }).click();
+    await form.getByLabel('Product for line 2').click();
+    await form.getByRole('button', { name: '+ Add a new item' }).click();
+    const dialog = page.getByTestId('quick-new-product');
+    await dialog.getByLabel('SKU').fill(sku);
+    await dialog.getByLabel('Name').fill('Brand new gloves');
+    await dialog.getByLabel('Cost price £').fill('2.5');
+    await dialog.getByRole('button', { name: 'Add product' }).click();
+    await expect(form.getByLabel('Product for line 2')).toHaveValue(`${sku} — Brand new gloves`);
+  });

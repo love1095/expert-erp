@@ -422,7 +422,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
                 <div className="col-span-3">
                   <ProductPicker label={`Product for line ${i + 1}`}
                     selected={l.productSku ? { id: Number(l.productId), sku: l.productSku, name: l.productName ?? "" } : undefined}
-                    mode="purchase" supplierId={supplier?.id ?? editing?.supplierId}
+                    mode="purchase" supplierId={supplier?.id ?? editing?.supplierId} warehouseId={warehouseId ? Number(warehouseId) : undefined}
                     onSelect={pr => setLine(i, { productId: String(pr.id), unitName: "" })} />
                   <UnitSelect productId={l.productId ? Number(l.productId) : undefined} value={l.unitName ?? ""}
                     onChange={u => setLine(i, { unitName: u, unitCost: "" })} label={`Unit for line ${i + 1}`} />

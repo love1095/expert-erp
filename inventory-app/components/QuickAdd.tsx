@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addCustomerContact, addPaymentTerm, addSalesRep, createCustomer, createSupplier, createWarehouse, getPaymentTerms, getPriceTiers, getSalesReps, getTaxRates, updateSupplier } from "@/lib/api";
-import { Customer, CustomerContact, PostalAddress, PriceTier, Supplier, TaxRate, Warehouse } from "@/types";
+import { addCustomerContact, addPaymentTerm, addSalesRep, createCustomer, createProduct, createSupplier, createWarehouse, getCategories, getPaymentTerms, getPriceTiers, getSalesReps, getTaxRates, updateSupplier } from "@/lib/api";
+import { Category, Customer, CustomerContact, PostalAddress, PriceTier, Product, Supplier, TaxRate, Warehouse } from "@/types";
 import { AddressFields, EMPTY_ADDRESS, isBlankAddress } from "@/components/AddressFields";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -477,6 +477,77 @@ export function NewLocationDialog({ onClose, onCreated }: { onClose: () => void;
         <p className="block text-xs font-medium text-gray-600 mb-1 mt-3">Address</p>
         <AddressFields label="New location address" value={address} onChange={setAddress} inputClass={inputClass("md")} />
         <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Add location" /></div>
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * "+ Add a new item" at the top of the product list on an order line (like Cin7): what a line needs; the rest
+ * (description, images, units, reorder levels) on the product's page. From a purchase, the order's supplier becomes
+ * the product's supplier.
+ */
+export function NewProductDialog({ initialText = "", supplierId, onClose, onCreated }: {
+  initialText?: string;
+  supplierId?: number;
+  onClose: () => void;
+  onCreated: (p: Product) => void;
+}) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["categories"], queryFn: getCategories });
+  const [form, setForm] = useState({ sku: "", name: initialText, unit: "Each", categoryId: "", costPrice: "", sellPrice: "", barcode: "" });
+  const [error, setError] = useState("");
+  const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+  const money = (v: string) => (v.trim() === "" ? undefined : Number(v));
+
+  const save = useMutation({
+    mutationFn: () => createProduct({
+      sku: form.sku.trim(), name: form.name.trim(), unit: form.unit.trim() || "Each",
+      categoryId: form.categoryId ? Number(form.categoryId) : undefined, costPrice: money(form.costPrice), sellPrice: money(form.sellPrice),
+      barcode: form.barcode.trim() || undefined, defaultSupplierId: supplierId,
+    }),
+    onSuccess: (p: Product) => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products-page"] });
+      toast("Product added");
+      onCreated(p);
+    },
+    onError: e => setError(errorOf(e, "Could not add the product")),
+  });
+
+  return (
+    <Modal title="New product" hint="The rest (description, images, units, reorder levels) can be added later on the product's page."
+      onClose={onClose} width="max-w-2xl" testId="quick-new-product">
+      <form onSubmit={e => { e.preventDefault(); setError(""); save.mutate(); }}>
+        <ErrorLine text={error} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="SKU" required>
+            {p => <Input {...p} value={form.sku} onChange={e => set({ sku: e.target.value })} maxLength={100} autoComplete="off" />}
+          </FormField>
+          <FormField label="Unit" required>
+            {p => <Input {...p} value={form.unit} onChange={e => set({ unit: e.target.value })} maxLength={50} autoComplete="off" />}
+          </FormField>
+          <FormField label="Name" required className="sm:col-span-2">
+            {p => <Input {...p} value={form.name} onChange={e => set({ name: e.target.value })} maxLength={255} autoComplete="off" />}
+          </FormField>
+          <FormField label="Category">
+            {p => <Select {...p} value={form.categoryId} onChange={e => set({ categoryId: e.target.value })}>
+              <option value="">None</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>}
+          </FormField>
+          <FormField label="Barcode">
+            {p => <Input {...p} value={form.barcode} onChange={e => set({ barcode: e.target.value })} autoComplete="off" />}
+          </FormField>
+          <FormField label="Cost price £">
+            {p => <Input {...p} type="number" min={0} step="any" value={form.costPrice} onChange={e => set({ costPrice: e.target.value })} />}
+          </FormField>
+          <FormField label="Selling price £">
+            {p => <Input {...p} type="number" min={0} step="any" value={form.sellPrice} onChange={e => set({ sellPrice: e.target.value })} />}
+          </FormField>
+        </div>
+        <div className="flex justify-end gap-2 mt-4"><Footer onClose={onClose} busy={save.isPending} action="Add product" /></div>
       </form>
     </Modal>
   );

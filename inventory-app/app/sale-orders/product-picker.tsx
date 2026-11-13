@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getProductPicker } from "@/lib/api";
-import { PickerPage, PickerProduct, Product } from "@/types";
+import { useQuery } from "@tanstack/react-query";
+import { getProduct, getProductPicker, getProductStock } from "@/lib/api";
+import { PickerPage, PickerProduct, Product, ProductStock } from "@/types";
 import { formatGBP } from "@/lib/currency";
+import { NewProductDialog } from "@/components/QuickAdd";
+import { DateText } from "@/components/ui/DateText";
 
 const qty = (n: number) => Number(n).toLocaleString();
 
@@ -12,17 +15,32 @@ const qty = (n: number) => Number(n).toLocaleString();
  * supplier's products first); typing narrows it by SKU, name or barcode; scrolling loads 20 more, so all products can be
  * reached without loading them all. Keyboard: up/down to move, Enter or Tab to pick, Esc to close.
  * mode "sale": available stock and selling price; "purchase": on hand, on order and cost.
+ * As seen in Cin7 (2026-11-13): each row is "SKU: full name" with the SKU in bold, long names on two lines; "+ Add a new
+ * item" at the top adds a product without leaving the order; resting the mouse on a chosen product shows its details
+ * and stock (in the order's warehouse when one is chosen).
  */
-export default function ProductPicker({ label, selected, onSelect, mode = "sale", supplierId, required = true }: {
+export default function ProductPicker({ label, selected, onSelect, mode = "sale", supplierId, warehouseId, required = true }: {
   label: string;
   selected?: Pick<Product, "id" | "sku" | "name">;
   onSelect: (p: PickerProduct) => void;
   mode?: "sale" | "purchase";
   supplierId?: number;
+  // The order's warehouse: the information box shows the stock there first
+  warehouseId?: number;
   required?: boolean;
 }) {
   const show = (p?: Pick<Product, "sku" | "name">) => (p ? `${p.sku} — ${p.name}` : "");
   const [chosen, setChosen] = useState(show(selected));
+  const [chosenId, setChosenId] = useState<number | undefined>(selected?.id);
+  const [adding, setAdding] = useState(false);
+  // The information box: after the mouse rests on the chosen product for a moment
+  const [info, setInfo] = useState(false);
+  const infoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hover = (on: boolean) => {
+    if (infoTimer.current) clearTimeout(infoTimer.current);
+    if (on) infoTimer.current = setTimeout(() => setInfo(true), 400); else setInfo(false);
+  };
+  useEffect(() => () => { if (infoTimer.current) clearTimeout(infoTimer.current); }, []);
   const [text, setText] = useState(show(selected));
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<PickerProduct[]>([]);
@@ -71,7 +89,7 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
 
   const pick = (p: PickerProduct) => {
     const label = show(p);
-    setChosen(label); setText(label); setOpen(false);
+    setChosen(label); setText(label); setOpen(false); setChosenId(p.id);
     onSelect(p);
   };
 
@@ -91,7 +109,7 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
   };
 
   return (
-    <div ref={box} className="relative">
+    <div ref={box} className="relative" onMouseEnter={() => hover(true)} onMouseLeave={() => hover(false)}>
       <input ref={input} role="combobox" aria-label={label} aria-expanded={open} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
         value={text} required={required} autoComplete="off" placeholder="Select a product"
@@ -100,7 +118,7 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
         className="w-full border border-gray-300 rounded-md pl-2 pr-12 py-1.5 text-sm bg-white cursor-pointer focus:cursor-text focus:outline-none focus:ring-1 focus:ring-brand-400" />
       {chosen && text === chosen && !required && (
         <button type="button" aria-label="Clear the product" tabIndex={-1}
-          onClick={() => { setChosen(""); setText(""); input.current?.focus(); }}
+          onClick={() => { setChosen(""); setText(""); setChosenId(undefined); input.current?.focus(); }}
           className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-sm px-1">×</button>
       )}
       <button type="button" aria-label="Show the product list" tabIndex={-1}
@@ -111,7 +129,10 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
       {open && (
         <div className="absolute z-30 mt-1 w-[40rem] max-w-[90vw] bg-white border border-gray-200 rounded-md shadow-lg text-sm erp-pop-in">
           <div className="flex items-center gap-3 px-3 py-1.5 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            <span className="flex-1">Product</span>
+            <span className="flex-1 flex items-center gap-3">Product
+              <button type="button" tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={() => { setOpen(false); setText(chosen); setAdding(true); }}
+                className="normal-case tracking-normal font-medium text-xs text-brand-700 hover:text-brand-900">+ Add a new item</button>
+            </span>
             {mode === "sale" ? <>
               <span className="w-20 text-right shrink-0">Available</span><span className="w-20 text-right shrink-0">Price</span>
             </> : <>
@@ -124,14 +145,11 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
             {rows.map((p, i) => (
               <li key={p.id} id={`${listId}-${i}`} role="option" aria-selected={i === active}>
                 <button type="button" tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={() => pick(p)} onMouseEnter={() => setActive(i)}
-                  className={`w-full text-left px-3 py-1 flex items-center gap-3 ${i === active ? "bg-brand-50" : ""}`}>
-                  {/* Name first, the SKU small under it */}
-                  <span className="flex-1 min-w-0">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-gray-800">{p.name}</span>
-                      {p.supplierProduct && <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">Supplier&apos;s</span>}
-                    </span>
-                    <span data-testid="picker-sku" className="block font-mono text-[11px] text-gray-400 truncate">{p.sku}</span>
+                  className={`w-full text-left px-3 py-1.5 flex items-start gap-3 ${i === active ? "bg-brand-50" : ""}`}>
+                  {/* Like Cin7: "SKU: full name", the SKU in bold, a long name on two lines */}
+                  <span className="flex-1 min-w-0 line-clamp-2 text-gray-800 leading-snug" title={`${p.sku}: ${p.name}`}>
+                    <b data-testid="picker-sku" className="font-semibold text-gray-900">{p.sku}</b>: {p.name}
+                    {p.supplierProduct && <span className="ml-2 align-middle text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">Supplier&apos;s</span>}
                   </span>
                   {mode === "sale" ? <>
                     <span data-testid="picker-available" className={`w-20 text-right text-xs tabular-nums shrink-0 ${Number(p.available) > 0 ? "text-emerald-700" : "text-red-600"}`}>{qty(p.available)}</span>
@@ -150,6 +168,54 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
           )}
         </div>
       )}
+      {info && !open && !adding && chosenId != null && text === chosen && <ProductInfo productId={chosenId} warehouseId={warehouseId} />}
+      {adding && (
+        <NewProductDialog initialText={filter} supplierId={mode === "purchase" ? supplierId : undefined} onClose={() => setAdding(false)}
+          onCreated={p => { setAdding(false); pick({ id: p.id, sku: p.sku, name: p.name, unit: p.unit, sellPrice: p.sellPrice, costPrice: p.costPrice,
+            onHand: 0, available: 0, onOrder: 0, supplierProduct: mode === "purchase" && supplierId != null }); }} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Cin7's information box on an order line's product: product info (category, unit, brand, average cost) and stock
+ * (available and on order in the order's warehouse, available elsewhere, next delivery). Read when it is first shown.
+ */
+function ProductInfo({ productId, warehouseId }: { productId: number; warehouseId?: number }) {
+  const { data: product } = useQuery<Product>({ queryKey: ["product", productId], queryFn: () => getProduct(productId), staleTime: 60_000 });
+  const { data: stock } = useQuery<ProductStock>({ queryKey: ["product-stock", productId], queryFn: () => getProductStock(productId), staleTime: 30_000 });
+  if (!product) return null;
+  const here = warehouseId != null ? stock?.warehouses.find(w => w.warehouseId === warehouseId) : undefined;
+  const elsewhere = stock ? Number(stock.available) - Number(here?.available ?? 0) : undefined;
+  // Average cost of the stock held (FIFO layers) when the role may see stock value, else the product's cost price
+  const average = stock && stock.stockValue != null && Number(stock.onHand) > 0 ? Number(stock.stockValue) / Number(stock.onHand) : product.costPrice;
+  const next = stock?.onOrder.map(o => o.requiredBy).filter((d): d is string => !!d).sort()[0];
+  const row = (label: string, value: React.ReactNode) => (
+    <div className="flex justify-between gap-4 py-1 border-b border-white/10"><dt className="text-gray-300">{label}</dt><dd className="text-right tabular-nums">{value ?? "—"}</dd></div>
+  );
+  return (
+    <div role="tooltip" data-testid="product-info" className="absolute z-40 left-0 top-full mt-1 w-[30rem] max-w-[90vw] rounded-lg bg-gray-800 text-white text-xs shadow-xl p-3 erp-fade-in pointer-events-none">
+      <p className="font-semibold text-sm pb-2 mb-2 border-b border-white/20">{product.name}</p>
+      <div className="grid grid-cols-2 gap-x-5">
+        <dl>
+          <p className="uppercase tracking-wide text-[10px] text-gray-400 mb-0.5">Product info</p>
+          {row("Category", product.categoryName)}
+          {row("Unit of measure", product.unit)}
+          {row("Brand", product.brand)}
+          {row("Average cost", average != null ? formatGBP(average) : undefined)}
+        </dl>
+        <dl>
+          <p className="uppercase tracking-wide text-[10px] text-gray-400 mb-0.5">{here ? `Stock in ${here.warehouseName}` : "Stock"}</p>
+          {row("Available", stock ? qty(here ? here.available : stock.available) : "…")}
+          {row("On order", stock ? qty(stock.onOrderTotal) : "…")}
+          {here && <>
+            <p className="uppercase tracking-wide text-[10px] text-gray-400 mt-1.5 mb-0.5">Stock in all locations</p>
+            {row("Available in other locations", elsewhere != null ? qty(elsewhere) : "…")}
+          </>}
+          {row("Next delivery date", next ? <DateText iso={next} /> : undefined)}
+        </dl>
+      </div>
     </div>
   );
 }
