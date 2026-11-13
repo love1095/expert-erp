@@ -27,9 +27,9 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
     // customer, customer reference or channel order (e.g. Shopify #1004)
     @Query("SELECT so FROM SaleOrder so LEFT JOIN so.customer c WHERE (:customerId IS NULL OR c.id = :customerId) " +
            "AND (:status IS NULL OR so.status = :status) " +
-           "AND (:q = '' OR LOWER(COALESCE(so.orderNumber, '')) LIKE :q OR LOWER(COALESCE(so.customerName, '')) LIKE :q " +
-           "  OR LOWER(COALESCE(c.name, '')) LIKE :q OR LOWER(COALESCE(so.customerReference, '')) LIKE :q " +
-           "  OR LOWER(COALESCE(so.externalReference, '')) LIKE :q)")
+           "AND (:q = '' OR LOWER(so.orderNumber) LIKE :q OR LOWER(so.customerName) LIKE :q " +
+           "  OR LOWER(c.name) LIKE :q OR LOWER(so.customerReference) LIKE :q " +
+           "  OR LOWER(so.externalReference) LIKE :q)")
     Page<SaleOrder> search(@Param("customerId") Long customerId, @Param("status") SaleOrder.Status status,
                            @Param("q") String q, Pageable pageable);
 

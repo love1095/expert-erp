@@ -39,7 +39,7 @@ public class SearchService {
             hits.addAll(jdbc.query("""
                     SELECT id, order_number, customer_name, customer_reference, external_reference, status
                     FROM sale_orders WHERE tenant_id = ? AND (lower(order_number) LIKE ? OR lower(customer_name) LIKE ?
-                      OR lower(coalesce(customer_reference, '')) LIKE ? OR lower(coalesce(external_reference, '')) LIKE ?)
+                      OR lower(customer_reference) LIKE ? OR lower(external_reference) LIKE ?)
                     ORDER BY (lower(order_number) = ?) DESC, (lower(order_number) LIKE ?) DESC, id DESC LIMIT ?""",
                     (rs, n) -> new Hit("SALE_ORDER", rs.getLong(1), rs.getString(2), join(rs.getString(3),
                             rs.getString(4) == null ? null : "Ref " + rs.getString(4),
@@ -50,7 +50,7 @@ public class SearchService {
         if (sales || purchases) {
             hits.addAll(jdbc.query("""
                     SELECT id, invoice_number, party_name, type, kind, status, total_amount
-                    FROM invoices WHERE tenant_id = ? AND type IN (?, ?) AND (lower(coalesce(invoice_number, '')) LIKE ? OR lower(coalesce(party_name, '')) LIKE ?)
+                    FROM invoices WHERE tenant_id = ? AND type IN (?, ?) AND (lower(invoice_number) LIKE ? OR lower(party_name) LIKE ?)
                     ORDER BY (lower(coalesce(invoice_number, '')) = ?) DESC, (lower(coalesce(invoice_number, '')) LIKE ?) DESC, id DESC LIMIT ?""",
                     (rs, n) -> {
                         boolean sale = "SALES".equals(rs.getString(4)), credit = "CREDIT_NOTE".equals(rs.getString(5));
@@ -63,15 +63,15 @@ public class SearchService {
         if (purchases) {
             hits.addAll(jdbc.query("""
                     SELECT id, order_number, supplier_name, supplier_reference, status
-                    FROM purchase_orders WHERE tenant_id = ? AND (lower(coalesce(order_number, '')) LIKE ? OR lower(coalesce(supplier_name, '')) LIKE ?
-                      OR lower(coalesce(supplier_reference, '')) LIKE ?)
+                    FROM purchase_orders WHERE tenant_id = ? AND (lower(order_number) LIKE ? OR lower(supplier_name) LIKE ?
+                      OR lower(supplier_reference) LIKE ?)
                     ORDER BY (lower(coalesce(order_number, '')) = ?) DESC, (lower(coalesce(order_number, '')) LIKE ?) DESC, id DESC LIMIT ?""",
                     (rs, n) -> new Hit("PURCHASE_ORDER", rs.getLong(1), rs.getString(2), join(rs.getString(3),
                             rs.getString(4) == null ? null : "Ref " + rs.getString(4), cap(rs.getString(5)))),
                     t, like, like, like, exact, exact + "%", PER_KIND));
             hits.addAll(jdbc.query("""
                     SELECT id, name, contact_name, email FROM suppliers WHERE tenant_id = ?
-                      AND (lower(name) LIKE ? OR lower(coalesce(contact_name, '')) LIKE ? OR lower(coalesce(email, '')) LIKE ?)
+                      AND (lower(name) LIKE ? OR lower(contact_name) LIKE ? OR lower(email) LIKE ?)
                     ORDER BY (lower(name) = ?) DESC, (lower(name) LIKE ?) DESC, lower(name) LIMIT ?""",
                     (rs, n) -> new Hit("SUPPLIER", rs.getLong(1), rs.getString(2), join(rs.getString(3), rs.getString(4))),
                     t, like, like, like, exact, exact + "%", PER_KIND));
@@ -86,7 +86,7 @@ public class SearchService {
         if (Permission.current(Permission.PRODUCT_VIEW)) {
             hits.addAll(jdbc.query("""
                     SELECT id, sku, name, barcode, status FROM products WHERE tenant_id = ?
-                      AND (lower(sku) LIKE ? OR lower(name) LIKE ? OR lower(coalesce(barcode, '')) LIKE ? OR lower(coalesce(supplier_product_code, '')) LIKE ?)
+                      AND (lower(sku) LIKE ? OR lower(name) LIKE ? OR lower(barcode) LIKE ? OR lower(supplier_product_code) LIKE ?)
                     ORDER BY (lower(sku) = ? OR lower(coalesce(barcode, '')) = ?) DESC, (lower(sku) LIKE ?) DESC, (status = 'ACTIVE') DESC, lower(sku) LIMIT ?""",
                     (rs, n) -> new Hit("PRODUCT", rs.getLong(1), rs.getString(2), join(rs.getString(3),
                             "DEPRECATED".equals(rs.getString(5)) ? "Deprecated" : null)),

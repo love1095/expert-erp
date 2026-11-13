@@ -24,9 +24,9 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     @Query("SELECT c FROM Customer c WHERE " +
            "LOWER(c.name) LIKE LOWER(CONCAT('%', :q, '%')) OR EXISTS (" +
            "  SELECT 1 FROM CustomerContact cc WHERE cc.customer = c AND (" +
-           "    LOWER(COALESCE(cc.name, '')) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           "    LOWER(COALESCE(cc.email, '')) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           "    COALESCE(cc.phone, '') LIKE CONCAT('%', :q, '%') OR " +
-           "    COALESCE(cc.mobilePhone, '') LIKE CONCAT('%', :q, '%')))")
+           "    LOWER(cc.name) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "    LOWER(cc.email) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "    cc.phone LIKE CONCAT('%', :q, '%') OR " +
+           "    cc.mobilePhone LIKE CONCAT('%', :q, '%')))")
     Page<Customer> search(@Param("q") String q, Pageable pageable);
 }

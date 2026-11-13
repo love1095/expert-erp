@@ -15,8 +15,8 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long> {
 
     @Query("SELECT s FROM Supplier s WHERE " +
            "LOWER(s.name) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           "LOWER(COALESCE(s.email, '')) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           "LOWER(COALESCE(s.contactName, '')) LIKE LOWER(CONCAT('%', :q, '%'))")
+           "LOWER(s.email) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(s.contactName) LIKE LOWER(CONCAT('%', :q, '%'))")
     Page<Supplier> search(@Param("q") String q, Pageable pageable);
     java.util.Optional<com.experterp.backend.entity.Supplier> findFirstByNameIgnoreCaseOrderByIdAsc(String name);
 }

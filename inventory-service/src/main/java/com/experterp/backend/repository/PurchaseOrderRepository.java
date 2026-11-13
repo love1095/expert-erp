@@ -25,7 +25,7 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
     // Optional filters: status and text (q = lower-case LIKE pattern, '' = any) on the supplier, PO number or supplier reference
     @Query("SELECT po FROM PurchaseOrder po WHERE (:status IS NULL OR po.status = :status) " +
            "AND (:q = '' OR LOWER(po.supplierName) LIKE :q OR LOWER(po.orderNumber) LIKE :q " +
-           "OR LOWER(COALESCE(po.supplierReference, '')) LIKE :q)")
+           "OR LOWER(po.supplierReference) LIKE :q)")
     Page<PurchaseOrder> search(@Param("status") PurchaseOrder.Status status, @Param("q") String q, Pageable pageable);
 
     // On order per product + warehouse (Cin7's "On order" / "Next delivery"): what ordered POs still have to bring in,

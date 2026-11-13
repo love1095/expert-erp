@@ -13,14 +13,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     // Optional filters: type, status and text (q = lower-case LIKE pattern, '' = any) on the number or party
     @Query("SELECT i FROM Invoice i WHERE (:type IS NULL OR i.type = :type) AND (:status IS NULL OR i.status = :status) " +
-           "AND (:q = '' OR LOWER(COALESCE(i.invoiceNumber, '')) LIKE :q OR LOWER(COALESCE(i.partyName, '')) LIKE :q)")
+           "AND (:q = '' OR LOWER(i.invoiceNumber) LIKE :q OR LOWER(i.partyName) LIKE :q)")
     Page<Invoice> search(@Param("type") Invoice.InvoiceType type, @Param("status") Invoice.InvoiceStatus status,
                          @Param("q") String q, Pageable pageable);
 
     // Issued and past their due date (awaiting payment, late)
     @Query("SELECT i FROM Invoice i WHERE (:type IS NULL OR i.type = :type) AND i.status = com.experterp.backend.entity.Invoice.InvoiceStatus.ISSUED " +
            "AND i.dueDate < :today " +
-           "AND (:q = '' OR LOWER(COALESCE(i.invoiceNumber, '')) LIKE :q OR LOWER(COALESCE(i.partyName, '')) LIKE :q)")
+           "AND (:q = '' OR LOWER(i.invoiceNumber) LIKE :q OR LOWER(i.partyName) LIKE :q)")
     Page<Invoice> searchOverdue(@Param("type") Invoice.InvoiceType type, @Param("today") java.time.LocalDate today,
                                 @Param("q") String q, Pageable pageable);
 

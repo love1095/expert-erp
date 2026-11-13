@@ -40,7 +40,7 @@ Each finding records:
   2. One Flyway migration with trigram indexes for the missing columns.
   3. A backend test that runs EXPLAIN on each search and fails if an index isn't used.
 - **Severity**: Major (speed with big data)
-- **Status**: Found
+- **Status**: Fixed 2026-11-13 (V67, SearchIndexTest)
 
 ## R2 "New" opens a form on top of the list, not on its own page like Cin7 (rule D1)
 
