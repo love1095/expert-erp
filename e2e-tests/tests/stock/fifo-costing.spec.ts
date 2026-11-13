@@ -1,4 +1,4 @@
-import { test, expect, clickAndConfirm } from '../../fixtures/test';
+import { test, expect, clickAndConfirm, pickProduct } from '../../fixtures/test';
 
 // Phase E5: FIFO cost layers (docs/phase-e-purchasing.md, docs/business-rules.md section 2)
 test('FIFO-001 stock in at two costs, shipping 15 costs the oldest first: £80, the rest is worth £30', { tag: ['@P0', '@stock'] },
@@ -8,7 +8,7 @@ test('FIFO-001 stock in at two costs, shipping 15 costs the oldest first: £80, 
     // 10 at £5 recorded on screen with its unit cost, then 10 at £6
     await page.goto('/stock-movements');
     await page.getByRole('button', { name: '+ Record Movement' }).click();
-    await page.getByLabel('Product').selectOption(String(product.id));
+    await pickProduct(page, 'Product', product);
     await page.getByLabel('Warehouse').selectOption(String(warehouses.main.id));
     await page.getByLabel('Type').selectOption('ADJUSTMENT_IN');
     await page.getByLabel('Quantity').fill('10');

@@ -1,8 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { createTransfer, getProducts, getWarehouses, getCategories } from "@/lib/api";
-import { Product, Warehouse, StockMovement, Category } from "@/types";
+import { createTransfer, getWarehouses } from "@/lib/api";
+import ProductPicker from "@/app/sale-orders/product-picker";
+import { Warehouse, StockMovement } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -11,13 +12,12 @@ export default function StockTransferPage() {
   const ask = useConfirm();
   const qc = useQueryClient();
 
-  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  // Review R5: the product is searched as you type (20 at a time), not picked from a list of every product
+  const [pickerKey, setPickerKey] = useState(0);
   const [form, setForm] = useState({ productId: "", fromWarehouseId: "", toWarehouseId: "", quantity: "", notes: "" });
   const [result, setResult] = useState<StockMovement[] | null>(null);
   const [error, setError] = useState("");
 
-  const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["categories"], queryFn: getCategories });
-  const { data: products = [] } = useQuery<Product[]>({ queryKey: ["products"], queryFn: () => getProducts() });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
 
   const mutation = useMutation({
@@ -28,6 +28,7 @@ export default function StockTransferPage() {
       qc.invalidateQueries({ queryKey: ["products"] });
       setResult(data);
       setForm({ productId: "", fromWarehouseId: "", toWarehouseId: "", quantity: "", notes: "" });
+      setPickerKey(k => k + 1);
       setError("");
     },
     onError: (e: any) => setError(e.response?.data?.error || "Transfer failed"),
@@ -47,10 +48,6 @@ export default function StockTransferPage() {
     });
   };
 
-  const filteredProducts = categoryId
-    ? products.filter((p) => p.categoryId === categoryId)
-    : products;
-
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl font-bold mb-1">Stock Transfer</h1>
@@ -66,33 +63,9 @@ export default function StockTransferPage() {
         )}
 
         <div>
-          <label htmlFor="stock-transfer-filter-by-category" className="block text-xs font-medium text-gray-600 mb-1">Filter by Category</label>
-          <select id="stock-transfer-filter-by-category"
-            value={categoryId ?? ""}
-            onChange={(e) => {
-              setCategoryId(e.target.value ? Number(e.target.value) : undefined);
-              setForm({ ...form, productId: "" });
-            }}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
-          >
-            <option value="">All categories</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="stock-transfer-product" className="block text-xs font-medium text-gray-600 mb-1">Product *</label>
-          <select id="stock-transfer-product"
-            value={form.productId}
-            onChange={(e) => setForm({ ...form, productId: e.target.value })}
-            required
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
-          >
-            <option value="">Select product</option>
-            {filteredProducts.map((p) => (
-              <option key={p.id} value={p.id}>{p.sku} — {p.name} (stock: {Number(p.totalStock).toLocaleString()})</option>
-            ))}
-          </select>
+          <p className="block text-xs font-medium text-gray-600 mb-1">Product *</p>
+          <ProductPicker key={pickerKey} label="Product" mode="purchase" allowAdd={false} placeholder="Type a SKU, name or barcode"
+            onSelect={p => setForm(f => ({ ...f, productId: String(p.id) }))} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

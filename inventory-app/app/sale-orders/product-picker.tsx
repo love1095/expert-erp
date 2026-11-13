@@ -19,10 +19,15 @@ const qty = (n: number) => Number(n).toLocaleString();
  * item" at the top adds a product without leaving the order; resting the mouse on a chosen product shows its details
  * and stock (in the order's warehouse when one is chosen).
  */
-export default function ProductPicker({ label, selected, onSelect, mode = "sale", supplierId, warehouseId, required = true }: {
+export default function ProductPicker({ label, selected, onSelect, onClear, mode = "sale", supplierId, warehouseId, required = true, allowAdd = true, placeholder = "Select a product" }: {
   label: string;
   selected?: Pick<Product, "id" | "sku" | "name">;
   onSelect: (p: PickerProduct) => void;
+  // The product was taken out again (only when it is not required)
+  onClear?: () => void;
+  // "+ Add a new item" at the top of the list (not on filters and stock pages)
+  allowAdd?: boolean;
+  placeholder?: string;
   mode?: "sale" | "purchase";
   supplierId?: number;
   // The order's warehouse: the information box shows the stock there first
@@ -112,13 +117,13 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
     <div ref={box} className="relative" onMouseEnter={() => hover(true)} onMouseLeave={() => hover(false)}>
       <input ref={input} role="combobox" aria-label={label} aria-expanded={open} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-        value={text} required={required} autoComplete="off" placeholder="Select a product"
+        value={text} required={required} autoComplete="off" placeholder={placeholder}
         onChange={e => { setText(e.target.value); setOpen(true); }}
         onFocus={e => { setOpen(true); e.currentTarget.select(); }} onClick={() => setOpen(true)} onKeyDown={onKey}
         className="w-full border border-gray-300 rounded-md pl-2 pr-12 py-1.5 text-sm bg-white cursor-pointer focus:cursor-text focus:outline-none focus:ring-1 focus:ring-brand-400" />
       {chosen && text === chosen && !required && (
         <button type="button" aria-label="Clear the product" tabIndex={-1}
-          onClick={() => { setChosen(""); setText(""); setChosenId(undefined); input.current?.focus(); }}
+          onClick={() => { setChosen(""); setText(""); setChosenId(undefined); onClear?.(); input.current?.focus(); }}
           className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-sm px-1">×</button>
       )}
       <button type="button" aria-label="Show the product list" tabIndex={-1}
@@ -130,8 +135,8 @@ export default function ProductPicker({ label, selected, onSelect, mode = "sale"
         <div className="absolute z-30 mt-1 w-[40rem] max-w-[90vw] bg-white border border-gray-200 rounded-md shadow-lg text-sm erp-pop-in">
           <div className="flex items-center gap-3 px-3 py-1.5 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
             <span className="flex-1 flex items-center gap-3">Product
-              <button type="button" tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={() => { setOpen(false); setText(chosen); setAdding(true); }}
-                className="normal-case tracking-normal font-medium text-xs text-brand-700 hover:text-brand-900">+ Add a new item</button>
+              {allowAdd && <button type="button" tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={() => { setOpen(false); setText(chosen); setAdding(true); }}
+                className="normal-case tracking-normal font-medium text-xs text-brand-700 hover:text-brand-900">+ Add a new item</button>}
             </span>
             {mode === "sale" ? <>
               <span className="w-20 text-right shrink-0">Available</span><span className="w-20 text-right shrink-0">Price</span>

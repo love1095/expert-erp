@@ -25,6 +25,15 @@ export async function acceptConfirm(dialog: Locator) {
   await dialog.getByTestId('confirm-ok').click();
 }
 
+/**
+ * Chooses a product in the type-to-search product box (order lines, and since review R5 the stock pages): types the
+ * SKU and clicks its row in the list.
+ */
+export async function pickProduct(scope: Page | Locator, label: string, product: { sku: string }) {
+  await scope.getByLabel(label, { exact: true }).fill(product.sku);
+  await scope.getByRole('listbox', { name: `${label} matches` }).getByRole('button').filter({ hasText: product.sku }).first().click();
+}
+
 export async function logInAs(page: Page, session: Session) {
   // The app keeps its JWT and user profile in localStorage (see inventory-app/lib/auth.ts)
   await page.addInitScript(([token, user]) => {

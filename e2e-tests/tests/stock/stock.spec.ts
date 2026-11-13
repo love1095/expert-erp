@@ -1,4 +1,4 @@
-import { test, expect, clickAndConfirm } from '../../fixtures/test';
+import { test, expect, clickAndConfirm, pickProduct } from '../../fixtures/test';
 
 test.describe('Stock movements', () => {
   test('STK-001 recording an inbound movement increases stock', { tag: ['@P0', '@stock'] }, async ({ page, api, warehouses }) => {
@@ -6,7 +6,7 @@ test.describe('Stock movements', () => {
 
     await page.goto('/stock-movements');
     await page.getByRole('button', { name: '+ Record Movement' }).click();
-    await page.getByLabel('Product').selectOption(String(product.id));
+    await pickProduct(page, 'Product', product);
     await page.getByLabel('Warehouse').selectOption(String(warehouses.main.id));
     await page.getByLabel('Type').selectOption('ADJUSTMENT_IN');
     await page.getByLabel('Quantity').fill('25');
@@ -21,7 +21,7 @@ test.describe('Stock movements', () => {
 
     await page.goto('/stock-movements');
     await page.getByRole('button', { name: '+ Record Movement' }).click();
-    await page.getByLabel('Product').selectOption(String(product.id));
+    await pickProduct(page, 'Product', product);
     await page.getByLabel('Warehouse').selectOption(String(warehouses.main.id));
     await page.getByLabel('Type').selectOption('ADJUSTMENT_OUT');
     await page.getByLabel('Quantity').fill('50');
@@ -36,7 +36,7 @@ test.describe('Stock movements', () => {
     await api.addStock(product, warehouses.main, 30);
 
     await page.goto('/stock-transfer');
-    await page.getByLabel('Product').selectOption(String(product.id));
+    await pickProduct(page, 'Product', product);
     await page.getByLabel('From Warehouse').selectOption(String(warehouses.main.id));
     await page.getByLabel('To Warehouse').selectOption(String(warehouses.second.id));
     await page.getByLabel('Quantity').fill('10');
@@ -110,3 +110,28 @@ test.describe('Stock movements', () => {
       await expect(page.getByTestId(`stock-row-${visor.id}-${warehouses.main.id}`)).toHaveCount(0);
     });
 });
+
+test('STK-020 stock pages search products as you type and never load the whole product list (review R5)', { tag: ['@P2', '@stock'] },
+  async ({ page, api, warehouses }) => {
+    const product = await api.createProduct();
+    await api.addStock(product, warehouses.main, 3);
+    const wholeList: string[] = [];
+    page.on('request', r => { if (r.url().includes('/api/products/options')) wholeList.push(r.url()); });
+
+    // Stock history: the product filter narrows the list, and clearing it brings everything back
+    await page.goto('/stock-history');
+    await pickProduct(page, 'Product', product);
+    await expect(page.getByRole('table')).toContainText(product.sku);
+    await page.getByRole('button', { name: 'Clear the product' }).click();
+    await expect(page.getByLabel('Product', { exact: true })).toHaveValue('');
+
+    await page.goto('/stock-transfer');
+    await pickProduct(page, 'Product', product);
+    await page.goto('/stock-movements');
+    await page.getByRole('button', { name: '+ Record Movement' }).click();
+    await pickProduct(page, 'Product', product);
+    await page.goto('/invoices/new');
+    await pickProduct(page, 'Product for item 1', product);
+
+    expect(wholeList, 'no page asks for every product').toEqual([]);
+  });

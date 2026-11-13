@@ -110,7 +110,7 @@ Each finding records:
 - **Impact**: each of these pages downloads and draws thousands of options before it can be used; with a big catalogue (or several organisations of that size) the pages get slow and the drop-down is hard to use. Speed and ease of use only; data is right.
 - **Proposed fix**: use the same type-to-search product picker as the order lines (server search with `q`, 20 results), on all four pages. Test: the pages no longer call `/products/options` (e2e network check).
 - **Severity**: Major (speed with big data)
-- **Status**: Found, fix in the Inventory page recheck (with S4, which merges two of these pages).
+- **Status**: Fixed 2026-11-13 (type-to-search box on the four pages, e2e STK-020)
 
 ## R6 The whole window scrolls and the app slides off the top (owner's screenshot, 2026-11-09)
 

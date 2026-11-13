@@ -2,8 +2,9 @@
 
 import { Clip } from "@/components/ListToolbar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMovementsPage, createMovement, getProducts, getWarehouses, getCategories } from "@/lib/api";
-import { StockMovement, Product, Warehouse, Category, Page } from "@/types";
+import { getMovementsPage, createMovement, getWarehouses, getCategories } from "@/lib/api";
+import ProductPicker from "@/app/sale-orders/product-picker";
+import { StockMovement, Warehouse, Category, Page } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
@@ -16,7 +17,8 @@ export default function StockMovementsPage() {
 
   const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
-  const [formCategoryId, setFormCategoryId] = useState<number | undefined>(undefined);
+  // Review R5: the product is searched as you type (20 at a time), not picked from a list of every product
+  const [pickerKey, setPickerKey] = useState(0);
   const [form, setForm] = useState({ productId: "", warehouseId: "", quantity: "", type: "ADJUSTMENT_IN", unitCost: "", notes: "" });
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
@@ -26,7 +28,6 @@ export default function StockMovementsPage() {
     queryKey: ["movements-page", filterCategoryId, page],
     queryFn: () => getMovementsPage({ categoryId: filterCategoryId, page, size: 20 }),
   });
-  const { data: products = [] } = useQuery<Product[]>({ queryKey: ["products"], queryFn: () => getProducts() });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
 
   const movements = data?.content ?? [];
@@ -41,8 +42,8 @@ export default function StockMovementsPage() {
       qc.invalidateQueries({ queryKey: ["products-page"] });
       qc.invalidateQueries({ queryKey: ["stock-overview"] });
       setShowForm(false);
-      setFormCategoryId(undefined);
       setForm({ productId: "", warehouseId: "", quantity: "", type: "ADJUSTMENT_IN", unitCost: "", notes: "" });
+      setPickerKey(k => k + 1);
       setError("");
     },
     onError: (e: any) => setError(e.response?.data?.error || "Failed to record movement"),
@@ -62,10 +63,6 @@ export default function StockMovementsPage() {
     });
   };
 
-  const formProducts = formCategoryId
-    ? products.filter((p) => p.categoryId === formCategoryId)
-    : products;
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -84,31 +81,9 @@ export default function StockMovementsPage() {
           {error && <p className="col-span-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
           <div>
-            <label htmlFor="stock-movements-filter-by-category" className="block text-xs font-medium text-gray-600 mb-1">Filter by Category</label>
-            <select id="stock-movements-filter-by-category"
-              value={formCategoryId ?? ""}
-              onChange={(e) => {
-                setFormCategoryId(e.target.value ? Number(e.target.value) : undefined);
-                setForm({ ...form, productId: "" });
-              }}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            >
-              <option value="">All categories</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="stock-movements-product" className="block text-xs font-medium text-gray-600 mb-1">Product *</label>
-            <select id="stock-movements-product"
-              value={form.productId}
-              onChange={(e) => setForm({ ...form, productId: e.target.value })}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            >
-              <option value="">Select product</option>
-              {formProducts.map((p) => <option key={p.id} value={p.id}>{p.sku} — {p.name}</option>)}
-            </select>
+            <p className="block text-xs font-medium text-gray-600 mb-1">Product *</p>
+            <ProductPicker key={pickerKey} label="Product" mode="purchase" allowAdd={false} placeholder="Type a SKU, name or barcode"
+              onSelect={p => setForm(f => ({ ...f, productId: String(p.id) }))} />
           </div>
 
           <div>

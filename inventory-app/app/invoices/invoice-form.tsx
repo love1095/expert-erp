@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createInvoice, getProducts, getSaleOrders, getPurchaseOrders } from "@/lib/api";
-import { Invoice, InvoiceType, Page, Product, SaleOrder, PurchaseOrder } from "@/types";
+import { createInvoice, getSaleOrders, getPurchaseOrders } from "@/lib/api";
+import ProductPicker from "@/app/sale-orders/product-picker";
+import { Invoice, InvoiceType, Page, SaleOrder, PurchaseOrder } from "@/types";
 import { useToast } from "@/components/ui/Toast";
 import { todayIso } from "@/lib/dates";
 
@@ -25,7 +26,6 @@ export default function InvoiceForm({ onCreated, onCancel }: { onCreated: (inv: 
   const [items, setItems]             = useState([emptyItem()]);
   const [formError, setFormError]     = useState("");
 
-  const { data: products = [] } = useQuery<Product[]>({ queryKey: ["products"], queryFn: () => getProducts() });
   const { data: salesOrders } = useQuery<Page<SaleOrder>>({
     queryKey: ["sale-orders-all"],
     queryFn:  () => getSaleOrders({ size: 9999 }),
@@ -163,11 +163,9 @@ export default function InvoiceForm({ onCreated, onCancel }: { onCreated: (inv: 
           {items.map((it, i) => (
             <div key={i} className="grid grid-cols-12 gap-2 items-start">
               <div className="col-span-3">
-                <select value={it.productId} onChange={e => updateItem(i, "productId", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs">
-                  <option value="">— no product —</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                {/* Review R5: searched as you type; optional (a line may be a description only) */}
+                <ProductPicker label={`Product for item ${i + 1}`} required={false} allowAdd={false} mode={formType === "PURCHASE" ? "purchase" : "sale"}
+                  placeholder="No product" onSelect={p => updateItem(i, "productId", String(p.id))} onClear={() => updateItem(i, "productId", "")} />
               </div>
               <div className="col-span-4">
                 <input value={it.description} onChange={e => updateItem(i, "description", e.target.value)}

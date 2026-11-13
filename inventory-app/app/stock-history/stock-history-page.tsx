@@ -2,8 +2,9 @@
 
 import { Clip } from "@/components/ListToolbar";
 import { useQuery } from "@tanstack/react-query";
-import { getMovementsPage, getProducts, getWarehouses, getCategories, exportMovementsCsv } from "@/lib/api";
-import { StockMovement, Product, Warehouse, Category, Page } from "@/types";
+import { getMovementsPage, getWarehouses, getCategories, exportMovementsCsv } from "@/lib/api";
+import ProductPicker from "@/app/sale-orders/product-picker";
+import { StockMovement, Warehouse, Category, Page } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
@@ -26,7 +27,6 @@ export default function StockHistoryPage() {
   const [page, setPage] = useState(0);
 
   const { data: categories = [] } = useQuery<Category[]>({ queryKey: ["categories"], queryFn: getCategories });
-  const { data: products = [] }   = useQuery<Product[]>({ queryKey: ["products"], queryFn: () => getProducts() });
   const { data: warehouses = [] } = useQuery<Warehouse[]>({ queryKey: ["warehouses"], queryFn: getWarehouses });
 
   const { data, isLoading } = useQuery<Page<StockMovement>>({
@@ -43,10 +43,6 @@ export default function StockHistoryPage() {
   const movements = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements;
-
-  const filteredProducts = categoryId
-    ? products.filter((p) => p.categoryId === Number(categoryId))
-    : products;
 
   const resetPage = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLSelectElement>) => {
     setter(e.target.value);
@@ -87,14 +83,11 @@ export default function StockHistoryPage() {
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
 
-        <select
-          value={productId}
-          onChange={resetPage(setProductId)}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 w-64"
-        >
-          <option value="">All products</option>
-          {filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.sku} — {p.name}</option>)}
-        </select>
+        {/* Review R5: searched as you type, not a list of every product */}
+        <div className="w-72">
+          <ProductPicker label="Product" required={false} allowAdd={false} mode="purchase" placeholder="All products"
+            onSelect={p => { setProductId(String(p.id)); setPage(0); }} onClear={() => { setProductId(""); setPage(0); }} />
+        </div>
 
         <select
           value={warehouseId}
