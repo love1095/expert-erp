@@ -108,7 +108,7 @@ function Receive() {
       <p className="font-medium">{po?.orderNumber} <span className="text-gray-500 font-normal">{po?.supplierName}</span></p>
       {/* Blind receipt: what was ordered is not shown, the warehouse counts what arrived */}
       {po?.blindReceipt && <p className="text-xs text-gray-500">Blind receipt: scan everything that arrived</p>}
-      <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (code.trim()) scan.mutate(code.trim()); }}>
+      <form data-confirm="none" className="flex gap-2" onSubmit={e => { e.preventDefault(); if (code.trim()) scan.mutate(code.trim()); }}>
         <input ref={box} autoFocus className="border rounded px-3 py-3 flex-1 text-base" placeholder="Scan barcode or type SKU" aria-label="Scan"
                value={code} onChange={e => setCode(e.target.value)} />
         <button className={BTN_SECONDARY} disabled={!po || scan.isPending}>Add</button>

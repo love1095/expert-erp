@@ -60,7 +60,7 @@ export function ComponentsSection({ productId }: { productId: number }) {
           <input className="border border-gray-300 rounded-md px-2 py-1.5" placeholder="Component SKU or barcode" aria-label="Component code" value={code}
                  onChange={e => setCode(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (code.trim()) add.mutate(); } }} />
           <button className={BTN_SECONDARY} disabled={!code.trim()} onClick={() => add.mutate()}>Add component</button>
-          <button className={BTN_PRIMARY} disabled={save.isPending || rows.length === 0} onClick={() => save.mutate()}>Save components</button>
+          <button data-confirm-save className={BTN_PRIMARY} disabled={save.isPending || rows.length === 0} onClick={() => save.mutate()}>Save components</button>
           {msg && <span role="status" className={msg.ok ? "text-green-700" : "text-red-700"}>{msg.text}</span>}
         </div>}
       </Card>

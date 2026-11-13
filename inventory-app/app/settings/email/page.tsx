@@ -98,7 +98,7 @@ function TemplateForm({ t, disabled, onDone }: { t: MailTemplate; disabled: bool
         <textarea aria-label="Template message" rows={10} className={INPUT} disabled={disabled} value={body} onChange={e => setBody(e.target.value)} /></label>
       <p className="text-xs text-gray-500">Placeholders: {"{{customer}} {{supplier}} {{number}} {{amount}} {{amount_due}} {{due_date}} {{date}} {{reference}} {{order_number}} {{invoices}} {{balance}} {{company}} {{carrier}} {{tracking}} {{tracking_url}}"}</p>
       {!disabled && <div className="flex items-center gap-2">
-        <button className={BTN_PRIMARY} onClick={() => save.mutate()}>Save</button>
+        <button data-confirm-save className={BTN_PRIMARY} onClick={() => save.mutate()}>Save</button>
         {t.custom && <button className={BTN_SECONDARY} onClick={async () => { if (await ask({ title: "Go back to the standard wording?", message: "Your own wording for this e-mail is removed.", action: "Use standard", danger: true })) reset.mutate(); }}>Use the standard wording</button>}
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}
       </div>}
@@ -142,7 +142,7 @@ function SettingsForm({ initial }: { initial: MailSettings }) {
       {field("smtpUsername", "SMTP username")}
       {field("smtpPassword", initial.smtpPasswordSet ? "SMTP password (kept; type to replace)" : "SMTP password", "password")}
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={!isAdmin} checked={s.smtpStartTls} onChange={e => setS({ ...s, smtpStartTls: e.target.checked })} /> STARTTLS</label>
-      {isAdmin && <div className="flex items-center gap-2"><button className={BTN_PRIMARY} onClick={() => save.mutate()}>Save</button>
+      {isAdmin && <div className="flex items-center gap-2"><button data-confirm-save className={BTN_PRIMARY} onClick={() => save.mutate()}>Save</button>
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}</div>}
     </section>
   );

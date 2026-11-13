@@ -56,7 +56,7 @@ export default function LoginPage() {
   if (prompt) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <form onSubmit={submitCode} className="w-full max-w-sm bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-4" data-testid="two-factor">
+        <form data-confirm="none" onSubmit={submitCode} className="w-full max-w-sm bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-4" data-testid="two-factor">
           <h1 className="text-lg font-bold">{prompt.step === "SETUP" ? "Set up two-step sign-in" : "Two-step sign-in"}</h1>
           {prompt.step === "SETUP" ? (
             <div className="text-sm text-gray-600 space-y-2">
@@ -104,7 +104,7 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm mt-1">Sign in to continue</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-5">
+        <form data-confirm="none" onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-5">
           {error && (
             <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>
           )}

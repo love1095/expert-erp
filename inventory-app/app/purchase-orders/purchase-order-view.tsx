@@ -286,7 +286,7 @@ export default function PurchaseOrderView({ orderId }: { orderId: number }) {
           </> },
         ]} />
 
-        <form onSubmit={submitReceipt}>
+        <form data-confirm="own" onSubmit={submitReceipt}>
         <Card title="Products" flush
           right={receiving ? <span className="text-xs font-semibold text-gray-900">Receiving: enter what arrived</span> : undefined}>
           <div className="overflow-x-auto">

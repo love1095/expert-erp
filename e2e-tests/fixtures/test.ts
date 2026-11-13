@@ -18,6 +18,13 @@ type Fixtures = {
   warehouses: { main: Warehouse; second: Warehouse };
 };
 
+/** Presses the pop-up's action button, typing a reason first when it asks for one (R7: reasons in the pop-up). */
+export async function acceptConfirm(dialog: Locator) {
+  const reason = dialog.locator('textarea');
+  if (await reason.count()) await reason.fill('E2E reason');
+  await dialog.getByTestId('confirm-ok').click();
+}
+
 export async function logInAs(page: Page, session: Session) {
   // The app keeps its JWT and user profile in localStorage (see inventory-app/lib/auth.ts)
   await page.addInitScript(([token, user]) => {
@@ -34,9 +41,9 @@ export async function clickAndConfirm(page: Page, button: Locator) {
   const dialog = page.getByTestId('confirm-dialog');
   await page.removeLocatorHandler(dialog);
   await button.click();
-  await dialog.getByTestId('confirm-ok').click();
+  await acceptConfirm(dialog);
   await expect(dialog).toHaveCount(0);
-  await page.addLocatorHandler(dialog, d => d.getByTestId('confirm-ok').click());
+  await page.addLocatorHandler(dialog, acceptConfirm);
 }
 
 export const test = base.extend<Fixtures>({
@@ -67,7 +74,7 @@ export const test = base.extend<Fixtures>({
     if (loggedIn) await logInAs(page, session);
     page.on('dialog', dialog => dialog.accept());
     // "Ask before doing" (R7): whenever the pop-up is open before a step, press its action button
-    if (autoConfirm) await page.addLocatorHandler(page.getByTestId('confirm-dialog'), dialog => dialog.getByTestId('confirm-ok').click());
+    if (autoConfirm) await page.addLocatorHandler(page.getByTestId('confirm-dialog'), acceptConfirm);
     await use(page);
   },
 });

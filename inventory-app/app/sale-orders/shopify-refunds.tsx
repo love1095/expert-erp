@@ -6,7 +6,7 @@ import { getShopifyRefunds, applyShopifyRefund, dismissShopifyRefund } from "@/l
 import { ShopifyRefund } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import { formatGBP } from "@/lib/currency";
-import { useConfirm } from "@/components/ConfirmDialog";
+import { useAskReason, useConfirm } from "@/components/ConfirmDialog";
 
 function errorText(e: unknown) {
   return (e as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ?? "Something went wrong";
@@ -22,6 +22,7 @@ const RESTOCK_LABEL: Record<string, string> = {
  */
 function Refund({ orderId, refund }: { orderId: number; refund: ShopifyRefund }) {
   const ask = useConfirm();
+  const askReason = useAskReason();
   const qc = useQueryClient();
   const [restock, setRestock] = useState<number[]>(
     refund.lines.filter(l => l.restockType === "return" && l.saleOrderLineId != null).map(l => l.saleOrderLineId as number));
@@ -75,7 +76,7 @@ function Refund({ orderId, refund }: { orderId: number; refund: ShopifyRefund })
             {apply.isPending ? "Applying..." : "Apply in the ERP"}
           </button>
           <button type="button" disabled={dismiss.isPending}
-            onClick={() => { const reason = window.prompt("Why does this refund need nothing in the ERP?"); if (reason) dismiss.mutate(reason); }}
+            onClick={async () => { const reason = await askReason({ title: "Dismiss this Shopify refund?", message: "Nothing is changed in the ERP for it.", reasonLabel: "Why does this refund need nothing in the ERP?", action: "Dismiss" }); if (reason) dismiss.mutate(reason); }}
             className="text-xs text-gray-600 hover:underline">Dismiss</button>
           <span className="text-[11px] text-amber-700">Invoiced items get a credit note; items not shipped are cancelled on the order.</span>
         </div>

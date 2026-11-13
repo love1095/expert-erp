@@ -59,4 +59,36 @@ test.describe('Ask before doing', () => {
       await dialog.getByTestId('confirm-ok').click();
       await expect.poll(async () => (await (await api.http.get(`/api/sale-orders/${order.id}`)).json()).status).toBe('CONFIRMED');
     });
+  test('CONF-010 every save asks first (owner\'s choice): Cancel saves nothing, the button\'s words confirm it', { tag: ['@P1', '@layout', '@suppliers'] },
+    async ({ page, api }) => {
+      const name = `Asked Supplier ${Date.now()}`;
+      await page.goto('/suppliers/new');
+      await page.getByLabel('Name *').fill(name);
+      const dialog = page.getByRole('alertdialog');
+
+      await page.getByRole('button', { name: 'Create Supplier' }).click();
+      await expect(dialog).toContainText('Create Supplier?');
+      await dialog.getByTestId('confirm-cancel').click();
+      await expect(dialog).toHaveCount(0);
+      const found = async () => (await (await api.http.get(`/api/suppliers?search=${encodeURIComponent(name)}`)).json()).content
+        .filter((s: { name: string }) => s.name === name).length;
+      expect(await found()).toBe(0);
+
+      await page.getByRole('button', { name: 'Create Supplier' }).click();
+      await expect(dialog.getByTestId('confirm-ok')).toHaveText('Create Supplier');
+      await dialog.getByTestId('confirm-ok').click();
+      await expect.poll(found).toBe(1);
+    });
+
+  test('CONF-011 a reason is asked in the pop-up, not the browser\'s box: putting a customer on hold waits for it', { tag: ['@P1', '@layout', '@customers'] },
+    async ({ page, api }) => {
+      const customer = await api.createCustomer();
+      await page.goto(`/customers/${customer.id}`);
+      const dialog = page.getByRole('alertdialog');
+      await page.getByRole('button', { name: 'Put on hold' }).click();
+      await expect(dialog.getByTestId('confirm-ok')).toBeDisabled();
+      await dialog.getByLabel('Why is the customer put on hold?').fill('Two invoices over 90 days');
+      await dialog.getByTestId('confirm-ok').click();
+      await expect(page.getByText('Two invoices over 90 days')).toBeVisible();
+    });
 });

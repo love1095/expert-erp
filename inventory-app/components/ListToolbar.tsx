@@ -49,7 +49,7 @@ export function ListToolbar({ search, onSearch, placeholder = "Search…", searc
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       {onSearch && (
-        <form role="search" className="relative" onSubmit={e => { e.preventDefault(); onSearch(text.trim()); }}>
+        <form data-confirm="none" role="search" className="relative" onSubmit={e => { e.preventDefault(); onSearch(text.trim()); }}>
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true"
             className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2">
             <circle cx="9" cy="9" r="5.5" /><path d="M13 13l4 4" strokeLinecap="round" />

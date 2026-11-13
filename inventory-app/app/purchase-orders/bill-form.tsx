@@ -57,11 +57,13 @@ export default function BillForm({ po, onSaved, onCancel }: { po: PurchaseOrder;
   const chargesNet = charges.reduce((t, c) => t + Number(c.quantity || 1) * Number(c.unitPrice || 0), 0);
 
   return (
-    <form data-testid="bill-form" onSubmit={async e => {
+    <form data-confirm="own" data-testid="bill-form" onSubmit={async e => {
         e.preventDefault(); setError("");
         const draft = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === "draft";
         // Entering the bill (not a draft) posts what is owed: ask first (review R7)
-        if (!draft && !(await ask({ title: "Enter this supplier bill?", message: "What is owed is posted to the accounts.", action: "Enter bill" }))) return;
+        // A draft asks too (every save asks, owner's choice)
+        if (!(await ask(draft ? { title: "Save the bill as a draft?", message: "Nothing is posted until it is entered.", action: "Save draft" }
+          : { title: "Enter this supplier bill?", message: "What is owed is posted to the accounts.", action: "Enter bill" }))) return;
         save.mutate(draft);
       }}
       className="bg-white border-2 border-brand-600 rounded-lg p-4 space-y-4">

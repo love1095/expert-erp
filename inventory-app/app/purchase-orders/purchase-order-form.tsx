@@ -224,11 +224,13 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   );
 
   return (
-    <form onSubmit={async e => {
+    <form data-confirm="own" onSubmit={async e => {
         e.preventDefault(); setError("");
         const as = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
-        // Placing the order with the supplier asks first (review R7); a plain save does not
-        if (as === "ordered" && !(await ask({ title: "Mark this PO as ordered?", message: "It is placed with the supplier.", action: "Mark as ordered" }))) return;
+        // Every save asks (owner's choice a); placing the order says it goes to the supplier
+        const label = editing ? "Save draft" : "Save as draft";
+        if (!(await ask(as === "ordered" ? { title: "Mark this PO as ordered?", message: "It is placed with the supplier.", action: "Mark as ordered" }
+          : { title: `${label}?`, message: "It can still be changed before it is ordered.", action: label }))) return;
         save.mutate({ ordered: as === "ordered" });
       }}
       className="space-y-5" data-testid="purchase-order-form">

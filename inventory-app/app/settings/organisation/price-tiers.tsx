@@ -69,7 +69,7 @@ export default function PriceTiersCard({ isAdmin }: { isAdmin: boolean }) {
         <div className="mt-3 flex items-center gap-3">
           {next() != null && <button type="button" onClick={() => setRows([...shown, { number: String(next()), name: "", discountPercent: "", customers: 0 }])}
             className="text-sm text-brand-700 hover:underline">+ Add tier</button>}
-          <button type="button" onClick={() => save.mutate()} disabled={save.isPending}
+          <button data-confirm-save="Save price tiers" type="button" onClick={() => save.mutate()} disabled={save.isPending}
             className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {save.isPending ? "Saving..." : "Save price tiers"}
           </button>

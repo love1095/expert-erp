@@ -78,7 +78,7 @@ export function ComplianceSection({ productId }: { productId: number }) {
           <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png" className="hidden" aria-label="Certificate file"
                  onChange={e => { const file = e.target.files?.[0]; if (file) upload.mutate(file); e.target.value = ""; }} />
           <button className={BTN_SECONDARY} onClick={() => fileRef.current?.click()}>{c.certificateFile ? "Replace certificate" : "Attach certificate"}</button>
-          <button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save compliance</button>
+          <button data-confirm-save className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save compliance</button>
         </>}
         {msg && <span role="status" className={msg.ok ? "text-green-700" : "text-red-700"}>{msg.text}</span>}
       </div>

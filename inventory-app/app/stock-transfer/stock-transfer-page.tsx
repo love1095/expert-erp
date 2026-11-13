@@ -56,7 +56,7 @@ export default function StockTransferPage() {
       <h1 className="text-2xl font-bold mb-1">Stock Transfer</h1>
       <p className="text-gray-500 text-sm mb-6">Move stock between warehouses — creates TRANSFER_OUT + TRANSFER_IN atomically</p>
 
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+      <form data-confirm="own" onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
         {result && (

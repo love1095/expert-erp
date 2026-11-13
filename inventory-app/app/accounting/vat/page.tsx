@@ -60,7 +60,7 @@ function Connection({ status, isAdmin }: { status: MtdStatus; isAdmin: boolean }
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col gap-1"><span className="text-xs text-gray-600">VAT number</span>
           <input aria-label="VAT number" className={INPUT} disabled={!isAdmin} value={vrn} onChange={e => setVrn(e.target.value)} placeholder="123456789" /></label>
-        {isAdmin && <button className={BTN_SECONDARY} onClick={() => saveVrn.mutate()}>Save</button>}
+        {isAdmin && <button data-confirm-save className={BTN_SECONDARY} onClick={() => saveVrn.mutate()}>Save</button>}
         {status.connected
           ? <span className="text-green-700">✓ Connected to HMRC{status.connectedAt && ` on ${day(status.connectedAt)}`}{status.connectedBy && ` by ${status.connectedBy}`}</span>
           : <span className="text-gray-500">Not connected</span>}

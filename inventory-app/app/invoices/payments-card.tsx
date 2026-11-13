@@ -10,7 +10,7 @@ import { CustomerCredit, Invoice, OpenCreditNote, PaymentAccount, PaymentMethod,
 import { TrailCard, BTN_PRIMARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
 import { isoDay } from "../customers/statement-card";
-import { useConfirm } from "@/components/ConfirmDialog";
+import { useAskReason, useConfirm } from "@/components/ConfirmDialog";
 
 export const METHOD_LABEL: Record<PaymentMethod, string> = {
   BANK: "Bank", CASH: "Cash", STRIPE: "Card", CARD: "Card", PAYPAL: "PayPal", SHOPIFY: "Shopify",
@@ -29,6 +29,7 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
   onDone: (u: Invoice) => void; onFail: (e: unknown) => void;
 }) {
   const ask = useConfirm();
+  const askReason = useAskReason();
   const { user } = useAuth();
   const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const isCreditNote = inv.kind === "CREDIT_NOTE";
@@ -103,7 +104,7 @@ export default function PaymentsCard({ inv, busy, hidden, onDone, onFail }: {
             <span className="text-emerald-700 font-semibold tabular-nums">{Number(p.amount).toFixed(2)}</span>
             {isManager && p.method !== "SHOPIFY" && inv.status !== "CANCELLED" && (
               <button type="button" title="Void this payment" aria-label={`Void payment ${p.id}`} disabled={working}
-                onClick={() => { const reason = window.prompt("Why is this payment voided?"); if (reason) voidIt.mutate({ paymentId: p.id, reason }); }}
+                onClick={async () => { const reason = await askReason({ title: "Void this payment?", message: "The invoice is owed again by the amount of the payment.", reasonLabel: "Why is this payment voided?", action: "Void payment", danger: true }); if (reason) voidIt.mutate({ paymentId: p.id, reason }); }}
                 className="text-gray-400 hover:text-red-600">✕</button>
             )}
           </span>

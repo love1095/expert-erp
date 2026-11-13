@@ -77,7 +77,7 @@ function SettingsForm({ initial, accounts }: { initial: LedgerSettings; accounts
           ))}
         </div>
       </div>
-      {isAdmin && <div className="flex items-center gap-3"><button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save settings</button>
+      {isAdmin && <div className="flex items-center gap-3"><button data-confirm-save className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save settings</button>
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}</div>}
     </section>
   );
@@ -176,7 +176,7 @@ function PeriodsForm({ initial }: { initial: LedgerPeriods }) {
             <input aria-label="Lock date for all users" type="date" className={INPUT} disabled={!isAdmin} value={p.hardLockDate ?? ""} onChange={e => setP({ ...p, hardLockDate: e.target.value })} /></label>
         </div>
       </div>
-      {isAdmin && <div className="flex items-center gap-3"><button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save financial settings</button>
+      {isAdmin && <div className="flex items-center gap-3"><button data-confirm-save className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save financial settings</button>
         {msg && <span role="status" className="text-sm text-gray-600">{msg}</span>}</div>}
     </section>
   );

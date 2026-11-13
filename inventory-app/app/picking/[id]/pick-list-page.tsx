@@ -40,7 +40,7 @@ export default function PickListPage({ id }: { id: number }) {
       <PageHeader title={`Pick list ${pl.number}`} />
       <p className="text-sm text-gray-600">{pl.warehouse} · {pl.orders.join(", ")} · <span data-testid="pick-status">{({ OPEN: "To pick", PICKED: "Picked", CANCELLED: "Cancelled" } as Record<string, string>)[pl.status]}</span></p>
       {open && (
-        <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (code.trim()) scan.mutate(code.trim()); }}>
+        <form data-confirm="none" className="flex gap-2" onSubmit={e => { e.preventDefault(); if (code.trim()) scan.mutate(code.trim()); }}>
           <input ref={scanBox} autoFocus aria-label="Scan barcode or SKU" placeholder="Scan barcode or SKU" value={code} onChange={e => setCode(e.target.value)}
             className="flex-1 border-2 border-brand-400 rounded-md px-3 py-3 text-lg" inputMode="text" />
           <button className={BTN_SECONDARY} type="submit">Add</button>

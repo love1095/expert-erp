@@ -10,7 +10,7 @@ import { Card, BTN_SECONDARY } from "@/components/DetailParts";
 import { useAuth } from "@/contexts/AuthContext";
 import { isoDay } from "./statement-card";
 import { METHOD_LABEL } from "../invoices/payments-card";
-import { useConfirm } from "@/components/ConfirmDialog";
+import { useAskReason, useConfirm } from "@/components/ConfirmDialog";
 
 const INPUT = "border border-gray-300 rounded px-2 py-1 text-sm";
 
@@ -20,6 +20,7 @@ const INPUT = "border border-gray-300 rounded px-2 py-1 text-sm";
  */
 export default function CustomerCreditCard({ customer }: { customer: Customer }) {
   const ask = useConfirm();
+  const askReason = useAskReason();
   const qc = useQueryClient();
   const { user } = useAuth();
   const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
@@ -73,7 +74,7 @@ export default function CustomerCreditCard({ customer }: { customer: Customer })
                 <td className="pr-2 text-right font-semibold">{formatGBP(c.available)}</td>
                 <td className="text-right">{isManager && Number(c.used) === 0 && (
                   <button type="button" className="text-gray-400 hover:text-red-600" aria-label={`Remove credit ${c.id}`}
-                    onClick={() => { const reason = window.prompt("Why is this credit removed?"); if (reason) remove.mutate({ id: c.id, reason }); }}>✕</button>)}</td>
+                    onClick={async () => { const reason = await askReason({ title: "Remove this credit?", message: "The customer can no longer use it on invoices.", reasonLabel: "Why is this credit removed?", action: "Remove credit", danger: true }); if (reason) remove.mutate({ id: c.id, reason }); }}>✕</button>)}</td>
               </tr>
             ))}
           </tbody>

@@ -118,7 +118,7 @@ export default function StockAdjustmentsPage() {
           {manager && limit != null && (
             <div className="flex items-center gap-2 text-sm">
               <label>Approval needed over £<input type="number" min="0" step="0.01" aria-label="Approval value" className="border rounded px-2 py-1 w-28 ml-1" value={limit} onChange={e => setLimit(e.target.value)} /></label>
-              <button className={BTN_SECONDARY} onClick={() => saveLimit.mutate()}>Save</button>
+              <button data-confirm-save className={BTN_SECONDARY} onClick={() => saveLimit.mutate()}>Save</button>
               <span className="text-xs text-gray-500">Empty: no approval</span>
             </div>
           )}

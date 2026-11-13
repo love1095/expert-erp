@@ -73,7 +73,7 @@ export default function PaymentAccountsCard({ isAdmin }: { isAdmin: boolean }) {
         <div className="mt-3 flex items-center gap-3">
           <button type="button" onClick={() => setRows([...shown, { code: "", name: "", kind: "BANK", active: true, defaultAccount: shown.length === 0 }])}
             className="text-sm text-brand-700 hover:underline">+ Add account</button>
-          <button type="button" onClick={() => save.mutate()} disabled={save.isPending || rows == null}
+          <button data-confirm-save="Save payment accounts" type="button" onClick={() => save.mutate()} disabled={save.isPending || rows == null}
             className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
             {save.isPending ? "Saving..." : "Save payment accounts"}
           </button>

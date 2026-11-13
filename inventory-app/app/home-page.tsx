@@ -142,7 +142,7 @@ function PeriodPicker({ periodKey, period, onChange }: {
         {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map(k => <option key={k} value={k}>{PERIOD_LABELS[k]}</option>)}
       </select>
       {periodKey === "custom" ? (
-        <form className="flex items-center gap-1.5"
+        <form data-confirm="none" className="flex items-center gap-1.5"
           onSubmit={e => { e.preventDefault(); if (!customInvalid) onChange("custom", { from, to }); }}>
           <input type="date" aria-label="From" value={from} onChange={e => setFrom(e.target.value)}
             className="border border-gray-300 rounded-lg px-2 py-1 text-sm" />
@@ -334,7 +334,7 @@ function ReorderBody() {
 
   return (
     <>
-      <form className="flex gap-1.5 mb-3" onSubmit={e => { e.preventDefault(); setQuery(search.trim()); setPage(0); }}>
+      <form data-confirm="none" className="flex gap-1.5 mb-3" onSubmit={e => { e.preventDefault(); setQuery(search.trim()); setPage(0); }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="SKU, product or supplier"
           aria-label="Search the reorder list" className="flex-1 min-w-0 border border-gray-300 rounded-lg px-2.5 py-1 text-sm" />
         <button type="submit" className="px-3 py-1 text-xs font-medium rounded-lg border border-gray-300 hover:bg-gray-50">Search</button>

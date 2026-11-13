@@ -88,7 +88,7 @@ export default function ChartPage() {
             {form.id && <label className="flex items-center gap-2"><input type="checkbox" checked={form.archived} onChange={e => setForm({ ...form, archived: e.target.checked })} /> Archived</label>}
           </div>
           <div className="flex gap-2">
-            <button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate(form)}>Save</button>
+            <button data-confirm-save className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate(form)}>Save</button>
             <button className={BTN_SECONDARY} onClick={() => setForm(null)}>Cancel</button>
             {form.id && <button className={`${BTN_DANGER} ml-auto`} onClick={async () => { if (await ask({ title: "Delete this account?", action: "Delete", danger: true })) remove.mutate(form.id!); }}>Delete</button>}
           </div>

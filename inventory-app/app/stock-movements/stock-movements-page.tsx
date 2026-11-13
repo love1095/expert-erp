@@ -79,7 +79,7 @@ export default function StockMovementsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 mb-6 grid grid-cols-2 gap-4">
+        <form data-confirm="own" onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 mb-6 grid grid-cols-2 gap-4">
           <h2 className="col-span-2 font-semibold text-gray-800">New Stock Movement</h2>
           {error && <p className="col-span-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 

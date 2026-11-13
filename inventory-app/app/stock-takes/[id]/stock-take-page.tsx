@@ -54,7 +54,7 @@ export default function StockTakePage({ id, compact = false }: { id: number; com
         {" · "}{st.countedLines} of {st.lineCount} counted · variance <span data-testid="take-variance">{gbp(st.varianceValue)}</span>
         {st.note ? ` · ${st.note}` : ""}</p>
       {counting && (
-        <form className="flex flex-wrap gap-2 items-center" onSubmit={e => { e.preventDefault(); if (code.trim()) scan.mutate(code.trim()); }}>
+        <form data-confirm="none" className="flex flex-wrap gap-2 items-center" onSubmit={e => { e.preventDefault(); if (code.trim()) scan.mutate(code.trim()); }}>
           <select className="border rounded px-2 py-2 text-sm" aria-label="Counting bin" value={binId} onChange={e => setBinId(e.target.value === "" ? "" : Number(e.target.value))}>
             <option value="">No bin</option>
             {bins.filter(b => b.active).map(b => <option key={b.id} value={b.id}>{b.code}</option>)}

@@ -46,7 +46,7 @@ export default function RegisterPage() {
           <p className="text-gray-400 text-sm mt-1">Create a new organization</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-4">
+        <form data-confirm="none" onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-4">
           {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
 
           <div>

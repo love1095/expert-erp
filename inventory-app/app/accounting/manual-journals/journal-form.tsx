@@ -99,7 +99,7 @@ export default function JournalForm({ editing, onSaved, onCancel }: {
       </table>
       <div className="flex gap-2">
         <button type="button" className={BTN_PRIMARY} disabled={save.isPending} aria-busy={save.isPending} onClick={async () => { if (await ask({ title: "Post this journal?", message: "It goes into the accounts. Afterwards it can only be voided.", action: "Post" })) save.mutate(true); }}>Post</button>
-        <button type="button" className={BTN_SECONDARY} disabled={save.isPending} onClick={() => save.mutate(false)}>Save as draft</button>
+        <button data-confirm-save type="button" className={BTN_SECONDARY} disabled={save.isPending} onClick={() => save.mutate(false)}>Save as draft</button>
         <button type="button" className={BTN_SECONDARY} onClick={onCancel}>Cancel</button>
       </div>
     </section>

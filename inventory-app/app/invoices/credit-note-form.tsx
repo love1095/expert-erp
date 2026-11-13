@@ -53,7 +53,7 @@ export default function CreditNoteForm({ invoice, onDone, onCancel }: {
   };
 
   return (
-    <form onSubmit={submit} data-testid="credit-note-form" className="border-t border-gray-100 pt-3 space-y-3">
+    <form data-confirm="own" onSubmit={submit} data-testid="credit-note-form" className="border-t border-gray-100 pt-3 space-y-3">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Credit note & restock</p>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       <div className="space-y-2">

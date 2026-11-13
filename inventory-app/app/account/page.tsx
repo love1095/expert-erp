@@ -77,7 +77,7 @@ export default function AccountPage() {
           <button type="button" className={BTN_PRIMARY} onClick={() => start.mutate()} disabled={start.isPending}>Turn on two-step sign-in</button>
         )}
         {setup && (
-          <form className="space-y-3" onSubmit={e => { e.preventDefault(); confirm.mutate(); }}>
+          <form data-confirm="none" className="space-y-3" onSubmit={e => { e.preventDefault(); confirm.mutate(); }}>
             <p className="text-sm text-gray-600">In the app choose <b>Enter a setup key</b> and type this key, or on your phone <a href={setup.otpauthUri} className="text-brand-600 underline">open it in the app</a>:</p>
             <p className="font-mono text-xs bg-gray-50 rounded p-2 break-all select-all" data-testid="setup-key">{setup.secret}</p>
             {codeInput}

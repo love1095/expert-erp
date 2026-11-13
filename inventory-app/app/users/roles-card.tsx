@@ -56,7 +56,7 @@ export default function RolesCard() {
           <div className="flex gap-2">
             <button type="button" className={BTN_SECONDARY} onClick={() => edit({ permissions: catalogue.map(p => p.key) })}>Full access</button>
             <button type="button" className={BTN_SECONDARY} onClick={() => edit({ permissions: READ_ONLY })}>Read-only access</button>
-            <button type="button" className={BTN_PRIMARY} disabled={save.isPending || !shown.name.trim()} onClick={() => save.mutate()}>Save</button>
+            <button data-confirm-save type="button" className={BTN_PRIMARY} disabled={save.isPending || !shown.name.trim()} onClick={() => save.mutate()}>Save</button>
             {draft && <button type="button" className={BTN_SECONDARY} onClick={() => { setDraft(null); if (selected === "new") setSelected(null); }}>Cancel</button>}
           </div>
         )}

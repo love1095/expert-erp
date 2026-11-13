@@ -70,7 +70,7 @@ export default function Pagination({ page, totalPages, totalElements, size, onPa
           </label>
         )}
         {totalPages > 3 && (
-          <form className="flex items-center gap-1.5 text-gray-500"
+          <form data-confirm="none" className="flex items-center gap-1.5 text-gray-500"
             onSubmit={e => {
               e.preventDefault();
               const n = parseInt(goTo, 10);

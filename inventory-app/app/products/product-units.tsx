@@ -55,7 +55,7 @@ export function UnitsSection({ p }: { p: Product }) {
       </table>
       {edit && <div className="mt-3 flex items-center gap-2 text-sm">
         <button className={BTN_SECONDARY} onClick={() => setRows([...rows, { name: "", factor: "", barcode: "", sellPrice: "", buyPrice: "" }])}>Add unit</button>
-        <button className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save units</button>
+        <button data-confirm-save className={BTN_PRIMARY} disabled={save.isPending} onClick={() => save.mutate()}>Save units</button>
         {msg && <span role="status" className={msg.ok ? "text-green-700" : "text-red-700"}>{msg.text}</span>}
       </div>}
     </Card>

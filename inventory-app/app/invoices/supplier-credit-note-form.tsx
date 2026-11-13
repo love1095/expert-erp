@@ -58,7 +58,7 @@ export default function SupplierCreditNoteForm({ bill, onDone, onCancel }: {
   };
 
   return (
-    <form onSubmit={submit} data-testid="supplier-credit-note-form" className="space-y-3">
+    <form data-confirm="own" onSubmit={submit} data-testid="supplier-credit-note-form" className="space-y-3">
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       <div className="grid grid-cols-2 gap-1.5">
         <input aria-label="Supplier credit note number" value={number} onChange={e => setNumber(e.target.value)} maxLength={50}

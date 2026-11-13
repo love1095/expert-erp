@@ -19,7 +19,7 @@ import { formatGBP } from "@/lib/currency";
 import { Clip, ListHead } from "@/components/ListToolbar";
 import { downloadCsv } from "@/components/BulkActions";
 import { BTN_PRIMARY, BTN_SECONDARY, TrailCard, Field } from "@/components/DetailParts";
-import { useConfirm } from "@/components/ConfirmDialog";
+import { useAskReason, useConfirm } from "@/components/ConfirmDialog";
 
 type Mode = "view" | "ship" | "return" | "edit" | "invoice";
 
@@ -53,6 +53,7 @@ const INVOICE_COLOR: Record<string, string> = {
 
 export default function SaleOrderView({ orderId, warehouses }: { orderId: number; warehouses: Warehouse[] }) {
   const ask = useConfirm();
+  const askReason = useAskReason();
   const qc = useQueryClient();
   const { data: order, isLoading } = useQuery<SaleOrder>({
     queryKey: ["sale-order", orderId],
@@ -91,8 +92,9 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
   const shipMutation    = useMutation({ mutationFn: fulfillSaleOrder, onSuccess: onDone, onError: (e, vars) => {
     const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error ?? "";
     if (msg.includes("Shipping is stopped") && canOverrideCredit && !vars.data?.creditOverride) {
-      const reason = window.prompt(`${msg}\n\nWhy ship anyway?`);
-      if (reason) { shipMutation.mutate({ ...vars, data: { ...vars.data, creditOverride: reason } }); return; }
+      askReason({ title: "Ship anyway?", message: msg, reasonLabel: "Why ship anyway?", action: "Ship anyway", danger: true })
+        .then(reason => { if (reason) shipMutation.mutate({ ...vars, data: { ...vars.data, creditOverride: reason } }); else onFail(e); });
+      return;
     }
     onFail(e);
   } });
@@ -301,7 +303,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
               order.creditHold && order.status === "DRAFT" ? (
                 // G2: a customer on credit hold: only a manager confirms, with a reason
                 <button disabled={busy || !canOverrideCredit} title={canOverrideCredit ? undefined : "Only a manager or admin can confirm past a credit hold"}
-                  onClick={() => { const reason = window.prompt("The customer is on credit hold. Why confirm anyway?"); if (reason) confirmMutation.mutate({ id: order.id, override: reason }); }}
+                  onClick={async () => { const reason = await askReason({ title: "Confirm anyway?", message: "The customer is on credit hold.", reasonLabel: "Why confirm anyway?", action: "Confirm anyway", danger: true }); if (reason) confirmMutation.mutate({ id: order.id, override: reason }); }}
                   className={BTN_PRIMARY}>Confirm anyway</button>
               ) : (
                 <button disabled={busy} onClick={async () => { if (await ask({ title: `Confirm ${order.orderNumber}?`, message: "Stock is reserved for it and it can be picked and shipped.", action: "Confirm order" })) confirmMutation.mutate({ id: order.id }); }} className={BTN_PRIMARY}>
@@ -498,7 +500,7 @@ export default function SaleOrderView({ orderId, warehouses }: { orderId: number
           </section>
 
           {/* Lines (with ship / invoice / return inputs when one of those is open) */}
-          <form onSubmit={submit} className="space-y-4">
+          <form data-confirm="own" onSubmit={submit} className="space-y-4">
             <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
                 <h3 className="text-sm font-semibold text-gray-800">Products</h3>
