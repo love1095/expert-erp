@@ -85,7 +85,7 @@ export default function SupplierForm({ editing, onSaved, onCancel }: {
         {field("currency", "Currency", { placeholder: "GBP" })}
         <div>
           <label htmlFor="suppliers-paymentTerm" className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
-          <WithAdd label="Add a payment term" onAdd={() => setAddingTerm(true)}>
+          <WithAdd label="New term" onAdd={() => setAddingTerm(true)}>
             <NameCombobox id="suppliers-paymentTerm" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} listLabel="Payment terms"
               placeholder="e.g. 30 Day EOM" className={INPUT} options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
           </WithAdd>

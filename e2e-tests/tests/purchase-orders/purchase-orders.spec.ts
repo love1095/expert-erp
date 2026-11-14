@@ -227,8 +227,8 @@ test('PO-022 new purchase "+" for contact, vendor address and location; Save as 
     await expect(form.getByRole('radio', { name: 'Invoice first' })).toBeChecked();
     await expect(form.getByLabel('Product for line 1')).toHaveValue('');
 
+    // The pop-up that asks first is confirmed by the fixture
     await page.getByRole('button', { name: 'Delete preset' }).click();
-    await page.getByRole('button', { name: 'Delete preset' }).last().click();
     await expect(page.getByLabel('Preset', { exact: true }).locator(`option`, { hasText: presetName })).toHaveCount(0);
   });
 
@@ -266,5 +266,7 @@ test('PO-023 the product list on a line: "SKU: name" rows, "+ Add a new item" ad
     await dialog.getByLabel('Name').fill('Brand new gloves');
     await dialog.getByLabel('Cost price £').fill('2.5');
     await dialog.getByRole('button', { name: 'Add product' }).click();
-    await expect(form.getByLabel('Product for line 2')).toHaveValue(`${sku} — Brand new gloves`);
+    await expect(form.getByLabel('Product for line 2', { exact: true })).toHaveValue(`${sku} — Brand new gloves`);
+    // The list stays closed after the new product is chosen
+    await expect(form.getByRole('listbox', { name: 'Product for line 2 matches' })).toHaveCount(0);
   });

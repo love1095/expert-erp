@@ -111,7 +111,7 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
       <div className="grid grid-cols-4 gap-4">
         <div>
           <label htmlFor="customers-payment-term" className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
-          <WithAdd label="Add a payment term" onAdd={() => setAdding("term")}>
+          <WithAdd label="New term" onAdd={() => setAdding("term")}>
             <NameCombobox id="customers-payment-term" value={form.paymentTerm} onChange={v => set("paymentTerm", v)} listLabel="Payment terms"
               placeholder="e.g. 30 Day EOM" className={INPUT} options={terms.map(t => ({ key: t.name, name: t.name, sub: t.meaning }))} />
           </WithAdd>
@@ -133,7 +133,7 @@ export default function CustomerForm({ editing, onSaved, onCancel }: {
         <Field id="customers-carrier" label="Carrier" value={form.carrier} onChange={v => set("carrier", v)} />
         <div>
           <label htmlFor="customers-sales-rep" className="block text-xs font-medium text-gray-600 mb-1">Sales Representative</label>
-          <WithAdd label="Add a sales representative" onAdd={() => setAdding("rep")}>
+          <WithAdd label="New sales rep" onAdd={() => setAdding("rep")}>
             <NameCombobox id="customers-sales-rep" value={form.salesRepresentative} onChange={v => set("salesRepresentative", v)} listLabel="Sales reps"
               placeholder="Pick or type a name" className={INPUT} options={salesReps.map(r => ({ key: r, name: r }))} />
           </WithAdd>

@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/test';
+import { test, expect, clickWithReason } from '../../fixtures/test';
 
 // Phase G2 (spec §5): credit hold when the limit or payment terms are breached, warning at order entry
 test.describe('Credit control', () => {
@@ -17,9 +17,7 @@ test.describe('Credit control', () => {
       await page.goto(`/sale-orders/${order.id}`);
       await expect(page.getByTestId(`so-credit-${order.id}`)).toContainText('£10.00 over the £50.00 credit limit');
       // The ERP's admin is a manager: confirms with a reason
-      page.removeAllListeners('dialog');
-      page.once('dialog', d => d.accept('Paying on collection'));
-      await page.getByRole('button', { name: 'Confirm anyway' }).click();
+      await clickWithReason(page, page.getByRole('button', { name: 'Confirm anyway' }), 'Paying on collection');
       await expect(page.getByTestId(`so-status-${order.id}`)).toContainText('CONFIRMED');
       await expect(page.getByText('Confirmed or shipped past a credit hold: Paying on collection')).toBeVisible();
 
@@ -28,15 +26,13 @@ test.describe('Credit control', () => {
       const credit = page.getByTestId('customer-credit');
       await expect(page.getByTestId('customer-credit-status')).toHaveText('On credit hold');
       await expect(credit).toContainText('£60.00');
-      page.once('dialog', d => d.accept('Cheque bounced'));
-      await credit.getByRole('button', { name: 'Put on hold' }).click();
+      await clickWithReason(page, credit.getByRole('button', { name: 'Put on hold' }), 'Cheque bounced');
       await expect(credit).toContainText('put on hold: Cheque bounced');
       await credit.getByRole('button', { name: 'Release the hold' }).click();
       await expect(credit).not.toContainText('Cheque bounced');
 
       // Listed as on hold while held by hand
-      page.once('dialog', d => d.accept('Disputed invoice'));
-      await credit.getByRole('button', { name: 'Put on hold' }).click();
+      await clickWithReason(page, credit.getByRole('button', { name: 'Put on hold' }), 'Disputed invoice');
       await expect(credit).toContainText('Disputed invoice');
       await page.goto('/customers');
       await page.getByLabel('Search customers').fill(customer.name);

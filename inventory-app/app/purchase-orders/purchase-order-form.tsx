@@ -48,7 +48,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   const { user } = useAuth();
   const mayChangeVat = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPER_ADMIN";
   const { data: rates = [] } = useQuery<TaxRate[]>({ queryKey: ["tax-rates", "PURCHASE"], queryFn: () => getTaxRates("PURCHASE") });
-  const { data: suppliers = [] } = useQuery<Supplier[]>({ queryKey: ["suppliers"], queryFn: getSuppliers });
+  const { data: suppliers = [], isSuccess: suppliersRead } = useQuery<Supplier[]>({ queryKey: ["suppliers"], queryFn: getSuppliers });
   // Like Cin7: terms are picked from a list, each with what it means for the due date
   const { data: terms = [] } = useQuery<{ name: string; meaning: string }[]>({ queryKey: ["payment-terms"], queryFn: getPaymentTerms });
 
@@ -107,9 +107,11 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   const { data: defaults } = useQuery({ queryKey: ["purchase-new-defaults"], queryFn: getPurchaseNewDefaults, enabled: !editing });
   // Set while rendering once both are read (React's pattern for state that follows loaded data), not in an effect
   const [defaultsApplied, setDefaultsApplied] = useState(!!editing);
+  // An approach already chosen by hand (or by a preset) is not replaced by the default arriving a moment later
+  const [approachChosen, setApproachChosen] = useState(false);
   if (!defaultsApplied && defaults && warehouses.length > 0) {
     setDefaultsApplied(true);
-    setDetails(d => ({ ...d, approach: defaults.approach }));
+    if (!approachChosen) setDetails(d => ({ ...d, approach: defaults.approach }));
     const start = defaults.warehouseId && warehouses.some(w => w.id === defaults.warehouseId) ? String(defaults.warehouseId)
       : warehouses.length === 1 ? String(warehouses[0].id) : "";
     if (start && !warehouseId) pickWarehouse(start, warehouses);
@@ -131,6 +133,9 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
   });
   const applyPreset = (p: PurchasePreset) => {
     const d = p.data;
+    // A preset chosen before the organisation's defaults arrive is not overwritten by them
+    setDefaultsApplied(true);
+    setApproachChosen(true);
     const t = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : "");
     const place = (k: string) => (d[k] && typeof d[k] === "object" ? (d[k] as PostalAddress) : null);
     if (t("supplierName")) pickSupplier(t("supplierName"));
@@ -240,7 +245,8 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
       {/* Cin7's Select a preset / Save as preset: the header only */}
       <div className="flex flex-wrap items-center justify-end gap-2" data-testid="po-presets">
         <label htmlFor="po-preset" className="text-xs font-medium text-gray-600">Preset</label>
-        <select id="po-preset" value={presetId} className={`${INPUT} w-56`}
+        {/* Waits for the suppliers and warehouses a preset points to */}
+        <select id="po-preset" value={presetId} className={`${INPUT} w-56 disabled:bg-gray-50`} disabled={!suppliersRead || warehouses.length === 0}
           onChange={e => { setPresetId(e.target.value); const p = presets.find(x => String(x.id) === e.target.value); if (p) applyPreset(p); }}>
           <option value="">{presets.length ? "Select a preset" : "No presets yet"}</option>
           {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -333,7 +339,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
                   <label key={v} title={tip}
                     className={`flex items-center justify-center gap-1.5 py-1.5 cursor-pointer ${i ? "border-l border-gray-300" : ""} ${details.approach === v ? "bg-brand-50 text-brand-800 font-medium" : "bg-white text-gray-600 hover:bg-gray-50"}`}>
                     <input type="radio" name="po-approach" value={v} checked={details.approach === v} className="sr-only"
-                      onChange={() => setDetails({ ...details, approach: v })} />
+                      onChange={() => { setApproachChosen(true); setDetails({ ...details, approach: v }); }} />
                     {label}
                   </label>
                 ))}

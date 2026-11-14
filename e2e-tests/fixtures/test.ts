@@ -34,6 +34,20 @@ export async function pickProduct(scope: Page | Locator, label: string, product:
   await scope.getByRole('listbox', { name: `${label} matches` }).getByRole('button').filter({ hasText: product.sku }).first().click();
 }
 
+/**
+ * Clicks a button that asks for a reason in the app's pop-up (R7: no browser prompt any more), types this reason and
+ * confirms. For tests with autoConfirm on (the automatic confirm would type its own "E2E reason").
+ */
+export async function clickWithReason(page: Page, button: Locator, reason: string) {
+  const dialog = page.getByTestId('confirm-dialog');
+  await page.removeLocatorHandler(dialog);
+  await button.click();
+  await dialog.locator('textarea').fill(reason);
+  await dialog.getByTestId('confirm-ok').click();
+  await expect(dialog).toHaveCount(0);
+  await page.addLocatorHandler(dialog, acceptConfirm);
+}
+
 export async function logInAs(page: Page, session: Session) {
   // The app keeps its JWT and user profile in localStorage (see inventory-app/lib/auth.ts)
   await page.addInitScript(([token, user]) => {

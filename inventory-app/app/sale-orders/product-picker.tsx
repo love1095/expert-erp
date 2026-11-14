@@ -38,6 +38,8 @@ export default function ProductPicker({ label, selected, onSelect, onClear, mode
   const [chosen, setChosen] = useState(show(selected));
   const [chosenId, setChosenId] = useState<number | undefined>(selected?.id);
   const [adding, setAdding] = useState(false);
+  // Focus coming back from the New product pop-up must not open the list again
+  const quietFocus = useRef(false);
   // The information box: after the mouse rests on the chosen product for a moment
   const [info, setInfo] = useState(false);
   const infoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,7 +121,7 @@ export default function ProductPicker({ label, selected, onSelect, onClear, mode
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
         value={text} required={required} autoComplete="off" placeholder={placeholder}
         onChange={e => { setText(e.target.value); setOpen(true); }}
-        onFocus={e => { setOpen(true); e.currentTarget.select(); }} onClick={() => setOpen(true)} onKeyDown={onKey}
+        onFocus={e => { if (quietFocus.current) { quietFocus.current = false; return; } setOpen(true); e.currentTarget.select(); }} onClick={() => setOpen(true)} onKeyDown={onKey}
         className="w-full border border-gray-300 rounded-md pl-2 pr-12 py-1.5 text-sm bg-white cursor-pointer focus:cursor-text focus:outline-none focus:ring-1 focus:ring-brand-400" />
       {chosen && text === chosen && !required && (
         <button type="button" aria-label="Clear the product" tabIndex={-1}
@@ -175,8 +177,8 @@ export default function ProductPicker({ label, selected, onSelect, onClear, mode
       )}
       {info && !open && !adding && chosenId != null && text === chosen && <ProductInfo productId={chosenId} warehouseId={warehouseId} />}
       {adding && (
-        <NewProductDialog initialText={filter} supplierId={mode === "purchase" ? supplierId : undefined} onClose={() => setAdding(false)}
-          onCreated={p => { setAdding(false); pick({ id: p.id, sku: p.sku, name: p.name, unit: p.unit, sellPrice: p.sellPrice, costPrice: p.costPrice,
+        <NewProductDialog initialText={filter} supplierId={mode === "purchase" ? supplierId : undefined} onClose={() => { quietFocus.current = true; setAdding(false); }}
+          onCreated={p => { quietFocus.current = true; setAdding(false); pick({ id: p.id, sku: p.sku, name: p.name, unit: p.unit, sellPrice: p.sellPrice, costPrice: p.costPrice,
             onHand: 0, available: 0, onOrder: 0, supplierProduct: mode === "purchase" && supplierId != null }); }} />
       )}
     </div>

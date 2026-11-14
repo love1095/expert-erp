@@ -89,6 +89,6 @@ test.describe('Ask before doing', () => {
       await expect(dialog.getByTestId('confirm-ok')).toBeDisabled();
       await dialog.getByLabel('Why is the customer put on hold?').fill('Two invoices over 90 days');
       await dialog.getByTestId('confirm-ok').click();
-      await expect(page.getByText('Two invoices over 90 days')).toBeVisible();
+      await expect(page.getByText('Two invoices over 90 days').first()).toBeVisible();
     });
 });

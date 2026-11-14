@@ -137,20 +137,20 @@ test('SO-017 "+" on the customer and supplier forms; Settings renames a payment 
     const term = `Net ${Date.now() % 100000}`;
     await page.goto('/customers/new');
     const form = page.getByTestId('customer-form');
-    await form.getByRole('button', { name: 'Add a payment term' }).click();
+    await form.getByRole('button', { name: 'New term' }).click();
     const dialog = page.getByTestId('quick-payment-term');
     await dialog.getByLabel('Name').fill(term);
     await dialog.getByLabel('Days').fill('45');
     await dialog.getByRole('button', { name: 'Add payment term' }).click();
     await expect(form.getByLabel('Payment Term')).toHaveValue(term);
-    await form.getByRole('button', { name: 'Add a sales representative' }).click();
+    await form.getByRole('button', { name: 'New sales rep' }).click();
     const rep = `Rep ${Date.now() % 100000}`;
     await page.getByTestId('quick-sales-rep').getByLabel('Name').fill(rep);
     await page.getByTestId('quick-sales-rep').getByRole('button', { name: 'Add sales representative' }).click();
     await expect(form.getByLabel('Sales Representative')).toHaveValue(rep);
 
     await page.goto('/suppliers/new');
-    await expect(page.getByTestId('supplier-form').getByRole('button', { name: 'Add a payment term' })).toBeVisible();
+    await expect(page.getByTestId('supplier-form').getByRole('button', { name: 'New term' })).toBeVisible();
 
     // A supplier uses the term: renaming it in Settings renames it on the supplier
     const supplier = await (await api.http.post('/api/suppliers', { data: { name: `Term Supplier ${Date.now()}`, paymentTerm: term } })).json();
