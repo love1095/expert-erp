@@ -283,7 +283,11 @@ public class FakeXeroClient implements XeroClient {
         } else {
             throw new XeroException(XeroException.Kind.VALIDATION, 400, "A payment needs an invoice or a credit note");
         }
-        Payment saved = new Payment(id, p.invoice(), p.creditNote(), p.account(), p.date(), p.amount().setScale(2, RoundingMode.HALF_UP), p.reference(), "AUTHORISED", now);
+        // Like Xero, a payment read back names its document by number too
+        DocRef invoice = p.invoice() == null ? null : new DocRef(p.invoice().invoiceID(), null, o.invoices.get(p.invoice().invoiceID()).invoiceNumber(), null);
+        DocRef creditNote = p.creditNote() == null ? null
+                : new DocRef(null, p.creditNote().creditNoteID(), null, o.creditNotes.get(p.creditNote().creditNoteID()).creditNoteNumber());
+        Payment saved = new Payment(id, invoice, creditNote, p.account(), p.date(), p.amount().setScale(2, RoundingMode.HALF_UP), p.reference(), "AUTHORISED", now);
         o.payments.put(id, saved);
         return saved;
     }

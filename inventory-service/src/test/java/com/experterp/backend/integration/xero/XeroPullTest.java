@@ -129,6 +129,35 @@ class XeroPullTest {
     }
 
     @Test
+    void aXeroDocumentWithTheNumberOfOneHereIsMatchedOnlyWhenTheErpExportedIt() {
+        Session s = connection.session(false);
+        Contact c = xero.saveContact(s, new Contact(null, "Typed in Xero " + id, null, true, null, null, null));
+        // Issued here, never sent to Xero; somebody typed an invoice with the same number in Xero and it was paid there
+        InvoiceResponse never = sale("Crewe " + id);
+        fake.payInXero(org, twin(s, c, never.getInvoiceNumber()).invoiceID(), new BigDecimal("10.00"), "650", LocalDate.now().toString());
+        XeroPaymentPuller.PullResult r = puller.pull();
+        assertThat(r.recorded()).isZero();
+        assertThat(r.unmatched()).isZero();
+        assertThat(puller.pulled(10)).isEmpty();
+        assertThat(invoiceService.findById(never.getId()).getAmountPaid()).isEqualByComparingTo("0.00");
+
+        // Exported in a CSV file (imported into Xero by hand, so the link holds no Xero id for it): matched by its number
+        InvoiceResponse byFile = sale("Derby " + id);
+        jdbc.update("INSERT INTO accounting_exported (tenant_id, batch_id, doc_key, doc_date, amount, via) VALUES (?, NULL, ?, ?, 24, 'CSV')",
+                tenantId, "DOC:" + byFile.getId(), java.sql.Date.valueOf(LocalDate.now()));
+        fake.payInXero(org, twin(s, c, byFile.getInvoiceNumber()).invoiceID(), new BigDecimal("10.00"), "650", LocalDate.now().toString());
+        assertThat(puller.pull().recorded()).isEqualTo(1);
+        assertThat(invoiceService.findById(byFile.getId()).getAmountPaid()).isEqualByComparingTo("10.00");
+        assertThat(invoiceService.findById(never.getId()).getAmountPaid()).isEqualByComparingTo("0.00");
+    }
+
+    private XeroApi.Invoice twin(Session s, Contact c, String number) {
+        return xero.saveInvoice(s, new XeroApi.Invoice(null, "ACCREC", Contact.ref(c.contactID()), LocalDate.now().toString(), null,
+                number, null, "Exclusive", List.of(new LineItem("Misc", BigDecimal.ONE, BigDecimal.TEN, "200", "NONE", BigDecimal.ZERO, null, null, null)),
+                "AUTHORISED", "GBP", null, null, null, null, null));
+    }
+
+    @Test
     void paymentsOnXeroOnlyDocumentsAreIgnoredUnknownBankAccountsAreListedAndRetriedAndWebhooksAreSigned() throws Exception {
         // A Xero invoice the ERP never had
         Session s = connection.session(false);

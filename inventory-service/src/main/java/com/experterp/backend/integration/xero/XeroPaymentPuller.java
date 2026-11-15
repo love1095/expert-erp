@@ -145,6 +145,9 @@ public class XeroPaymentPuller {
         return connected == null ? from : from == null || connected.before(from) ? connected : from;
     }
 
+    /** The invoice (alias i) left the ERP for Xero: in a CSV file or through the link. */
+    private static final String EXPORTED = "EXISTS (SELECT 1 FROM accounting_exported e WHERE e.tenant_id = i.tenant_id AND e.doc_key = 'DOC:' || i.id)";
+
     private String one(Long t, Payment p) {
         // Sent from here: Xero has it from us
         Boolean ours = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM xero_sync_items WHERE tenant_id = ? AND kind = 'PAYMENT' AND xero_id = ?)",
@@ -181,7 +184,9 @@ public class XeroPaymentPuller {
         }
         if (deleted) return "SKIPPED";
 
-        // Which ERP document: through the queue's mapping, else by number
+        // Which ERP document: through the queue's mapping, else by number, and then only a document the ERP exported
+        // (in a CSV file, or through the link). An invoice typed in Xero that happens to carry the number of one here
+        // that never left the ERP is another document: its payment is not ours.
         boolean refund = p.creditNote() != null;
         String xeroDoc = refund ? p.creditNote().creditNoteID() : p.invoice() == null ? null : p.invoice().invoiceID();
         String number = refund ? p.creditNote().creditNoteNumber() : p.invoice() == null ? null : p.invoice().invoiceNumber();
@@ -191,8 +196,8 @@ public class XeroPaymentPuller {
             if (!k.isEmpty()) docId = Long.valueOf(k.get(0).substring(4));
         }
         if (docId == null && number != null) {
-            List<Long> d = jdbc.queryForList("SELECT id FROM invoices WHERE tenant_id = ? AND invoice_number = ? AND status IN ('ISSUED', 'PAID') ORDER BY id DESC LIMIT 1",
-                    Long.class, t, number);
+            List<Long> d = jdbc.queryForList("SELECT i.id FROM invoices i WHERE i.tenant_id = ? AND i.invoice_number = ? AND i.status IN ('ISSUED', 'PAID') AND " + EXPORTED
+                    + " ORDER BY i.id DESC LIMIT 1", Long.class, t, number);
             if (!d.isEmpty()) docId = d.get(0);
         }
         LocalDate day = date(p.date());
@@ -200,7 +205,7 @@ public class XeroPaymentPuller {
             // A document the ERP never sent (Xero's own invoices, bills and their payments): none of our business, not
             // listed. Only a number that is a document here, but one that cannot take a payment, is worth a look.
             List<String> here = number == null ? List.of() : jdbc.queryForList(
-                    "SELECT status FROM invoices WHERE tenant_id = ? AND invoice_number = ? ORDER BY id DESC LIMIT 1", String.class, t, number);
+                    "SELECT i.status FROM invoices i WHERE i.tenant_id = ? AND i.invoice_number = ? AND " + EXPORTED + " ORDER BY i.id DESC LIMIT 1", String.class, t, number);
             if (here.isEmpty()) return "SKIPPED";
             save(t, p, null, null, day, "UNMATCHED", number + " is " + here.get(0).toLowerCase(Locale.ROOT) + " here, so the payment made in Xero was not recorded");
             return "UNMATCHED";
