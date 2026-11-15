@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getAccountingChanged, getAccountingExportFile, getAccountingExports, getAccountingPending, getAccountingSettings,
-  runAccountingExport, undoAccountingExport, updateAccountingSettings,
+  getXeroAccounts, getXeroConnection, runAccountingExport, undoAccountingExport, updateAccountingSettings,
 } from "@/lib/api";
 import { AccountingSettings, ExportBatch, ExportChanged, ExportKind, ExportPending } from "@/types";
 import { formatGBP } from "@/lib/currency";
@@ -60,6 +60,11 @@ export default function AccountingExportPage({ embedded = false }: { embedded?: 
   const { data: pending, error: pendingError } = useQuery<ExportPending>({ queryKey: ["accounting-pending"], queryFn: getAccountingPending });
   const { data: batches = [] } = useQuery<ExportBatch[]>({ queryKey: ["accounting-exports"], queryFn: getAccountingExports });
   const { data: changed = [] } = useQuery<ExportChanged[]>({ queryKey: ["accounting-changed"], queryFn: getAccountingChanged });
+  // Connected to Xero: the boxes offer Xero's own chart of accounts (typing a code still works, e.g. for CSV files only)
+  const { data: conn } = useQuery<{ status: string }>({ queryKey: ["xero-connection"], queryFn: getXeroConnection, retry: false });
+  const { data: chart = [] } = useQuery({ queryKey: ["xero-accounts"], queryFn: getXeroAccounts, retry: false, staleTime: 5 * 60_000,
+    enabled: conn?.status === "CONNECTED" });
+  const nameOf = (code: string | null) => { const c = (code ?? "").trim().toLowerCase(); return c ? chart.find(a => a.code.toLowerCase() === c) : undefined; };
   // The settings as edited; until the first change, as saved
   const [edited, setForm] = useState<AccountingSettings | null>(null);
   const form = edited ?? settings ?? null;
@@ -185,7 +190,13 @@ export default function AccountingExportPage({ embedded = false }: { embedded?: 
         <form className="bg-white border border-gray-200 rounded-xl p-6" data-testid="account-mapping"
           onSubmit={e => { e.preventDefault(); setMessage(null); save.mutate(form); }}>
           <h2 className="font-semibold text-gray-800">Account mapping</h2>
-          <p className="text-xs text-gray-500 mb-4">Xero account codes, as in Cin7&apos;s account mapping. {isAdmin ? "" : "Only an admin can change them."}</p>
+          <p className="text-xs text-gray-500 mb-4">Xero account codes, as in Cin7&apos;s account mapping.
+            {chart.length > 0 && " Type a code or part of a name to choose from the connected Xero's chart of accounts."} {isAdmin ? "" : "Only an admin can change them."}</p>
+          {chart.length > 0 && (
+            <datalist id="xero-chart" data-testid="xero-chart">
+              {chart.map(a => <option key={a.code} value={a.code}>{a.code} {a.name}</option>)}
+            </datalist>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="acc-start" className={LABEL}>Export start date</label>
@@ -197,7 +208,11 @@ export default function AccountingExportPage({ embedded = false }: { embedded?: 
               <div key={k}>
                 <label htmlFor={`acc-${k}`} className={LABEL}>{label}</label>
                 <input id={`acc-${k}`} className={INPUT} disabled={!isAdmin} maxLength={20} value={(form[k] as string | null) ?? ""}
+                  list={chart.length > 0 ? "xero-chart" : undefined} autoComplete="off"
                   onChange={e => setForm({ ...form, [k]: e.target.value })} />
+                {chart.length > 0 && ((form[k] as string | null) ?? "").trim() !== "" && (nameOf(form[k] as string | null)
+                  ? <p className="text-xs text-gray-700 mt-1" data-testid={`acc-name-${k}`}>In Xero: {nameOf(form[k] as string | null)!.name}</p>
+                  : <p className="text-xs text-amber-800 mt-1" data-testid={`acc-name-${k}`}>Not in Xero&apos;s chart of accounts</p>)}
                 <p className="text-[11px] text-gray-400 mt-1">{help}</p>
               </div>
             ))}

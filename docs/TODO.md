@@ -6,7 +6,7 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Expert Safety's website address**: to compare what the site offers with what the ERP covers (not found online on 2026-11-09)
 - [ ] **Review before anything new** ([`review-and-test-plan.md`](review-and-test-plan.md), 2026-11-08): decide S1–S12 (menu structure: keep / merge / move / rename) to agree a target menu, then flow tests F1–F10 and the page-by-page recheck
 - [ ] **Xero developer app** at developer.xero.com: for development done 2026-11-15 (app "Expert ERP", Web app, in `.env`, server on APP_XERO_MODE=live). For production: add the redirect URI `https://<server>/settings/integrations/xero/callback` to the same app and enter the client ID and secret on **Platform → Integration apps** (super admin) or as APP_XERO_CLIENT_ID / _SECRET / _REDIRECT_URI; APP_XERO_MODE=live stays a server setting
-- [ ] **Xero redirect URI on the dev app**: change it at developer.xero.com to `http://localhost:3000/settings/integrations/xero/callback` and in `.env` (the old `/finance/xero/callback` still works meanwhile)
+- [x] **Xero redirect URI on the dev app**: done 2026-11-15, `http://localhost:3000/settings/integrations/xero/callback` added to the app at developer.xero.com and set in `.env`
 - [ ] **Xero webhook key** (from the Xero developer app, Webhooks: delivery URL `https://<server>/api/webhooks/xero`, events Invoices) → Platform → Integration apps (or APP_XERO_WEBHOOK_KEY); needs a public https address; without it payments from Xero are still polled every 5 minutes
 - [ ] **Xero Demo Company (UK)**: connect it on dev under Settings → Integrations → Xero and run the first live sends (the live client has only talked to the fake so far; never the real Expert Safety Xero before cutover). While the server is on APP_XERO_MODE=live the Xero e2e tests (XERO-002) fail: set it to fake for a full e2e run
 - [ ] **Purchase charges account**: which Xero account bill carriage / duty go to (407 Import Duty is a placeholder in the local data)
@@ -45,8 +45,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [x] **Xero API link, live test on the Demo Company**: done 2026-11-15 (contact, invoice, payment both ways, COGS and return journals, credit note and allocation, void, payment delete, supplier bill and its payment, a failure and Retry). Still to see live when wanted: a supplier credit note, a refund on a credit note, a void Xero refuses (invoice with a credit note on it)
 - [ ] **Demo Company test values to put back before cutover** (organisation Expert Safety on dev): accounts 425 / 810 / 620 (Expert Safety's are 407 / 802 / 615; inventory is back on 631), payment account 090, export start date 15/11/2026
 - [ ] **Xero payments matched by number alone**: a payment on a Xero document the ERP did not send through the link is matched to the ERP document with the same number (for CSV-exported ones); tighten to documents the ERP exported (owner to confirm)
-- [ ] **Account mapping form**: pick the accounts from Xero's chart in the boxes (the warning list is built: `GET /api/xero/accounts/check`)
-- [ ] **Times shown in the server's UTC** on the Xero page (connected at, sent at)
+- [x] **Account mapping form** done 2026-11-15: connected to Xero, each account box offers Xero's chart of accounts (type a code or part of a name) and shows the account's name in Xero under it, or "Not in Xero's chart of accounts"; typing a code still works without a connection (CSV files only)
+- [x] **Times on the Xero page** done 2026-11-15: connected at, sent at, next try and created at are sent with the server's offset and shown in the reader's own time (other pages still send times without a zone: right while the server and the readers are both on UK time)
 - [ ] **Shopify product images (phase P4)**: run the product sync on the dev store with a product that has images; check they appear once, main image first
 - [ ] **Couriers, live**: once built for the owner's couriers — book a real parcel, print its label on the warehouse printer, cancel one, follow tracking
 - [ ] **Xero, first real import** (Demo Company first): credit notes as negative lines in the invoice file, *Full VAT* (C79 import VAT) lines, penny differences where Xero recomputes discounted lines
@@ -166,7 +166,7 @@ Already in the ERP (the base to build on): Cin7's minimum-based Reorder list, to
 - [ ] Per-company data export, deletion and restore
 - [ ] Support tools: "log in as" for support with audit logging; a status page
 - [ ] More than one server: scheduled jobs locked so two servers don't run the same job
-- [ ] **Xero app for many companies**: a new Xero app may connect only a few organisations (limit to check at developer.xero.com); more needs Xero's paid tier / app certification
+- [ ] **Xero app for many companies**: a new Xero app may connect only 5 organisations (seen on the app page 2026-11-15: "1 of 5 connections", Manage Plan for more); more needs Xero's paid tier / app certification
 - [ ] More cards in the Integrations catalogue as they are built (couriers, e-mail provider, QuickBooks), each with its app on Platform → Integration apps
 - [ ] QuickBooks connector; importers for systems other than Cin7
 - [ ] Other countries' tax and currency rules (if sold outside the UK)

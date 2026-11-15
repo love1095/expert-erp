@@ -39,14 +39,14 @@ public class XeroConnectionService {
     private final SecureRandom random = new SecureRandom();
 
     public record Status(String mode, boolean configured, String status, String xeroTenantName, List<Organisation> organisations,
-                         LocalDateTime connectedAt, String connectedBy, String lastError) {}
+                         java.time.OffsetDateTime connectedAt, String connectedBy, String lastError) {}
 
     @Transactional(readOnly = true)
     public Status status() {
         Map<String, Object> c = row();
         if (c == null) return new Status(xero.mode(), xero.configured(), "NOT_CONNECTED", null, List.of(), null, null, null);
         return new Status(xero.mode(), xero.configured(), (String) c.get("status"), (String) c.get("xero_tenant_name"), organisations(c),
-                c.get("connected_at") == null ? null : ((Timestamp) c.get("connected_at")).toLocalDateTime(), (String) c.get("connected_by"),
+                XeroSyncService.at((Timestamp) c.get("connected_at")), (String) c.get("connected_by"),
                 (String) c.get("last_error"));
     }
 

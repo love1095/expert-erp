@@ -12,6 +12,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -58,8 +60,13 @@ public class XeroSyncService {
         senders.forEach(s -> s.kinds().forEach(k -> this.senders.put(k, s)));
     }
 
+    /** A stored time (the server's own clock) with its offset, so the page shows it in the reader's own time. */
+    public static OffsetDateTime at(Timestamp t) {
+        return t == null ? null : t.toLocalDateTime().atZone(ZoneId.systemDefault()).toOffsetDateTime();
+    }
+
     public record Item(Long id, String key, String kind, String label, String dependsOn, String xeroId, String status, int attempts,
-                       String lastError, LocalDateTime nextAttemptAt, LocalDateTime createdAt, LocalDateTime sentAt) {}
+                       String lastError, OffsetDateTime nextAttemptAt, OffsetDateTime createdAt, OffsetDateTime sentAt) {}
 
     public record RunResult(int sent, int failed, int waiting) {}
 
@@ -86,8 +93,8 @@ public class XeroSyncService {
                  ORDER BY CASE status WHEN 'FAILED' THEN 0 WHEN 'PENDING' THEN 1 ELSE 2 END, updated_at DESC, id DESC LIMIT ?""",
                 (rs, n) -> new Item(rs.getLong("id"), rs.getString("item_key"), rs.getString("kind"), rs.getString("label"), rs.getString("depends_on"),
                         rs.getString("xero_id"), rs.getString("status"), rs.getInt("attempts"), rs.getString("last_error"),
-                        rs.getTimestamp("next_attempt_at").toLocalDateTime(), rs.getTimestamp("created_at").toLocalDateTime(),
-                        rs.getTimestamp("sent_at") == null ? null : rs.getTimestamp("sent_at").toLocalDateTime()),
+                        at(rs.getTimestamp("next_attempt_at")), at(rs.getTimestamp("created_at")),
+                        at(rs.getTimestamp("sent_at"))),
                 TenantContext.get(), status, status, Math.max(1, Math.min(limit, 1000)));
     }
 

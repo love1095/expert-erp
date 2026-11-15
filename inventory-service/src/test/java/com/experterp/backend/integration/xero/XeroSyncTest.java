@@ -96,7 +96,7 @@ class XeroSyncTest {
         assertThat(item.status()).isEqualTo("PENDING");
         assertThat(item.attempts()).isEqualTo(1);
         assertThat(item.lastError()).contains("Rate limit");
-        assertThat(item.nextAttemptAt()).isAfter(java.time.LocalDateTime.now().minusSeconds(1));
+        assertThat(item.nextAttemptAt()).isAfter(java.time.OffsetDateTime.now().minusSeconds(1));
         dueNow();
         assertThat(sync.process().sent()).isEqualTo(1);
 
@@ -104,7 +104,7 @@ class XeroSyncTest {
         String b = queue("Down " + tenantId);
         fake.failNext(org, FakeXeroClient.Failure.DOWN);
         sync.process();
-        assertThat(item(b).nextAttemptAt()).isAfter(java.time.LocalDateTime.now().plusSeconds(50));   // 1 minute
+        assertThat(item(b).nextAttemptAt()).isAfter(java.time.OffsetDateTime.now().plusSeconds(50));   // 1 minute
         jdbc.update("UPDATE xero_sync_items SET attempts = ? WHERE tenant_id = ? AND item_key = ?", XeroSyncService.MAX_ATTEMPTS - 1, tenantId, b);
         dueNow();
         fake.failNext(org, FakeXeroClient.Failure.DOWN);
