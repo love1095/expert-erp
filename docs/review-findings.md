@@ -89,8 +89,12 @@ Each finding records:
   4. Make Return and Credit note one **Return / credit** action with two ticks: *put goods back in stock* and *give money back or credit*. That covers goods + money, goods only and money only.
   5. Add lists Sale → Credit notes and Purchase → Supplier credits.
   6. Tests: the three cases of point 4; double restock refused (point 5); e2e from the order page.
-- **Severity**: Minor (layout and flow); Blocker if point 5 fails
-- **Status**: Found, implement later. Point 5 is checked first in flow test F1.
+- **Point 5 checked in flow test F1 (2026-11-15): it fails in one of the two ways.**
+  - *More back than was shipped*: refused. A return, on the order or through a credit note, is limited to "shipped and not yet returned" (120 shipped, 10 back: an 11th… 111th is refused; in `OrderToCashFlowTest`).
+  - *The same goods twice*: **allowed**. 20 boots, 10 shipped (10 left). The warehouse records 5 back on the order with Return → 15. Accounts then raise the credit note for those 5 and leave "restock" ticked → **20 in stock, 5 too many**, and the order shows 10 returned. Nothing links the return already recorded to the credit note, so the form cannot know the goods are already back. The stock value and the cost of goods move with it (5 × the order's average cost twice).
+  - **Proposed fix (small, before the rest of R3; needs the owner's OK)**: each order line remembers how many returned units a credit note has already covered. A credit note with "restock" first takes the units already returned and not yet credited (no new stock movement), and only the remainder comes in as new stock. The form says so on the line: "5 already back in stock on 15/11/2026, not put back again". A return recorded after the credit note works the other way round: units credited with restock are not offered for a second return (already true: they count as returned). Test: both orders of doing it, stock, FIFO cost and ledger unchanged by the second step.
+- **Severity**: Minor (layout and flow) for points 1–4; **Major for point 5** (wrong stock and cost after an easy mistake; not a Blocker since nothing is wrong until someone ticks restock for goods already returned).
+- **Status**: Point 5 found and proposed, waiting for the owner's OK; the rest implement later.
 
 ## R4 Simple and Advanced purchases and sales (Cin7) — decision to confirm
 
