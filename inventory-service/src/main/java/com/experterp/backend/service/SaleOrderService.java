@@ -639,19 +639,21 @@ public class SaleOrderService {
             line.setUnitName(unit.name());
             line.setUnitFactor(unit.factor());
             PricingService.Price price = prices.get(product.getId());
-            BigDecimal listed = price == null || price.unitPrice() == null ? null
-                    : unit.base() ? price.unitPrice() : ProductUnitService.price(unit, price.unitPrice(), true);
+            // A unit with its own price (a box at £45.00) has it even when the product itself has no selling price (review F3)
+            BigDecimal basePrice = price == null ? null : price.unitPrice();
+            BigDecimal listed = unit.base() ? basePrice : ProductUnitService.price(unit, basePrice, true);
+            String baseSource = price == null || price.unitPrice() == null ? "Unit price" : price.source();
+            String source = unit.base() ? baseSource : baseSource + " (" + unit.name() + ")";
             if (l.getUnitPrice() == null) {
                 // A product with no selling price stays without one, as before (priced later on the order)
                 if (listed != null) {
                     line.setUnitPrice(listed);
-                    line.setPriceSource(unit.base() ? price.source() : price.source() + " (" + unit.name() + ")");
+                    line.setPriceSource(source);
                 }
             } else {
                 line.setUnitPrice(l.getUnitPrice());
                 // The customer's price kept on an edited order keeps its source
-                line.setPriceSource(listed != null && listed.compareTo(l.getUnitPrice()) == 0
-                        ? (unit.base() ? price.source() : price.source() + " (" + unit.name() + ")") : "Typed");
+                line.setPriceSource(listed != null && listed.compareTo(l.getUnitPrice()) == 0 ? source : "Typed");
             }
             // A contract price is the agreed net price: no customer discount on top
             boolean contract = price != null && price.contract() && !"Typed".equals(line.getPriceSource());
