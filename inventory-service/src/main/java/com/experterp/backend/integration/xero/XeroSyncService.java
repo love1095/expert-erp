@@ -190,7 +190,7 @@ public class XeroSyncService {
         for (int tries = 0; tries < 2; tries++) {
             try {
                 if (session[0] == null || tries > 0) session[0] = connection.session(tries > 0);
-                String xeroId = sender.send(session[0].withKey(idempotencyKey(t, item.key())), item);
+                String xeroId = sender.send(session[0].withKey(idempotencyKey(t, item.key(), ((Number) r.get("refusals")).intValue())), item);
                 jdbc.update("""
                         UPDATE xero_sync_items SET status = 'SENT', xero_id = ?, attempts = attempts + 1, last_error = NULL, sent_at = now(), updated_at = now()
                          WHERE id = ?""", xeroId, id);
@@ -202,6 +202,8 @@ public class XeroSyncService {
                 return "SENT";
             } catch (XeroException e) {
                 if (e.kind() == XeroException.Kind.UNAUTHORIZED && tries == 0) continue;   // refresh the token, try once more
+                // Refused outright: nothing was made in Xero, so the next try (after the cause is put right) is a new request
+                if (e.kind() == XeroException.Kind.VALIDATION) jdbc.update("UPDATE xero_sync_items SET refusals = refusals + 1 WHERE id = ?", id);
                 return fail(id, item, e.getMessage(), e.retryable(), e.retryAfterSeconds());
             } catch (IllegalStateException | IllegalArgumentException e) {
                 // Not connected / expired connection: retried later; the ERP item itself not sendable: a person decides
@@ -225,9 +227,10 @@ public class XeroSyncService {
         return giveUp ? "FAILED" : "RETRY";
     }
 
-    // Unique per organisation and item: the same item always carries the same key
-    private static String idempotencyKey(Long tenantId, String itemKey) {
-        return UUID.nameUUIDFromBytes(("expert-erp:" + tenantId + ":" + itemKey).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    // Unique per organisation and item: the same item carries the same key (a crash mid-send cannot make a second
+    // document), until Xero refuses it: Xero rejects a key used again with a different body
+    private static String idempotencyKey(Long tenantId, String itemKey, int refusals) {
+        return UUID.nameUUIDFromBytes(("expert-erp:" + tenantId + ":" + itemKey + (refusals == 0 ? "" : ":" + refusals)).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
     }
 
     private static String cut(String s, int max) {

@@ -241,7 +241,7 @@ public class HttpXeroClient implements XeroClient {
                 List<String> messages = new ArrayList<>();
                 n.path("Elements").forEach(e -> e.path("ValidationErrors").forEach(v -> messages.add(v.path("Message").asText())));
                 throw new XeroException(XeroException.Kind.VALIDATION, 400,
-                        messages.isEmpty() ? n.path("Message").asText(n.path("error").asText("Xero refused it")) : String.join("; ", messages));
+                        messages.isEmpty() ? reason(n, r.body()) : String.join("; ", messages));
             }
             throw new XeroException(XeroException.Kind.UNAVAILABLE, st, "Xero answered " + st);
         } catch (IOException e) {
@@ -250,6 +250,16 @@ public class HttpXeroClient implements XeroClient {
             Thread.currentThread().interrupt();
             throw new XeroException(XeroException.Kind.UNAVAILABLE, 503, "Interrupted");
         }
+    }
+
+    /** Xero's words for a refusal without validation errors (its answers differ: Message, Detail, Title, error). */
+    private static String reason(JsonNode n, String body) {
+        for (String f : List.of("Message", "Detail", "detail", "Title", "title", "error_description", "error")) {
+            String v = n.path(f).asText("");
+            if (!v.isBlank()) return v;
+        }
+        String raw = body == null ? "" : body.strip();
+        return raw.isEmpty() ? "Xero refused it" : "Xero refused it: " + (raw.length() > 300 ? raw.substring(0, 300) : raw);
     }
 
     private static String enc(String s) {

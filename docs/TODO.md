@@ -42,8 +42,8 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## Test later with live systems
 - [ ] **Shopify (live store)**: a price change updates only that product (GLGH-WG-310RP-08 → expect 1 updated); stock push to the real dev store (would set stock for 13,959 linked SKUs); Shopify payouts (money paid into the bank, less fees) not matched to orders yet; Shopify-paid invoices tested with a fake order only
-- [ ] **Xero API link, live test on the Demo Company**: done 2026-11-15 except the **supplier bill**: add account 631 "Inventory control" (type Current Asset, No VAT) in the Demo Company's chart, set Inventory control account to 631, then Retry the failed bill XT-BILL-1 (its payment follows). Also still to see live: a supplier credit note, a refund on a credit note, a void Xero refuses (invoice with a credit note on it)
-- [ ] **Demo Company test values to put back before cutover** (organisation Expert Safety on dev): accounts 630 / 425 / 810 / 620 (Expert Safety's are 631 / 407 / 802 / 615), payment account 090, export start date 15/11/2026
+- [x] **Xero API link, live test on the Demo Company**: done 2026-11-15 (contact, invoice, payment both ways, COGS and return journals, credit note and allocation, void, payment delete, supplier bill and its payment, a failure and Retry). Still to see live when wanted: a supplier credit note, a refund on a credit note, a void Xero refuses (invoice with a credit note on it)
+- [ ] **Demo Company test values to put back before cutover** (organisation Expert Safety on dev): accounts 425 / 810 / 620 (Expert Safety's are 407 / 802 / 615; inventory is back on 631), payment account 090, export start date 15/11/2026
 - [ ] **Xero payments matched by number alone**: a payment on a Xero document the ERP did not send through the link is matched to the ERP document with the same number (for CSV-exported ones); tighten to documents the ERP exported (owner to confirm)
 - [ ] **Account mapping form**: pick the accounts from Xero's chart in the boxes (the warning list is built: `GET /api/xero/accounts/check`)
 - [ ] **Times shown in the server's UTC** on the Xero page (connected at, sent at)
