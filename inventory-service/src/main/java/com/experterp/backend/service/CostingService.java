@@ -254,17 +254,22 @@ public class CostingService {
         }
     }
 
-    // The received units this bill's lines priced (their matches), per layer, weighted by value (units × cost) or units
+    // The received units this bill's lines priced (their matches), per layer, weighted by units or by value: the value
+    // on the bill (units × the bill line's own price), not the price the stock came in at on the order (review F2)
     private Map<CostLayer, BigDecimal> weights(List<InvoiceItem> lines, String mode) {
-        Map<Long, BigDecimal> units = new LinkedHashMap<>();
+        Map<Long, BigDecimal> weight = new LinkedHashMap<>();
         for (InvoiceItem item : lines) {
-            adjustmentRepository.findMatches(item.getId()).forEach(a -> units.merge(a.getLayerId(), a.getBilledQuantity(), BigDecimal::add));
+            BigDecimal price = item.getQuantity() == null || item.getQuantity().signum() == 0 || item.getTotalPrice() == null ? null
+                    : item.getTotalPrice().divide(item.getQuantity(), 6, RoundingMode.HALF_UP);
+            adjustmentRepository.findMatches(item.getId()).forEach(a -> {
+                if (a.getBilledQuantity().signum() <= 0) return;
+                BigDecimal unitValue = price != null ? price : layerRepository.findById(a.getLayerId()).orElseThrow().getOriginalUnitCost();
+                weight.merge(a.getLayerId(), "QUANTITY".equals(mode) ? a.getBilledQuantity() : a.getBilledQuantity().multiply(unitValue), BigDecimal::add);
+            });
         }
         Map<CostLayer, BigDecimal> out = new LinkedHashMap<>();
-        units.forEach((layerId, u) -> {
-            if (u.signum() <= 0) return;
-            CostLayer l = layerRepository.findById(layerId).orElseThrow();
-            out.put(l, "QUANTITY".equals(mode) ? u : u.multiply(l.getOriginalUnitCost()));
+        weight.forEach((layerId, w) -> {
+            if (w.signum() > 0) out.put(layerRepository.findById(layerId).orElseThrow(), w);
         });
         return out;
     }

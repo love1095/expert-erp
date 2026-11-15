@@ -269,6 +269,28 @@ public class AccountingExportService {
             String to2 = "SALE_OUT".equals(type) ? s.cogsAccount() : s.discrepancyAccount();
             byKey.put(key, new Journal(key, d, "Bill " + rs.getString(2) + ": price difference on goods already sold", to2, s.inventoryAccount(), amount));
         }, t, from, to);
+        // Goods sent back to a supplier leave at what they cost (with landed freight, after price credits), which may not
+        // be what the supplier's credit note gives for them: the credit note takes its own amount out of inventory, the
+        // difference goes to cost of goods, so the inventory account stays what the stock is worth (review F2)
+        jdbc.query("""
+                SELECT cn.id, cn.invoice_number, m.created_at::date,
+                       SUM((SELECT COALESCE(SUM(c.quantity * c.unit_cost), 0) FROM cost_consumptions c WHERE c.movement_id = m.id)),
+                       SUM((SELECT COALESCE(SUM(it.total_price), 0) FROM invoice_items it
+                             WHERE it.invoice_id = cn.id AND it.purchase_order_line_id = m.source_line_id))
+                FROM stock_movements m
+                JOIN invoices cn ON cn.tenant_id = m.tenant_id AND cn.invoice_number = m.reference_id AND cn.type = 'PURCHASE'
+                     AND cn.kind = 'CREDIT_NOTE' AND cn.status IN ('ISSUED', 'PAID')
+                WHERE m.tenant_id = ? AND m.created_at >= ? AND m.created_at < ? AND m.type = 'PURCHASE_RETURN_OUT'
+                  AND m.reference_type = 'PURCHASE_RETURN'
+                GROUP BY cn.id, cn.invoice_number, m.created_at::date""", rs -> {
+            LocalDate d = rs.getDate(3).toLocalDate();
+            BigDecimal diff = nz(rs.getBigDecimal(4)).subtract(nz(rs.getBigDecimal(5))).setScale(2, RoundingMode.HALF_UP);
+            String key = "JNL:RETURNCOST:" + rs.getLong(1) + ":" + d;
+            if (diff.signum() == 0 || exported.contains(key)) return;
+            String narration = "Supplier credit " + rs.getString(2) + ": goods sent back cost " + (diff.signum() > 0 ? "more" : "less") + " than was credited";
+            byKey.put(key, diff.signum() > 0 ? new Journal(key, d, narration, s.cogsAccount(), s.inventoryAccount(), diff)
+                    : new Journal(key, d, narration, s.inventoryAccount(), s.cogsAccount(), diff.negate()));
+        }, t, from, to);
         return new ArrayList<>(byKey.values());
     }
 
