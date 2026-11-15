@@ -61,7 +61,7 @@ public class FakeXeroClient implements XeroClient {
     /** No Xero sign-in page: straight back to the ERP's callback with a fake code. */
     @Override
     public String authorizeUrl(String state) {
-        return "/finance/xero/callback?code=fake-code-" + TenantContext.get() + "&state=" + state;
+        return "/settings/integrations/xero/callback?code=fake-code-" + TenantContext.get() + "&state=" + state;
     }
 
     @Override

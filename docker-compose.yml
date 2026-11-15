@@ -35,6 +35,12 @@ services:
       APP_SUPERADMIN_PASSWORD: ${APP_SUPERADMIN_PASSWORD:-}
       # Shopify background work: retries, the daily check, stock sent every 20 s (false = only when asked on the page)
       APP_SHOPIFY_SCHEDULER_ENABLED: ${APP_SHOPIFY_SCHEDULER_ENABLED:-true}
+      # Xero API link: fake (the default, nothing leaves the server) or live (the Xero developer app, see .env.example)
+      APP_XERO_MODE: ${APP_XERO_MODE:-fake}
+      APP_XERO_CLIENT_ID: ${APP_XERO_CLIENT_ID:-}
+      APP_XERO_CLIENT_SECRET: ${APP_XERO_CLIENT_SECRET:-}
+      APP_XERO_REDIRECT_URI: ${APP_XERO_REDIRECT_URI:-}
+      APP_XERO_WEBHOOK_KEY: ${APP_XERO_WEBHOOK_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

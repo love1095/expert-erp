@@ -60,6 +60,10 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("*", "/api/ledger/**", ACCOUNTING),
             r("*", "/api/bank/**", ACCOUNTING),
             r("*", "/api/vat/**", ACCOUNTING),
+            // Xero: setting the connection up is a Settings job, what was sent and failed is for the accounts
+            r("*", "/api/xero/connection/**", SETTINGS, REPORTS_FINANCIAL),
+            r("*", "/api/xero/connection", SETTINGS, REPORTS_FINANCIAL),
+            r("*", "/api/xero/link", SETTINGS, REPORTS_FINANCIAL),
             r("*", "/api/xero/**", REPORTS_FINANCIAL),
             // Phase M: sending is checked per document (sale, purchase, customer); reading the outbox needs one of them
             r("GET", "/api/mail/outbox/**", SALE_VIEW, PURCHASE_VIEW, CUSTOMERS),

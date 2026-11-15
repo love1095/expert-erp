@@ -12,7 +12,7 @@ export default function CallbackPage({ code, state, error }: { code: string; sta
     if (error || !code || sent.current) return;
     sent.current = true;
     xeroCallback(code, state)
-      .then(() => router.replace("/finance/xero"))
+      .then(() => router.replace("/settings/integrations/xero"))
       .catch((e: unknown) => setResult((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "The connection failed"));
   }, [code, state, error, router]);
   return <div className="p-6 text-sm" role="status">{result}</div>;

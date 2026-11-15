@@ -61,7 +61,7 @@ class XeroClientTest {
         assertThat(xero.mode()).isEqualTo("fake");
         assertThat(connection.status().status()).isEqualTo("NOT_CONNECTED");
         String url = connection.connect();
-        assertThat(url).startsWith("/finance/xero/callback?code=fake-code-");
+        assertThat(url).startsWith("/settings/integrations/xero/callback?code=fake-code-");
         String code = param(url, "code"), state = param(url, "state");
         assertThatThrownBy(() -> connection.callback(code, "not-ours")).hasMessageContaining("not for this organisation");
         XeroConnectionService.Status st = connection.callback(code, state);
@@ -183,7 +183,8 @@ class XeroClientTest {
                     "https://login.xero.com", base, base);
             assertThat(live.configured()).isTrue();
             assertThat(live.authorizeUrl("st-1")).startsWith("https://login.xero.com/identity/connect/authorize?response_type=code&client_id=client-1")
-                    .contains("offline_access").contains("accounting.transactions").endsWith("&state=st-1");
+                    .contains("offline_access").contains("accounting.invoices").contains("accounting.payments").contains("accounting.manualjournals")
+                    .doesNotContain("accounting.transactions").endsWith("&state=st-1");
             Session s = new Session("tok-1", "org-1");
             assertThat(live.saveContact(s, contact("Abbey")).contactID()).isEqualTo("c-1");
             assertThat(seen).containsExactly("org-1", "Bearer tok-1");

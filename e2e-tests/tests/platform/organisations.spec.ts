@@ -56,4 +56,28 @@ test.describe('Platform', () => {
       expect((await login()).status()).toBe(200);
       await anon.dispose();
     });
+
+  // Looks only: saving would replace this server's own Xero app (the save itself is covered by XeroAppSettingsTest)
+  test('PLAT-002 the super admin has Integration apps with the Xero app; an organisation admin is sent away', { tag: ['@P1', '@platform', '@xero'] },
+    async ({ page, browser, baseURL }) => {
+      // The organisation's admin (signed in by the fixture) has no such menu and the address leads nowhere for them
+      await page.goto('/settings/integrations');
+      await expect(page.getByRole('link', { name: 'Integration apps' })).toHaveCount(0);
+
+      const context = await browser.newContext({ baseURL });
+      const sa = await context.newPage();
+      await sa.goto('/login');
+      await sa.getByLabel('Username').fill(SUPER_ADMIN.username);
+      await sa.getByLabel('Password').fill(SUPER_ADMIN.password);
+      await sa.getByRole('button', { name: 'Sign in' }).click();
+      await expect(sa).toHaveURL(/\/platform\/organisations/);
+      await sa.getByRole('link', { name: 'Integration apps' }).click();
+      await expect(sa.getByRole('heading', { name: 'Integration apps' })).toBeVisible();
+      const card = sa.getByTestId('xero-app');
+      await expect(card.getByLabel('Client ID')).toBeVisible();
+      await expect(card.getByLabel('Client secret')).toHaveValue('');
+      await expect(card.getByLabel('Redirect address (OAuth 2.0 redirect URI)')).toHaveValue(/\/(settings\/integrations|finance)\/xero\/callback$/);
+      await expect(card.getByTestId('xero-app-connected')).toContainText('connected');
+      await context.close();
+    });
 });

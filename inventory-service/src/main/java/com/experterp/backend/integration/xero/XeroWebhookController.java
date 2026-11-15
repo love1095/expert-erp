@@ -3,7 +3,6 @@ package com.experterp.backend.integration.xero;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,9 +24,19 @@ public class XeroWebhookController {
 
     private final XeroPaymentPuller puller;
     private final ObjectMapper json;
-    private final String key;
+    private final java.util.function.Supplier<String> key;
 
-    public XeroWebhookController(XeroPaymentPuller puller, ObjectMapper json, @Value("${app.xero.webhook-key:}") String key) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public XeroWebhookController(XeroPaymentPuller puller, ObjectMapper json, XeroAppSettings settings) {
+        this(puller, json, () -> settings.app().webhookKey());
+    }
+
+    /** With a fixed key (tests). */
+    public XeroWebhookController(XeroPaymentPuller puller, ObjectMapper json, String key) {
+        this(puller, json, () -> key);
+    }
+
+    private XeroWebhookController(XeroPaymentPuller puller, ObjectMapper json, java.util.function.Supplier<String> key) {
         this.puller = puller;
         this.json = json;
         this.key = key;
@@ -36,7 +45,8 @@ public class XeroWebhookController {
     @PostMapping("/api/webhooks/xero")
     public ResponseEntity<Void> receive(@RequestBody(required = false) byte[] body, @RequestHeader(value = "x-xero-signature", required = false) String signature) {
         byte[] b = body == null ? new byte[0] : body;
-        if (key.isBlank() || signature == null || !valid(b, signature)) return ResponseEntity.status(401).build();
+        String k = key.get();
+        if (k.isBlank() || signature == null || !valid(b, signature, k)) return ResponseEntity.status(401).build();
         try {
             JsonNode events = json.readTree(b).path("events");
             for (JsonNode e : events) {
@@ -48,7 +58,7 @@ public class XeroWebhookController {
         return ResponseEntity.ok().build();
     }
 
-    boolean valid(byte[] body, String signature) {
+    boolean valid(byte[] body, String signature, String key) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));

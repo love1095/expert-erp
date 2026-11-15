@@ -1392,6 +1392,11 @@ export interface XeroConnection {
   mode: "fake" | "live"; configured: boolean; status: "NOT_CONNECTED" | "CHOOSE_ORGANISATION" | "CONNECTED" | "EXPIRED";
   xeroTenantName: string | null; organisations: XeroOrganisation[]; connectedAt: string | null; connectedBy: string | null; lastError: string | null;
 }
+/** Platform -> Integration apps: the Expert ERP app at Xero (the secret and the webhook key never come back). */
+export interface XeroApp {
+  mode: "fake" | "live"; configured: boolean; clientId: string; clientSecretSet: boolean; redirectUri: string; webhookKeySet: boolean;
+  fromServerSettings: boolean; connectedOrganisations: number; updatedAt: string | null; updatedBy: string | null;
+}
 export interface XeroQueueItem {
   id: number; key: string; kind: string; label: string | null; dependsOn: string | null; xeroId: string | null; status: "PENDING" | "SENT" | "FAILED";
   attempts: number; lastError: string | null; nextAttemptAt: string; createdAt: string; sentAt: string | null;

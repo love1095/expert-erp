@@ -5,9 +5,10 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 ## Needs the owner (an account, a login or a decision)
 - [ ] **Expert Safety's website address**: to compare what the site offers with what the ERP covers (not found online on 2026-11-09)
 - [ ] **Review before anything new** ([`review-and-test-plan.md`](review-and-test-plan.md), 2026-11-08): decide S1–S12 (menu structure: keep / merge / move / rename) to agree a target menu, then flow tests F1–F10 and the page-by-page recheck
-- [ ] **Xero developer app** at developer.xero.com (phase L is built against a fake Xero): client ID + client secret, redirect URI `https://<server>/finance/xero/callback`; then set APP_XERO_MODE=live, APP_XERO_CLIENT_ID, APP_XERO_CLIENT_SECRET, APP_XERO_REDIRECT_URI
-- [ ] **Xero webhook key** (from the Xero developer app, Webhooks: delivery URL `https://<server>/api/webhooks/xero`, events Invoices) → APP_XERO_WEBHOOK_KEY; without it payments from Xero are still polled every 5 minutes
-- [ ] **Xero Demo Company (UK)** in the owner's Xero login: to test the Xero link before cutover (never the real Expert Safety Xero before cutover)
+- [ ] **Xero developer app** at developer.xero.com: for development done 2026-11-15 (app "Expert ERP", Web app, in `.env`, server on APP_XERO_MODE=live). For production: add the redirect URI `https://<server>/settings/integrations/xero/callback` to the same app and enter the client ID and secret on **Platform → Integration apps** (super admin) or as APP_XERO_CLIENT_ID / _SECRET / _REDIRECT_URI; APP_XERO_MODE=live stays a server setting
+- [ ] **Xero redirect URI on the dev app**: change it at developer.xero.com to `http://localhost:3000/settings/integrations/xero/callback` and in `.env` (the old `/finance/xero/callback` still works meanwhile)
+- [ ] **Xero webhook key** (from the Xero developer app, Webhooks: delivery URL `https://<server>/api/webhooks/xero`, events Invoices) → Platform → Integration apps (or APP_XERO_WEBHOOK_KEY); needs a public https address; without it payments from Xero are still polled every 5 minutes
+- [ ] **Xero Demo Company (UK)**: connect it on dev under Settings → Integrations → Xero and run the first live sends (the live client has only talked to the fake so far; never the real Expert Safety Xero before cutover). While the server is on APP_XERO_MODE=live the Xero e2e tests (XERO-002) fail: set it to fake for a full e2e run
 - [ ] **Purchase charges account**: which Xero account bill carriage / duty go to (407 Import Duty is a placeholder in the local data)
 - [ ] **Cin7 read-only check**: PriceTier1 = Retail and PriceTier2 = Contract (assumed from the data)
 - [ ] **Customer contacts import**: CustomerContacts_11_4_2026.csv is built but not run — load it?
@@ -161,6 +162,8 @@ Already in the ERP (the base to build on): Cin7's minimum-based Reorder list, to
 - [ ] Per-company data export, deletion and restore
 - [ ] Support tools: "log in as" for support with audit logging; a status page
 - [ ] More than one server: scheduled jobs locked so two servers don't run the same job
+- [ ] **Xero app for many companies**: a new Xero app may connect only a few organisations (limit to check at developer.xero.com); more needs Xero's paid tier / app certification
+- [ ] More cards in the Integrations catalogue as they are built (couriers, e-mail provider, QuickBooks), each with its app on Platform → Integration apps
 - [ ] QuickBooks connector; importers for systems other than Cin7
 - [ ] Other countries' tax and currency rules (if sold outside the UK)
 - [ ] Legal documents: terms of service, data processing agreement

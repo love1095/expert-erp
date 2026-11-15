@@ -7,12 +7,19 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/** Phase L: the Xero API link — connection (L1). Seeing it: the financial reports permission; changing it: advisers / admins. */
+/**
+ * Phase L: the Xero API link (Settings → Integrations → Xero). Setting it up (connect, choose the organisation, CSV or
+ * API, disconnect): admins and the Settings permission. What was sent, what failed and the payments pulled: the
+ * financial reports permission, with Retry / Send now / Pull now for advisers and admins.
+ */
 @RestController
 @RequestMapping("/api/xero")
 @RequiredArgsConstructor
 @PreAuthorize("hasAuthority('PERM_REPORTS_FINANCIAL')")
 public class XeroController {
+
+    static final String SETUP = "hasAnyRole('ADMIN', 'SUPER_ADMIN') or hasAuthority('PERM_SETTINGS')";
+    static final String SEE = SETUP + " or hasAuthority('PERM_REPORTS_FINANCIAL')";
 
     private final XeroConnectionService connection;
     private final com.experterp.backend.integration.xero.XeroSyncService sync;
@@ -34,41 +41,43 @@ public class XeroController {
 
     /** CSV (files) or API (this link): one way to Xero at a time (L3). */
     @GetMapping("/link")
+    @PreAuthorize(SEE)
     public Map<String, String> link() {
         return Map.of("link", export.xeroLink());
     }
 
     @PutMapping("/link")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    @PreAuthorize(SETUP)
     public Map<String, String> setLink(@RequestBody Map<String, String> body) {
         return Map.of("link", export.setXeroLink(body.get("link")));
     }
 
     @GetMapping("/connection")
+    @PreAuthorize(SEE)
     public XeroConnectionService.Status status() {
         return connection.status();
     }
 
     @PostMapping("/connection/connect")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    @PreAuthorize(SETUP)
     public Map<String, String> connect() {
         return Map.of("url", connection.connect());
     }
 
     @PostMapping("/connection/callback")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    @PreAuthorize(SETUP)
     public XeroConnectionService.Status callback(@RequestBody Map<String, String> body) {
         return connection.callback(body.get("code"), body.get("state"));
     }
 
     @PutMapping("/connection/organisation")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    @PreAuthorize(SETUP)
     public XeroConnectionService.Status choose(@RequestBody Map<String, String> body) {
         return connection.choose(body.get("xeroTenantId"));
     }
 
     @DeleteMapping("/connection")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'PERM_ADVISER')")
+    @PreAuthorize(SETUP)
     public XeroConnectionService.Status disconnect() {
         return connection.disconnect();
     }

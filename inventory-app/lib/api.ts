@@ -453,6 +453,11 @@ export const getOrganisations = (params: { q?: string; page?: number; size?: num
 export const setOrganisationSubscription = (id: number, body: { planTier: string; status?: string; endDate?: string | null }) =>
   api.put(`/tenants/${id}/subscription`, body).then(r => r.data);
 export const setOrganisationActive = (id: number, active: boolean) => api.put(`/tenants/${id}/active`, { active }).then(r => r.data);
+// Platform -> Integration apps (SUPER_ADMIN): the Expert ERP app at Xero, used by every organisation's connection
+export const getXeroApp = () => api.get("/platform/integration-apps/xero").then(r => r.data);
+export const saveXeroApp = (body: { clientId: string; clientSecret: string; redirectUri: string; webhookKey: string }) =>
+  api.put("/platform/integration-apps/xero", body).then(r => r.data);
+export const removeXeroApp = () => api.delete("/platform/integration-apps/xero").then(r => r.data);
 
 // ---- Shopify refunds to review (7.4) ----
 export const getShopifyRefunds = (orderId: number) => api.get(`/sale-orders/${orderId}/shopify-refunds`).then(r => r.data);

@@ -24,30 +24,39 @@ import java.util.*;
 /**
  * Phase L1: Xero's real API (APP_XERO_MODE=live) — OAuth 2.0 authorisation code flow (login.xero.com, identity.xero.com),
  * the connections list to choose the organisation, and the Accounting API (api.xro/2.0) with the xero-tenant-id header.
- * Needs the owner's Xero developer app: APP_XERO_CLIENT_ID, APP_XERO_CLIENT_SECRET, APP_XERO_REDIRECT_URI
- * (https://&lt;server&gt;/finance/xero/callback). Not run against Xero yet: live-tested with the Demo Company first (TODO).
+ * Needs the platform's Xero developer app ({@link XeroAppSettings}: Platform → Integration apps, or APP_XERO_CLIENT_ID,
+ * APP_XERO_CLIENT_SECRET, APP_XERO_REDIRECT_URI), redirect address https://&lt;server&gt;/settings/integrations/xero/callback. Not run against Xero yet: live-tested with the Demo Company first (TODO).
  */
 @Component
 @ConditionalOnProperty(name = "app.xero.mode", havingValue = "live")
 public class HttpXeroClient implements XeroClient {
 
-    private static final String SCOPES = "openid profile email offline_access accounting.transactions accounting.contacts accounting.settings.read";
+    /** Xero's granular scopes: an app made on or after 2 March 2026 is refused the old accounting.transactions.
+     *  Invoices and credit notes: accounting.invoices; payments: accounting.payments; journals: accounting.manualjournals. */
+    private static final String SCOPES = "openid profile email offline_access accounting.invoices accounting.payments accounting.manualjournals accounting.contacts accounting.settings.read";
 
     private final ObjectMapper json;
-    private final String clientId, clientSecret, redirectUri, identityUrl, loginUrl, apiUrl;
+    /** The Expert ERP app at Xero, read at each use so a change on Platform → Integration apps applies at once. */
+    private final java.util.function.Supplier<XeroAppSettings.App> app;
+    private final String identityUrl, loginUrl, apiUrl;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();
 
-    public HttpXeroClient(ObjectMapper objectMapper,
-                          @Value("${app.xero.client-id:}") String clientId,
-                          @Value("${app.xero.client-secret:}") String clientSecret,
-                          @Value("${app.xero.redirect-uri:}") String redirectUri,
+    @org.springframework.beans.factory.annotation.Autowired
+    public HttpXeroClient(ObjectMapper objectMapper, XeroAppSettings settings,
                           @Value("${app.xero.login-url:https://login.xero.com}") String loginUrl,
                           @Value("${app.xero.identity-url:https://identity.xero.com}") String identityUrl,
                           @Value("${app.xero.api-url:https://api.xero.com}") String apiUrl) {
+        this(objectMapper, settings::app, loginUrl, identityUrl, apiUrl);
+    }
+
+    /** With fixed values (tests). */
+    public HttpXeroClient(ObjectMapper objectMapper, String clientId, String clientSecret, String redirectUri, String loginUrl, String identityUrl, String apiUrl) {
+        this(objectMapper, () -> new XeroAppSettings.App(clientId, clientSecret, redirectUri, ""), loginUrl, identityUrl, apiUrl);
+    }
+
+    private HttpXeroClient(ObjectMapper objectMapper, java.util.function.Supplier<XeroAppSettings.App> app, String loginUrl, String identityUrl, String apiUrl) {
         this.json = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
+        this.app = app;
         this.loginUrl = loginUrl;
         this.identityUrl = identityUrl;
         this.apiUrl = apiUrl;
@@ -58,18 +67,19 @@ public class HttpXeroClient implements XeroClient {
 
     @Override
     public boolean configured() {
-        return !clientId.isBlank() && !clientSecret.isBlank() && !redirectUri.isBlank();
+        return app.get().configured();
     }
 
     @Override
     public String authorizeUrl(String state) {
-        return loginUrl + "/identity/connect/authorize?response_type=code&client_id=" + enc(clientId) + "&redirect_uri=" + enc(redirectUri)
+        XeroAppSettings.App a = app.get();
+        return loginUrl + "/identity/connect/authorize?response_type=code&client_id=" + enc(a.clientId()) + "&redirect_uri=" + enc(a.redirectUri())
                 + "&scope=" + enc(SCOPES) + "&state=" + enc(state);
     }
 
     @Override
     public Tokens exchangeCode(String code) {
-        return token("grant_type=authorization_code&code=" + enc(code) + "&redirect_uri=" + enc(redirectUri));
+        return token("grant_type=authorization_code&code=" + enc(code) + "&redirect_uri=" + enc(app.get().redirectUri()));
     }
 
     @Override
@@ -78,7 +88,8 @@ public class HttpXeroClient implements XeroClient {
     }
 
     private Tokens token(String form) {
-        String basic = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8));
+        XeroAppSettings.App a = app.get();
+        String basic = Base64.getEncoder().encodeToString((a.clientId() + ":" + a.clientSecret()).getBytes(StandardCharsets.UTF_8));
         JsonNode n = send(HttpRequest.newBuilder(URI.create(identityUrl + "/connect/token")).header("Authorization", "Basic " + basic)
                 .header("Content-Type", "application/x-www-form-urlencoded").POST(HttpRequest.BodyPublishers.ofString(form)));
         return new Tokens(n.path("access_token").asText(), n.path("refresh_token").asText(null), n.path("expires_in").asLong(1800));

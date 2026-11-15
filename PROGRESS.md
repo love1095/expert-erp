@@ -894,6 +894,16 @@ Spec §1: what a PPE product needs beyond Cin7's fields.
 
 ---
 
+### Xero under Integrations, the Xero app with the super admin (2026-11-15) ✅
+Owner's request after looking at Cin7 (Integration → Xero): the connection belongs with the other integrations, and the app at Xero belongs to the platform, not to one company.
+- **Platform → Integration apps** (super admin only): the Expert ERP app at Xero: client ID, client secret, redirect address, webhook key (`platform_integration_apps`, V68; secret and key encrypted, never sent back; empty box keeps the saved one; Remove). What is not saved there falls back to `APP_XERO_…` in the server's settings. `GET/PUT/DELETE /api/platform/integration-apps/xero`, `XeroAppSettings`; the live client and the webhook read it at each use, so a change applies without a restart. `APP_XERO_MODE` (fake / live) stays a server setting.
+- **Settings → Integrations** is a catalogue like Cin7's: search box, categories (All, My integrations, Accounting, eCommerce, API), a card per integration with its state (Xero, Shopify, API); a new integration is one more card.
+- **Settings → Integrations → Xero** in Cin7's sections: How the integration works · General settings (connection, CSV files or the Xero link) · Sync options (waiting / failed / sent, Retry, Send now, payments from Xero) · Accounts and CSV files (the former *Xero export (CSV)* page) · Advanced settings (Change organisation, Disconnect). Cin7's switches with no function here (invoice status, payments direction, tracking categories, autosync frequency, consolidation, historical export) are left out on purpose.
+- **Who**: setting up (connect, organisation, CSV / API, disconnect) = admins and the **Settings** permission (was Adviser); the sent / failed lists = financial reports, with Retry / Send now / Pull now for advisers.
+- **Menu**: *Xero* and *Xero export (CSV)* left Finance; `/finance/xero` and `/accounting-export` lead to the new page; the return address is `/settings/integrations/xero/callback` (the old `/finance/xero/callback` still works).
+- **Live Xero**: `docker-compose.yml` now passes `APP_XERO_*` to the backend; the live client asks for Xero's granular scopes (`accounting.invoices`, `accounting.payments`, `accounting.manualjournals`), since an app made after 2 March 2026 is refused `accounting.transactions`.
+- Tests: backend `XeroAppSettingsTest` (only the super admin, secret never returned, kept encrypted, fallback, permission rules), `XeroClientTest`; e2e XERO-002 (moved), INT-001 (catalogue and sections), PLAT-002 (super admin page, looks only), XERO-001, SHP-001…003, API-001, PLAT-001: 9 of 9 pass on the fake Xero.
+
 ## Cross-cutting (done throughout)
 
 - [x] **JWT authentication** — signing key from `APP_JWT_SECRET` (base64, ≥ 32 bytes; local value in git-ignored `.env`, see `.env.example`). Tokens survive restarts; the backend refuses to start without a valid key. Expiry 24 h
