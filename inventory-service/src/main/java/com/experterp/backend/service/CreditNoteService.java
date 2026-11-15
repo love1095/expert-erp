@@ -31,6 +31,7 @@ public class CreditNoteService {
 
     private final InvoiceRepository invoiceRepository;
     private final PaymentRepository paymentRepository;
+    private final com.experterp.backend.repository.PaymentAccountRepository paymentAccountRepository;
     private final CustomerRepository customerRepository;
     private final SaleReturnRepository saleReturnRepository;
     private final InvoiceService invoiceService;
@@ -180,6 +181,18 @@ public class CreditNoteService {
         p.setMethod(method);
         p.setReference(reference);
         p.setCreditNoteId(creditNoteId);
+        // A refund goes back out of the account of its kind (a Shopify refund out of Shopify Payments, a card refund out
+        // of the card account), not out of the default bank account (review F5)
+        PaymentAccount.Kind kind = switch (method) {
+            case SHOPIFY -> PaymentAccount.Kind.SHOPIFY;
+            case CARD -> PaymentAccount.Kind.CARD;
+            case CASH -> PaymentAccount.Kind.CASH;
+            case PAYPAL -> PaymentAccount.Kind.PAYPAL;
+            default -> null;
+        };
+        if (kind != null && creditNoteId == null) {
+            paymentAccountRepository.findFirstByKindAndActiveTrueOrderByCodeAsc(kind).ifPresent(a -> p.setPaymentAccountId(a.getId()));
+        }
         paymentRepository.save(p);
         target.getPayments().add(p);
     }
