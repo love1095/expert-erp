@@ -89,7 +89,18 @@ public class StockMovementService {
         List<StockMovement> saved = movementRepository.saveAll(Arrays.asList(out, in));
         // The layers taken out of one warehouse arrive in the other at their cost and date
         saved.forEach(costingService::record);
+        // The bins follow like any other movement: out of the source warehouse's bins, into the product's bin at the
+        // destination (review F4: a transfer left the source bin holding stock the warehouse no longer had)
+        saved.forEach(this::publishStockChanged);
+        auditService.log("STOCK_MOVEMENT", saved.get(0).getId(), "TRANSFER", Map.of(
+                "reference", transferRef, "qty", req.getQuantity(), "product", product.getSku(),
+                "from", from.getName(), "to", to.getName()));
         return saved.stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    private void publishStockChanged(StockMovement saved) {
+        eventPublisher.publishEvent(new StockChangedEvent(this, saved.getProduct().getId(),
+                saved.getWarehouse().getId(), saved.getQuantity(), saved.getType(), saved.getReferenceId()));
     }
 
     public Page<StockMovementResponse> findAll(Long productId, Long warehouseId, Long categoryId, int page, int size) {
@@ -227,8 +238,7 @@ public class StockMovementService {
         if (type.isIn()) m.setUnitCost(unitCost);
         StockMovement saved = movementRepository.save(m);
         costingService.record(saved);
-        eventPublisher.publishEvent(new StockChangedEvent(this, saved.getProduct().getId(),
-                saved.getWarehouse().getId(), saved.getQuantity(), saved.getType(), saved.getReferenceId()));
+        publishStockChanged(saved);
         auditService.log("STOCK_MOVEMENT", saved.getId(), "CREATE", Map.of(
                 "type", saved.getType(),
                 "qty", saved.getQuantity(),
