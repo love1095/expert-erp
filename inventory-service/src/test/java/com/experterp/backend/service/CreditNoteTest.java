@@ -186,6 +186,53 @@ class CreditNoteTest {
         assertThat(creditNoteService.create(inv.getId(), request(line(itemId, "1", false))).getTotalAmount()).isEqualByComparingTo("12.00");
     }
 
+    /** Review R3 point 5: the warehouse records the goods back on the order, then accounts credit them with "restock" ticked. */
+    @Test
+    void goodsAlreadyReturnedOnTheOrderAreNotPutBackAgainByTheCreditNote() {
+        Long lineId = order.getLines().get(0).getId();
+        saleOrderService.createReturn(order.getId(), orderReturn(lineId, "2"));
+        assertThat(movementRepository.calculateStock(helmet.getId(), warehouse.getId())).isEqualByComparingTo("8");     // 10 − 4 + 2
+        BigDecimal cost = saleOrderService.findById(order.getId()).getCostOfGoods();
+        assertThat(invoiceService.findById(invoice.getId()).getItems().get(0).getBackInStockNotCredited()).isEqualByComparingTo("2");
+
+        // The credit note for those 2, restock ticked: money only, the stock and the cost stay as they are
+        InvoiceResponse cn = creditNoteService.create(invoice.getId(), request(line(helmetItem(), "2", true)));
+        assertThat(cn.getTotalAmount()).isEqualByComparingTo("24.00");
+        assertThat(movementRepository.calculateStock(helmet.getId(), warehouse.getId())).isEqualByComparingTo("8");
+        assertThat(saleOrderService.findById(order.getId()).getLines().get(0).getReturnedQuantity()).isEqualByComparingTo("2");
+        assertThat(saleOrderService.findById(order.getId()).getCostOfGoods()).isEqualByComparingTo(cost);
+        assertThat(invoiceService.findById(invoice.getId()).getItems().get(0).getBackInStockNotCredited()).isEqualByComparingTo("0");
+
+        // 1 more comes back on the order; a credit note for the last 2 with restock: 1 is already back, only 1 comes in
+        saleOrderService.createReturn(order.getId(), orderReturn(lineId, "1"));
+        assertThat(movementRepository.calculateStock(helmet.getId(), warehouse.getId())).isEqualByComparingTo("9");
+        creditNoteService.create(invoice.getId(), request(line(helmetItem(), "2", true)));
+        assertThat(movementRepository.calculateStock(helmet.getId(), warehouse.getId())).isEqualByComparingTo("10");    // all 4 back, once
+        assertThat(saleOrderService.findById(order.getId()).getLines().get(0).getReturnedQuantity()).isEqualByComparingTo("4");
+    }
+
+    /** The other way round: credited with restock first, so the goods count as returned and cannot come back again on the order. */
+    @Test
+    void goodsPutBackByACreditNoteCannotBeReturnedAgainOnTheOrder() {
+        Long lineId = order.getLines().get(0).getId();
+        creditNoteService.create(invoice.getId(), request(line(helmetItem(), "3", true)));
+        assertThat(movementRepository.calculateStock(helmet.getId(), warehouse.getId())).isEqualByComparingTo("9");
+        assertThat(invoiceService.findById(invoice.getId()).getItems().get(0).getBackInStockNotCredited()).isEqualByComparingTo("0");
+        assertThatThrownBy(() -> saleOrderService.createReturn(order.getId(), orderReturn(lineId, "2")))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("only 1 shipped and not yet returned");
+        assertThat(movementRepository.calculateStock(helmet.getId(), warehouse.getId())).isEqualByComparingTo("9");
+    }
+
+    private static SaleReturnRequest orderReturn(Long lineId, String qty) {
+        SaleReturnRequest ret = new SaleReturnRequest();
+        SaleReturnRequest.Line rl = new SaleReturnRequest.Line();
+        rl.setSaleOrderLineId(lineId);
+        rl.setQuantity(new BigDecimal(qty));
+        rl.setRestock(true);
+        ret.setLines(List.of(rl));
+        return ret;
+    }
+
     private Long helmetItem() {
         return invoice.getItems().stream().filter(i -> i.getProductId() != null).findFirst().orElseThrow().getId();
     }

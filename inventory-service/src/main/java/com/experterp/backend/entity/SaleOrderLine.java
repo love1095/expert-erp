@@ -54,6 +54,10 @@ public class SaleOrderLine {
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal returnedQuantity = BigDecimal.ZERO;
 
+    /** Returned units put back into stock that a credit note has covered: never put back a second time (review R3). */
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal restockCreditedQuantity = BigDecimal.ZERO;
+
     // Percent off the unit price
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal discountPercent = BigDecimal.ZERO;

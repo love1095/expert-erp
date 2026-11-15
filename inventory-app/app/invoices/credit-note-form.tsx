@@ -76,6 +76,11 @@ export default function CreditNoteForm({ invoice, onDone, onCancel }: {
                   Back to stock
                 </label>
               )}
+              {(i.backInStockNotCredited ?? 0) > 0 && (
+                <p className="text-[11px] text-amber-800 mt-0.5" data-testid={`already-back-${i.id}`}>
+                  {i.backInStockNotCredited} already back in stock from a return on the order{restock[i.id] ? ": not put back again" : ""}.
+                </p>
+              )}
             </div>
           );
         })}

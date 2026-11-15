@@ -487,6 +487,22 @@ public class SaleOrderService {
         return toDetailResponse(so);
     }
 
+    /**
+     * A credit note puts {@code quantity} of a line back into stock (review R3): the units a return already brought
+     * back and no credit note has covered are taken first, without a stock movement. Returns what still has to come
+     * in as a new return (zero when the goods are all back already).
+     */
+    @Transactional
+    public BigDecimal coverRestockFromEarlierReturns(Long orderId, Long lineId, BigDecimal quantity) {
+        SaleOrder so = lockSO(orderId);
+        SaleOrderLine line = requireLine(linesById(so), lineId, orderId);
+        returnRepository.flush();
+        BigDecimal back = returnRepository.backInStockNotCredited(orderId).stream()
+                .filter(r -> ((Number) r[0]).longValue() == lineId).map(r -> (BigDecimal) r[1]).findFirst().orElse(BigDecimal.ZERO);
+        line.setRestockCreditedQuantity(line.getRestockCreditedQuantity().add(quantity));
+        return quantity.subtract(back.min(quantity));
+    }
+
     /** Records goods coming back; restocked lines create SALE_RETURN_IN movements. */
     @Transactional
     public SaleOrderResponse createReturn(Long id, SaleReturnRequest req) {

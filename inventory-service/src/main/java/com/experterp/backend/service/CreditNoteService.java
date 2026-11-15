@@ -70,6 +70,8 @@ public class CreditNoteService {
         inv.getItems().forEach(i -> itemsById.put(i.getId(), i));
         Set<Long> seen = new HashSet<>();
         List<SaleReturnRequest.Line> restock = new ArrayList<>();
+        int restockLines = 0;
+        BigDecimal alreadyBack = BigDecimal.ZERO;
         BigDecimal net = BigDecimal.ZERO, tax = BigDecimal.ZERO;
 
         for (CreditNoteRequest.Line l : req.getLines()) {
@@ -94,11 +96,18 @@ public class CreditNoteService {
 
             if (l.isRestock()) {
                 if (item.getSaleOrderLineId() == null) throw new IllegalStateException(what + " is not a product of the order: nothing to restock");
-                SaleReturnRequest.Line r = new SaleReturnRequest.Line();
-                r.setSaleOrderLineId(item.getSaleOrderLineId());
-                r.setQuantity(l.getQuantity());
-                r.setRestock(true);
-                restock.add(r);
+                if (inv.getSaleOrderId() == null) throw new IllegalStateException(inv.getInvoiceNumber() + " is not for an order: nothing to restock");
+                restockLines++;
+                // Goods a return on the order already brought back are not put back a second time (review R3)
+                BigDecimal fresh = saleOrderService.coverRestockFromEarlierReturns(inv.getSaleOrderId(), item.getSaleOrderLineId(), l.getQuantity());
+                alreadyBack = alreadyBack.add(l.getQuantity().subtract(fresh));
+                if (fresh.signum() > 0) {
+                    SaleReturnRequest.Line r = new SaleReturnRequest.Line();
+                    r.setSaleOrderLineId(item.getSaleOrderLineId());
+                    r.setQuantity(fresh);
+                    r.setRestock(true);
+                    restock.add(r);
+                }
             }
         }
 
@@ -121,7 +130,6 @@ public class CreditNoteService {
 
         // Goods back into stock: a return on the order (checks they were shipped and not returned yet)
         if (!restock.isEmpty()) {
-            if (inv.getSaleOrderId() == null) throw new IllegalStateException(inv.getInvoiceNumber() + " is not for an order: nothing to restock");
             SaleReturnRequest ret = new SaleReturnRequest();
             ret.setWarehouseId(req.getWarehouseId());
             ret.setReason("Credit note " + cn.getInvoiceNumber() + (req.getReason() == null ? "" : ": " + req.getReason()));
@@ -134,7 +142,7 @@ public class CreditNoteService {
         String settled = settle(inv, cn, req);
         auditService.log("INVOICE", cn.getId(), "CREDIT_NOTE", Map.of(
                 "creditNote", cn.getInvoiceNumber(), "invoice", inv.getInvoiceNumber(), "total", cn.getTotalAmount(),
-                "restocked", restock.size(), "settled", settled));
+                "restocked", restockLines, "alreadyBackInStock", alreadyBack, "settled", settled));
         return invoiceService.findById(cn.getId());
     }
 

@@ -160,7 +160,7 @@ Also for every flow: **the audit log** has each step, and **nothing goes below z
 
 ### Results
 - **F1 Order to cash: passes (2026-11-15)**, backend `flow/OrderToCashFlowTest` on fixed figures: contract price £3.10, £600.00 order over a £500.00 limit confirmed by a manager with a reason, picked from bins A-01 / B-01, two cartons, courier booked (fake), shipped, invoiced, e-mailed, £200.00 then £450.00 received (£50.00 customer credit), 10 gloves back on a credit note kept as credit. At the end: stock 40 = bins + no bin; cost of goods £289.17 = ledger 310; stock £335.83 on 631 = the FIFO layers; revenue £469.00, VAT £93.80, bank £650.00; the customer £87.20 in credit on the statement, aged debtors, the credit check and the ledger (610 + 802); the audit log has all 15 steps. Not in it yet: the screens themselves (e2e) and the statement PDF.
-- **Found by F1**: the same returned goods can be put back twice (Return on the order, then a credit note with restock): see R3 point 5 in [`review-findings.md`](review-findings.md).
+- **Found by F1**: the same returned goods can be put back twice (Return on the order, then a credit note with restock): see R3 point 5 in [`review-findings.md`](review-findings.md). Fixed the same day.
 
 ### Test data
 - A **seed script** for a fixed test organisation (about 10 customers, 5 suppliers, 30 products including a kit, a product with units, a discontinued product, 2 warehouses with bins). It is loaded fresh before each flow run, so expected figures can be written into the tests.

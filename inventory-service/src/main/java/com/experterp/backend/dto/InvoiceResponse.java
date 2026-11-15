@@ -70,6 +70,9 @@ public class InvoiceResponse {
         private List<String> matchIssues;
         // Invoice items: quantity already on credit notes
         private BigDecimal creditedQuantity;
+        // Sales invoice items (one invoice opened): units of the order line already back in stock through a return
+        // that no credit note has covered; a credit note with "restock" takes these first
+        private BigDecimal backInStockNotCredited;
         // Bill lines: units matched to stock received so far (the rest is priced when it arrives)
         private BigDecimal costMatchedQuantity;
     }

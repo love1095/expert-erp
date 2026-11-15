@@ -671,6 +671,8 @@ export interface InvoiceItem {
   saleOrderLineId?: number;
   // Invoice items: quantity already on credit notes
   creditedQuantity: number;
+  // Units already back in stock through a return on the order that no credit note has covered yet
+  backInStockNotCredited?: number;
   // Bills: the purchase order line, and what differs from the PO and the receipts (three-way match)
   purchaseOrderLineId?: number;
   matchIssues?: string[];

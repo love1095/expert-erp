@@ -43,6 +43,7 @@ public class InvoiceService {
     private final TaxService taxService;
     private final CostingService costingService;
     private final PaymentTermService paymentTermService;
+    private final com.experterp.backend.repository.SaleReturnRepository saleReturnRepository;
 
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(int page, int size, Invoice.InvoiceType type) {
@@ -74,7 +75,14 @@ public class InvoiceService {
 
     @Transactional(readOnly = true)
     public InvoiceResponse findById(Long id) {
-        return toResponse(getInvoice(id));
+        Invoice inv = getInvoice(id);
+        InvoiceResponse r = toResponse(inv);
+        if (inv.getType() == Invoice.InvoiceType.SALES && inv.getKind() == Invoice.Kind.INVOICE && inv.getSaleOrderId() != null) {
+            java.util.Map<Long, BigDecimal> back = new java.util.HashMap<>();
+            saleReturnRepository.backInStockNotCredited(inv.getSaleOrderId()).forEach(x -> back.put(((Number) x[0]).longValue(), (BigDecimal) x[1]));
+            r.getItems().forEach(i -> { if (i.getSaleOrderLineId() != null) i.setBackInStockNotCredited(back.getOrDefault(i.getSaleOrderLineId(), BigDecimal.ZERO)); });
+        }
+        return r;
     }
 
     @Transactional
