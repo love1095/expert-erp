@@ -7,6 +7,7 @@ import { Warehouse, StockMovement } from "@/types";
 import { useState } from "react";
 import { ClientDate } from "@/components/ClientDate";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { QTY_INPUT } from "@/lib/quantity-input";
 
 export default function StockTransferPage() {
   const ask = useConfirm();
@@ -98,7 +99,7 @@ export default function StockTransferPage() {
         <div>
           <label htmlFor="stock-transfer-quantity" className="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
           <input id="stock-transfer-quantity"
-            type="number" min="0.0001" step="any"
+            {...QTY_INPUT}
             value={form.quantity}
             onChange={(e) => setForm({ ...form, quantity: e.target.value })}
             required

@@ -904,6 +904,14 @@ Owner's request after looking at Cin7 (Integration → Xero): the connection bel
 - **Live Xero**: `docker-compose.yml` now passes `APP_XERO_*` to the backend; the live client asks for Xero's granular scopes (`accounting.invoices`, `accounting.payments`, `accounting.manualjournals`), since an app made after 2 March 2026 is refused `accounting.transactions`.
 - Tests: backend `XeroAppSettingsTest` (only the super admin, secret never returned, kept encrypted, fallback, permission rules), `XeroClientTest`; e2e XERO-002 (moved), INT-001 (catalogue and sections), PLAT-002 (super admin page, looks only), XERO-001, SHP-001…003, API-001, PLAT-001: 9 of 9 pass on the fake Xero.
 
+### First live run against Xero's Demo Company: what it found (2026-11-15) ✅
+Connected on dev (APP_XERO_MODE=live): sign-in, change organisation, tax rates, a contact and a sales invoice sent (INV-3, lines, VAT, account, due date right in Xero), a payment made in Xero pulled back and recorded.
+- **Chart of accounts read from Xero** (`GET /api/xero/accounts`, `XeroClient.accounts`): to choose and check the account mapping; not on a page yet.
+- **A payment that failed once is tried again**: the pull re-reads payments in ERROR from Xero by ID (`XeroClient.payment`); before, one that failed (e.g. Xero's bank account missing here) waited for ever.
+- **Payments on documents the ERP never sent are ignored** (the Xero organisation's own invoices and bills filled the list with "Not matched"); "Not matched" stays only for a number that is a document here but cannot take a payment. The first pull starts at the export start date (or the connection day if earlier); another Xero organisation starts again, the same one keeps its place. V69 clears the rows listed so far.
+- **Quantity boxes** (`lib/quantity-input.ts`, sale and purchase lines and charges, bills, hand-typed invoices, transfer, movements, reorder): the arrows count 1, 2, 3 (min 0.0001 made the first click 0.0001), decimals allowed, 0 or less refused. A new sale line starts at quantity 1, so the customer's price shows as soon as a product is chosen, in dark text.
+- Tests: `XeroPullTest` (retry after the bank account is added, Xero-only payments not listed); the 5 Xero test classes pass (12); e2e sale orders and purchase orders 40 of 40.
+
 ## Cross-cutting (done throughout)
 
 - [x] **JWT authentication** — signing key from `APP_JWT_SECRET` (base64, ≥ 32 bytes; local value in git-ignored `.env`, see `.env.example`). Tokens survive restarts; the backend refuses to start without a valid key. Expiry 24 h

@@ -150,6 +150,11 @@ public class HttpXeroClient implements XeroClient {
     }
 
     @Override
+    public List<Account> accounts(Session s) {
+        return json.convertValue(send(api(s, "Accounts").GET()).path("Accounts"), new TypeReference<List<Account>>() {});
+    }
+
+    @Override
     public List<TaxRate> taxRates(Session s) {
         return json.convertValue(send(api(s, "TaxRates").GET()).path("TaxRates"), new TypeReference<List<TaxRate>>() {});
     }
@@ -166,6 +171,17 @@ public class HttpXeroClient implements XeroClient {
         String where = enc("Type==\"" + type + "\"&&CreditNoteNumber==\"" + number.replace("\"", "\\\"") + "\"");
         JsonNode first = send(api(s, "CreditNotes?where=" + where).GET()).path("CreditNotes").path(0);
         return first.isMissingNode() ? Optional.empty() : Optional.of(json.convertValue(first, CreditNote.class));
+    }
+
+    @Override
+    public Optional<Payment> payment(Session s, String paymentId) {
+        try {
+            JsonNode first = send(api(s, "Payments/" + enc(paymentId)).GET()).path("Payments").path(0);
+            return first.isMissingNode() ? Optional.empty() : Optional.of(json.convertValue(first, Payment.class));
+        } catch (XeroException e) {
+            if (e.status() == 404) return Optional.empty();
+            throw e;
+        }
     }
 
     @Override

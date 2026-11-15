@@ -82,8 +82,11 @@ public class XeroConnectionService {
         Map<String, Object> c = row();
         Organisation o = c == null ? null : organisations(c).stream().filter(x -> x.tenantId().equals(xeroTenantId)).findFirst().orElse(null);
         if (o == null) throw new IllegalArgumentException("That Xero organisation was not given access");
-        jdbc.update("UPDATE xero_connections SET xero_tenant_id = ?, xero_tenant_name = ?, status = 'CONNECTED' WHERE tenant_id = ?",
-                o.tenantId(), o.tenantName(), TenantContext.get());
+        // Another Xero organisation: its payments are pulled from the start again (the same one keeps its place)
+        jdbc.update("""
+                UPDATE xero_connections SET payments_pulled_at = CASE WHEN xero_tenant_id IS DISTINCT FROM ? THEN NULL ELSE payments_pulled_at END,
+                       xero_tenant_id = ?, xero_tenant_name = ?, status = 'CONNECTED' WHERE tenant_id = ?""",
+                o.tenantId(), o.tenantId(), o.tenantName(), TenantContext.get());
         auditService.log("XERO", null, "ORGANISATION", Map.of("name", o.tenantName()));
         return status();
     }

@@ -333,6 +333,19 @@ public class FakeXeroClient implements XeroClient {
             new TaxRate("EC Acquisitions (20%)", "ECACQUISITIONS", new BigDecimal("20"), "ACTIVE"),
             new TaxRate("Full VAT", "GSTONIMPORTS", new BigDecimal("100"), "ACTIVE"));
 
+    /** The accounts Cin7's mapping uses, as in Xero's UK demo chart. */
+    private static final List<Account> UK_ACCOUNTS = List.of(
+            new Account("200", "Sales", "REVENUE", "OUTPUT2", "ACTIVE"), new Account("310", "Cost of Goods Sold", "DIRECTCOSTS", "INPUT2", "ACTIVE"),
+            new Account("425", "Postage, Freight & Courier", "EXPENSE", "INPUT2", "ACTIVE"), new Account("610", "Accounts Receivable", "CURRENT", "NONE", "ACTIVE"),
+            new Account("630", "Inventory", "INVENTORY", "NONE", "ACTIVE"), new Account("800", "Accounts Payable", "CURRLIAB", "NONE", "ACTIVE"),
+            new Account("820", "VAT", "CURRLIAB", "NONE", "ACTIVE"));
+
+    @Override
+    public List<Account> accounts(Session s) {
+        call(s, "Accounts");
+        return UK_ACCOUNTS;
+    }
+
     @Override
     public List<TaxRate> taxRates(Session s) {
         call(s, "TaxRates");
@@ -349,6 +362,11 @@ public class FakeXeroClient implements XeroClient {
     public Optional<CreditNote> findCreditNoteByNumber(Session s, String type, String number) {
         Org o = call(s, "CreditNotes?where");
         return o.creditNotes.values().stream().filter(c -> c.type().equals(type) && number.equals(c.creditNoteNumber())).findFirst();
+    }
+
+    @Override
+    public Optional<Payment> payment(Session s, String paymentId) {
+        return Optional.ofNullable(call(s, "Payments/id").payments.get(paymentId));
     }
 
     @Override

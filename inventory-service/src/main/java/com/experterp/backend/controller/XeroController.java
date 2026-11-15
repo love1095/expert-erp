@@ -22,6 +22,7 @@ public class XeroController {
     static final String SEE = SETUP + " or hasAuthority('PERM_REPORTS_FINANCIAL')";
 
     private final XeroConnectionService connection;
+    private final com.experterp.backend.integration.xero.XeroClient xero;
     private final com.experterp.backend.integration.xero.XeroSyncService sync;
     private final com.experterp.backend.service.AccountingExportService export;
     private final com.experterp.backend.integration.xero.XeroPaymentPuller puller;
@@ -80,6 +81,14 @@ public class XeroController {
     @PreAuthorize(SETUP)
     public XeroConnectionService.Status disconnect() {
         return connection.disconnect();
+    }
+
+    /** The connected Xero organisation's chart of accounts, by code: to choose and check the account mapping. */
+    @GetMapping("/accounts")
+    public java.util.List<com.experterp.backend.integration.xero.XeroApi.Account> accounts() {
+        return xero.accounts(connection.session(false)).stream()
+                .filter(a -> a.code() != null && !"ARCHIVED".equals(a.status()))
+                .sorted(java.util.Comparator.comparing(com.experterp.backend.integration.xero.XeroApi.Account::code)).toList();
     }
 
     // ---- the sync queue (L2) ----

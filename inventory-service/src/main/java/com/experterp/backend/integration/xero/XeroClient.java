@@ -56,11 +56,17 @@ public interface XeroClient {
     /** The organisation's tax rates (to turn the ERP's VAT rate names into Xero's TaxType codes). */
     List<TaxRate> taxRates(Session s);
 
+    /** The organisation's chart of accounts (to check the account mapping: a code Xero does not have is refused there). */
+    List<Account> accounts(Session s);
+
     /** An invoice or bill by its number (ACCPAY: the supplier's number), e.g. one sent earlier in a CSV file. */
     java.util.Optional<Invoice> findInvoiceByNumber(Session s, String type, String number);
 
     /** A credit note by its number, e.g. one sent earlier in a CSV file. */
     java.util.Optional<CreditNote> findCreditNoteByNumber(Session s, String type, String number);
+
+    /** One payment by its Xero ID (to try again one that could not be recorded here), empty when Xero no longer has it. */
+    java.util.Optional<Payment> payment(Session s, String paymentId);
 
     /** Payments made or changed in Xero since a moment (L4: pulled back into the ERP). */
     List<Payment> payments(Session s, OffsetDateTime modifiedSince);

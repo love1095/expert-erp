@@ -17,6 +17,7 @@ import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { todayIso } from "@/lib/dates";
+import { QTY_INPUT } from "@/lib/quantity-input";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitCost: string; discountPercent: string; supplierSku: string; taxRule: string; taxReason: string };
@@ -435,7 +436,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
                 </div>
                 <input aria-label={`Supplier SKU for line ${i + 1}`} value={l.supplierSku} placeholder={p?.supplierSku ?? "—"}
                   onChange={e => setLine(i, { supplierSku: e.target.value })} className={INPUT} />
-                <input aria-label={`Quantity for line ${i + 1}`} type="number" min="0.0001" step="any" value={l.quantity} placeholder="Qty" required
+                <input aria-label={`Quantity for line ${i + 1}`} {...QTY_INPUT} value={l.quantity} placeholder="Qty" required
                   onChange={e => setLine(i, { quantity: e.target.value })} className={INPUT} />
                 <input aria-label={`Unit cost for line ${i + 1}`} type="number" min="0" step="any" value={l.unitCost}
                   placeholder={p?.unitCost != null ? String(p.unitCost) : "£"} onChange={e => setLine(i, { unitCost: e.target.value })} className={INPUT} />
@@ -466,7 +467,7 @@ export default function PurchaseOrderForm({ warehouses, onSaved, editing, onCanc
                 placeholder="e.g. Freight" className={`${INPUT} col-span-3`} />
               <input aria-label={`Cost ${i + 1} reference`} value={c.reference} onChange={e => setCost(i, { reference: e.target.value })}
                 placeholder="Reference" className={INPUT} />
-              <input aria-label={`Cost ${i + 1} quantity`} type="number" min="0.0001" step="any" value={c.quantity} onChange={e => setCost(i, { quantity: e.target.value })} className={INPUT} />
+              <input aria-label={`Cost ${i + 1} quantity`} {...QTY_INPUT} value={c.quantity} onChange={e => setCost(i, { quantity: e.target.value })} className={INPUT} />
               <input aria-label={`Cost ${i + 1} price`} type="number" min="0" step="any" value={c.unitPrice} placeholder="£" required onChange={e => setCost(i, { unitPrice: e.target.value })} className={INPUT} />
               <span />
               <div className="col-span-2">{vatSelect(c.taxRule, p?.taxName, v => setCost(i, { taxRule: v }), `VAT for cost ${i + 1}`)}</div>

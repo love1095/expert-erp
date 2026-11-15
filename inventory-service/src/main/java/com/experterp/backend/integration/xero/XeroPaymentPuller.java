@@ -90,6 +90,9 @@ public class XeroPaymentPuller {
         if (!"API".equals(export.xeroLink())) return new PullResult(0, 0, 0, 0, 0);
         Long t = TenantContext.get();
         Timestamp last = jdbc.queryForObject("SELECT payments_pulled_at FROM xero_connections WHERE tenant_id = ?", Timestamp.class, t);
+        // The first pull starts where the ERP's own documents start (the export start date, or the day Xero was
+        // connected if that is earlier), not at the beginning of the Xero organisation's history
+        if (last == null) last = firstPullFrom(t);
         OffsetDateTime since = last == null ? null : last.toLocalDateTime().atOffset(ZoneOffset.UTC).minusMinutes(1);
         Session s = connection.session(false);
         List<Payment> payments;
@@ -99,6 +102,15 @@ public class XeroPaymentPuller {
             if (e.kind() != XeroException.Kind.UNAUTHORIZED) throw e;
             payments = xero.payments(connection.session(true), since);
         }
+        // Payments that could not be recorded last time (e.g. a bank account missing here) are read again and tried
+        // again: Xero no longer lists them as changed, so they would otherwise wait for ever
+        Set<String> listed = new HashSet<>();
+        payments.forEach(p -> listed.add(p.paymentID()));
+        List<Payment> all = new ArrayList<>(payments);
+        for (String id : jdbc.queryForList("SELECT xero_payment_id FROM xero_pulled_payments WHERE tenant_id = ? AND status = 'ERROR' ORDER BY id LIMIT 200", String.class, t)) {
+            if (!listed.contains(id)) xero.payment(s, id).ifPresent(all::add);
+        }
+        payments = all;
         LocalDateTime started = LocalDateTime.now(ZoneOffset.UTC);
         int[] c = new int[5];
         Authentication before = SecurityContextHolder.getContext().getAuthentication();
@@ -126,6 +138,13 @@ public class XeroPaymentPuller {
         return new PullResult(c[0], c[1], c[2], c[3], c[4]);
     }
 
+    private Timestamp firstPullFrom(Long t) {
+        Timestamp connected = jdbc.queryForObject("SELECT connected_at FROM xero_connections WHERE tenant_id = ?", Timestamp.class, t);
+        LocalDate start = export.settings().exportStartDate();
+        Timestamp from = start == null ? null : Timestamp.valueOf(start.atStartOfDay());
+        return connected == null ? from : from == null || connected.before(from) ? connected : from;
+    }
+
     private String one(Long t, Payment p) {
         // Sent from here: Xero has it from us
         Boolean ours = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM xero_sync_items WHERE tenant_id = ? AND kind = 'PAYMENT' AND xero_id = ?)",
@@ -133,7 +152,12 @@ public class XeroPaymentPuller {
         List<Map<String, Object>> seen = jdbc.queryForList("SELECT * FROM xero_pulled_payments WHERE tenant_id = ? AND xero_payment_id = ?", t, p.paymentID());
         boolean deleted = "DELETED".equals(p.status());
         if (Boolean.TRUE.equals(ours) && seen.isEmpty()) return "SKIPPED";
-        if (!seen.isEmpty()) {
+        boolean failedBefore = !seen.isEmpty() && "ERROR".equals(seen.get(0).get("status"));
+        if (failedBefore && deleted) {
+            jdbc.update("DELETE FROM xero_pulled_payments WHERE id = ?", seen.get(0).get("id"));   // never recorded here, gone in Xero
+            return "SKIPPED";
+        }
+        if (!seen.isEmpty() && !failedBefore) {
             Map<String, Object> row = seen.get(0);
             if (deleted && "RECORDED".equals(row.get("status")) && row.get("erp_payment_id") != null) {
                 Long docId = Long.valueOf(((String) row.get("doc_key")).substring(4));
@@ -167,7 +191,12 @@ public class XeroPaymentPuller {
         }
         LocalDate day = date(p.date());
         if (docId == null) {
-            save(t, p, null, null, day, "UNMATCHED", "No invoice, bill or credit note here for this Xero payment" + (number == null ? "" : " (" + number + ")"));
+            // A document the ERP never sent (Xero's own invoices, bills and their payments): none of our business, not
+            // listed. Only a number that is a document here, but one that cannot take a payment, is worth a look.
+            List<String> here = number == null ? List.of() : jdbc.queryForList(
+                    "SELECT status FROM invoices WHERE tenant_id = ? AND invoice_number = ? ORDER BY id DESC LIMIT 1", String.class, t, number);
+            if (here.isEmpty()) return "SKIPPED";
+            save(t, p, null, null, day, "UNMATCHED", number + " is " + here.get(0).toLowerCase(Locale.ROOT) + " here, so the payment made in Xero was not recorded");
             return "UNMATCHED";
         }
         try {

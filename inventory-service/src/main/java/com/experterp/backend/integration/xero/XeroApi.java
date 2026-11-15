@@ -94,4 +94,9 @@ public final class XeroApi {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy.class)
     public record TaxRate(String name, String taxType, BigDecimal effectiveRate, String status) {}
+
+    /** An account of the organisation's chart (read only: to check the ERP's account mapping against Xero). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategies.UpperCamelCaseStrategy.class)
+    public record Account(String code, String name, String type, String taxType, String status) {}
 }

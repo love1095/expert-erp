@@ -128,7 +128,7 @@ class XeroPullTest {
     }
 
     @Test
-    void unmatchedPaymentsAndUnknownBankAccountsAreListedAndWebhooksAreSigned() throws Exception {
+    void paymentsOnXeroOnlyDocumentsAreIgnoredUnknownBankAccountsAreListedAndRetriedAndWebhooksAreSigned() throws Exception {
         // A Xero invoice the ERP never had
         Session s = connection.session(false);
         Contact c = xero.saveContact(s, new Contact(null, "Walk-in " + id, null, true, null, null, null));
@@ -141,16 +141,26 @@ class XeroPullTest {
         sync.process();
         fake.payInXero(org, sync.xeroId("DOC:" + invoice.getId()), new BigDecimal("5.00"), "699", LocalDate.now().toString());
 
+        // The Xero-only invoice's payment is none of the ERP's business: not listed at all
         XeroPaymentPuller.PullResult r = puller.pull();
-        assertThat(r.unmatched()).isEqualTo(1);
+        assertThat(r.unmatched()).isZero();
         assertThat(r.errors()).isEqualTo(1);
-        assertThat(puller.pulled(10)).anySatisfy(p -> {
-            assertThat(p.status()).isEqualTo("UNMATCHED");
-            assertThat(p.message()).contains("No invoice");
-        }).anySatisfy(p -> {
+        assertThat(puller.pulled(10)).noneMatch(p -> "UNMATCHED".equals(p.status())).anySatisfy(p -> {
             assertThat(p.status()).isEqualTo("ERROR");
             assertThat(p.message()).contains("699");
         });
+
+        // Once the bank account exists here, the next pull tries the failed payment again and records it
+        PaymentAccount extra = new PaymentAccount();
+        extra.setCode("699");
+        extra.setName("Second bank " + id);
+
+        paymentAccountRepository.save(extra);
+        XeroPaymentPuller.PullResult again = puller.pull();
+        assertThat(again.recorded()).isEqualTo(1);
+        assertThat(again.errors()).isZero();
+        assertThat(puller.pulled(10)).noneMatch(p -> "ERROR".equals(p.status()));
+        assertThat(puller.pull().recorded()).isZero();                                        // and only once
 
         // Webhooks: a good signature asks for a pull, a bad one gets 401
         XeroWebhookController hook = new XeroWebhookController(puller, objectMapper, "webhook-key-1");

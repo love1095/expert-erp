@@ -14,12 +14,14 @@ import { Section, StickyActions, ADD_BUTTON } from "@/components/ui/Section";
 import { useToast } from "@/components/ui/Toast";
 import { daysFromToday, todayIso } from "@/lib/dates";
 import { NewContactDialog, NewCustomerDialog, PaymentTermDialog, SalesRepDialog, WithAdd } from "@/components/QuickAdd";
+import { QTY_INPUT } from "@/lib/quantity-input";
 
 // productSku / productName: shown in the search box when editing an existing line
 type LineForm = { productSku?: string; productName?: string; productId: string; unitName?: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 type ChargeForm = { description: string; quantity: string; unitPrice: string; discountPercent: string; taxRule: string; taxReason: string };
 
-const emptyLine = (): LineForm => ({ productId: "", quantity: "", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
+// Quantity starts at 1 (like Cin7), so the customer's price shows as soon as a product is chosen
+const emptyLine = (): LineForm => ({ productId: "", quantity: "1", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
 const emptyCharge = (): ChargeForm => ({ description: "", quantity: "1", unitPrice: "", discountPercent: "", taxRule: "", taxReason: "" });
 const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
 const text = (s: string) => (s.trim() === "" ? undefined : s.trim());
@@ -312,12 +314,13 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
                   <UnitSelect productId={l.productId ? Number(l.productId) : undefined} value={l.unitName ?? ""}
                     onChange={u => setLine(i, { unitName: u, unitPrice: "" })} label={`Unit for line ${i + 1}`} />
                 </div>
-                <input aria-label={`Quantity for line ${i + 1}`} type="number" min="0.0001" step="any" value={l.quantity} placeholder="Qty" required
+                <input aria-label={`Quantity for line ${i + 1}`} {...QTY_INPUT} value={l.quantity} placeholder="Qty" required
                   onChange={e => setLine(i, { quantity: e.target.value })} className={INPUT} />
                 <input aria-label={`Unit price for line ${i + 1}`} type="number" min="0" step="any" value={l.unitPrice}
                   placeholder={p && p.unitPrice != null ? String(Number(p.unitPrice)) : "£"}
                   title={p?.priceSource ? `${p.priceSource} price — type a price to change it` : undefined}
-                  onChange={e => setLine(i, { unitPrice: e.target.value })} className={INPUT} />
+                  onChange={e => setLine(i, { unitPrice: e.target.value })}
+                  className={`${INPUT} ${p && p.unitPrice != null ? "placeholder:text-gray-900" : ""}`} />
                 <input aria-label={`Discount for line ${i + 1}`} type="number" min="0" max="100" step="any" value={l.discountPercent}
                   placeholder={p ? String(p.discountPercent) : "%"} onChange={e => setLine(i, { discountPercent: e.target.value })} className={INPUT} />
                 <div className="col-span-2">{vatSelect(l.taxRule, p && !p.taxOverridden ? p.taxName : undefined, v => setLine(i, { taxRule: v }), `VAT for line ${i + 1}`)}</div>
@@ -348,7 +351,7 @@ export default function SaleOrderForm({ customers, warehouses, onCreated, editin
               <div className="grid grid-cols-12 gap-2 items-center">
                 <input aria-label={`Charge ${i + 1} description`} value={c.description} onChange={e => setCharge(i, { description: e.target.value })} required
                   placeholder="e.g. Carriage" className={`${INPUT} col-span-4`} />
-                <input aria-label={`Charge ${i + 1} quantity`} type="number" min="0.0001" step="any" value={c.quantity} onChange={e => setCharge(i, { quantity: e.target.value })} className={INPUT} />
+                <input aria-label={`Charge ${i + 1} quantity`} {...QTY_INPUT} value={c.quantity} onChange={e => setCharge(i, { quantity: e.target.value })} className={INPUT} />
                 <input aria-label={`Charge ${i + 1} price`} type="number" min="0" step="any" value={c.unitPrice} placeholder="£" required onChange={e => setCharge(i, { unitPrice: e.target.value })} className={INPUT} />
                 <input aria-label={`Charge ${i + 1} discount`} type="number" min="0" max="100" step="any" value={c.discountPercent} placeholder="%" onChange={e => setCharge(i, { discountPercent: e.target.value })} className={INPUT} />
                 <div className="col-span-2">{vatSelect(c.taxRule, p && !p.taxOverridden ? p.taxName : undefined, v => setCharge(i, { taxRule: v }), `VAT for charge ${i + 1}`)}</div>

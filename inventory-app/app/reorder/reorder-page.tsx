@@ -11,6 +11,7 @@ import Pagination from "@/components/Pagination";
 import { PageHeader, ListToolbar, FILTER_SELECT } from "@/components/ListToolbar";
 import { BTN_PRIMARY, TH, TD } from "@/components/DetailParts";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { QTY_INPUT } from "@/lib/quantity-input";
 
 // Which suppliers' products are shown: all, one supplier, or products without a supplier
 type Scope = { kind: "all" } | { kind: "supplier"; id: number } | { kind: "none" };
@@ -153,7 +154,7 @@ export default function ReorderPage() {
                       <td className={`${TD} tabular-nums text-gray-600`}>{qty(l.onOrder)}</td>
                       <td className={`${TD} tabular-nums text-gray-600`}>{qty(l.minStock)}</td>
                       <td className={TD}>
-                        <input type="number" min="0.0001" step="any" aria-label={`Order quantity for ${l.sku}`}
+                        <input {...QTY_INPUT} aria-label={`Order quantity for ${l.sku}`}
                           value={c?.quantity ?? String(l.suggestedQuantity)} disabled={!c}
                           onChange={e => setChosen({ ...chosen, [l.productId]: { ...c!, quantity: e.target.value } })}
                           className="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm disabled:bg-transparent disabled:border-transparent" />

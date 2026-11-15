@@ -8,6 +8,7 @@ import { formatGBP } from "@/lib/currency";
 import { BTN_PRIMARY, BTN_SECONDARY, TH, TD } from "@/components/DetailParts";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { todayIso } from "@/lib/dates";
+import { QTY_INPUT } from "@/lib/quantity-input";
 
 type ChargeForm = { description: string; quantity: string; unitPrice: string };
 
@@ -131,7 +132,7 @@ export default function BillForm({ po, onSaved, onCancel }: { po: PurchaseOrder;
           <div key={i} className="flex gap-2 mb-2">
             <input aria-label={`Charge ${i + 1} description`} value={c.description} placeholder="e.g. Shipping - Standard"
               onChange={e => setCharges(charges.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} className={`${INPUT} flex-1`} />
-            <input aria-label={`Charge ${i + 1} quantity`} type="number" min="0.0001" step="any" value={c.quantity}
+            <input aria-label={`Charge ${i + 1} quantity`} {...QTY_INPUT} value={c.quantity}
               onChange={e => setCharges(charges.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} className={`${INPUT} w-20`} />
             <input aria-label={`Charge ${i + 1} price`} type="number" min="0" step="any" value={c.unitPrice} placeholder="£"
               onChange={e => setCharges(charges.map((x, j) => j === i ? { ...x, unitPrice: e.target.value } : x))} className={`${INPUT} w-28`} />

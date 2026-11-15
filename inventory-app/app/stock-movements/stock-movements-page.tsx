@@ -10,6 +10,7 @@ import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { SkeletonRows } from "@/components/ui/Skeleton";
+import { QTY_INPUT } from "@/lib/quantity-input";
 
 export default function StockMovementsPage() {
   const ask = useConfirm();
@@ -115,7 +116,7 @@ export default function StockMovementsPage() {
           <div>
             <label htmlFor="stock-movements-quantity" className="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
             <input id="stock-movements-quantity"
-              type="number" min="0.0001" step="any"
+              {...QTY_INPUT}
               value={form.quantity}
               onChange={(e) => setForm({ ...form, quantity: e.target.value })}
               required

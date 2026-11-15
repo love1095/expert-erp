@@ -7,6 +7,7 @@ import ProductPicker from "@/app/sale-orders/product-picker";
 import { Invoice, InvoiceType, Page, SaleOrder, PurchaseOrder } from "@/types";
 import { useToast } from "@/components/ui/Toast";
 import { todayIso } from "@/lib/dates";
+import { QTY_INPUT } from "@/lib/quantity-input";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "VND"];
 const emptyItem = () => ({ productId: "", description: "", quantity: "", unitPrice: "" });
@@ -173,7 +174,7 @@ export default function InvoiceForm({ onCreated, onCancel }: { onCreated: (inv: 
                   className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs" />
               </div>
               <div className="col-span-2">
-                <input type="number" step="0.0001" min="0.0001" value={it.quantity}
+                <input {...QTY_INPUT} value={it.quantity}
                   onChange={e => updateItem(i, "quantity", e.target.value)}
                   placeholder="Qty" required
                   className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs" />
