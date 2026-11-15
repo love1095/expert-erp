@@ -33,7 +33,9 @@ import java.util.concurrent.locks.ReentrantLock;
 public class XeroSyncService {
 
     static final int MAX_ATTEMPTS = 8;
-    private static final List<String> ORDER = List.of("CONTACT", "INVOICE", "BILL", "CREDIT_NOTE", "SUPPLIER_CREDIT", "PAYMENT", "ALLOCATION", "JOURNAL");
+    private static final List<String> ORDER = List.of("CONTACT", "INVOICE", "BILL", "CREDIT_NOTE", "SUPPLIER_CREDIT", "PAYMENT", "ALLOCATION", "JOURNAL",
+            // undone here after it was sent: the payment comes off first, Xero does not void a paid document
+            "PAYMENT_DELETE", "VOID");
 
     private final JdbcTemplate jdbc;
     private final XeroConnectionService connection;

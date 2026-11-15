@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { chooseXeroOrganisation, connectXero, disconnectXero, getXeroConnection, getXeroLink, getXeroPayments, getXeroQueue,
+import { chooseXeroOrganisation, connectXero, disconnectXero, getXeroAccountCheck, getXeroConnection, getXeroLink, getXeroPayments, getXeroQueue,
   pullXeroPayments, retryXeroItem, runXeroQueue, setXeroLink } from "@/lib/api";
 import { XeroConnection, XeroPulledPayment, XeroQueue } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,11 +65,31 @@ export default function XeroPage({ section }: { section?: string }) {
               or switch to the Xero link under General settings.
             </section>
           )}
+          {open === "accounts" && conn?.status === "CONNECTED" && <AccountCheck />}
           {open === "accounts" && <AccountingExportPage embedded />}
           {open === "advanced" && conn && <Advanced conn={conn} manage={setup} />}
         </div>
       </div>
     </div>
+  );
+}
+
+/** The account mapping compared with the connected Xero's own chart of accounts, so a wrong code shows here first. */
+function AccountCheck() {
+  const { data, isError, refetch, isFetching } = useQuery({ queryKey: ["xero-account-check"], queryFn: getXeroAccountCheck, retry: false });
+  if (isError || !data) return null;
+  return (
+    <section className={`border rounded-xl p-5 ${data.length ? "bg-amber-50 border-amber-200" : "bg-white border-gray-200"}`} data-testid="xero-account-check">
+      <div className="flex items-center gap-3">
+        <h2 className="font-semibold">Checked against Xero&apos;s chart of accounts</h2>
+        <button type="button" className={BTN_SECONDARY} disabled={isFetching} onClick={() => refetch()}>{isFetching ? "Checking…" : "Check again"}</button>
+      </div>
+      {data.length === 0 ? <p className="text-sm text-green-700 mt-1">Every account below exists in Xero and can be used.</p> : (
+        <ul className="mt-2 space-y-1 text-sm text-amber-900">
+          {data.map(p => <li key={p.what + p.code}><b>{p.what}:</b> {p.problem}.</li>)}
+        </ul>
+      )}
+    </section>
   );
 }
 

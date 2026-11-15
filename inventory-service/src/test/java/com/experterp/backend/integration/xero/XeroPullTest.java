@@ -45,6 +45,7 @@ class XeroPullTest {
     @Autowired AccountingExportService export;
     @Autowired SaleOrderService saleOrderService;
     @Autowired InvoiceService invoiceService;
+    @Autowired com.experterp.backend.service.SalesLedgerService salesLedger;
     @Autowired ProductRepository productRepository;
     @Autowired WarehouseRepository warehouseRepository;
     @Autowired PaymentAccountRepository paymentAccountRepository;
@@ -177,6 +178,34 @@ class XeroPullTest {
         t.setSlug("other-pull-" + id);
         TenantContext.set(tenantRepository.save(t).getId());
         assertThat(puller.pulled(10)).isEmpty();
+    }
+
+    @Test
+    void aPaymentVoidedHereIsDeletedInXeroAndACancelledInvoiceIsVoidedThere() {
+        InvoiceResponse invoice = sale("Crewe " + id);                          // £24
+        com.experterp.backend.dto.PaymentRequest pay = new com.experterp.backend.dto.PaymentRequest();
+        pay.setAmount(new BigDecimal("24.00"));
+        pay.setAccountId(bank.getId());
+        Long payment = invoiceService.addPayment(invoice.getId(), pay).getPayments().get(0).getId();
+        sync.process();
+        String xeroInvoice = sync.xeroId("DOC:" + invoice.getId()), xeroPayment = sync.xeroId("PAY:" + payment);
+        assertThat(fake.org(tenantId).payments.get(xeroPayment).status()).isNotEqualTo("DELETED");
+
+        // Voided and cancelled here after they were sent: listed as changed until the link has put Xero right
+        salesLedger.voidPayment(invoice.getId(), payment, "Entered twice");
+        invoiceService.cancel(invoice.getId());
+        assertThat(export.changedAfterExport()).hasSize(2);
+        XeroSyncService.RunResult r = sync.process();
+        assertThat(r.sent()).isEqualTo(2);
+        assertThat(r.failed()).isZero();
+        assertThat(fake.org(tenantId).payments.get(xeroPayment).status()).isEqualTo("DELETED");
+        assertThat(fake.org(tenantId).invoices.get(xeroInvoice).status()).isEqualTo("VOIDED");
+        assertThat(export.changedAfterExport()).isEmpty();
+        // Once only, and the payment Xero now shows as deleted changes nothing here
+        assertThat(sync.process().sent()).isZero();
+        XeroPaymentPuller.PullResult pulled = puller.pull();
+        assertThat(pulled.voided()).isZero();
+        assertThat(pulled.errors()).isZero();
     }
 
     private InvoiceResponse sale(String customer) {

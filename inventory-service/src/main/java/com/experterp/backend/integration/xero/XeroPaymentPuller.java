@@ -161,6 +161,12 @@ public class XeroPaymentPuller {
             Map<String, Object> row = seen.get(0);
             if (deleted && "RECORDED".equals(row.get("status")) && row.get("erp_payment_id") != null) {
                 Long docId = Long.valueOf(((String) row.get("doc_key")).substring(4));
+                // Voided here first (and so deleted in Xero by us): nothing more to do
+                Boolean gone = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM voided_payments WHERE tenant_id = ? AND payment_id = ?)", Boolean.class, t, row.get("erp_payment_id"));
+                if (Boolean.TRUE.equals(gone)) {
+                    jdbc.update("UPDATE xero_pulled_payments SET status = 'VOIDED', xero_status = 'DELETED', message = NULL, updated_at = now() WHERE id = ?", row.get("id"));
+                    return "SKIPPED";
+                }
                 try {
                     salesLedger.voidPayment(docId, ((Number) row.get("erp_payment_id")).longValue(), "Deleted in Xero");
                     jdbc.update("UPDATE xero_pulled_payments SET status = 'VOIDED', xero_status = 'DELETED', message = NULL, updated_at = now() WHERE id = ?", row.get("id"));

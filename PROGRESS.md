@@ -912,6 +912,13 @@ Connected on dev (APP_XERO_MODE=live): sign-in, change organisation, tax rates, 
 - **Quantity boxes** (`lib/quantity-input.ts`, sale and purchase lines and charges, bills, hand-typed invoices, transfer, movements, reorder): the arrows count 1, 2, 3 (min 0.0001 made the first click 0.0001), decimals allowed, 0 or less refused. A new sale line starts at quantity 1, so the customer's price shows as soon as a product is chosen, in dark text.
 - Tests: `XeroPullTest` (retry after the bank account is added, Xero-only payments not listed); the 5 Xero test classes pass (12); e2e sale orders and purchase orders 40 of 40.
 
+### Xero live test, the rest (2026-11-15) ✅ except the supplier bill
+Run through the ERP's API against the Demo Company: invoice + a payment recorded here + COGS journal (INV-4), credit note with restock applied to its invoice + return journal (INV-5, CR-00001), our own payment not pulled back twice: all sent first time.
+- **Undone here after sending, now put right in Xero** (was: only listed to correct by hand): an invoice or bill cancelled here is **voided in Xero** (`VOID:id`), a payment voided here is **deleted in Xero** (`UNPAY:id`), payment first (`XeroUndoSender`, queued by `XeroEnqueuer`); "changed after export" no longer lists what the link has put right; a payment Xero then shows as deleted changes nothing here. Live: INV-6 voided, INV-4's payment deleted.
+- **Supplier bill refused by Xero**: "You cannot save this transaction using an inventory account type": the Demo Company's 630 is Xero's own tracked-inventory account. Cin7 (and Expert Safety's Xero) use a Current Asset account, 631. The item shows as Failed with Xero's words and its payment waits (the Failed list works). To finish: add 631 in the Demo Company, map it, Retry.
+- **Account mapping checked against Xero's chart** (`GET /api/xero/accounts/check`, shown on Accounts and CSV files when connected): a code Xero does not have, Xero's tracked-inventory account, payment accounts that are not bank accounts in Xero.
+- Tests: `XeroPullTest` (void and delete sent once, nothing listed as changed after); 6 classes, 15 tests pass.
+
 ## Cross-cutting (done throughout)
 
 - [x] **JWT authentication** — signing key from `APP_JWT_SECRET` (base64, ≥ 32 bytes; local value in git-ignored `.env`, see `.env.example`). Tokens survive restarts; the backend refuses to start without a valid key. Expiry 24 h

@@ -455,13 +455,15 @@ public class AccountingExportService {
         List<Changed> out = new ArrayList<>(jdbc.query("""
                 SELECT e.doc_key, i.invoice_number, i.party_name, e.doc_date FROM accounting_exported e
                 JOIN invoices i ON e.doc_key = 'DOC:' || i.id
-                WHERE e.tenant_id = ? AND i.status = 'CANCELLED'""", (rs, n) -> new Changed(rs.getString(1), rs.getString(2),
+                WHERE e.tenant_id = ? AND i.status = 'CANCELLED'
+                  AND NOT EXISTS (SELECT 1 FROM xero_sync_items x WHERE x.tenant_id = e.tenant_id AND x.item_key = 'VOID:' || i.id AND x.status = 'SENT')""", (rs, n) -> new Changed(rs.getString(1), rs.getString(2),
                 nn(rs.getString(3)), "Cancelled after it was exported", rs.getDate(4).toLocalDate()), t));
         out.addAll(jdbc.query("""
                 SELECT e.doc_key, i.invoice_number, i.party_name, e.doc_date FROM accounting_exported e
                 JOIN voided_payments v ON e.doc_key = 'PAY:' || v.payment_id
                 JOIN invoices i ON i.id = v.invoice_id
-                WHERE e.tenant_id = ?""", (rs, n) -> new Changed(rs.getString(1), rs.getString(2), nn(rs.getString(3)),
+                WHERE e.tenant_id = ?
+                  AND NOT EXISTS (SELECT 1 FROM xero_sync_items x WHERE x.tenant_id = e.tenant_id AND x.item_key = 'UNPAY:' || v.payment_id AND x.status = 'SENT')""", (rs, n) -> new Changed(rs.getString(1), rs.getString(2), nn(rs.getString(3)),
                 "Payment voided after it was exported", rs.getDate(4).toLocalDate()), t));
         return out;
     }

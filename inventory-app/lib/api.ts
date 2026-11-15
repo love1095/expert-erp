@@ -344,6 +344,7 @@ export const connectXero = () => api.post("/xero/connection/connect").then(r => 
 export const xeroCallback = (code: string, state: string) => api.post("/xero/connection/callback", { code, state }).then(r => r.data);
 export const chooseXeroOrganisation = (xeroTenantId: string) => api.put("/xero/connection/organisation", { xeroTenantId }).then(r => r.data);
 export const disconnectXero = () => api.delete("/xero/connection").then(r => r.data);
+export const getXeroAccountCheck = () => api.get("/xero/accounts/check").then(r => r.data as { what: string; code: string; problem: string }[]);
 export const getXeroLink = () => api.get("/xero/link").then(r => r.data as { link: "CSV" | "API" });
 export const setXeroLink = (link: "CSV" | "API") => api.put("/xero/link", { link }).then(r => r.data);
 export const getXeroQueue = (status?: string) => api.get("/xero/queue", { params: { status } }).then(r => r.data);

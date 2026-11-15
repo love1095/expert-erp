@@ -42,10 +42,10 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 
 ## Test later with live systems
 - [ ] **Shopify (live store)**: a price change updates only that product (GLGH-WG-310RP-08 → expect 1 updated); stock push to the real dev store (would set stock for 13,959 linked SKUs); Shopify payouts (money paid into the bank, less fees) not matched to orders yet; Shopify-paid invoices tested with a fake order only
-- [ ] **Xero API link, live test on the Demo Company**: done 2026-11-15: connect, change organisation, contact, sales invoice, payment pulled back. Still to send live: a supplier bill, a customer credit note and its allocation, a payment recorded here, COGS and stock journals, void an invoice, delete a payment, a deliberate failure (wrong account) for Failed and Retry
+- [ ] **Xero API link, live test on the Demo Company**: done 2026-11-15 except the **supplier bill**: add account 631 "Inventory control" (type Current Asset, No VAT) in the Demo Company's chart, set Inventory control account to 631, then Retry the failed bill XT-BILL-1 (its payment follows). Also still to see live: a supplier credit note, a refund on a credit note, a void Xero refuses (invoice with a credit note on it)
 - [ ] **Demo Company test values to put back before cutover** (organisation Expert Safety on dev): accounts 630 / 425 / 810 / 620 (Expert Safety's are 631 / 407 / 802 / 615), payment account 090, export start date 15/11/2026
 - [ ] **Xero payments matched by number alone**: a payment on a Xero document the ERP did not send through the link is matched to the ERP document with the same number (for CSV-exported ones); tighten to documents the ERP exported (owner to confirm)
-- [ ] **Account mapping form**: pick the accounts from Xero's chart (`GET /api/xero/accounts`) and warn on a code Xero does not have
+- [ ] **Account mapping form**: pick the accounts from Xero's chart in the boxes (the warning list is built: `GET /api/xero/accounts/check`)
 - [ ] **Times shown in the server's UTC** on the Xero page (connected at, sent at)
 - [ ] **Shopify product images (phase P4)**: run the product sync on the dev store with a product that has images; check they appear once, main image first
 - [ ] **Couriers, live**: once built for the owner's couriers — book a real parcel, print its label on the warehouse printer, cancel one, follow tracking
@@ -192,7 +192,7 @@ Already in the ERP (the base to build on): Cin7's minimum-based Reorder list, to
 ## Build later (deliberately left for now)
 - [ ] Sale / purchase task import, not like Cin7 yet: credit lines at another price than the invoice's, negative credit note charges, part refunds, Cin7's Restock lines; currencies other than GBP; Cin7's 100-task limit not copied (not needed); undo of an import (today: restore the backup taken before)
 - [ ] Payments on account (customer credit / supplier deposits) in the Xero files and the Xero API link (Xero overpayments / prepayments)
-- [ ] Xero API link: a document changed after it was sent (Xero has no edit once paid): today it is listed by the CSV export's "changed after export" check, to correct in Xero by hand
+- [ ] Xero API link: cancelled invoices / bills and voided payments are now voided / deleted in Xero (2026-11-15); still by hand: a cancelled credit note, and a void Xero refuses (shown as Failed with Xero's reason)
 - [ ] Reports like Cin7's: drag-and-drop pivot, more fields, saved layouts; Sales Overview, Customer Orders by Product (Stock Value Inventory Aging is built, Reports)
 - [ ] Roles: Cin7's other ticks when those modules exist (Settings tick and several roles per user done in Q5, 2026-11-07)
 - [ ] Expert Safety's real users: set their roles at cutover (in Cin7 all 5 are on FULL)

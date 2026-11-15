@@ -22,6 +22,7 @@ public class XeroController {
     static final String SEE = SETUP + " or hasAuthority('PERM_REPORTS_FINANCIAL')";
 
     private final XeroConnectionService connection;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final com.experterp.backend.integration.xero.XeroClient xero;
     private final com.experterp.backend.integration.xero.XeroSyncService sync;
     private final com.experterp.backend.service.AccountingExportService export;
@@ -89,6 +90,44 @@ public class XeroController {
         return xero.accounts(connection.session(false)).stream()
                 .filter(a -> a.code() != null && !"ARCHIVED".equals(a.status()))
                 .sorted(java.util.Comparator.comparing(com.experterp.backend.integration.xero.XeroApi.Account::code)).toList();
+    }
+
+    public record AccountProblem(String what, String code, String problem) {}
+
+    /**
+     * The account mapping checked against the connected Xero's chart, before anything is refused there: a code Xero
+     * does not have, Xero's own tracked-inventory account (Xero refuses a bill on it: Cin7 uses a Current
+     * Asset account, 631), and payment accounts that are not bank accounts in Xero.
+     */
+    @GetMapping("/accounts/check")
+    public java.util.List<AccountProblem> checkAccounts() {
+        java.util.Map<String, com.experterp.backend.integration.xero.XeroApi.Account> chart = new java.util.HashMap<>();
+        accounts().forEach(a -> chart.put(a.code().toLowerCase(), a));
+        var s = export.settings();
+        java.util.List<AccountProblem> out = new java.util.ArrayList<>();
+        java.util.Map<String, String> mapping = new java.util.LinkedHashMap<>();
+        mapping.put("Inventory control account", s.inventoryAccount());
+        mapping.put("Cost of goods sold account", s.cogsAccount());
+        mapping.put("Inventory discrepancy account", s.discrepancyAccount());
+        mapping.put("Default revenue account", s.revenueAccount());
+        mapping.put("Purchase charges account", s.purchaseChargesAccount());
+        mapping.put("Customer credit account", s.customerCreditAccount());
+        mapping.put("Supplier deposits account", s.supplierDepositsAccount());
+        mapping.forEach((what, code) -> {
+            if (code == null || code.isBlank()) return;
+            var a = chart.get(code.toLowerCase());
+            if (a == null) out.add(new AccountProblem(what, code, "Xero has no account " + code + ": documents using it will be refused"));
+            else if ("INVENTORY".equals(a.type())) out.add(new AccountProblem(what, code, code + " " + a.name()
+                    + " is Xero's own tracked-inventory account, which Xero refuses on bills: use a Current Asset account instead (Cin7 uses 631)"));
+        });
+        for (String code : jdbc.queryForList("SELECT code FROM payment_accounts WHERE tenant_id = ? AND active ORDER BY code", String.class,
+                com.experterp.backend.multitenancy.TenantContext.get())) {
+            var a = chart.get(code.toLowerCase());
+            if (a == null || !"BANK".equals(a.type())) out.add(new AccountProblem("Payment account", code,
+                    a == null ? "Xero has no bank account " + code + ": payments recorded into it here cannot be sent"
+                            : code + " " + a.name() + " is not a bank account in Xero: payments recorded into it here cannot be sent"));
+        }
+        return out;
     }
 
     // ---- the sync queue (L2) ----

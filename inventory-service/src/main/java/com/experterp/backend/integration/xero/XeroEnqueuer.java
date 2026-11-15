@@ -64,6 +64,25 @@ public class XeroEnqueuer {
             added += add(t, key, "ALLOCATION", "Credit note " + a.get("cn_number") + " applied to " + a.get("invoice_number"),
                     "DOC:" + a.get("credit_note_id") + ",DOC:" + a.get("invoice_id"), ((Date) a.get("d")).toLocalDate(), (BigDecimal) a.get("amount"), queued);
         }
+        added += undone(t, queued);
+        return added;
+    }
+
+    /** Sent through the link, then undone here: the invoice or bill is voided in Xero, the payment deleted there. */
+    private int undone(Long t, Set<String> queued) {
+        int added = 0;
+        for (Map<String, Object> d : jdbc.queryForList("""
+                SELECT i.id, i.invoice_number FROM xero_sync_items x JOIN invoices i ON x.item_key = 'DOC:' || i.id
+                 WHERE x.tenant_id = ? AND x.kind IN ('INVOICE', 'BILL') AND x.status = 'SENT' AND x.xero_id IS NOT NULL AND i.status = 'CANCELLED'""", t)) {
+            added += add(t, "VOID:" + d.get("id"), "VOID", "Void " + d.get("invoice_number") + " (cancelled here)", "DOC:" + d.get("id"), null, null, queued);
+        }
+        for (Map<String, Object> v : jdbc.queryForList("""
+                SELECT v.payment_id, v.amount, i.invoice_number FROM xero_sync_items x JOIN voided_payments v ON x.item_key = 'PAY:' || v.payment_id
+                  JOIN invoices i ON i.id = v.invoice_id
+                 WHERE x.tenant_id = ? AND x.kind = 'PAYMENT' AND x.status = 'SENT' AND x.xero_id IS NOT NULL""", t)) {
+            added += add(t, "UNPAY:" + v.get("payment_id"), "PAYMENT_DELETE", "Delete payment on " + v.get("invoice_number") + " (voided here)",
+                    "PAY:" + v.get("payment_id"), null, (BigDecimal) v.get("amount"), queued);
+        }
         return added;
     }
 
