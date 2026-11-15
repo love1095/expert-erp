@@ -27,7 +27,9 @@ Things already visible from the menu (`inventory-app/components/nav.ts`) and the
 
 Output of Part 1: a short **target menu** (new tree) agreed with the owner before any page moves.
 
-### Proposed target menu (2026-11-09, waiting for the owner's OK)
+### Target menu: agreed by the owner on 2026-11-15 ("yes to all", S1–S12)
+
+Changed since the proposal of 2026-11-09: **S3** is done another way (one Xero page under Settings → Integrations, not under Accounting) and **S6** is built (supplier page with what is owed, statement and deposits; the contact and address lists remain). S7 may be built in two steps: the four document lists first, the two payment lists after. Old addresses keep working by leading to the new pages.
 
 What was checked for the proposal:
 - **S1**: the MTD page (`MtdVatService.review`) builds its nine boxes by calling the same `VatReturnService.vatReturn(from, to)` as Finance → VAT return, so the two pages **always give the same figures**. The MTD page adds the ledger check, the declaration, filing and the list of returns filed. Two pages = two places to look at the same numbers.
@@ -43,9 +45,9 @@ Reports      Sales profit summary · Profit by sales rep · Sales by product · 
              Aged debtors · Aged creditors · Overdue · Profit and loss · Balance sheet · Trial balance
              (one Reports page with these as cards, like Cin7; the menu shows the same list)
 Accounting   Bank accounts · Chart of accounts · Manual journals · VAT returns (one page: boxes + transactions + MTD filing) ·
-             Account transactions · Journal report · Xero (one page: API or CSV, whichever is on)
+             Account transactions · Journal report
 Settings     Organisation · Users & roles · Audit log · Warehouses & bins · Document templates · E-mail ·
-             Integrations · Subscription · Import sales & purchases · Go-live check · Ledger settings
+             Integrations (Xero, Shopify, API) · Subscription · Import sales & purchases · Go-live check · Ledger settings
 Phone        Scanner: shown on phones only (bottom bar), not in the desktop Inventory menu
 ```
 `*` new list pages (S7), each with search and filters; their records already exist.
@@ -65,7 +67,7 @@ Phone        Scanner: shown on phones only (bottom bar), not in the desktop Inve
 | S11 | List pages without the new `PageHeader` (checked in the code), to move during the page recheck: Stock history, Movements Log, Transfer, Warehouses, Users, Audit log, Settings → Organisation, Subscription, Integrations, Platform → Organisations. The three Cin7 profit reports use their own header from `report-parts.tsx`: check they match. |
 | S12 | Menu name = page title everywhere: *Stock movements*, *Stock transfers*, *Stock adjustments*, *Stock takes*. |
 
-Nothing moves until the owner agrees. Moving pages is done in step 5 of Part 4, after the flow tests.
+Agreed 2026-11-15. Moving pages is done in step 5 of Part 4, after the flow tests.
 
 ---
 
