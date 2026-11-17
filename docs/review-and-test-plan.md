@@ -99,11 +99,12 @@ E2E column = e2e spec files that open the page by URL. A 0 can still mean the pa
 - [ ] `/platform/organisations`: super admin (e2e 0)
 
 **Sale**
-- [ ] `/sale-orders` list, `/sale-orders/[id]` record: quote → order → pick/pack/ship → invoice → payment → credit
-- [ ] `/picking` list, `/picking/[id]` pick list (e2e 0 on the record)
-- [ ] `/invoices` list, `/invoices/[id]`: invoice, credit note, supplier invoice, supplier credit
-- [ ] `/customers` list, `/customers/[id]`: addresses, contacts, prices, credit, statement
-- [ ] `/overdue`: reminders
+- [x] `/sale-orders` list, `/sale-orders/[id]` record: quote → order → pick/pack/ship → invoice → payment → credit (checked 2026-11-17: R11–R17)
+- [x] `/picking` list, `/picking/[id]` pick list (checked 2026-11-17: R11, R17)
+- [x] `/invoices` list, `/invoices/[id]`: invoice, credit note, supplier invoice, supplier credit (checked 2026-11-17: R11, R12, R14, R16, R17)
+- [x] `/customers` list, `/customers/[id]`: addresses, contacts, prices, credit, statement (checked 2026-11-17: R13, R14, R16)
+- [x] `/overdue`: reminders (checked 2026-11-17: R17)
+- Sale fixes: findings R11–R18 in [`review-findings.md`](review-findings.md), waiting for the owner's OK, then fixed in that order; speed sign-off waits for the big dataset (R18)
 
 **Purchase**
 - [ ] `/purchase-orders` list, `/purchase-orders/[id]`: receive (part/over/short), bill, landed cost, deposits, supplier credit

@@ -275,3 +275,101 @@ Each finding records:
 - **Proposed fix**: server-side paging and search for `/api/tenants` (50 per page, search by name or slug), the page asks for one page at a time; counts (users, products, warehouses) only for that page. Test: an EXPLAIN-backed backend test, and PLAT-001 passes with thousands of organisations.
 - **Severity**: Major (speed with big data, platform admin only)
 - **Status**: Found
+
+---
+
+## Sale pages recheck (2026-11-17)
+
+Checked: `/sale-orders` (list, new, record as draft / confirmed / shipped), `/picking` (list, pick list), `/invoices` (list, new, record), `/customers` (list, new, record), `/overdue`. How: the code of each page and its API; a browser run on a throwaway organisation with 25 customers and 25 orders in every state (desktop 1440 px and phone 390 px, console, failed requests, screenshots); a role with Sale view + Customers only; SQL statements counted per list with 120 orders, 100 invoices and 120 customers.
+
+What passed: every page opens with no browser console error and no failed request, at both widths; the server refuses what each role may not do and no organisation sees another's data (F8, F9); D1 holds (lists have no forms, "+ New" goes to `/x/new`); D2 holds for the list actions (Issue, Cancel, Void ask first). Expert Safety's local copy has only 11 sale orders and 8 invoices, so speed on real volumes is not proven yet (R18).
+
+## R11 Sale order and invoice lists load each row's parts one by one (slow with big data)
+
+- **Where**: `SaleOrderService.findAll` → `toResponse` per order (lines, charges, warehouse, customer, each line's product: lazy, one query each); `InvoiceService.findAll` → `toResponse` per invoice (items, payments); `PickPackService.pickLists` (one query for the ids, then two per pick list, `LIMIT 100`).
+- **What is wrong**: the page query is fast, but every row then fetches its own parts. Nothing batches them (`hibernate.default_batch_fetch_size` is not set, no fetch joins). The pick list list has no paging and silently stops at 100.
+- **Evidence** (Hibernate statistics, test database):
+
+  | List | Page of 20 | Page of 100 |
+  |---|---|---|
+  | Sale orders | 47 statements | **448** statements (765 entities) |
+  | Invoices | 66 statements | **306** statements |
+  | Customers | 5 | 5 (already batched) |
+  | Pick lists | 1 + 2 per list, up to 201 | |
+
+- **Impact**: every user of these lists; the time grows with the page size chosen (20 / 50 / 100) and with the database's latency in production. Data is right.
+- **Proposed fix**: set `spring.jpa.properties.hibernate.default_batch_fetch_size=50` (one query per kind of part for the whole page) and check the two lists again; where still needed, a fetch join for lines and products. Pick lists: paged like the other lists, and their lines read in one query for the page. Test: a backend test that counts statements and fails above 15 for a page of 100 sale orders or invoices.
+- **Severity**: Major (speed with big data)
+- **Status**: Found
+
+## R12 "Newest first" has no index to sort by (sale orders, invoices)
+
+- **Where**: both lists sort by `created_at DESC, id DESC` (`SaleOrderService.findAll`, `InvoiceService.findAll`). Indexes: `sale_orders (tenant_id, ordered_at)`, `invoices (tenant_id, type, issue_date)`; none on `created_at`.
+- **What is wrong**: to show the first 20, the database reads every order (or invoice) of the organisation and sorts them, on every page and every refresh.
+- **Evidence**: `EXPLAIN SELECT * FROM sale_orders WHERE tenant_id = 1 ORDER BY created_at DESC, id DESC LIMIT 20` → `Sort` over `Index Scan using idx_sale_orders_tenant_ordered` (all the organisation's rows, then sort).
+- **Impact**: grows with the number of orders and invoices: fine at Expert Safety's size today, slow after a few years or for a larger customer of the ERP.
+- **Proposed fix**: migration with `(tenant_id, created_at DESC, id DESC)` on `sale_orders` and `invoices`; check that the status filter still uses it (or add `(tenant_id, status, created_at DESC)`). Test: EXPLAIN on the big dataset shows `Limit → Index Scan`, no `Sort`.
+- **Severity**: Major (speed with big data)
+- **Status**: Found
+
+## R13 The customer box loads every customer (size 9999)
+
+- **Where**: `getCustomers()` (`lib/api.ts:75`, `GET /customers?size=9999`) on Sale orders (`sale-orders-page.tsx:58`, only to name the "One customer" filter), New sale order (`new/page.tsx:15`) and editing an order (`sale-order-view.tsx:120`).
+- **What is wrong**: the same pattern R5 and R9 fixed for products. Every customer, with contacts, is downloaded to fill a drop-down; past 9,999 customers the rest are silently missing.
+- **Evidence**: the code lines above; 343 customers in Expert Safety's copy today, Cin7's customer list to be imported at cutover.
+- **Impact**: slower opening of the sale pages as the customer list grows; a customer beyond 9,999 cannot be chosen.
+- **Proposed fix**: a type-to-search customer box like the product box (server search, 20 results, name with small account code); the list's filter chip reads only the one customer (`GET /customers/{id}`). Test: e2e checks these pages no longer call `/customers?size=9999`.
+- **Severity**: Major (speed with big data, and a hard limit)
+- **Status**: Found
+
+## R14 Sale pages offer actions the role may not do
+
+- **Where**: no Sale page checks the role before showing a button (`can(` is used nowhere in `app/sale-orders`, `picking`, `invoices`, `customers`, `overdue`).
+- **What is wrong**: a user whose role has Sale view and Customers only (no Sale add/edit, no void) is offered: "+ New SO", "Cancel order", "Create invoice", "Ship items", "+ Shipment", "+ Invoice", "Record return" (sale order); "+ New Invoice", "Cancel" (invoices list); "Cancel invoice", "Credit note & restock", the Record payment form (invoice). Each one ends in "Your role does not allow this". The bulk actions on the list (Undo, Fill and authorise, Void) are offered too.
+- **Evidence**: browser run as that role, buttons read from each page.
+- **Impact**: no harm to data (F8: the server refuses each one), but users meet errors and cannot tell what they may do; Cin7 hides what the role cannot do.
+- **Proposed fix**: show each action only with its permission: add/edit/ship/invoice/payment = Sale edit; cancel/void/undo = Sale void; price and discount boxes read-only without Change prices; credit limit / hold = Customer credit; contract prices = Customer prices. Test: extend `security/roles-menu.spec.ts` with a view-only role that must see no action button on these pages, and an edit role that sees them.
+- **Severity**: Major (function: users hit refusals)
+- **Status**: Found
+
+## R15 No phone layout: the menu takes most of a phone screen
+
+- **Where**: the app frame (`components/AppShell.tsx`, `components/Sidebar.tsx`): the side menu is always 240 px wide, at every screen width.
+- **What is wrong**: on a 390 px phone the menu keeps 240 px open, the page gets about 150 px, titles break word by word and the top bar's search and organisation name are squashed. The menu can be collapsed by hand to 64 px, but not on its own and not as a drawer.
+- **Evidence**: screenshots at 390 px of every Sale page (e.g. the sale order record: the title "Sale SO-2 for Probe Customer 1" on five lines, the Shipments card cut off). The earlier check (R6, LAY-002) looks for a window wider than the screen, which this is not: the content squeezes instead.
+- **Impact**: everyone on a phone, and above all the warehouse (Pick & pack, Scanner: S10 agreed the Scanner is for phones).
+- **Proposed fix**: below 768 px the menu is hidden behind a menu button and slides in over the page; the top bar shows the menu button, the page name and the user only (search behind an icon). Test: LAY-002 also fails when the page's content area is narrower than 340 px at 390 px.
+- **Severity**: Major (phones unusable)
+- **Status**: Found
+
+## R16 Records do not show their own history
+
+- **Where**: sale order, invoice and customer record pages (`sale-order-view.tsx`, `invoice-view.tsx`, `customer-view.tsx`).
+- **What is wrong**: checklist point 6. What happened to a record (created, confirmed, shipped, invoiced, e-mailed, cancelled, by whom, when) is only in Admin → Audit log, which has to be searched. The e-mails sent for a document are only in Settings → E-mail → Outbox. Cin7 shows each sale's log on the sale.
+- **Evidence**: no history or activity panel in the three views; the audit log has the entries (F1 checked all 15 steps).
+- **Impact**: users and the owner cannot see on the order who changed it or whether the invoice went out.
+- **Proposed fix**: a "History" card at the bottom of each record: its audit entries (newest first, who, what, the changed values in words) and the e-mails sent for it from the outbox (`GET /api/mail/outbox?docKey=` exists); needs a small `GET /api/audit-log?entity=&id=` filter if it is missing. Test: e2e confirms an order and sees "Confirmed by …" in its history.
+- **Severity**: Major (missing function on the checklist)
+- **Status**: Found
+
+## R17 Small look and wording issues on the Sale pages
+
+- **Where / what**:
+  1. Sale order record, Warehouse card: the headings "Picked Packed Shipped" run together and "0/2" spills past the card's edge (`warehouse-card.tsx`).
+  2. Invoice record: dates shown raw (`2026-11-17`) and amounts as "GBP 36.00", where the order and the lists show 17/11/2026 and £36.00; "Made from: Sale order ›" does not say which order (`invoice-view.tsx`).
+  3. Invoices list: "Loading…" text instead of the skeleton rows the other lists show; the due date is drawn with `new Date(…).toLocaleDateString` (a day early for a browser west of UTC; the other pages use `ClientDate`); errors pop up as a browser `alert()` (also Customers list, delete) instead of the app's message.
+  4. Out-of-date wording now that e-mail exists (phase M): Overdue says "E-mail comes later"; the bulk "Email" action on four lists says "Comes with e-mail sending" and does nothing.
+  5. Pick list page (`/picking/[id]`) and the Pick & pack list keep the old layout: no "Back to list", no status badge, no card layout (S11: moved during the recheck).
+- **Evidence**: screenshots of the browser run; the code lines named.
+- **Impact**: looks unfinished; item 3's date shift and item 4's dead button can mislead.
+- **Proposed fix**: fix each in place; item 4: the bulk Email sends each ticked document with its default template (as the record's E-mail button), with the app's confirm pop-up (D2); item 5 with the R8 look, before/after screenshots for the owner.
+- **Severity**: Minor
+- **Status**: Found
+
+## R18 Speed on real volumes not measured yet
+
+- **Where**: all lists and reports (checklist point 10).
+- **What is wrong**: Expert Safety's local copy has 16,591 products and 343 customers but only 11 sale orders and 8 invoices, and the timings from the dev server (1.2 to 4 s per page) include Next.js compiling the page on first open, so they say nothing about real speed.
+- **Proposed fix**: before signing off speed, build the big fake dataset the plan asks for (about 1 million orders, invoices and stock movements over many organisations, made by SQL in a separate database) and time each list on a production build (`next build` + `next start`), with EXPLAIN for each list query; R11 and R12 first.
+- **Severity**: Major (unknown)
+- **Status**: Found
