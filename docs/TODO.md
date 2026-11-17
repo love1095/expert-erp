@@ -3,6 +3,7 @@
 Open items gathered from `PROGRESS.md` (where each one is explained under its step). Tick here and there when done.
 
 ## Needs the owner (an account, a login or a decision)
+- [ ] **Subscription plans** (decided 2026-11-17: pricing page + Settings → Subscription, Stripe, 14-day trial; design in [`subscription-plan.md`](subscription-plan.md)): send the plans (names, £ monthly and yearly prices ex VAT, limits, modules in each, default plan, most popular, a "Contact us" plan or not); a Stripe account (test keys first); is Expert ERP VAT registered; Terms and Privacy texts; downgrade over a limit: refuse or at the end of the paid period
 - [ ] **Expert Safety's website address**: to compare what the site offers with what the ERP covers (not found online on 2026-11-09)
 - [x] **Menu structure S1–S12**: owner agreed all twelve on 2026-11-15 (target menu in [`review-and-test-plan.md`](review-and-test-plan.md)). Next, without the owner: flow tests F1–F10, then the page-by-page recheck that moves the pages to the agreed menu
 - [x] **Flow tests F1–F10** (backend `flow/` tests on fixed figures): all ten pass: F1 order to cash, F2 procure to pay, F3 kits and units, F4 stock control, F5 Shopify (2026-11-15), F6 month end, F7 Xero, F8 people and access, F9 two organisations, F10 cutover tools (2026-11-17; findings and fixes in `review-and-test-plan.md`, Results). Next: the page-by-page recheck that moves each page to the agreed menu. Full backend suite 322 of 322 green, full e2e 181 of 181 (2 workers, fake Xero), dev backend rebuilt and back on live Xero (2026-11-17).
