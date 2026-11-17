@@ -6,6 +6,15 @@ Open items gathered from `PROGRESS.md` (where each one is explained under its st
 - [ ] **Expert Safety's website address**: to compare what the site offers with what the ERP covers (not found online on 2026-11-09)
 - [x] **Menu structure S1–S12**: owner agreed all twelve on 2026-11-15 (target menu in [`review-and-test-plan.md`](review-and-test-plan.md)). Next, without the owner: flow tests F1–F10, then the page-by-page recheck that moves the pages to the agreed menu
 - [x] **Flow tests F1–F10** (backend `flow/` tests on fixed figures): all ten pass: F1 order to cash, F2 procure to pay, F3 kits and units, F4 stock control, F5 Shopify (2026-11-15), F6 month end, F7 Xero, F8 people and access, F9 two organisations, F10 cutover tools (2026-11-17; findings and fixes in `review-and-test-plan.md`, Results). Next: the page-by-page recheck that moves each page to the agreed menu. Full backend suite 322 of 322 green, full e2e 181 of 181 (2 workers, fake Xero), dev backend rebuilt and back on live Xero (2026-11-17).
+- [ ] **OK for the Sale review fixes R11–R18** (found 2026-11-17, listed under "Review fixes to do"): fix in the proposed order R14, R15, R11, R12, R13, R16, R17, R18, or change the order / leave some for later. Nothing is fixed before this OK
+- [ ] **Page-by-page recheck** (Part 4 step 5 of [`review-and-test-plan.md`](review-and-test-plan.md)), module by module; each page: code against the 10-point checklist, SQL statement count, browser at 1440 px and 390 px with a view-only and an edit role; findings written in `review-findings.md` and listed under "Review fixes to do", fixed after the owner's OK
+  - [x] Sale (sale orders, pick & pack, invoices, customers, overdue): done 2026-11-17, R11–R18
+  - [ ] Purchase (purchase orders incl. receive, bill, landed cost, deposits, supplier credit; reorder; suppliers)
+  - [ ] Inventory (products, stock, adjustments, transfers, stock movements, bins, kits, scanner)
+  - [ ] Finance / Reports (reports, VAT, statements)
+  - [ ] Accounting (ledger, bank, journals, chart, periods, MTD VAT)
+  - [ ] Settings / Admin (organisation, users and roles, warehouses, integrations, e-mail, templates)
+  - [ ] Dashboard, sign-in / register / two-step, platform (super admin) pages
 - [ ] **Xero developer app** at developer.xero.com: for development done 2026-11-15 (app "Expert ERP", Web app, in `.env`, server on APP_XERO_MODE=live). For production: add the redirect URI `https://<server>/settings/integrations/xero/callback` to the same app and enter the client ID and secret on **Platform → Integration apps** (super admin) or as APP_XERO_CLIENT_ID / _SECRET / _REDIRECT_URI; APP_XERO_MODE=live stays a server setting
 - [x] **Xero redirect URI on the dev app**: done 2026-11-15, `http://localhost:3000/settings/integrations/xero/callback` added to the app at developer.xero.com and set in `.env`
 - [ ] **Xero webhook key** (from the Xero developer app, Webhooks: delivery URL `https://<server>/api/webhooks/xero`, events Invoices) → Platform → Integration apps (or APP_XERO_WEBHOOK_KEY); needs a public https address; without it payments from Xero are still polled every 5 minutes
