@@ -61,7 +61,8 @@ export default function DashboardPage() {
   const qc = useQueryClient();
   const toast = useToast();
   // Manage dashboard (like Cin7): the user's layout from the server; changes show at once and are saved
-  const { data: layoutResult } = useQuery<LayoutResult>({ queryKey: ["dashboard-layout"], queryFn: getDashboardLayout });
+  const seesDashboard = can("DASHBOARD");
+  const { data: layoutResult } = useQuery<LayoutResult>({ queryKey: ["dashboard-layout"], queryFn: getDashboardLayout, enabled: seesDashboard });
   const [parts, setParts] = useState<PartState[] | null>(null);
   const [managing, setManaging] = useState(false);
   const current = parts ?? mergeLayout(layoutResult?.layout?.parts);
@@ -88,7 +89,17 @@ export default function DashboardPage() {
     queryFn: () => getDashboard(period),
     // Keep the figures (and the panels' state) on screen while another period loads
     placeholderData: keepPreviousData,
+    enabled: seesDashboard,
   });
+
+  if (!seesDashboard) {
+    return (
+      <div data-testid="no-dashboard">
+        <h1 className="text-2xl font-bold">Welcome{user?.username ? `, ${user.username}` : ""}</h1>
+        <p className="text-gray-500 text-sm mt-1">Your role has no dashboard. Choose a page from the menu.</p>
+      </div>
+    );
+  }
 
   return (
     <div>

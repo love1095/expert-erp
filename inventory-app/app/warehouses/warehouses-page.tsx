@@ -9,10 +9,15 @@ import { ClientDate } from "@/components/ClientDate";
 import Pagination from "@/components/Pagination";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { SkeletonRows } from "@/components/ui/Skeleton";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function WarehousesPage() {
   const ask = useConfirm();
   const qc = useQueryClient();
+  // Setting warehouses up needs the Settings permission; deleting one is for admins (as on the server)
+  const { can, user } = useAuth();
+  const canSetUp = can("SETTINGS");
+  const canDelete = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const [page, setPage] = useState(0);
   const [form, setForm] = useState({ name: "", location: "" });
   // Where purchases for the warehouse are shipped to
@@ -63,10 +68,10 @@ export default function WarehousesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Warehouses</h1>
-        <button onClick={() => (showForm ? closeForm() : setShowForm(true))}
+        {canSetUp && <button onClick={() => (showForm ? closeForm() : setShowForm(true))}
           className="bg-brand-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition-colors">
           {showForm ? "Cancel" : "+ Add Warehouse"}
-        </button>
+        </button>}
       </div>
 
       {showForm && (
@@ -122,9 +127,9 @@ export default function WarehousesPage() {
                     <td className="px-4 py-3 text-gray-500 text-xs">{oneLine(w.address) || "—"}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs"><ClientDate iso={w.createdAt} /></td>
                     <td className="px-4 py-3 text-right space-x-3">
-                      <button onClick={() => startEdit(w)} className="text-xs text-brand-700 hover:underline">Edit</button>
-                      <button onClick={async () => { if (await ask({ title: `Delete "${w.name}"?`, action: "Delete", danger: true })) deleteMutation.mutate(w.id); }}
-                        className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                      {canSetUp && <button onClick={() => startEdit(w)} className="text-xs text-brand-700 hover:underline">Edit</button>}
+                      {canDelete && <button onClick={async () => { if (await ask({ title: `Delete "${w.name}"?`, action: "Delete", danger: true })) deleteMutation.mutate(w.id); }}
+                        className="text-xs text-red-500 hover:text-red-700">Delete</button>}
                     </td>
                   </tr>
                 ))}

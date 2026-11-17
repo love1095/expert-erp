@@ -8,6 +8,7 @@ import { FoundProduct, PickList, PurchaseOrder, StockTake } from "@/types";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/DetailParts";
 import StockTakePage from "../stock-takes/[id]/stock-take-page";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const errorOf = (e: unknown, f = "Something went wrong") => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? f;
 const q = (n: number) => Number(n).toLocaleString("en-GB", { maximumFractionDigits: 4 });
@@ -18,17 +19,27 @@ type Mode = "PICK" | "RECEIVE" | "COUNT";
  * a purchase order by scanning what arrived, or count a stock take. A handheld scanner types the code and presses Enter.
  */
 export default function ScanPage() {
-  const [mode, setMode] = useState<Mode>("PICK");
+  // Picking is selling, receiving is purchasing, counting is stock (F8: no mode the role is refused)
+  const { can } = useAuth();
+  const allowed: Record<Mode, boolean> = {
+    PICK: can("SALE_VIEW"),
+    RECEIVE: can("PURCHASE_VIEW") && can("PURCHASE_EDIT"),
+    COUNT: can("PRODUCT_VIEW") && can("STOCK_ADJUST"),
+  };
+  const modes = (["PICK", "RECEIVE", "COUNT"] as Mode[]).filter(m => allowed[m]);
+  const [chosen, setMode] = useState<Mode | null>(null);
+  const mode = chosen && modes.includes(chosen) ? chosen : modes[0];
   return (
     <div className="p-3 max-w-xl mx-auto space-y-3">
       <h1 className="text-xl font-semibold">Scanner</h1>
       <div className="grid grid-cols-3 gap-2" role="tablist">
-        {(["PICK", "RECEIVE", "COUNT"] as Mode[]).map(m => (
+        {modes.map(m => (
           <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
                   className={`py-3 rounded-lg text-base font-medium border ${mode === m ? "bg-brand-600 text-white border-brand-600" : "bg-white border-gray-300"}`}>
             {({ PICK: "Pick", RECEIVE: "Receive", COUNT: "Count" } as Record<Mode, string>)[m]}</button>
         ))}
       </div>
+      {!mode && <p className="text-sm text-gray-500" data-testid="scan-nothing">Your role has no scanner tasks: picking needs Sale, receiving Purchase (add and edit), counting Stock adjustments.</p>}
       {mode === "PICK" && <Pick />}
       {mode === "RECEIVE" && <Receive />}
       {mode === "COUNT" && <Count />}

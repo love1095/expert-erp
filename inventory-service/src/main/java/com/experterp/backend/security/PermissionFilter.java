@@ -35,6 +35,14 @@ public class PermissionFilter extends OncePerRequestFilter {
     }
 
     static final List<Rule> RULES = List.of(
+            // Ticked rows printed in one PDF follow their documents' rules (F8: open to every user before)
+            r("GET", "/api/documents/sale-orders/pdf", SALE_VIEW),
+            r("GET", "/api/documents/invoices/pdf", SALE_VIEW, PURCHASE_VIEW),
+            r("GET", "/api/documents/purchase-orders/pdf", PURCHASE_VIEW),
+            r("*", "/api/documents/**", SALE_VIEW, PURCHASE_VIEW),
+            // Warehouses are set up under Settings (S8); the list itself is read by every order and stock form
+            r("POST", "/api/warehouses", SETTINGS),
+            r("PUT", "/api/warehouses/**", SETTINGS),
             // Sale
             r("POST", "/api/sale-orders/*/cancel", SALE_VOID),
             r("POST", "/api/sale-orders/*/undo", SALE_VOID),
@@ -132,13 +140,19 @@ public class PermissionFilter extends OncePerRequestFilter {
             r("POST", "/api/stock-movements", STOCK_ADJUST),
             r("GET", "/api/stock/**", PRODUCT_VIEW),
             r("GET", "/api/stock", PRODUCT_VIEW),
+            // Category names are read by every product, stock and report filter (F8: viewers were refused)
+            r("GET", "/api/categories/**"),
             r("*", "/api/categories/**", PRODUCT_EDIT),
             r("POST", "/api/categories", PRODUCT_EDIT),
             // Reports and the rest (PDFs follow their document's rule above)
             // Cin7's Sale / Purchase / Inventory reports (I3): the report itself checks its own group
+            // The list of reports is filtered by group; the Reports page also lists the financial reports. Before the
+            // rule for one report: "/core/**" matches the list's own address too
+            r("GET", "/api/reports/core", REPORTS_SALE, REPORTS_PURCHASE, REPORTS_INVENTORY, REPORTS_FINANCIAL),
             r("GET", "/api/reports/core/**", REPORTS_SALE, REPORTS_PURCHASE, REPORTS_INVENTORY),
-            r("GET", "/api/reports/core", REPORTS_SALE, REPORTS_PURCHASE, REPORTS_INVENTORY),
             r("*", "/api/reports/**", REPORTS_FINANCIAL),
+            // The Xero export's accounts are set up under Settings (changing them: Settings, checked on the controller)
+            r("*", "/api/accounting/settings", SETTINGS, REPORTS_FINANCIAL),
             r("*", "/api/accounting/**", REPORTS_FINANCIAL),
             r("*", "/api/dashboard/**", DASHBOARD),
             r("*", "/api/dashboard", DASHBOARD),
@@ -147,10 +161,10 @@ public class PermissionFilter extends OncePerRequestFilter {
     );
 
     /** The permissions the rule for this request needs (one of them), or null when no rule applies. */
-    static Set<Permission> required(String method, String path) {
+    public static Set<Permission> required(String method, String path) {
         for (Rule rule : RULES) {
             if ((rule.method().equals("*") || rule.method().equalsIgnoreCase(method)) && MATCHER.match(rule.pattern(), path)) {
-                return rule.anyOf();
+                return rule.anyOf().isEmpty() ? null : rule.anyOf();      // a rule naming no permission: a login is enough
             }
         }
         return null;

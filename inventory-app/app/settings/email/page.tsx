@@ -18,12 +18,15 @@ const STATUS: Record<string, string> = { KEPT: "Kept (test mode)", SENT: "Sent",
 
 /** Phase M: Settings → E-mail — the sender and SMTP server, the e-mail wording per document, and the outbox. */
 export default function EmailSettingsPage() {
-  const [tab, setTab] = useState<"outbox" | "templates" | "settings">("outbox");
+  // The outbox holds sent sales, purchase and customer documents: only for roles that may see one of them
+  const { can } = useAuth();
+  const seesOutbox = can("SALE_VIEW") || can("PURCHASE_VIEW") || can("CUSTOMERS");
+  const [tab, setTab] = useState<"outbox" | "templates" | "settings">(seesOutbox ? "outbox" : "templates");
   return (
     <div className="p-6 max-w-6xl space-y-4">
       <PageHeader title="E-mail" />
       <div className="flex gap-5 border-b border-gray-200 text-sm" role="tablist">
-        {([["outbox", "Outbox"], ["templates", "Templates"], ["settings", "Settings"]] as const).map(([k, l]) => (
+        {([["outbox", "Outbox"], ["templates", "Templates"], ["settings", "Settings"]] as const).filter(([k]) => k !== "outbox" || seesOutbox).map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
             className={`pb-2 -mb-px ${tab === k ? "border-b-2 border-brand-600 text-brand-700 font-medium" : "text-gray-500"}`}>{l}</button>
         ))}

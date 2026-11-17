@@ -35,7 +35,13 @@ public class UserDetailsImpl implements UserDetails {
         this.tenantId = user.getTenantId();
         this.active = user.isActive();
         boolean admin = user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.SUPER_ADMIN;
-        this.permissions = admin || rolePermissions == null ? Permission.defaultsFor(user.getRole()) : rolePermissions;
+        Set<Permission> p = admin || rolePermissions == null ? Permission.defaultsFor(user.getRole()) : rolePermissions;
+        // The Adviser does everything a role with Accounting does, and more (as Xero's adviser): the tick alone opens the books
+        if (p.contains(Permission.ADVISER) && !p.contains(Permission.ACCOUNTING)) {
+            p = java.util.EnumSet.copyOf(p);
+            p.add(Permission.ACCOUNTING);
+        }
+        this.permissions = p;
     }
 
     @Override
