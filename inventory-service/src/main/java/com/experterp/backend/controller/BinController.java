@@ -45,6 +45,7 @@ public class BinController {
 
     @PutMapping("/default")
     public void setDefault(@RequestBody Map<String, Long> body) {
+        if (body.get("productId") == null || body.get("warehouseId") == null) throw new IllegalArgumentException("Choose the product and the warehouse");
         bins.setDefaultBin(body.get("productId"), body.get("warehouseId"), body.get("binId"));
     }
 

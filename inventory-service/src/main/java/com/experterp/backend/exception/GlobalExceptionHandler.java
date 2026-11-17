@@ -85,6 +85,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    /** A record that fails its own rules when saved (e.g. a supplier with no name): 400 with the fields, not a 500 (F9). */
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(jakarta.validation.ConstraintViolationException ex) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getConstraintViolations().forEach(v -> fieldErrors.put(v.getPropertyPath().toString(), v.getMessage()));
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Validation failed: " + fieldErrors.entrySet().stream().map(e -> e.getKey() + " " + e.getValue()).sorted()
+                .collect(java.util.stream.Collectors.joining(", ")));
+        body.put("fields", fieldErrors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
     private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
