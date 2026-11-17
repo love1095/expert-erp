@@ -105,6 +105,16 @@ Done module by module with the page recheck (Part 4 step 5 of the review plan), 
   - [ ] Animations still to do with the R8 list pages: status-tab counts, highlight the row just changed, removed row fades out
 - [x] R6 Window scrolled the app off the top (fixed daee4ae, 2026-11-09)
 
+## Subscription plans (to build; design in [`subscription-plan.md`](subscription-plan.md), owner's decisions 2026-11-17)
+Pricing page + Settings → Subscription, Stripe (fake first), 14-day trial then read-only. Steps 1–3 can be built with placeholder plans; the owner's plans go in when they arrive (see "Needs the owner").
+- [ ] **Step 1, plan model and Pricing page**: plans in £ with monthly and yearly prices, modules, public / hidden, order, "Most popular"; public `/pricing` (monthly / yearly switch, plan cards, compare table, FAQ, Privacy / Terms footer, phone layout); `GET /api/plans` open without sign-in
+- [ ] **Step 2, sign-up with a trial**: `/register?plan=&billing=` shows the chosen plan, e-mail required, organisation starts as TRIAL for 14 days without a card; trial banner for the admin (all users in the last 3 days); reminder e-mails 3 days and 1 day before; trial over unpaid → **read-only** (everything opens and exports, nothing created or changed, red bar with "Choose a plan")
+- [ ] **Step 3, Stripe (fake first)**: `StripeClient` fake + live, `APP_STRIPE_MODE`; Checkout Session for choose / upgrade, plan changes on the Stripe subscription (prorated), webhooks `/api/webhooks/stripe` with signature check (checkout completed, subscription updated / deleted, invoice paid / payment failed); Settings → Subscription: status, next payment, usage, plan cards, Manage billing (Stripe portal), invoices list; payment failed → 7 days' grace → read-only; audit log entries
+- [ ] **Step 4, modules by plan**: a module the plan does not include is hidden from the menu and refused by the API; `AccessMatrixFlowTest` and `roles-menu.spec.ts` extended per plan
+- [ ] **Step 5, platform**: Plans page for the super admin (edit plans, Stripe price ids, public / hidden), Stripe keys on Platform → Integration apps, manual plans (status MANUAL, no Stripe; Expert Safety stays manual)
+- [ ] **Step 6, live Stripe**: test mode with the owner's Stripe account (checkout, webhooks, portal, failed card), then live keys at launch
+- [ ] **Tests**: backend `SubscriptionFlowTest` (trial → read-only, checkout → active, payment failed → grace → read-only, downgrade over a limit, manual plan untouched, wrong webhook signature refused); e2e pricing page → sign-up → trial banner → choose plan (fake Stripe) → active
+
 ## Next phases after the review (owner, 2026-11-09: business review, to plan as phases)
 Already in the ERP (the base to build on): Cin7's minimum-based Reorder list, top and worst sellers and the low-stock count on the dashboard, the Stock Value Inventory Aging report (by FIFO layers, 0–30 … 180+ days), nightly Xero and Shopify jobs.
 
