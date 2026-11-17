@@ -39,6 +39,7 @@ public class CreditNoteService {
     private final OrganisationSettingsService settingsService;
     private final TaxService taxService;
     private final AuditService auditService;
+    private final LedgerPeriodService periodService;
 
     @Transactional
     public InvoiceResponse create(Long invoiceId, CreditNoteRequest req) {
@@ -53,6 +54,7 @@ public class CreditNoteService {
         if (req.getLines().isEmpty() && req.getCharges().isEmpty()) {
             throw new IllegalArgumentException("Credit at least one item or amount");
         }
+        periodService.check(LocalDate.now(), "a credit note");
 
         Invoice cn = new Invoice();
         cn.setType(Invoice.InvoiceType.SALES);

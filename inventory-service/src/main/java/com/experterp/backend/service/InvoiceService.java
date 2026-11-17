@@ -137,8 +137,9 @@ public class InvoiceService {
         if (inv.getStatus() != Invoice.InvoiceStatus.DRAFT) {
             throw new IllegalStateException("Only DRAFT invoices can be issued");
         }
-        inv.setStatus(Invoice.InvoiceStatus.ISSUED);
         if (inv.getIssueDate() == null) inv.setIssueDate(LocalDate.now());
+        periodService.check(inv.getIssueDate(), inv.getInvoiceNumber());
+        inv.setStatus(Invoice.InvoiceStatus.ISSUED);
         Invoice saved = invoiceRepository.save(inv);
         // A supplier bill prices the stock received (FIFO layers) from now on
         if (isBill(saved)) costingService.billIssued(saved);
@@ -232,6 +233,7 @@ public class InvoiceService {
         inv.setTotalAmount(net.add(tax));
         inv.setInvoiceNumber(settingsService.nextInvoiceNumber());
         LocalDate today = LocalDate.now();
+        if (issue) periodService.check(today, "an invoice");
         inv.setIssueDate(today);
         inv.setDueDate(paymentTermService.dueDate(so.getPaymentTerm(), today));
         if (issue) inv.setStatus(Invoice.InvoiceStatus.ISSUED);
