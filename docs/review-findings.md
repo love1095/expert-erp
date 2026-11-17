@@ -373,3 +373,78 @@ What passed: every page opens with no browser console error and no failed reques
 - **Proposed fix**: before signing off speed, build the big fake dataset the plan asks for (about 1 million orders, invoices and stock movements over many organisations, made by SQL in a separate database) and time each list on a production build (`next build` + `next start`), with EXPLAIN for each list query; R11 and R12 first.
 - **Severity**: Major (unknown)
 - **Status**: Found
+
+## All other pages recheck (2026-11-17)
+
+Checked: Purchase (`/purchase-orders` list, new, record as draft / ordered / received, bills tab; `/reorder`; `/suppliers` list, new, record), Inventory (stock overview, products list / new / record, warehouses, bins, stock movements, stock history, transfer, adjustments, stock takes list and record, scanner, certificates), Finance / Reports (reports page, the six core reports, the four Cin7 profit and movement reports, VAT return, aged debtors and creditors, Xero), Accounting (bank accounts and one account, chart, manual journals list / new, P&L, balance sheet, trial balance, account transactions, journal report, VAT returns, ledger settings), Admin / Settings (users, audit log, organisation, subscription, integrations, Xero, Shopify, API, templates, e-mail, import, go-live), Dashboard, My account, sign-in and register. How: the code of each page; a browser run on a throwaway organisation (6 products, 1 supplier, 23 purchase orders in every state, a stock take) at 1440 px and 390 px (65 pages each, console, failed requests, content width, screenshots); a role with Purchase view, Product view, Dashboard and the sale / purchase / inventory reports only; SQL statements of **every GET list and report of the API** (113) after 3 and after 30 rounds of trade (sale to credit note, purchase to payment, journal, bank line); EXPLAIN of the list queries on the dev database (36,756 audit entries, 9,233 stock movements over all organisations).
+
+What passed: every page opens, no browser console error and no failed request except one (R22 item 6); sign-in and register work at phone width; the server refuses what the role may not do (F8) and no organisation sees another's (F9); 106 of the 113 API lists and reports read the same number of statements whatever the data (they are batched or plain SQL); reports answered in under 110 ms at this size; D1 and D2 hold on the pages checked; the product record has its Activity log. Platform pages (super admin) were checked in R10 and not again. Speed on real volumes stays with R18.
+
+## R19 Purchase and Inventory pages offer actions the role may not do (as R14)
+
+- **Where**: no Purchase page and most Inventory pages check the role before showing a button (`can(` is not used in `app/purchase-orders`, `reorder`, `suppliers`, `stock-overview`, `stock-movements`, `stock-transfer`); products check some.
+- **What is wrong**: a role with Purchase view + Product view only is offered: "+ New PO", Receive, Cancel (list); Cancel PO, Edit, Mark as ordered, Receive stock, + Receipt, + Deposit, Enter bill, + Bill (record); "Create draft PO" (reorder); Import, "+ New Supplier", Edit, Delete (suppliers); Edit, + Deposit (supplier record); "Import stock" (stock overview); Import, "+ Add Product", Edit (products); "+ Record Movement" (stock movements). Each ends in "Your role does not allow this".
+- **Evidence**: browser run as that role, buttons read from each page.
+- **Impact**: as R14: no harm to data, but users meet refusals.
+- **Proposed fix**: done together with R14, one rule for every page: Purchase edit = new / edit / order / receive / bill / deposit; Purchase void = cancel / undo / void; Product edit = new / edit / import products; Stock adjust = record movement / import stock / adjustments; Stock transfer = transfer; suppliers new / edit / import = Purchase edit, delete = admin (as the server). Test: `security/roles-menu.spec.ts` grows a view-only pass over these pages.
+- **Severity**: Major (function)
+- **Status**: Found
+
+## R20 Purchase orders and stock movements also load each row's parts one by one; no index for their lists (as R11, R12)
+
+- **Where**: `GET /api/purchase-orders` and its CSV export (lines, products, warehouse, supplier, bills per order); `GET /api/stock-movements` and its CSV export (product and warehouse per movement). Indexes: `purchase_orders` has none on `(tenant_id, created_at)`; **`stock_movements` and `audit_log` have no index starting with the organisation at all**.
+- **Evidence**: statements per call, after 3 rounds → after 30: purchase orders **32 → 275**, purchase export 33 → 276, sale export 36 → 306, stock movements 6 → 24, stock movement export 6 → 33 (every other list stays flat). EXPLAIN on the dev database: the audit log page reads backwards through *all organisations'* entries and throws away the others (`Rows Removed by Filter: 1544` for 20 rows), the stock movement page the same (`6152` removed); the purchase list sorts all the organisation's orders.
+- **Impact**: the audit log and stock movements slow down with **every organisation's** data, not only one's own: on the shared server this grows with each new customer of the ERP. The purchase list as R11.
+- **Proposed fix**: with R11 (`default_batch_fetch_size`) and R12, one migration: `stock_movements (tenant_id, created_at DESC, id DESC)`, `audit_log (tenant_id, created_at DESC, id DESC)`, `purchase_orders (tenant_id, created_at DESC, id DESC)`. The statement-count test of R11 covers these lists and both exports.
+- **Severity**: Major (speed with big data)
+- **Status**: Found
+
+## R21 Hand-typed invoice and bill: currency starts on USD, and every order is loaded to link one
+
+- **Where**: `app/invoices/invoice-form.tsx` (used by `/invoices/new` for both sale invoices and supplier bills): `useState("USD")`, choices USD / EUR / GBP / VND; `getSaleOrders({ size: 9999 })` and `getPurchaseOrders({ size: 9999 })` to fill the "linked order" box.
+- **What is wrong**: a UK organisation's hand-typed invoice or bill is saved as **USD** unless the user changes it; the ledger posts the amounts as pounds, so the document says USD while the books say GBP. VND is a leftover. The link box downloads every order with all its lines (with R11: hundreds of queries per 100 orders) and silently stops at 9,999.
+- **Evidence**: the code lines; on the dev database 27 invoices already have currency USD (made by e2e runs through this form).
+- **Impact**: wrong currency on printed documents and in Xero exports; slow form once there are many orders.
+- **Proposed fix**: currency starts on the organisation's currency (GBP), choices from the organisation's settings, no VND; the backend refuses a currency other than the organisation's until multi-currency exists. The linked order is a type-to-search box (as R13). A check of the 27 USD rows on dev (test data, no real data affected).
+- **Severity**: Major (data: wrong currency)
+- **Status**: Found
+
+## R22 Small look and wording issues on Purchase and Inventory pages
+
+- **Where / what**:
+  1. Purchase record: Shipping details "Date" shown raw (`2026-11-17`); the Products table is wider than its card, so Tax rule and Total are cut off at 1440 px; status shown as the raw word `RECEIVED` / `ORDERED` (list and supplier page).
+  2. Purchase list: dates drawn with `new Date(…).toLocaleDateString` (a day early in a browser west of UTC; also bills tab, supplier deposits, receipts); Receive errors pop up as a browser `alert()`; **Cancel on a list row fails silently** (no error shown); the bulk "Email" action does nothing ("Comes with e-mail sending").
+  3. New purchase: "Tax inclusive (later)" shown greyed out (owner's choice, keep or hide); the page sends a price preview with an empty form on opening, which the server answers 400 (the only failed request of the whole run).
+  4. Warehouses: Delete fails silently when the server refuses (no `onError`).
+  5. Stock Transfer: subtitle in programmer's words ("creates TRANSFER_OUT + TRANSFER_IN atomically"), no list of past transfers, old layout; Stock movements: breadcrumb "Movements Log", title "Stock Movements", History a separate page: all three already agreed to move (S4, S11, S12).
+  6. Bank account page: no "Back to list", "Statement balance —" with nothing after it.
+  7. Records without their own history (as R16): purchase order, supplier, bill; the product record has one (Activity log).
+- **Evidence**: screenshots of the browser run; the code lines named.
+- **Proposed fix**: each in place with the page's move to the new layout; a shared `onError` for list actions that shows the app's message; status words through the same labels the badges use; R16's History card on purchase order, supplier and bill.
+- **Severity**: Minor (item 2's silent cancel and item 4: Major for the user, small to fix)
+- **Status**: Found
+
+## R23 Money reports rebuild the whole ledger on every open
+
+- **Where**: `LedgerService.sync(false)`, called first by the trial balance, P&L, balance sheet, account transactions, bank pages (3 places), MTD VAT review and the ledger exports. `SYNC_EVERY_MS = 0`.
+- **What is wrong**: each open re-reads **every document since the conversion date** (invoices, payments, credits, bank lines, stock movements, manual journals), works out what the ledger should hold, compares it with every journal posted, and posts the difference, under a per-organisation lock (`pg_advisory_xact_lock`). So two people opening reports at once wait for each other, and the work grows with every year of history.
+- **Evidence**: the code; at the probe's size the reports take 45–110 ms, so it is invisible today.
+- **Impact**: checklist point 10 names exactly this. Year 3 with tens of thousands of documents: each report open reads them all.
+- **Proposed fix**: post journals when a document changes (the services that issue, pay, ship already call one place), and keep `sync` as a check / repair run at night and on demand ("Check the ledger" on Ledger settings). Until then: sync only documents changed since the last sync (`updated_at` watermark per organisation). Measure on the big dataset (R18) before and after.
+- **Severity**: Major (speed with big data)
+- **Status**: Found
+
+## R24 Lists that silently stop, and no limit on page size
+
+- **Where**: manual journals (`LIMIT 500`), journal report (`LIMIT 500`), account transactions (`LIMIT 20000`), stock takes (`LIMIT 200`), pick lists (`LIMIT 100`, R11): none has paging and none says rows are missing. On the other side, every paged list accepts any `size` (`?size=99999` is served; with R11 that is thousands of queries in one call).
+- **Evidence**: the SQL in `LedgerService` and `StockTakeService`; no `Math.min` on any page size in the backend.
+- **Impact**: after a few years the oldest journals and stock takes cannot be found on their pages; one heavy request can slow the server for everyone.
+- **Proposed fix**: paging (page + size, newest first) on these four lists, or at least "Showing the latest 500, narrow the dates" when the limit is hit; one shared rule capping `size` at 200 for every list (exports stream separately). Test: a list at its limit says so; `size=99999` returns 200 rows.
+- **Severity**: Major (data hidden, robustness)
+- **Status**: Found
+
+## R25 Phone layout on every page (R15 confirmed)
+
+- **Evidence**: at 390 px the content area is **150 px wide on all 65 pages** of this run (menu 240 px). Sign-in and register are fine (no menu).
+- **Proposed fix**: R15 covers it; no separate work.
+- **Status**: Found (part of R15)

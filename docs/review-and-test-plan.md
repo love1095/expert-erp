@@ -94,9 +94,9 @@ E2E column = e2e spec files that open the page by URL. A 0 can still mean the pa
 ### Pages
 
 **Dashboard / sign-in / account**
-- [ ] `/` Dashboard (e2e 5+)
-- [ ] `/login`, `/register` (register: e2e 0), `/account` (password, 2FA)
-- [ ] `/platform/organisations`: super admin (e2e 0)
+- [x] `/` Dashboard (e2e 5+) (checked 2026-11-17: R15)
+- [x] `/login`, `/register` (register: e2e 0), `/account` (password, 2FA) (checked 2026-11-17: fine)
+- [x] `/platform/organisations`: super admin (e2e 0) (R10, not again)
 
 **Sale**
 - [x] `/sale-orders` list, `/sale-orders/[id]` record: quote → order → pick/pack/ship → invoice → payment → credit (checked 2026-11-17: R11–R17)
@@ -107,36 +107,37 @@ E2E column = e2e spec files that open the page by URL. A 0 can still mean the pa
 - Sale fixes: findings R11–R18 in [`review-findings.md`](review-findings.md), waiting for the owner's OK, then fixed in that order; speed sign-off waits for the big dataset (R18)
 
 **Purchase**
-- [ ] `/purchase-orders` list, `/purchase-orders/[id]`: receive (part/over/short), bill, landed cost, deposits, supplier credit
-- [ ] `/reorder`
-- [ ] `/suppliers` (e2e 0)
+- [x] `/purchase-orders` list, `/purchase-orders/[id]`: receive (part/over/short), bill, landed cost, deposits, supplier credit (checked 2026-11-17: R19–R22)
+- [x] `/reorder` (checked 2026-11-17: R19)
+- [x] `/suppliers` (e2e 0) (checked 2026-11-17: R19, R22)
 
 **Inventory**
-- [ ] `/stock-overview`, `/products`, `/products/[id]`: units, kit, compliance, images, lifecycle, Shopify link
-- [ ] `/warehouses` (e2e 0), `/bins` (e2e 0)
-- [ ] `/stock-movements`, `/stock-history` (e2e 0): see S4
-- [ ] `/stock-transfer`, `/stock-adjustments` (approval, landed cost setting)
-- [ ] `/stock-takes`, `/stock-takes/[id]` (e2e 0 on the record)
-- [ ] `/scan`: at phone width with a keyboard scanner
-- [ ] `/certificates`
+- [x] `/stock-overview`, `/products`, `/products/[id]`: units, kit, compliance, images, lifecycle, Shopify link (checked 2026-11-17)
+- [x] `/warehouses` (e2e 0), `/bins` (e2e 0) (checked 2026-11-17)
+- [x] `/stock-movements`, `/stock-history` (e2e 0): see S4 (checked 2026-11-17)
+- [x] `/stock-transfer`, `/stock-adjustments` (approval, landed cost setting) (checked 2026-11-17)
+- [x] `/stock-takes`, `/stock-takes/[id]` (e2e 0 on the record) (checked 2026-11-17)
+- [x] `/scan`: at phone width with a keyboard scanner (checked 2026-11-17)
+- [x] `/certificates` (checked 2026-11-17)
 
 **Finance**
-- [ ] `/reports`, `/reports/core/[key]` (six core reports)
-- [ ] `/reports/sales-profit` (e2e 0 by URL), `/reports/profit-by-rep` (e2e 0), `/reports/sales-by-product`, `/reports/inventory-movement`
-- [ ] `/vat-return`, `/aged-debtors`, `/aged-creditors`
-- [ ] `/finance/xero` (+ `/finance/xero/callback`, live only), `/accounting-export`
+- [x] `/reports`, `/reports/core/[key]` (six core reports) (checked 2026-11-17)
+- [x] `/reports/sales-profit` (e2e 0 by URL), `/reports/profit-by-rep` (e2e 0), `/reports/sales-by-product`, `/reports/inventory-movement` (checked 2026-11-17)
+- [x] `/vat-return`, `/aged-debtors`, `/aged-creditors` (checked 2026-11-17)
+- [x] `/finance/xero` (+ `/finance/xero/callback`, live only), `/accounting-export` (checked 2026-11-17)
 
 **Accounting**
-- [ ] `/accounting/bank`, `/accounting/bank/[code]`: import, reconcile, spend/receive/transfer
-- [ ] `/accounting/chart`, `/accounting/manual-journals`
-- [ ] `/accounting/profit-and-loss`, `/accounting/balance-sheet`, `/accounting/trial-balance`
-- [ ] `/accounting/account-transactions` (e2e 0), `/accounting/journals` (e2e 0)
-- [ ] `/accounting/vat` (+ `/accounting/vat/callback`, HMRC sandbox only), `/accounting/settings` (lock dates, year end)
+- [x] `/accounting/bank`, `/accounting/bank/[code]`: import, reconcile, spend/receive/transfer (checked 2026-11-17)
+- [x] `/accounting/chart`, `/accounting/manual-journals` (checked 2026-11-17)
+- [x] `/accounting/profit-and-loss`, `/accounting/balance-sheet`, `/accounting/trial-balance` (checked 2026-11-17)
+- [x] `/accounting/account-transactions` (e2e 0), `/accounting/journals` (e2e 0) (checked 2026-11-17)
+- [x] `/accounting/vat` (+ `/accounting/vat/callback`, HMRC sandbox only), `/accounting/settings` (lock dates, year end) (checked 2026-11-17)
 
 **Admin / Settings**
-- [ ] `/users` (roles, several roles, 2FA reset), `/audit-log`
-- [ ] `/settings/organisation`, `/settings/subscription`, `/settings/integrations`, `/settings/integrations/shopify`, `/settings/integrations/api` (e2e 0)
-- [ ] `/settings/templates`, `/settings/email`, `/settings/data-import`, `/settings/go-live`
+- [x] `/users` (roles, several roles, 2FA reset), `/audit-log` (checked 2026-11-17)
+- [x] `/settings/organisation`, `/settings/subscription`, `/settings/integrations`, `/settings/integrations/shopify`, `/settings/integrations/api` (e2e 0) (checked 2026-11-17)
+- [x] `/settings/templates`, `/settings/email`, `/settings/data-import`, `/settings/go-live` (checked 2026-11-17)
+- Other pages' fixes: findings R19–R25 in [`review-findings.md`](review-findings.md) (2026-11-17), waiting for the owner's OK with R11–R18
 
 ---
 
