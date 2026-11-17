@@ -119,7 +119,14 @@ public class XeroPaymentPuller {
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         try {
             for (Payment p : payments) {
-                String r = tx.execute(st -> one(t, p));
+                String r;
+                try {
+                    r = tx.execute(st -> one(t, p));
+                } catch (NotRecorded e) {
+                    // Its own transaction was rolled back (the payment refused here): kept as an error, tried again next time
+                    tx.executeWithoutResult(st -> save(t, p, e.docKey, null, e.day, "ERROR", e.getMessage()));
+                    r = "ERROR";
+                }
                 switch (r == null ? "" : r) {
                     case "RECORDED" -> c[0]++;
                     case "VOIDED" -> c[1]++;
@@ -162,7 +169,7 @@ public class XeroPaymentPuller {
         }
         if (!seen.isEmpty() && !failedBefore) {
             Map<String, Object> row = seen.get(0);
-            if (deleted && "RECORDED".equals(row.get("status")) && row.get("erp_payment_id") != null) {
+            if (deleted && ("RECORDED".equals(row.get("status")) || "LINKED".equals(row.get("status"))) && row.get("erp_payment_id") != null) {
                 Long docId = Long.valueOf(((String) row.get("doc_key")).substring(4));
                 // Voided here first (and so deleted in Xero by us): nothing more to do
                 Boolean gone = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM voided_payments WHERE tenant_id = ? AND payment_id = ?)", Boolean.class, t, row.get("erp_payment_id"));
@@ -210,6 +217,16 @@ public class XeroPaymentPuller {
             save(t, p, null, null, day, "UNMATCHED", number + " is " + here.get(0).toLowerCase(Locale.ROOT) + " here, so the payment made in Xero was not recorded");
             return "UNMATCHED";
         }
+        // The same payment sent in a CSV file before the switch to the link, and imported into Xero: already here
+        Long csvPayment = paidByFile(t, docId, p.amount(), day);
+        if (csvPayment != null) {
+            jdbc.update("""
+                    INSERT INTO xero_sync_items (tenant_id, item_key, kind, label, xero_id, status, attempts, sent_at, doc_date, amount, last_error)
+                    VALUES (?, ?, 'PAYMENT', ?, ?, 'SENT', 0, now(), ?, ?, 'Sent in a CSV file') ON CONFLICT (tenant_id, item_key) DO NOTHING""",
+                    t, "PAY:" + csvPayment, "Payment sent in a CSV file", p.paymentID(), Date.valueOf(day), p.amount());
+            save(t, p, "DOC:" + docId, csvPayment, day, "LINKED", "Already here: sent to Xero in a CSV file");
+            return "SKIPPED";
+        }
         try {
             PaymentRequest req = new PaymentRequest();
             req.setAmount(p.amount());
@@ -231,9 +248,36 @@ public class XeroPaymentPuller {
             save(t, p, "DOC:" + docId, erpPayment, day, "RECORDED", null);
             return "RECORDED";
         } catch (RuntimeException e) {
-            save(t, p, "DOC:" + docId, null, day, "ERROR", e.getMessage());
-            return "ERROR";
+            throw new NotRecorded("DOC:" + docId, day, e.getMessage());
         }
+    }
+
+    /** A payment refused here: its transaction is rolled back and the refusal kept in a new one. */
+    private static class NotRecorded extends RuntimeException {
+        final String docKey;
+        final LocalDate day;
+
+        NotRecorded(String docKey, LocalDate day, String message) {
+            super(message);
+            this.docKey = docKey;
+            this.day = day;
+        }
+    }
+
+    /**
+     * A payment on the document that left in a CSV file (so Xero has it from the import), of the same amount, not
+     * voided and not yet linked to a payment in Xero; the nearest in date first.
+     */
+    private Long paidByFile(Long t, Long docId, BigDecimal amount, LocalDate day) {
+        List<Long> r = jdbc.queryForList("""
+                SELECT p.id FROM payments p
+                  JOIN accounting_exported e ON e.tenant_id = p.tenant_id AND e.doc_key = 'PAY:' || p.id AND e.via = 'CSV'
+                 WHERE p.tenant_id = ? AND p.invoice_id = ? AND p.amount = ?
+                   AND NOT EXISTS (SELECT 1 FROM voided_payments v WHERE v.tenant_id = p.tenant_id AND v.payment_id = p.id)
+                   AND NOT EXISTS (SELECT 1 FROM xero_sync_items x WHERE x.tenant_id = p.tenant_id AND x.item_key = 'PAY:' || p.id)
+                   AND NOT EXISTS (SELECT 1 FROM xero_pulled_payments x WHERE x.tenant_id = p.tenant_id AND x.erp_payment_id = p.id)
+                 ORDER BY abs(p.paid_at::date - ?::date), p.id LIMIT 1""", Long.class, t, docId, amount, Date.valueOf(day));
+        return r.isEmpty() ? null : r.get(0);
     }
 
     private void save(Long t, Payment p, String docKey, Long erpPayment, LocalDate day, String status, String message) {

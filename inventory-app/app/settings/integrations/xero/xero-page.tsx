@@ -285,7 +285,7 @@ function PaymentsFromXero({ manage }: { manage: boolean }) {
               <td className="px-5 py-1.5">{p.paidOn ? new Date(p.paidOn).toLocaleDateString("en-GB") : ""}</td>
               <td>{p.docKey ? <Link href={`/invoices/${p.docKey.substring(4)}`} className="text-brand-700 hover:underline">{p.number ?? p.docKey}</Link> : "—"}</td>
               <td className="text-right tabular-nums">{p.amount != null ? formatGBP(p.amount) : ""}</td>
-              <td>{({ RECORDED: "Recorded", VOIDED: "Deleted in Xero, voided", UNMATCHED: "Not matched", ERROR: "Not recorded" } as Record<string, string>)[p.status]}</td>
+              <td>{({ RECORDED: "Recorded", LINKED: "Already here (CSV file)", VOIDED: "Deleted in Xero, voided", UNMATCHED: "Not matched", ERROR: "Not recorded" } as Record<string, string>)[p.status]}</td>
               <td className="px-5 text-xs text-red-700">{p.message}</td>
             </tr>
           ))}

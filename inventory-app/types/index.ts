@@ -1406,7 +1406,7 @@ export interface XeroQueueItem {
 export interface XeroQueue { counts: Record<string, number>; items: XeroQueueItem[] }
 export interface XeroPulledPayment {
   id: number; xeroPaymentId: string; xeroStatus: string | null; docKey: string | null; number: string | null; erpPaymentId: number | null;
-  amount: number | null; paidOn: string | null; status: "RECORDED" | "VOIDED" | "UNMATCHED" | "ERROR"; message: string | null; pulledAt: string;
+  amount: number | null; paidOn: string | null; status: "RECORDED" | "LINKED" | "VOIDED" | "UNMATCHED" | "ERROR"; message: string | null; pulledAt: string;
 }
 
 // Phase M: e-mail
