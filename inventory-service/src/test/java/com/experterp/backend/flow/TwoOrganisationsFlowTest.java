@@ -84,7 +84,6 @@ class TwoOrganisationsFlowTest extends FlowSupport {
         String marker = "SECRET" + id.toUpperCase();
         Long a = tenantId;
         tradeAsA(marker);
-        Map<String, String> before = fingerprint(a);
         List<Long> aIds = idsOf(a);
         assertThat(aIds).isNotEmpty();                      // on a fresh database A's rows are 1, 2, 3 in most tables
 
@@ -100,6 +99,8 @@ class TwoOrganisationsFlowTest extends FlowSupport {
         userRepository.save(admin);
         String token = jwtUtil.generateToken(userDetailsService.loadUserByUsername(admin.getUsername()));
         TenantContext.clear();
+        // Every other organisation's rows (A's and any other), to see that B changed none of them
+        Map<String, String> before = fingerprintAllBut(b);
 
         Pattern leak = Pattern.compile(Pattern.quote(marker) + "|[:\\[,]\\s*\"?" + ODD + "(\\.0+)?\"?\\s*[,}\\]]");
         List<String> leaks = new ArrayList<>(), changed = new ArrayList<>();
@@ -135,8 +136,12 @@ class TwoOrganisationsFlowTest extends FlowSupport {
         System.out.println("F9: " + calls + " calls as organisation B");
         errors.forEach(x -> System.out.println("F9 500: " + x));
         assertThat(leaks).as("organisation A's data seen by organisation B").isEmpty();
-        assertThat(changed).as("a change aimed at organisation A's ids accepted for organisation B").isEmpty();
-        assertThat(fingerprint(a)).as("organisation A's rows after organisation B's calls").isEqualTo(before);
+        // A change answered 2xx may have hit one of B's own rows with the same id; what counts is that no other
+        // organisation's row changed
+        changed.forEach(x -> System.out.println("F9 2xx on an id of A's (B's own row of that id, or a leak): " + x));
+        Map<String, String> after = fingerprintAllBut(b);
+        assertThat(after.entrySet()).as("other organisations' rows changed by organisation B's calls (table=count:hash)")
+                .filteredOn(en -> !en.getValue().equals(before.get(en.getKey()))).isEmpty();
         assertThat(errors).as("requests the server could only answer with an error (500)").isEmpty();
     }
 
@@ -218,12 +223,12 @@ class TwoOrganisationsFlowTest extends FlowSupport {
         return new ArrayList<>(ids);
     }
 
-    /** Each table's rows of the organisation, as one hash per table: any change shows. */
-    private Map<String, String> fingerprint(Long tenant) {
+    /** Each table's rows of every organisation but this one, as one hash per table: any change shows. */
+    private Map<String, String> fingerprintAllBut(Long tenant) {
         Map<String, String> out = new TreeMap<>();
         for (String table : tenantTables()) {
             out.put(table, jdbc.queryForObject("SELECT COUNT(*) || ':' || COALESCE(md5(string_agg(t::text, '|' ORDER BY t.id)), '') FROM " + table
-                    + " t WHERE t.tenant_id = ?", String.class, tenant));
+                    + " t WHERE t.tenant_id IS DISTINCT FROM ?", String.class, tenant));
         }
         return out;
     }
